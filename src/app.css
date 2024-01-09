@@ -1,0 +1,39 @@
+#app {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+}
+
+#main-input {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+}
+
+#main-video {
+    width: 400px;
+    aspect-ratio: 1;
+    border-radius: 100vmax;
+    background-color: #e6e6e6;
+    background: linear-gradient(
+            100deg,
+            rgba(255, 255, 255, 0) 40%,
+            rgba(255, 255, 255, 0.5) 50%,
+            rgba(255, 255, 255, 0) 60%
+        )
+        #e6e6e6;
+    background-size: 200% 100%;
+    background-position-x: 180%;
+}
+
+.animated {
+    animation: 1s loading ease-in-out infinite;
+}
+
+@keyframes loading {
+    to {
+        background-position-x: -20%;
+    }
+}
