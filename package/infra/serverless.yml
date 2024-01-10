@@ -1,0 +1,35 @@
+app: agent
+service: ${self:app}-infra
+
+frameworkVersion: '3'
+useDotenv: true
+
+package:
+  individually: true
+
+custom:
+  name-prefix: ${self:service}
+  region: ${opt:region, 'us-west-2'}
+  runtime: nodejs16.x
+  stage: ${opt:stage, 'dev'}
+  deployments:
+    bucket-name: d-id-agent-${self:custom.stage}-deployments
+  serverless:
+    infra-stack-name: serverless-infra-${self:custom.stage}
+
+resources:
+  - ${file(resources/deployment-bucket.yml)}
+  - Outputs:
+      DeploymentBucketName:
+        Value: !Ref S3DeploymentBucket
+
+provider:
+  name: aws
+  region: ${self:custom.region}
+  runtime: ${self:custom.runtime}
+  lambdaHashingVersion: 20201221
+  stackName: ${self:custom.name-prefix}-${self:custom.stage}
+  stackTags:
+    product: agent
+    env: ${self:custom.stage}
+

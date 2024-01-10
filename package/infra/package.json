@@ -1,0 +1,21 @@
+{
+    "author": "D-ID",
+    "name": "@d-id/infra",
+    "version": "0.0.3",
+    "private": true,
+    "license": "ISC",
+    "scripts": {
+        "start-local": "serverless offline --stage dev --noAuth",
+        "start-local:debug": "SLS_DEBUG=* node --inspect=0.0.0.0:9229 $(which sls) offline start --stage local --noAuth --useChildProcesses",
+        "serverless:deploy": "serverless deploy",
+        "serverless:package": "serverless package --stage staging",
+        "clean": "rimraf dist/"
+    },
+    "devDependencies": {
+        "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+        "prettier-plugin-organize-imports": "^3.2.4",
+        "prettier": "^3.1.0",
+        "serverless": "3.32.2",
+        "typescript": "^5.3.2"
+    }
+}
