@@ -6,7 +6,7 @@
     "description": "d-id client sdk",
     "repository": {
         "type": "git",
-        "url": "https://github.com/de-id/streaming-client"
+        "url": "https://github.com/de-id/agents-sdk"
     },
     "keywords": [
         "d-id",

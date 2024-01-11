@@ -29,19 +29,7 @@ try {
 
     const root = path.resolve(import.meta.url, '../../').split(':')[1];
     const dist = path.resolve(root, './dist');
-    const embeddedSdk = path.resolve(root, '../embedded/node_modules/@d-id/client-sdk/dist');
-
-    if (!fs.existsSync(embeddedSdk)) {
-        throw new Error('dist does not exist');
-    } else if (!fs.existsSync(embeddedSdk)) {
-        throw new Error('package does not exist');
-    }
-
-    console.log('Removing old package');
-    fs.rmSync(embeddedSdk, { recursive: true, force: true });
-
-    console.log('Copying new package');
-    fs.cpSync(dist, embeddedSdk, { recursive: true });
+    console.log(`Succesful build ${mode}`)
 } catch (e) {
     console.error(e);
 }
