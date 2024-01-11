@@ -3,3 +3,4 @@ export * from './api/getClient';
 export * from './api/knowledge';
 export * from './createAgentManager';
 export * from './createStreamingManager';
+export * from '../../../common/types/src/index'
