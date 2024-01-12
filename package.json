@@ -20,10 +20,10 @@
     ],
     "main": "./dist/index.umd.cjs",
     "module": "./dist/index.js",
-    "types": "./dist/apps/sdk/lib/index.d.ts",
+    "types": "./dist/lib/types/index.d.ts",
     "exports": {
         ".": {
-            "types": "./dist/apps/sdk/lib/index.d.ts",
+            "types": "./dist/lib/types/index.d.ts",
             "import": "./dist/index.js",
             "require": "./dist/index.umd.cjs"
         }
@@ -33,7 +33,8 @@
         "build": "node ./infra/build.js -m production",
         "build:dev": "node ./infra/build.js -m development",
         "deploy:prod": "node ./infra/deploy.js --version patch",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "test-build": "node .infra/build.js -m development"
     },
     "devDependencies": {
         "@preact/preset-vite": "^2.5.0",

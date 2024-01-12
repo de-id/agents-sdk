@@ -1,5 +1,0 @@
-Resources:
-  S3DeploymentBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: ${self:custom.deployments.bucket-name}
