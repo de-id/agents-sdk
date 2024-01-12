@@ -1,4 +1,4 @@
-import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse } from '%/index';
+import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse } from '$/types/index';
 import { createClient } from './getClient';
 
 export function createAgentsApi(auth: Auth, host = 'https://api.d-id.com') {

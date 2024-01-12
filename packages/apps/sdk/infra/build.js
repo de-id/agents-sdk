@@ -1,6 +1,5 @@
 import { exec } from 'child_process';
 import { program } from 'commander';
-import fs from 'fs';
 import path from 'path';
 
 function asyncExec(command) {

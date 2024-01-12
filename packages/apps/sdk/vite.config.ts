@@ -26,13 +26,13 @@ export default ({ mode }) => {
         plugins: [
             preact(),
             VitePluginHtmlEnv({ compiler: false }),
-            dts({ include: [resolve(__dirname, './lib/**/*.{ts,tsx}'), '../../common/types/src'] }),
+            dts({ include: [resolve(__dirname, './lib/**/*.{ts,tsx}'), './types/**/*.{ts,tsx}'] }),
         ],
         resolve: {
             alias: {
                 '@': resolve(__dirname, './src'),
                 $: resolve(__dirname, './lib'),
-                '%': resolve(__dirname, '../../common/types/src'),
+                '%': resolve(__dirname, './types'),
             },
         },
     });

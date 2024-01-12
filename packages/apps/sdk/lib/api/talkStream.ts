@@ -7,7 +7,7 @@ import {
     SendTalkStreamPayload,
     Status,
     TalkStreamOptions,
-} from '%/index';
+} from '$/types/index';
 import { createClient } from './getClient';
 
 export function createApi(auth: Auth, host: string): RtcApi {

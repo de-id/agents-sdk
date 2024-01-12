@@ -22,9 +22,8 @@
 
         "paths": {
             "$/*": ["apps/sdk/lib/*"],
-            "%/*": ["common/types/src/*"]
         }
     },
-    "include": ["src", "lib", "../../common/types/src"],
+    "include": ["src", "lib"],
     "references": [{ "path": "./tsconfig.node.json" }]
 }

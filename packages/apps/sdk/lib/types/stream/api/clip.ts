@@ -1,4 +1,4 @@
-import { StickyRequest, StreamScript } from '../../';
+import { StickyRequest, StreamScript } from '../..';
 import { CompatibilityMode } from '../stream';
 
 interface Logo {

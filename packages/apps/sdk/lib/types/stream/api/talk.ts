@@ -1,4 +1,4 @@
-import { StreamScript } from '../../';
+import { StreamScript } from '../..';
 
 export interface CreateTalkStreamRequest {
     source_url: string;
