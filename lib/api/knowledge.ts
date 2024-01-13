@@ -6,7 +6,7 @@ import {
     KnowledgePayload,
     QueryResult,
     RecordData,
-} from '$/types/index';
+} from '%/index'
 import { createClient } from './getClient';
 
 export function createKnowledgeApi(auth: Auth, host = 'https://api.d-id.com') {

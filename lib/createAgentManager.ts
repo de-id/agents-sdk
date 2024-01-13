@@ -1,4 +1,4 @@
-import { Agent, AgentManagerOptions, CreateStreamOptions, Message, VideoType } from '$/types/index';
+import { Agent, AgentManagerOptions, CreateStreamOptions, Message, VideoType } from '%/index';
 import { createAgentsApi, createStreamingManager } from '.';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {

@@ -6,7 +6,7 @@
         "checkJs": false,
         "emitDeclarationOnly": false,
         "inlineSourceMap": true,
-        "declarationMap": false,
+        "declarationMap": false, //true ?
         "composite": true,
         "declaration": true,
         "emitDecoratorMetadata": true,
@@ -41,7 +41,9 @@
         "noFallthroughCasesInSwitch": true,
         "paths": {
             "$/*": ["lib/*"],
+            "%/*": ["types/*"]
         }
     },
-    "exclude": ["dist"]
+    "include": ["src", "lib", "types"],
+    "references": [{ "path": "./tsconfig.node.json" }]
 }

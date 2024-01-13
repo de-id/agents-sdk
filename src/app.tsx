@@ -1,6 +1,6 @@
 import { StreamingManager, createStreamingManager } from '$/createStreamingManager';
 import { createAgentsApi } from '$/index';
-import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingState, VideoType } from '$/types/index';
+import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingState, VideoType } from '%/index'
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl } from './environment';

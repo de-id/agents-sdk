@@ -1,4 +1,4 @@
-import { Auth } from '$/types/auth';
+import { Auth } from '%/auth';
 
 function getAuth(auth: Auth) {
     if (auth.type === 'bearer') {
