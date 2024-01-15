@@ -1,7 +1,7 @@
 {
     "name": "@d-id/client-sdk-test",
     "private": false,
-    "version": "1.0.15",
+    "version": "1.0.16",
     "type": "module",
     "description": "d-id client sdk",
     "repository": {
@@ -21,13 +21,6 @@
     "main": "./dist/index.umd.cjs",
     "module": "./dist/index.js",
     "types": "./dist/types/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./dist/types/index.d.ts",
-            "import": "./dist/index.js",
-            "require": "./dist/index.umd.cjs"
-        }
-    },
     "scripts": {
         "dev": "vite",
         "build": "node ./infra/build.js -m production",

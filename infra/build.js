@@ -26,8 +26,6 @@ try {
     console.log(`Building ${mode}`);
     await asyncExec(`yarn vite build --mode ${mode}`);
 
-    const root = path.resolve(import.meta.url, '../../').split(':')[1];
-    const dist = path.resolve(root, './dist');
     console.log(`Succesful build ${mode}`)
 } catch (e) {
     console.error(e);
