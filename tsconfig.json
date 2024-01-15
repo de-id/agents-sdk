@@ -1,12 +1,11 @@
 {
     "compilerOptions": {
         "baseUrl": "./",
-        "rootDir": "./",
         "allowJs": false,
         "checkJs": false,
         "emitDeclarationOnly": false,
         "inlineSourceMap": true,
-        "declarationMap": false, //true ?
+        "declarationMap": false,
         "composite": true,
         "declaration": true,
         "emitDecoratorMetadata": true,
