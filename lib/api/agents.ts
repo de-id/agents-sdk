@@ -1,4 +1,4 @@
-import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse } from '%/index'
+import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse } from '%/index';
 import { createClient } from './getClient';
 
 export function createAgentsApi(auth: Auth, host = 'https://api.d-id.com') {
@@ -24,7 +24,7 @@ export function createAgentsApi(auth: Auth, host = 'https://api.d-id.com') {
             return client.post<Chat>(`/${agentId}/chat`, undefined, options);
         },
         chat(agentId: string, chatId: string, payload: ChatPayload, options?: RequestInit) {
-            return client.post<ChatResponse | string>(`/${agentId}/chat/${chatId}`, payload, options);
+            return client.post<ChatResponse>(`/${agentId}/chat/${chatId}`, payload, options);
         },
     };
 }
