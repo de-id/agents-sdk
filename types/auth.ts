@@ -11,6 +11,7 @@ export interface BasicAuth {
 export interface ApiKeyAuth {
     type: 'key';
     clientKey: string;
+    externalId: string;
 }
 
 export type Auth = BearerToken | BasicAuth | ApiKeyAuth;
@@ -20,4 +21,5 @@ export interface GetAuthParams {
     username?: string | null;
     password?: string | null;
     clientKey?: string | null;
+    externalId?: string | null;
 }

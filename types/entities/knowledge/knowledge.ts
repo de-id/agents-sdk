@@ -34,6 +34,7 @@ export interface KnowledgeData {
     vector_store: string;
     description: string;
     name: string;
+    starter_message?: string[];
 }
 
 export type KnowledgePayload = Omit<

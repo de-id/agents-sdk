@@ -1,4 +1,4 @@
-import { StreamScript } from '../..';
+import { StreamScript } from '../../';
 
 export interface CreateTalkStreamRequest {
     source_url: string;
@@ -44,4 +44,6 @@ export interface SendTalkStreamPayload {
     };
     user_data?: Record<string, any>;
     name?: string;
+    audio_optimization?: number;
+    metadata: Record<string, any>
 }

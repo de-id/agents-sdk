@@ -1,3 +1,4 @@
+import { Message } from './entities';
 import { StreamTextToSpeechProviders } from './tts';
 
 export type StreamScriptType = 'text' | 'audio';
@@ -14,7 +15,7 @@ export interface Stream_Text_Script extends BaseStreamScript {
     /**
      * text-to-speech provider from list of supported providers. default is microsoft tts
      */
-    provider?: StreamTextToSpeechProviders;
+    provider: StreamTextToSpeechProviders;
 
     /**
      * The input text that will be synthesized to an audio file.
@@ -45,4 +46,16 @@ export interface Stream_Audio_Script extends BaseStreamScript {
     audio_url: string;
 }
 
-export type StreamScript = Stream_Text_Script | Stream_Audio_Script;
+export interface Stream_LLM_Script {
+    type: 'llm';
+    provider: StreamTextToSpeechProviders;
+    ssml?: boolean;
+    llm: {
+        messages: Message[];
+        provider: 'openai';
+    };
+    input?: string;
+    stream_audio?: boolean;
+}
+
+export type StreamScript = Stream_Text_Script | Stream_Audio_Script | Stream_LLM_Script;

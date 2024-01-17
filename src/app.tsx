@@ -28,7 +28,7 @@ enum State {
     Speaking,
 }
 
-const auth: Auth = { type: 'key', clientKey };
+const auth: Auth = { type: 'key', clientKey, externalId: 'test' };
 export function App() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [rtcConnection, setRtcConnection] = useState<StreamingManager<ClipStreamOptions> | null>(null);
@@ -46,7 +46,7 @@ export function App() {
                 setStreamState(State.Connecting);
                 await rtcConnection?.terminate();
                 const newRtcConnection = await createStreamingManager(getAgentStreamArgs(agent), {
-                    auth: { type: 'key', clientKey },
+                    auth,
                     baseURL: didApiUrl,
                     callbacks: {
                         onConnectionStateChange(state) {

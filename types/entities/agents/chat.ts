@@ -21,7 +21,8 @@ export interface IRetrivalMetadata {
 }
 
 export interface ChatResponse {
-    result: string;
+    // TODO: Delete this, it's for backwards compatibility
+    result?: string;
     documentIds?: string[];
     matches?: IRetrivalMetadata[];
 }
