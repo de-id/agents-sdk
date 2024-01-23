@@ -40,9 +40,9 @@
         "noFallthroughCasesInSwitch": true,
         "paths": {
             "$/*": ["src/*"],
-            "%/*": ["types/*"]
+            "%/*": ["src/types/*"]
         }
     },
-    "include": [ "src", "types/**/*"],
+    "include": [ "src", "src/types/**/*"],
     "references": [{ "path": "./tsconfig.node.json" }]
 }

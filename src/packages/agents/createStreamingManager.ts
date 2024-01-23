@@ -1,6 +1,6 @@
 import { createApi as createClipApi } from '$/packages/agents/api/clipStream';
 import { createApi as createTalkApi } from '$/packages/agents/api/talkStream';
-import { CreateStreamOptions, PayloadType, StreamingManagerOptions, StreamingState, VideoType } from '%/index'
+import { CreateStreamOptions, PayloadType, StreamingManagerOptions, StreamingState, VideoType } from '$/types/index'
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
