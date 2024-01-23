@@ -5,3 +5,4 @@ export * from './packages/agents/connectToSocket';
 export * from './packages/agents/createAgentManager';
 export * from './packages/agents/createStreamingManager';
 export * from './types'
+export * from './agentSDK';
