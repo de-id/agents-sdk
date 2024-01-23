@@ -39,10 +39,10 @@
         "noUnusedParameters": true,
         "noFallthroughCasesInSwitch": true,
         "paths": {
-            "$/*": ["lib/*"],
+            "$/*": ["src/*"],
             "%/*": ["types/*"]
         }
     },
-    "include": ["src", "lib", "types/**/*"],
+    "include": [ "src", "types/**/*"],
     "references": [{ "path": "./tsconfig.node.json" }]
 }
