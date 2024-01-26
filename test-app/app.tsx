@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl, agentId, didSocketApiUrl } from './environment';
-import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, SocketManagerProiver, StreamingManager, StreamingState, VideoType, createAgentsApi, createStreamingManager } from '../src';
+import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, SocketManager, StreamingManager, StreamingState, VideoType, createAgentsApi, createStreamingManager } from '../src';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter?.type === VideoType.Clip) {
@@ -37,6 +37,7 @@ export function App() {
 
     useEffect(() => {
         createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
+        SocketManager(auth).then((SM) => SM.connect())
     }, [auth]);
 
     async function onClick() {

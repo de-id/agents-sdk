@@ -13,7 +13,7 @@ interface Options {
     host?: string;
 }
 
-interface SocketManagerProvider {
+interface SocketManager {
     socket?: WebSocket;
     terminate: () => void;
     connect: () => Promise<WebSocket>;
@@ -24,7 +24,7 @@ const socketHost = 'wss://notifications-dev.d-id.com';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-function connect(options: Options) {
+function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
         const { callbacks, host, auth } = options;
         const { onMessage, onOpen, onClose = null, onError } = callbacks;
@@ -48,7 +48,7 @@ function connect(options: Options) {
     });
 }
 
-export async function connectToSocket(options: Options): Promise<WebSocket> {
+export async function connectToSocket(options: Options, socketManager: SocketManager): Promise<WebSocket> {
     const { retries = 1 } = options;
     let socket: WebSocket | null = null;
 
@@ -64,13 +64,14 @@ export async function connectToSocket(options: Options): Promise<WebSocket> {
         }
     }
 
-    return socket;
+    socketManager.socket = socket;
+    return socket
 }
 
 export function subscribeToEvents(socket: WebSocket, eventCallbacks: { [event: string]: (data: any) => void }) {
-    const existingMessageHandler = socket.onmessage as (event: MessageEvent<any>) => void;
+    const existingMessageHandler = socket.onmessage as (event: MessageEvent) => void;
 
-    socket.onmessage = (event: MessageEvent<any>) => {
+    socket.onmessage = (event: MessageEvent) => {
         existingMessageHandler?.(event); // Invoke the existing onmessage handler, if any.
 
         // Check for chat event callbacks
@@ -89,26 +90,29 @@ export function subscribeToEvents(socket: WebSocket, eventCallbacks: { [event: s
     };
 }
 
-export async function SocketManagerProiver(auth: Auth, host: string = socketHost): Promise<SocketManagerProvider> {
-    let socket: WebSocket;
-    let callbacks;
+export async function SocketManager(auth: Auth, host: string = socketHost): Promise<SocketManager> {
+    let socket: WebSocket | null
+    let socketManager: SocketManager = {
+        terminate: () => socketManager.socket?.close(),
+        connect: async () => {
+            socket = await connectToSocket({
+                auth,
+                host,
+                callbacks: { onMessage: message => console.log('message', message) },
+            }, socketManager);
 
-    const terminate = () => socket?.close();
-    const connect = () => {
-        return connectToSocket({
-            auth,
-            host,
-            callbacks: { onMessage: message => console.log('message', message) },
-        });
+            socketManager.socket = socket!;  // Non-null assertion
+            return socket;
+        },
+        subscribeToEvents: (eventCallbacks: { [event: string]: (data: any) => void }) => {
+            if (socketManager.socket) {
+                subscribeToEvents(socketManager.socket, eventCallbacks);
+            } else {
+                console.error('Socket is not connected. Call connect() first.');
+            }
+        },
     };
 
-    const clojuredSubscribe = (eventCallbacks: { [event: string]: (data: any) => void }) => {
-        subscribeToEvents(socket, eventCallbacks);
-    };
-
-    return {
-        terminate,
-        connect,
-        subscribeToEvents: clojuredSubscribe
-    };
+    return socketManager;
 }
+
