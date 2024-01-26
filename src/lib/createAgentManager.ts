@@ -1,5 +1,5 @@
 import { Agent, AgentManagerOptions, CreateStreamOptions, Message, VideoType } from '$/types/index';
-import { createAgentsApi, createStreamingManager } from '..';
+import { SocketManagerProiver, createAgentsApi, createStreamingManager } from '..';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
@@ -21,6 +21,9 @@ export async function createAgentManager(agentId: string, { callbacks, ...option
 
     const agent = await agentsApi.getById(agentId);
     const chat = await agentsApi.newChat(agentId);
+    const socketManager = await SocketManagerProiver(options.auth)
+    console.log('here')
+    socketManager.connect();
     const { terminate, sessionId, streamId } = await createStreamingManager(getAgentStreamArgs(agent), {
         ...options,
         callbacks: {

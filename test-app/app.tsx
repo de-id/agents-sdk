@@ -37,7 +37,6 @@ export function App() {
 
     useEffect(() => {
         createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
-        const socketManager = SocketManagerProiver(auth, didSocketApiUrl)
     }, [auth]);
 
     async function onClick() {
