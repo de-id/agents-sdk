@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl } from './environment';
 import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingManager, StreamingState, VideoType, createAgentsApi, createStreamingManager } from '../src';
-import { AgentSDK } from '../src';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter?.type === VideoType.Clip) {
@@ -29,7 +28,6 @@ enum State {
 }
 
 const auth: Auth = { type: 'key', clientKey, externalId: 'test' };
-const sdk = new AgentSDK();
 export function App() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [rtcConnection, setRtcConnection] = useState<StreamingManager<ClipStreamOptions> | null>(null);
@@ -118,7 +116,6 @@ export function App() {
     return (
         <div id="app">
             <div id="main-input">
-                {sdk.basePathVar}
                 <textarea
                     type="text"
                     placeholder="Enter text to stream"
