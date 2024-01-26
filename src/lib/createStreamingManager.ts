@@ -1,6 +1,13 @@
 import { createApi as createClipApi } from '$/lib/api/clipStream';
 import { createApi as createTalkApi } from '$/lib/api/talkStream';
-import { CreateStreamOptions, PayloadType, StreamingManagerOptions, StreamingState, VideoType } from '$/types/index'
+import {
+    CreateStreamOptions,
+    PayloadType,
+    StreamEvents,
+    StreamingManagerOptions,
+    StreamingState,
+    VideoType,
+} from '$/types/index'
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
@@ -55,7 +62,15 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     pcDataChannel.onmessage = (message: MessageEvent) => {
         if (pcDataChannel.readyState === 'open') {
-            callbacks.onVideoStateChange?.(message.data === 'stream/done' ? StreamingState.Stop : StreamingState.Start);
+            const [event, data] = message.data.split(':');
+
+            if (event === StreamEvents.StreamDone) {
+                callbacks.onVideoStateChange?.(StreamingState.Stop);
+            } else if (event === StreamEvents.StreamStarted) {
+                callbacks.onVideoStateChange?.(StreamingState.Start);
+            } else {
+                callbacks.onMessage?.(event, decodeURIComponent(data));
+            }
         }
     };
 
@@ -90,7 +105,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     peerConnection.ontrack = null;
                 }
 
-                await close(streamIdFromServer, session_id);
+                await close(streamIdFromServer, session_id).catch(_ => {});
                 callbacks.onConnectionStateChange?.('closed');
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
             }

@@ -1,8 +1,28 @@
+export enum RateState {
+    Unrated = 'Unrated',
+    Positive = 'Positive',
+    Negative = 'Negative',
+}
+
+export interface RatingEntity {
+    id: string;
+    owner_id: string;
+    agent_id: string;
+    matches: [string, string][];
+    knowledge_id: string;
+    external_id: string;
+    created_by: string;
+    chat_id: string;
+    score: 1 | -1;
+    created_at: string;
+    modified_at: string;
+}
+
 export interface Message {
     role: 'system' | 'assistant' | 'user' | 'function' | 'tool';
     content: string;
-    name?: string;
     created_at: string;
+    matches?: ChatResponse['matches'];
 }
 
 export interface ChatPayload {
