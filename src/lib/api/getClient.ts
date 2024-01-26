@@ -1,14 +1,5 @@
 import { Auth } from '%/auth';
-
-function getAuth(auth: Auth) {
-    if (auth.type === 'bearer') {
-        return 'Bearer ' + auth.token;
-    } else if (auth.type === 'basic') {
-        return 'Basic ' + btoa(`${auth.username}:${auth.password}`);
-    }
-
-    return 'Client-Key ' + auth.clientKey;
-}
+import { getAuthHeader } from '../auth/getAuthHeader';
 
 export function createClient(auth: Auth, host = 'https://api.d-id.com') {
     const client = async <T>(url: string, options?: RequestInit) => {
@@ -16,7 +7,7 @@ export function createClient(auth: Auth, host = 'https://api.d-id.com') {
             ...options,
             headers: {
                 ...options?.headers,
-                Authorization: getAuth(auth),
+                Authorization: getAuthHeader(auth),
                 'Content-Type': 'application/json',
             },
         });

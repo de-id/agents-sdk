@@ -13,6 +13,12 @@ interface Options {
     host?: string;
 }
 
+interface SocketManagerProvider {
+    socket?: WebSocket;
+    terminate: () => void;
+    connect: () => Promise<WebSocket>;
+}
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function connect(options: Options) {
@@ -56,4 +62,25 @@ export async function connectToSocket(options: Options): Promise<WebSocket> {
     }
 
     return socket;
+}
+
+export async function SocketManagerProiver(auth: Auth, host: string): Promise<SocketManagerProvider> {
+    let socket: WebSocket;
+    let callbacks;
+
+    const terminate = () => socket?.close();
+    const connect = () => {
+        return connectToSocket({
+            auth,
+            host,
+            callbacks: { onMessage: message => console.log('message', message) },
+        });
+
+        return Promise.reject();
+    };
+
+    return {
+        terminate,
+        connect
+    }
 }
