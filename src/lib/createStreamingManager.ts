@@ -1,5 +1,5 @@
-import { createApi as createClipApi } from '$/packages/agents/api/clipStream';
-import { createApi as createTalkApi } from '$/packages/agents/api/talkStream';
+import { createApi as createClipApi } from '$/lib/api/clipStream';
+import { createApi as createTalkApi } from '$/lib/api/talkStream';
 import { CreateStreamOptions, PayloadType, StreamingManagerOptions, StreamingState, VideoType } from '$/types/index'
 
 let _debug = false;

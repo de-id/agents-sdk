@@ -1,5 +1,5 @@
 import { Agent, AgentManagerOptions, CreateStreamOptions, Message, VideoType } from '$/types/index';
-import { createAgentsApi, createStreamingManager } from '../..';
+import { createAgentsApi, createStreamingManager } from '..';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
