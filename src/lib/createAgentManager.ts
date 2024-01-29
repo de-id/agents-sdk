@@ -1,4 +1,11 @@
-import { Agent, AgentManagerOptions, CreateStreamOptions, Message, VideoType } from '$/types/index';
+import {
+    Agent,
+    AgentManagerOptions,
+    CreateStreamOptions,
+    Message,
+    SendStreamPayloadResponse,
+    VideoType,
+} from '$/types/index';
 import { SocketManager, createAgentsApi, createStreamingManager } from '..';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
@@ -14,27 +21,48 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
         source_url: agent.presenter.source_url,
     };
 }
+/**
+ * When you call this function it create a new chat instanse and all related connections
+ * Call it only when user ready to send message to agent 
+ * Not when creating page to reduce costs
+ * @param agentId 
+ * @param options 
+ * @returns 
+ */
 
-export async function createAgentManager(agentId: string, { callbacks, ...options }: AgentManagerOptions) {
+export async function createAgentsAPI(agentId: string, options: AgentManagerOptions) {
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, options.baseURL);
 
     const agent = await agentsApi.getById(agentId);
     const chat = await agentsApi.newChat(agentId);
-    const socketManager = await SocketManager(options.auth)
-    console.log('here')
-    socketManager.connect();
-    const { terminate, sessionId, streamId } = await createStreamingManager(getAgentStreamArgs(agent), {
+    const socketManager = await SocketManager(options.auth);
+    console.log('here');
+    let terminate: () => Promise<void>, sessionId: string, streamId: string, speak: (input) => Promise<SendStreamPayloadResponse>;
+
+    ({ terminate, sessionId, streamId, speak } = await createStreamingManager(getAgentStreamArgs(agent), {
         ...options,
         callbacks: {
-            onSrcObjectReady: callbacks.onSrcObjectReady,
-            onVideoStateChange: callbacks?.onVideoStateChange,
-            onConnectionStateChange: callbacks.onConnectionStateChange,
+            onSrcObjectReady: options.callbacks.onSrcObjectReady,
+            onVideoStateChange: options.callbacks?.onVideoStateChange,
+            onConnectionStateChange: options.callbacks.onConnectionStateChange,
         },
-    });
+    }));
+
+    socketManager.connect();
 
     return {
         agent,
+        async reconnectToChat() {
+            ({ terminate, sessionId, streamId, speak } = await createStreamingManager(getAgentStreamArgs(agent), {
+                ...options,
+                callbacks: {
+                    onSrcObjectReady: options.callbacks.onSrcObjectReady,
+                    onVideoStateChange: options.callbacks?.onVideoStateChange,
+                    onConnectionStateChange: options.callbacks.onConnectionStateChange,
+                },
+            }));
+        },
         terminate() {
             abortController.abort();
             return terminate();
@@ -48,7 +76,22 @@ export async function createAgentManager(agentId: string, { callbacks, ...option
                 { signal: abortController.signal }
             );
         },
+        speak(input: string) {
+            if (!agent) {
+                throw new Error('Agent not initializated');
+            } else if (!agent.presenter.voice) {
+                throw new Error(`Agent do not have possibility yo speak`);
+            }
+
+            speak({
+                script: {
+                    type: 'text',
+                    provider: agent.presenter.voice,
+                    input,
+                },
+            });
+        },
     };
 }
 
-export type AgentManager = Awaited<ReturnType<typeof createAgentManager>>;
+export type AgentsAPI = Awaited<ReturnType<typeof createAgentsAPI>>;

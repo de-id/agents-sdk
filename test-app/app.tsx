@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl, agentId, didSocketApiUrl } from './environment';
-import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, SocketManager, StreamingManager, StreamingState, VideoType, createAgentsApi, createStreamingManager } from '../src';
+import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, SocketManager, StreamingManager, StreamingState, VideoType, createAgentsAPI, createAgentsApi, createStreamingManager, AgentsAPI } from '../src';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter?.type === VideoType.Clip) {
@@ -34,12 +34,76 @@ export function App() {
     const [streamState, setStreamState] = useState<State>(State.New);
     const [text, setText] = useState('');
     const [agent, setAgent] = useState<Agent>();
+    const [agentAPI, setAgentAPI] = useState<AgentsAPI>();
 
     useEffect(() => {
-        createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
-        SocketManager(auth).then((SM) => SM.connect())
+        // createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
+        // test socket mock
+        // SocketManager(auth).then((SM) => SM.connect())
     }, [auth]);
 
+    const callbacks ={
+        onConnectionStateChange(state) {
+            console.log('state', state);
+
+            if (state === 'connected') {
+                setStreamState(State.Connected);
+            } else if (state === 'new') {
+                setStreamState(State.New);
+            } else if (state === 'closed') {
+                setStreamState(State.New);
+            } else if (state === 'checking') {
+                setStreamState(State.Connecting);
+            } else if (state === 'failed') {
+                setStreamState(State.Fail);
+            } else if (state === 'disconnected') {
+                setStreamState(State.New);
+            }
+        },
+        onVideoStateChange(state) {
+            setStreamState(streamState => {
+                if (streamState === State.Speaking) {
+                    return state === StreamingState.Stop ? State.Connected : State.Speaking;
+                }
+
+                return streamState;
+            });
+        },
+        onSrcObjectReady(value) {
+            if (!videoRef.current) {
+                throw new Error("Couldn't find video ref");
+            }
+
+            videoRef.current.srcObject = value;
+        },
+    }
+
+    async function onClickNew() {
+        console.log('onClickNew')
+        
+        if (!agentAPI) {
+            const agentAPI = await createAgentsAPI(agentId, {callbacks, baseURL: didApiUrl, auth} )
+            setAgentAPI(agentAPI)
+            // test reconnect
+            await agentAPI.reconnectToChat()
+        }
+        else if(text) {
+            setStreamState(State.Speaking);
+            agentAPI.speak(text)
+        }
+    }
+
+    async function onChat() {
+        console.log("on chat")
+        const newMessages: any[] = [
+            { role: 'user', content: text.trim(), created_at: new Date().toISOString() },
+        ];
+        const response = agentAPI?.chat(
+            newMessages
+        )
+        console.log(response)
+    }
+    
     async function onClick() {
         if (agent) {
             if ([State.New, State.Fail].includes(streamState)) {
@@ -48,41 +112,7 @@ export function App() {
                 const newRtcConnection = await createStreamingManager(getAgentStreamArgs(agent), {
                     auth,
                     baseURL: didApiUrl,
-                    callbacks: {
-                        onConnectionStateChange(state) {
-                            console.log('state', state);
-
-                            if (state === 'connected') {
-                                setStreamState(State.Connected);
-                            } else if (state === 'new') {
-                                setStreamState(State.New);
-                            } else if (state === 'closed') {
-                                setStreamState(State.New);
-                            } else if (state === 'checking') {
-                                setStreamState(State.Connecting);
-                            } else if (state === 'failed') {
-                                setStreamState(State.Fail);
-                            } else if (state === 'disconnected') {
-                                setStreamState(State.New);
-                            }
-                        },
-                        onVideoStateChange(state) {
-                            setStreamState(streamState => {
-                                if (streamState === State.Speaking) {
-                                    return state === StreamingState.Stop ? State.Connected : State.Speaking;
-                                }
-
-                                return streamState;
-                            });
-                        },
-                        onSrcObjectReady(value) {
-                            if (!videoRef.current) {
-                                throw new Error("Couldn't find video ref");
-                            }
-
-                            videoRef.current.srcObject = value;
-                        },
-                    },
+                    callbacks
                 }).catch(e => {
                     setStreamState(State.Fail);
                     throw e;
@@ -124,7 +154,7 @@ export function App() {
                     onInput={e => setText(e.currentTarget.value)}
                 />
                 <button
-                    onClick={onClick}
+                    onClick={onClickNew}
                     disabled={
                         [State.Connecting, State.Speaking].includes(streamState) ||
                         (!text && ![State.New, State.Fail].includes(streamState))
@@ -137,6 +167,7 @@ export function App() {
                             ? 'Failed, try again'
                             : 'Connect'}
                 </button>
+                <button onClick={onChat}>Send to chat text</button>
                 <button onClick={terminate} disabled={streamState !== State.Connected}>
                     Close connection
                 </button>
