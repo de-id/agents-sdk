@@ -17,19 +17,31 @@ interface SocketManager {
     socket?: WebSocket;
     terminate: () => void;
     connect: () => Promise<WebSocket>;
-    subscribeToEvents: (eventCallbacks: { [event: string]: (data: any) => void }) => void;
+    // subscribeToEvents: (eventCallbacks: { [event: string]: (data: any) => void }) => void;
+    subscribeToEvents: Function;
 }
 
 const socketHost = 'wss://notifications-dev.d-id.com';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const getRandomID = (length) => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let randomID = '';
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        randomID += characters.charAt(randomIndex);
+    }
+
+    return randomID;
+}
 
 function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
         const { callbacks, host, auth } = options;
         const { onMessage, onOpen, onClose = null, onError } = callbacks;
 
-        const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}`);
+        const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}.${getRandomID(8)}`);
 
         socket.onmessage = onMessage;
         socket.onclose = onClose;
@@ -72,10 +84,12 @@ export function subscribeToEvents(socket: WebSocket, eventCallbacks: { [event: s
     const existingMessageHandler = socket.onmessage as (event: MessageEvent) => void;
 
     socket.onmessage = (event: MessageEvent) => {
+        console.log("socket.onmessage")
         existingMessageHandler?.(event); // Invoke the existing onmessage handler, if any.
 
         // Check for chat event callbacks
         if (event.data) {
+            console.log('event', event)
             try {
                 const eventData = JSON.parse(event.data);
                 const eventType = eventData.event;
@@ -102,6 +116,8 @@ export async function SocketManager(auth: Auth, host: string = socketHost): Prom
             }, socketManager);
 
             socketManager.socket = socket!;  // Non-null assertion
+            console.log('socketManager.socket', socketManager.socket)
+            console.log('socket', socket)
             return socket;
         },
         subscribeToEvents: (eventCallbacks: { [event: string]: (data: any) => void }) => {

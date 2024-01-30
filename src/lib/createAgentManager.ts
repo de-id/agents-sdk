@@ -25,8 +25,8 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
  * When you call this function it create a new chat instanse and all related connections
  * Call it only when user ready to send message to agent 
  * Not when creating page to reduce costs
- * @param agentId 
- * @param options 
+ * @param agentId - agent Id to chat with
+ * @param options - configurations object
  * @returns 
  */
 
@@ -76,7 +76,13 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
                 { signal: abortController.signal }
             );
         },
-        speak(input: string) {
+        //TODO rate
+        rate() {
+
+        },
+        // TODO describe later
+        // https://docs.d-id.com/reference/createtalkstream
+        speak(input: string, type?: 'text' | 'voice') {
             if (!agent) {
                 throw new Error('Agent not initializated');
             } else if (!agent.presenter.voice) {
@@ -91,6 +97,10 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
                 },
             });
         },
+        onChatEvents(callback: Function) {
+            console.log("onChatEvents api")
+            socketManager.subscribeToEvents(callback)
+        }
     };
 }
 

@@ -39,7 +39,7 @@ export function App() {
     useEffect(() => {
         // createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
         // test socket mock
-        // SocketManager(auth).then((SM) => SM.connect())
+        SocketManager(auth).then((SM) => SM.connect())
     }, [auth]);
 
     const callbacks ={
@@ -85,7 +85,8 @@ export function App() {
             const agentAPI = await createAgentsAPI(agentId, {callbacks, baseURL: didApiUrl, auth} )
             setAgentAPI(agentAPI)
             // test reconnect
-            await agentAPI.reconnectToChat()
+            // await agentAPI.reconnectToChat()
+            agentAPI.onChatEvents((e) => {console.log(e)})
         }
         else if(text) {
             setStreamState(State.Speaking);
