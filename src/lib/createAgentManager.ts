@@ -1,12 +1,4 @@
-import {
-    Agent,
-    AgentManagerOptions,
-    CreateStreamOptions,
-    Message,
-    SendStreamPayloadResponse,
-    StreamingState,
-    VideoType,
-} from '$/types/index';
+import { Agent, AgentManagerOptions, CreateStreamOptions, Message, VideoType } from '$/types/index';
 import { SocketManager, createAgentsApi, createStreamingManager } from '..';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
@@ -55,7 +47,7 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
                 ...options,
                 callbacks: streamingCallbacks,
             });
-            streamingAPI.sessionId
+            streamingAPI.sessionId;
         },
         terminate() {
             abortController.abort();
@@ -94,9 +86,13 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
             // socketManager.subscribeToEvents(callback);
         },
         onConnectionEvents(callback: Function) {
-            console.log('add func on onConnectionEvents')
-            streamingAPI.addCallback('onConnectionStateChange', callback)
-        }
+            console.log('add func on onConnectionEvents');
+            streamingAPI.addCallback('onConnectionStateChange', callback);
+        },
+        onVideoEvents(callback: Function) {
+            console.log('add func on onVideoEvents');
+            streamingAPI.addCallback('onVideoStateChange', callback);
+        },
     };
 }
 

@@ -42,7 +42,7 @@ export function App() {
         // SocketManager(auth).then((SM) => SM.connect())
     }, [auth]);
 
-    const onConnectionStateChangeCallback = function(state) { 
+    const onConnectionStateChange = function(state) { 
         console.log('state', state);
 
         if (state === 'connected') {
@@ -60,16 +60,18 @@ export function App() {
         }
     }
 
-    const callbacks ={
-        onVideoStateChange(state) {
-            setStreamState(streamState => {
-                if (streamState === State.Speaking) {
-                    return state === StreamingState.Stop ? State.Connected : State.Speaking;
-                }
+    const onVideoStateChange = function(state) {
+        console.log('onVideoStateChange', state)
+        setStreamState(streamState => {
+            if (streamState === State.Speaking) {
+                return state === StreamingState.Stop ? State.Connected : State.Speaking;
+            }
 
-                return streamState;
-            });
-        },
+            return streamState;
+        });
+    }
+
+    const callbacks ={
         onSrcObjectReady(value) {
             if (!videoRef.current) {
                 throw new Error("Couldn't find video ref");
@@ -89,7 +91,8 @@ export function App() {
             // await agentAPI.reconnectToChat()
             // agentAPI.onChatEvents((e) => {console.log(e)})
             console.log('add callback')
-            agentAPI.onConnectionEvents(onConnectionStateChangeCallback)
+            agentAPI.onConnectionEvents(onConnectionStateChange)
+            agentAPI.onVideoEvents(onVideoStateChange)
         }
         else if(text) {
             setStreamState(State.Speaking);
