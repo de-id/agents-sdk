@@ -2,12 +2,14 @@ import { createApi as createClipApi } from '$/lib/api/clipStream';
 import { createApi as createTalkApi } from '$/lib/api/talkStream';
 import {
     CreateStreamOptions,
+    ManagerCallbacks,
+    ManagerCallbackKeys,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     VideoType,
-} from '$/types/index'
+} from '$/types/index';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
@@ -17,15 +19,15 @@ const actualRTCPC = (
     (window as any).mozRTCPeerConnection
 ).bind(window);
 
-// TODO 
+// TODO
 // callback add function
-// store callback in separated var inside function
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agent: T,
     { debug = false, callbacks, auth, baseURL = 'https://api.d-id.com' }: StreamingManagerOptions
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
+    const callbacksObj: any = callbacks ? callbacks : {};
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip ? createClipApi(auth, baseURL) : createTalkApi(auth, baseURL);
@@ -55,12 +57,12 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     peerConnection.oniceconnectionstatechange = () => {
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
-        callbacks.onConnectionStateChange?.(peerConnection.iceConnectionState);
+        callbacksObj.onConnectionStateChange?.(peerConnection.iceConnectionState);
     };
 
     peerConnection.ontrack = (event: RTCTrackEvent) => {
         log('peerConnection.ontrack', event);
-        callbacks.onSrcObjectReady?.(event.streams[0]);
+        callbacksObj.onSrcObjectReady?.(event.streams[0]);
     };
 
     pcDataChannel.onmessage = (message: MessageEvent) => {
@@ -68,11 +70,11 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
             const [event, data] = message.data.split(':');
 
             if (event === StreamEvents.StreamDone) {
-                callbacks.onVideoStateChange?.(StreamingState.Stop);
+                callbacksObj.onVideoStateChange?.(StreamingState.Stop);
             } else if (event === StreamEvents.StreamStarted) {
-                callbacks.onVideoStateChange?.(StreamingState.Start);
+                callbacksObj.onVideoStateChange?.(StreamingState.Start);
             } else {
-                callbacks.onMessage?.(event, decodeURIComponent(data));
+                callbacksObj.onMessage?.(event, decodeURIComponent(data));
             }
         }
     };
@@ -109,12 +111,16 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 }
 
                 await close(streamIdFromServer, session_id).catch(_ => {});
-                callbacks.onConnectionStateChange?.('closed');
-                callbacks.onVideoStateChange?.(StreamingState.Stop);
+                callbacksObj.onConnectionStateChange?.('closed');
+                callbacksObj.onVideoStateChange?.(StreamingState.Stop);
             }
         },
         sessionId: session_id,
         streamId: streamIdFromServer,
+        addCallback(eventName: ManagerCallbackKeys, callback: Function): void {
+            console.log('addCallback with name ', eventName);
+            callbacksObj[eventName] = callback;
+        },
     };
 }
 

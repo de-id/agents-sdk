@@ -39,27 +39,28 @@ export function App() {
     useEffect(() => {
         // createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
         // test socket mock
-        SocketManager(auth).then((SM) => SM.connect())
+        // SocketManager(auth).then((SM) => SM.connect())
     }, [auth]);
 
-    const callbacks ={
-        onConnectionStateChange(state) {
-            console.log('state', state);
+    const onConnectionStateChangeCallback = function(state) { 
+        console.log('state', state);
 
-            if (state === 'connected') {
-                setStreamState(State.Connected);
-            } else if (state === 'new') {
-                setStreamState(State.New);
-            } else if (state === 'closed') {
-                setStreamState(State.New);
-            } else if (state === 'checking') {
-                setStreamState(State.Connecting);
-            } else if (state === 'failed') {
-                setStreamState(State.Fail);
-            } else if (state === 'disconnected') {
-                setStreamState(State.New);
-            }
-        },
+        if (state === 'connected') {
+            setStreamState(State.Connected);
+        } else if (state === 'new') {
+            setStreamState(State.New);
+        } else if (state === 'closed') {
+            setStreamState(State.New);
+        } else if (state === 'checking') {
+            setStreamState(State.Connecting);
+        } else if (state === 'failed') {
+            setStreamState(State.Fail);
+        } else if (state === 'disconnected') {
+            setStreamState(State.New);
+        }
+    }
+
+    const callbacks ={
         onVideoStateChange(state) {
             setStreamState(streamState => {
                 if (streamState === State.Speaking) {
@@ -86,7 +87,9 @@ export function App() {
             setAgentAPI(agentAPI)
             // test reconnect
             // await agentAPI.reconnectToChat()
-            agentAPI.onChatEvents((e) => {console.log(e)})
+            // agentAPI.onChatEvents((e) => {console.log(e)})
+            console.log('add callback')
+            agentAPI.onConnectionEvents(onConnectionStateChangeCallback)
         }
         else if(text) {
             setStreamState(State.Speaking);
@@ -140,7 +143,8 @@ export function App() {
     }
 
     function terminate() {
-        rtcConnection?.terminate();
+        agentAPI?.terminate()
+        // rtcConnection?.terminate();
         setRtcConnection(null);
         setStreamState(State.New);
     }

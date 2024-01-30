@@ -20,7 +20,7 @@ interface ManagerCallbacks {
 }
 
 export interface AgentManagerOptions {
-    callbacks: ManagerCallbacks;
+    callbacks?: ManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
     auth: Auth;

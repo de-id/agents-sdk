@@ -4,6 +4,7 @@ import {
     CreateStreamOptions,
     Message,
     SendStreamPayloadResponse,
+    StreamingState,
     VideoType,
 } from '$/types/index';
 import { SocketManager, createAgentsApi, createStreamingManager } from '..';
@@ -23,11 +24,11 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
 }
 /**
  * When you call this function it create a new chat instanse and all related connections
- * Call it only when user ready to send message to agent 
+ * Call it only when user ready to send message to agent
  * Not when creating page to reduce costs
  * @param agentId - agent Id to chat with
  * @param options - configurations object
- * @returns 
+ * @returns
  */
 
 export async function createAgentsAPI(agentId: string, options: AgentManagerOptions) {
@@ -37,49 +38,40 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
     const agent = await agentsApi.getById(agentId);
     const chat = await agentsApi.newChat(agentId);
     const socketManager = await SocketManager(options.auth);
-    console.log('here');
-    let terminate: () => Promise<void>, sessionId: string, streamId: string, speak: (input) => Promise<SendStreamPayloadResponse>;
+    const streamingCallbacks = filterCallbacks(options);
+    console.log('streamingCallbacks', streamingCallbacks);
 
-    ({ terminate, sessionId, streamId, speak } = await createStreamingManager(getAgentStreamArgs(agent), {
+    let streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
         ...options,
-        callbacks: {
-            onSrcObjectReady: options.callbacks.onSrcObjectReady,
-            onVideoStateChange: options.callbacks?.onVideoStateChange,
-            onConnectionStateChange: options.callbacks.onConnectionStateChange,
-        },
-    }));
+        callbacks: streamingCallbacks,
+    });
 
-    socketManager.connect();
+    // socketManager.connect();
 
     return {
         agent,
         async reconnectToChat() {
-            ({ terminate, sessionId, streamId, speak } = await createStreamingManager(getAgentStreamArgs(agent), {
+            streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
                 ...options,
-                callbacks: {
-                    onSrcObjectReady: options.callbacks.onSrcObjectReady,
-                    onVideoStateChange: options.callbacks?.onVideoStateChange,
-                    onConnectionStateChange: options.callbacks.onConnectionStateChange,
-                },
-            }));
+                callbacks: streamingCallbacks,
+            });
+            streamingAPI.sessionId
         },
         terminate() {
             abortController.abort();
-            return terminate();
+            return streamingAPI.terminate();
         },
         chatId: chat.id,
         chat(messages: Message[]) {
             return agentsApi.chat(
                 agentId,
                 chat.id,
-                { sessionId, streamId, messages },
+                { sessionId: streamingAPI.sessionId, streamId: streamingAPI.streamId, messages },
                 { signal: abortController.signal }
             );
         },
         //TODO rate
-        rate() {
-
-        },
+        rate() {},
         // TODO describe later
         // https://docs.d-id.com/reference/createtalkstream
         speak(input: string, type?: 'text' | 'voice') {
@@ -89,7 +81,7 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
                 throw new Error(`Agent do not have possibility yo speak`);
             }
 
-            speak({
+            streamingAPI.speak({
                 script: {
                     type: 'text',
                     provider: agent.presenter.voice,
@@ -98,10 +90,25 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
             });
         },
         onChatEvents(callback: Function) {
-            console.log("onChatEvents api")
-            socketManager.subscribeToEvents(callback)
+            console.log('onChatEvents api');
+            // socketManager.subscribeToEvents(callback);
+        },
+        onConnectionEvents(callback: Function) {
+            console.log('add func on onConnectionEvents')
+            streamingAPI.addCallback('onConnectionStateChange', callback)
         }
     };
+}
+
+function filterCallbacks(options: AgentManagerOptions) {
+    const filteredCallbacks: any = {};
+    for (const key in options.callbacks) {
+        if (options.callbacks[key] !== undefined && options.callbacks[key] !== null) {
+            filteredCallbacks[key] = options.callbacks[key];
+        }
+    }
+
+    return filteredCallbacks;
 }
 
 export type AgentsAPI = Awaited<ReturnType<typeof createAgentsAPI>>;

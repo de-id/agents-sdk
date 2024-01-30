@@ -24,6 +24,7 @@ export interface ManagerCallbacks {
     onSrcObjectReady?: (value: MediaStream) => void;
 }
 
+export type ManagerCallbackKeys = keyof ManagerCallbacks;
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
     videoType: VideoType.Talk;
 }
@@ -53,7 +54,7 @@ export interface RtcApi {
 }
 
 export interface StreamingManagerOptions {
-    callbacks: ManagerCallbacks;
+    callbacks?: ManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
     auth: Auth;
