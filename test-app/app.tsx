@@ -43,8 +43,6 @@ export function App() {
     }, [auth]);
 
     const onConnectionStateChange = function(state) { 
-        console.log('state', state);
-
         if (state === 'connected') {
             setStreamState(State.Connected);
         } else if (state === 'new') {
@@ -61,7 +59,6 @@ export function App() {
     }
 
     const onVideoStateChange = function(state) {
-        console.log('onVideoStateChange', state)
         setStreamState(streamState => {
             if (streamState === State.Speaking) {
                 return state === StreamingState.Stop ? State.Connected : State.Speaking;
@@ -82,15 +79,10 @@ export function App() {
     }
 
     async function onClickNew() {
-        console.log('onClickNew')
-        
         if (!agentAPI) {
             const agentAPI = await createAgentsAPI(agentId, {callbacks, baseURL: didApiUrl, auth} )
             setAgentAPI(agentAPI)
-            // test reconnect
-            // await agentAPI.reconnectToChat()
             // agentAPI.onChatEvents((e) => {console.log(e)})
-            console.log('add callback')
             agentAPI.onConnectionEvents(onConnectionStateChange)
             agentAPI.onVideoEvents(onVideoStateChange)
         }
