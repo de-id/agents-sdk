@@ -90,11 +90,9 @@ export function App() {
             setStreamState(State.Speaking);
             try {
                 agentAPI.speak({
-                    script: {
                         type: 'text',
                         provider: agentAPI.agent.presenter.voice,
                         input: text,
-                    },
                 })
             } catch(e) {
                 console.error(e)

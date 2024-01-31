@@ -59,3 +59,4 @@ export interface Stream_LLM_Script {
 }
 
 export type StreamScript = Stream_Text_Script | Stream_Audio_Script | Stream_LLM_Script;
+export type SupportedStreamScipt = Stream_Text_Script | Stream_Audio_Script;

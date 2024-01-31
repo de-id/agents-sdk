@@ -19,8 +19,6 @@ const actualRTCPC = (
     (window as any).mozRTCPeerConnection
 ).bind(window);
 
-// TODO
-// callback add function
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agent: T,
     { debug = false, callbacks, auth, baseURL = 'https://api.d-id.com' }: StreamingManagerOptions

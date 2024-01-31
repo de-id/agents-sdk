@@ -1,4 +1,11 @@
-import { Agent, AgentManagerOptions, CreateStreamOptions, Message, PayloadType, VideoType } from '$/types/index';
+import {
+    Agent,
+    AgentManagerOptions,
+    CreateStreamOptions,
+    Message,
+    SupportedStreamScipt,
+    VideoType,
+} from '$/types/index';
 import { SocketManager, createAgentsApi, createStreamingManager } from '..';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
@@ -64,13 +71,33 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
         },
         //TODO rate
         rate() {},
-        speak<T extends CreateStreamOptions>(payload: PayloadType<T>) {
+        speak(payload: SupportedStreamScipt) {
             if (!agent) {
                 throw new Error('Agent not initializated');
-            } else if (!agent.presenter.voice) {
-                throw new Error(`Agent do not have possibility yo speak`);
             }
-            return streamingAPI.speak(payload);
+            console.log()
+            let completePayload: any;
+            if (payload.type === 'text') {
+                // Handling Stream_Text_Script
+                completePayload = {
+                    script: {
+                        type: 'text',
+                        provider: payload.provider,
+                        input: payload.input,
+                        ssml: payload.ssml || false,
+                    },
+                };
+            } else if (payload.type === 'audio') {
+                // Handling Stream_Audio_Script
+                completePayload = {
+                    script: {
+                        type: 'audio',
+                        audio_url: payload.audio_url,
+                    },
+                };
+            }
+            console.log("payload to stream", completePayload)
+            return streamingAPI.speak(completePayload);
         },
         onChatEvents(callback: Function) {
             console.log('onChatEvents api');
