@@ -88,7 +88,19 @@ export function App() {
         }
         else if(text) {
             setStreamState(State.Speaking);
-            agentAPI.speak(text)
+            try {
+                agentAPI.speak({
+                    script: {
+                        type: 'text',
+                        provider: agentAPI.agent.presenter.voice,
+                        input: text,
+                    },
+                })
+            } catch(e) {
+                console.error(e)
+                setStreamState(State.Fail);
+            }
+
         }
     }
 

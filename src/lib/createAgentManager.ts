@@ -1,4 +1,4 @@
-import { Agent, AgentManagerOptions, CreateStreamOptions, Message, VideoType } from '$/types/index';
+import { Agent, AgentManagerOptions, CreateStreamOptions, Message, PayloadType, VideoType } from '$/types/index';
 import { SocketManager, createAgentsApi, createStreamingManager } from '..';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
@@ -64,22 +64,13 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
         },
         //TODO rate
         rate() {},
-        // TODO describe later
-        // https://docs.d-id.com/reference/createtalkstream
-        speak(input: string, type?: 'text' | 'voice') {
+        speak<T extends CreateStreamOptions>(payload: PayloadType<T>) {
             if (!agent) {
                 throw new Error('Agent not initializated');
             } else if (!agent.presenter.voice) {
                 throw new Error(`Agent do not have possibility yo speak`);
             }
-
-            streamingAPI.speak({
-                script: {
-                    type: 'text',
-                    provider: agent.presenter.voice,
-                    input,
-                },
-            });
+            return streamingAPI.speak(payload);
         },
         onChatEvents(callback: Function) {
             console.log('onChatEvents api');
