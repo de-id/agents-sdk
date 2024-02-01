@@ -93,11 +93,10 @@ export async function SocketManager(auth: Auth, host: string = socketHost): Prom
             });
 
             socketManager.socket = socket;  
-            console.log('socketManager.socket', socketManager.socket)
+
             return socket;
         },
         subscribeToEvents: (callback: (data: any) => void) => {
-            console.log('subscribeToEvents', callback)
             if (socketManager.socket) {
                 messageCallbacks.push(callback);
             } else {
