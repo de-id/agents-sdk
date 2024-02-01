@@ -17,7 +17,6 @@ interface SocketManager {
     socket?: WebSocket;
     terminate: () => void;
     connect: () => Promise<WebSocket>;
-    // subscribeToEvents: (eventCallbacks: { [event: string]: (data: any) => void }) => void;
     subscribeToEvents: (data: any) => void
 }
 
@@ -40,6 +39,7 @@ function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
         const { callbacks, host, auth } = options;
         const { onMessage = null, onOpen = null, onClose = null, onError = null } = callbacks || {};
+        // TODO discuss with Sagi. If I create socket with randomID, haven't recieve messages
         // const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}.${getRandomID(8)}`);
         const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}`);
 
@@ -60,7 +60,7 @@ function connect(options: Options): Promise<WebSocket> {
     });
 }
 
-export async function connectToSocket(options: Options, socketManager?: SocketManager): Promise<WebSocket> {
+export async function connectToSocket(options: Options): Promise<WebSocket> {
     const { retries = 1 } = options;
     let socket: WebSocket | null = null;
 
@@ -76,7 +76,6 @@ export async function connectToSocket(options: Options, socketManager?: SocketMa
         }
     }
 
-    // socketManager.socket = socket;
     return socket
 }
 
@@ -91,7 +90,7 @@ export async function SocketManager(auth: Auth, host: string = socketHost): Prom
                 auth,
                 host,
                 callbacks: { onMessage: handleMessage },
-            }, socketManager);
+            });
 
             socketManager.socket = socket;  
             console.log('socketManager.socket', socketManager.socket)

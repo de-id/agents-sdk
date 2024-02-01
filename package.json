@@ -1,5 +1,5 @@
 {
-    "name": "@d-id/client-test-sdk",
+    "name": "@d-id/client-sdk",
     "private": false,
     "version": "0.0.2",
     "type": "module",

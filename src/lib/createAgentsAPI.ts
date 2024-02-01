@@ -47,12 +47,6 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
         callbacks: streamingCallbacks,
     });
 
-    // const socket = await connectToSocket({
-    //     auth: options.auth,
-    //     host: 'wss://notifications-dev.d-id.com',
-    //     callbacks: { onMessage: message => console.log('message', message) },
-    // })
-
     const socketManager = await SocketManager(options.auth);
     await socketManager.connect();
 
@@ -111,11 +105,10 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
                     },
                 };
             }
-            console.log("payload to stream", completePayload)
+
             return streamingAPI.speak(completePayload);
         },
         onChatEvents(callback: Function) {
-            console.log("api onChatEvents")
             socketManager.subscribeToEvents(callback);
         },
         onConnectionEvents(callback: Function) {
