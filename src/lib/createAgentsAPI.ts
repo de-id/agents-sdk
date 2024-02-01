@@ -1,13 +1,13 @@
 import {
     Agent,
-    AgentManagerOptions,
+    AgentsManagerOptions as AgentAPIOptions,
     CreateStreamOptions,
     Message,
     SupportedStreamScipt,
     VideoType,
     RatingPayload,
 } from '$/types/index';
-import { SocketManager, connectToSocket, createAgentsApi, createStreamingManager } from '..';
+import { SocketManager, createAgentsApi, createStreamingAPI } from '..';
 import { createRatingssApi } from './api/ratings';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
@@ -32,7 +32,7 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
  * @returns
  */
 
-export async function createAgentsAPI(agentId: string, options: AgentManagerOptions) {
+export async function createAgentsAPI(agentId: string, options: AgentAPIOptions) {
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, options.baseURL);
 
@@ -42,7 +42,7 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
     const ratingsAPI = await createRatingssApi(options.auth, options.baseURL);
 
     const streamingCallbacks = filterCallbacks(options);
-    let streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
+    let streamingAPI = await createStreamingAPI(getAgentStreamArgs(agent), {
         ...options,
         callbacks: streamingCallbacks,
     });
@@ -53,7 +53,7 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
     return {
         agent,
         async reconnectToChat() {
-            streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
+            streamingAPI = await createStreamingAPI(getAgentStreamArgs(agent), {
                 ...options,
                 callbacks: streamingCallbacks,
             });
@@ -120,7 +120,7 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
     };
 }
 
-function filterCallbacks(options: AgentManagerOptions) {
+function filterCallbacks(options: AgentAPIOptions) {
     const filteredCallbacks: any = {};
     for (const key in options.callbacks) {
         if (options.callbacks[key] !== undefined && options.callbacks[key] !== null) {

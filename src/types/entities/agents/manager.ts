@@ -8,7 +8,7 @@ enum ChatProgress {
     Complete,
 }
 
-interface ManagerCallbacks {
+interface AgentsAPICallbacks {
     /**
      * This callback will be triggered each time when RTC connection will change state
      * @param state 
@@ -19,8 +19,8 @@ interface ManagerCallbacks {
     onChatEvents?(progress: ChatProgress): void;
 }
 
-export interface AgentManagerOptions {
-    callbacks?: ManagerCallbacks;
+export interface AgentsManagerOptions {
+    callbacks?: AgentsAPICallbacks;
     baseURL?: string;
     debug?: boolean;
     auth: Auth;

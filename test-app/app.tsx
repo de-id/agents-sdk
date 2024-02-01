@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl, agentId, didSocketApiUrl } from './environment';
-import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, SocketManager, StreamingManager, StreamingState, VideoType, createAgentsAPI, createAgentsApi, createStreamingManager, AgentsAPI } from '../src';
+import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, SocketManager, StreamingManager, StreamingState, VideoType, createAgentsAPI, createAgentsApi, createStreamingAPI, AgentsAPI } from '../src';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter?.type === VideoType.Clip) {
@@ -119,7 +119,7 @@ export function App() {
             if ([State.New, State.Fail].includes(streamState)) {
                 setStreamState(State.Connecting);
                 await rtcConnection?.terminate();
-                const newRtcConnection = await createStreamingManager(getAgentStreamArgs(agent), {
+                const newRtcConnection = await createStreamingAPI(getAgentStreamArgs(agent), {
                     auth,
                     baseURL: didApiUrl,
                     callbacks
