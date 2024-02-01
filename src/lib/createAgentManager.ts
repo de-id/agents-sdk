@@ -5,9 +5,9 @@ import {
     Message,
     SupportedStreamScipt,
     VideoType,
-    RatingPayload
+    RatingPayload,
 } from '$/types/index';
-import { SocketManager, createAgentsApi, createStreamingManager } from '..';
+import { SocketManager, connectToSocket, createAgentsApi, createStreamingManager } from '..';
 import { createRatingssApi } from './api/ratings';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
@@ -46,6 +46,12 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
         ...options,
         callbacks: streamingCallbacks,
     });
+
+    // const socket = await connectToSocket({
+    //     auth: options.auth,
+    //     host: 'wss://notifications-dev.d-id.com',
+    //     callbacks: { onMessage: message => console.log('message', message) },
+    // })
 
     const socketManager = await SocketManager(options.auth);
     await socketManager.connect();

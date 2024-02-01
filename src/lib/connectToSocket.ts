@@ -18,7 +18,7 @@ interface SocketManager {
     terminate: () => void;
     connect: () => Promise<WebSocket>;
     // subscribeToEvents: (eventCallbacks: { [event: string]: (data: any) => void }) => void;
-    subscribeToEvents: (event: string, callback: (data: any) => void) => void;
+    subscribeToEvents: (data: any) => void
 }
 
 const socketHost = 'wss://notifications-dev.d-id.com';
@@ -40,7 +40,8 @@ function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
         const { callbacks, host, auth } = options;
         const { onMessage = null, onOpen = null, onClose = null, onError = null } = callbacks || {};
-        const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}.${getRandomID(8)}`);
+        // const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}.${getRandomID(8)}`);
+        const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}`);
 
         socket.onmessage = onMessage;
         socket.onclose = onClose;
@@ -59,7 +60,7 @@ function connect(options: Options): Promise<WebSocket> {
     });
 }
 
-export async function connectToSocket(options: Options, socketManager: SocketManager): Promise<WebSocket> {
+export async function connectToSocket(options: Options, socketManager?: SocketManager): Promise<WebSocket> {
     const { retries = 1 } = options;
     let socket: WebSocket | null = null;
 
@@ -75,36 +76,41 @@ export async function connectToSocket(options: Options, socketManager: SocketMan
         }
     }
 
-    socketManager.socket = socket;
+    // socketManager.socket = socket;
     return socket
 }
 
 
 export async function SocketManager(auth: Auth, host: string = socketHost): Promise<SocketManager> {
     let socket: WebSocket | null
+    let messageCallbacks: ((data: any) => void)[] = [];
     let socketManager: SocketManager = {
         terminate: () => socketManager.socket?.close(),
         connect: async () => {
             socket = await connectToSocket({
                 auth,
                 host,
-                callbacks: { onMessage: message => console.log('message 111', message) },
+                callbacks: { onMessage: handleMessage },
             }, socketManager);
 
             socketManager.socket = socket;  
             console.log('socketManager.socket', socketManager.socket)
             return socket;
         },
-        subscribeToEvents: (event: string, callback: (data: any) => void) => {
+        subscribeToEvents: (callback: (data: any) => void) => {
+            console.log('subscribeToEvents', callback)
             if (socketManager.socket) {
-                socketManager.socket.addEventListener(event, (e) => {
-                    callback(e); // assuming you want to pass the data to the callback
-                });
+                messageCallbacks.push(callback);
             } else {
                 console.warn('Socket is not connected. Please call connect() first.');
             }
         },
     };
+
+    function handleMessage(event: MessageEvent) {
+        console.log('event', event)
+        messageCallbacks.forEach(callback => callback(event));
+    }
 
     return socketManager;
 }
