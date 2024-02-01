@@ -4,8 +4,8 @@ import { getAuthHeader } from './auth/getAuthHeader';
 interface Options {
     auth: Auth;
     retries?: number;
-    callbacks: {
-        onMessage: (event: MessageEvent) => void;
+    callbacks?: {
+        onMessage?: (event: MessageEvent) => void;
         onOpen?: (event: Event) => void;
         onClose?: (event: CloseEvent) => void;
         onError?: (event: Event) => void;
@@ -18,7 +18,7 @@ interface SocketManager {
     terminate: () => void;
     connect: () => Promise<WebSocket>;
     // subscribeToEvents: (eventCallbacks: { [event: string]: (data: any) => void }) => void;
-    subscribeToEvents: Function;
+    subscribeToEvents: (event: string, callback: (data: any) => void) => void;
 }
 
 const socketHost = 'wss://notifications-dev.d-id.com';
@@ -39,8 +39,7 @@ const getRandomID = (length) => {
 function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
         const { callbacks, host, auth } = options;
-        const { onMessage, onOpen, onClose = null, onError } = callbacks;
-
+        const { onMessage = null, onOpen = null, onClose = null, onError = null } = callbacks || {};
         const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}.${getRandomID(8)}`);
 
         socket.onmessage = onMessage;
@@ -80,29 +79,6 @@ export async function connectToSocket(options: Options, socketManager: SocketMan
     return socket
 }
 
-export function subscribeToEvents(socket: WebSocket, eventCallbacks: { [event: string]: (data: any) => void }) {
-    const existingMessageHandler = socket.onmessage as (event: MessageEvent) => void;
-
-    socket.onmessage = (event: MessageEvent) => {
-        console.log("socket.onmessage")
-        existingMessageHandler?.(event); // Invoke the existing onmessage handler, if any.
-
-        // Check for chat event callbacks
-        if (event.data) {
-            console.log('event', event)
-            try {
-                const eventData = JSON.parse(event.data);
-                const eventType = eventData.event;
-
-                if (eventType && eventCallbacks && eventCallbacks[eventType]) {
-                    eventCallbacks[eventType](eventData.data);
-                }
-            } catch (error) {
-                console.error('Error parsing WebSocket message:', error);
-            }
-        }
-    };
-}
 
 export async function SocketManager(auth: Auth, host: string = socketHost): Promise<SocketManager> {
     let socket: WebSocket | null
@@ -112,19 +88,20 @@ export async function SocketManager(auth: Auth, host: string = socketHost): Prom
             socket = await connectToSocket({
                 auth,
                 host,
-                callbacks: { onMessage: message => console.log('message', message) },
+                callbacks: { onMessage: message => console.log('message 111', message) },
             }, socketManager);
 
-            socketManager.socket = socket!;  // Non-null assertion
+            socketManager.socket = socket;  
             console.log('socketManager.socket', socketManager.socket)
-            console.log('socket', socket)
             return socket;
         },
-        subscribeToEvents: (eventCallbacks: { [event: string]: (data: any) => void }) => {
+        subscribeToEvents: (event: string, callback: (data: any) => void) => {
             if (socketManager.socket) {
-                subscribeToEvents(socketManager.socket, eventCallbacks);
+                socketManager.socket.addEventListener(event, (e) => {
+                    callback(e); // assuming you want to pass the data to the callback
+                });
             } else {
-                console.error('Socket is not connected. Call connect() first.');
+                console.warn('Socket is not connected. Please call connect() first.');
             }
         },
     };

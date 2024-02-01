@@ -18,6 +18,11 @@ export interface RatingEntity {
     modified_at: string;
 }
 
+export type RatingPayload = Omit<
+    RatingEntity,
+    'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id'
+>
+
 export interface Message {
     role: 'system' | 'assistant' | 'user' | 'function' | 'tool';
     content: string;

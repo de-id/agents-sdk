@@ -116,7 +116,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         sessionId: session_id,
         streamId: streamIdFromServer,
         addCallback(eventName: ManagerCallbackKeys, callback: Function): void {
-            console.log('addCallback with name ', eventName);
             callbacksObj[eventName] = callback;
         },
     };

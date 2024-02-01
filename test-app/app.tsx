@@ -83,6 +83,7 @@ export function App() {
             const agentAPI = await createAgentsAPI(agentId, {callbacks, baseURL: didApiUrl, auth} )
             setAgentAPI(agentAPI)
             // agentAPI.onChatEvents((e) => {console.log(e)})
+            agentAPI.onChatEvents(e => {console.log('works!', e)})
             agentAPI.onConnectionEvents(onConnectionStateChange)
             agentAPI.onVideoEvents(onVideoStateChange)
         }

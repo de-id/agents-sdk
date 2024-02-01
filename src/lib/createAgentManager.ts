@@ -5,8 +5,10 @@ import {
     Message,
     SupportedStreamScipt,
     VideoType,
+    RatingPayload
 } from '$/types/index';
 import { SocketManager, createAgentsApi, createStreamingManager } from '..';
+import { createRatingssApi } from './api/ratings';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
@@ -36,16 +38,17 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
 
     const agent = await agentsApi.getById(agentId);
     const chat = await agentsApi.newChat(agentId);
-    const socketManager = await SocketManager(options.auth);
-    const streamingCallbacks = filterCallbacks(options);
-    console.log('streamingCallbacks', streamingCallbacks);
 
+    const ratingsAPI = await createRatingssApi(options.auth, options.baseURL);
+
+    const streamingCallbacks = filterCallbacks(options);
     let streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
         ...options,
         callbacks: streamingCallbacks,
     });
 
-    // socketManager.connect();
+    const socketManager = await SocketManager(options.auth);
+    await socketManager.connect();
 
     return {
         agent,
@@ -69,14 +72,20 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
                 { signal: abortController.signal }
             );
         },
-        //TODO rate
-        rate() {},
+        rate(payload: RatingPayload, id?: string) {
+            if(id) {
+                return ratingsAPI.update(id, payload)
+            } else {
+                return ratingsAPI.create(payload)
+            }
+        },
         speak(payload: SupportedStreamScipt) {
             if (!agent) {
                 throw new Error('Agent not initializated');
             }
-            console.log()
+
             let completePayload: any;
+
             if (payload.type === 'text') {
                 // Handling Stream_Text_Script
                 completePayload = {
@@ -100,15 +109,13 @@ export async function createAgentsAPI(agentId: string, options: AgentManagerOpti
             return streamingAPI.speak(completePayload);
         },
         onChatEvents(callback: Function) {
-            console.log('onChatEvents api');
-            // socketManager.subscribeToEvents(callback);
+            console.log("api onChatEvents")
+            socketManager.subscribeToEvents(callback);
         },
         onConnectionEvents(callback: Function) {
-            console.log('add func on onConnectionEvents');
             streamingAPI.addCallback('onConnectionStateChange', callback);
         },
         onVideoEvents(callback: Function) {
-            console.log('add func on onVideoEvents');
             streamingAPI.addCallback('onVideoStateChange', callback);
         },
     };
