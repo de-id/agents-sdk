@@ -7,8 +7,10 @@ import {
     VideoType,
     RatingPayload,
 } from '$/types/index';
-import { SocketManager, createAgentsApi, createStreamingAPI } from '..';
+import { createStreamingAPI } from '..';
+import { createAgentsApi } from './api/agents';
 import { createRatingssApi } from './api/ratings';
+import { SocketManager } from './connectToSocket';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {

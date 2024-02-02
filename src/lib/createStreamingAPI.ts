@@ -2,7 +2,6 @@ import { createApi as createClipApi } from '$/lib/api/clipStream';
 import { createApi as createTalkApi } from '$/lib/api/talkStream';
 import {
     CreateStreamOptions,
-    StreamingAPICallbacks,
     StreamingAPICallbacksKeys,
     PayloadType,
     StreamEvents,
