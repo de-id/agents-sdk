@@ -81,6 +81,7 @@ export function App() {
     async function onClickNew() {
         if (!agentAPI) {
             const agentAPI = await createAgentsAPI(agentId, {callbacks, baseURL: didApiUrl, auth} )
+            // TODO check why IDE do not show SDK options
             setAgentAPI(agentAPI)
             // agentAPI.onChatEvents((e) => {console.log(e)})
             agentAPI.onChatEvents(e => {console.log('works sub to wss', e)})

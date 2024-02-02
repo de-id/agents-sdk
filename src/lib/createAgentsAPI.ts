@@ -134,4 +134,4 @@ function filterCallbacks(options: AgentAPIOptions) {
     return filteredCallbacks;
 }
 
-// export type AgentsAPI = Awaited<ReturnType<typeof createAgentsAPI>>;
+export type AgentsAPI = Awaited<ReturnType<typeof createAgentsAPI>>;

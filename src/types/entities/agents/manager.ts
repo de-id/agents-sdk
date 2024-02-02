@@ -11,14 +11,26 @@ enum ChatProgress {
     Complete,
 }
 
-interface AgentsAPICallbacks {
+export interface AgentsAPICallbacks {
     /**
      * This callback will be triggered each time the RTC connection changes state
      * @param state 
      */
     onConnectionStateChange?(state: RTCIceConnectionState): void;
+    /**
+     * Optional callback function that will be triggered each time video events happen
+     * @param state 
+     */
     onVideoStateChange?(state: StreamingState): void;
+    /**
+     * Callback function that will be triggered each time to animate embeddable <HTMLVideoElement> that serves as a video HTML element
+     * @param srcObject 
+     */
     onSrcObjectReady?(srcObject: MediaStream): void;
+    /**
+     * Optional callback function that will be triggered each time any changes happen in the chat
+     * @param progress 
+     */
     onChatEvents?(progress: ChatProgress): void;
 }
 
