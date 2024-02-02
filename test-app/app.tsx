@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl, agentId, didSocketApiUrl } from './environment';
-import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, SocketManager, StreamingManager, StreamingState, VideoType, createAgentsAPI, createAgentsApi, createStreamingAPI, AgentsAPI } from '../src';
+import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingManager, StreamingState, VideoType, createAgentsAPI, createStreamingAPI, AgentsAPI } from '../src';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter?.type === VideoType.Clip) {

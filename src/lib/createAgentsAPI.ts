@@ -6,6 +6,7 @@ import {
     SupportedStreamScipt,
     VideoType,
     RatingPayload,
+    AgentAPI,
 } from '$/types/index';
 import { createStreamingAPI } from '..';
 import { createAgentsApi } from './api/agents';
@@ -26,15 +27,14 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     };
 }
 /**
- * When you call this function it create a new chat instanse and all related connections
- * Call it only when user ready to send message to agent
- * Not when creating page to reduce costs
+ * When you call this function, it creates a new chat instance and all related connections.
+ * Call it only when the user is ready to send a message to the agent, not when creating the page to reduce costs.
  * @param agentId - agent Id to chat with
- * @param options - configurations object
- * @returns
+ * @param options - configurations of API
+ * @summary - entry point to create and work with AgentAPI in SDK
  */
 
-export async function createAgentsAPI(agentId: string, options: AgentAPIOptions) {
+export async function createAgentsAPI(agentId: string, options: AgentAPIOptions): Promise<AgentAPI> {
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, options.baseURL);
 
@@ -63,6 +63,7 @@ export async function createAgentsAPI(agentId: string, options: AgentAPIOptions)
         },
         terminate() {
             abortController.abort();
+            socketManager.terminate();
             return streamingAPI.terminate();
         },
         chatId: chat.id,
@@ -133,4 +134,4 @@ function filterCallbacks(options: AgentAPIOptions) {
     return filteredCallbacks;
 }
 
-export type AgentsAPI = Awaited<ReturnType<typeof createAgentsAPI>>;
+// export type AgentsAPI = Awaited<ReturnType<typeof createAgentsAPI>>;
