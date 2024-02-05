@@ -90,9 +90,16 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     log('start connection OK');
 
     return {
+        /**
+         * Method to send request to server to get clip or talk depend on you payload
+         * @param payload 
+         */
         speak(payload: PayloadType<T>) {
             return sendStreamRequest(streamIdFromServer, session_id, payload);
         },
+        /**
+         * Method to close RTC connection
+         */
         async terminate() {
             if (streamIdFromServer) {
                 if (srcObject) {
@@ -113,8 +120,19 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 callbacksObj.onVideoStateChange?.(StreamingState.Stop);
             }
         },
+        /**
+         * Session identifier information, should be returned in the body of all streaming requests
+         */
         sessionId: session_id,
+        /**
+         * Id of current RTC stream
+         */
         streamId: streamIdFromServer,
+        /**
+         * Method to add callback that will be trigered on supported events
+         * @param eventName 
+         * @param callback 
+         */
         addCallback(eventName: ManagerCallbackKeys, callback: Function): void {
             callbacksObj[eventName] = callback;
         },

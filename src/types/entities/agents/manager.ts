@@ -62,8 +62,8 @@ export interface AgentManagerOptions {
 
 export interface AgentAPI {
     /**
-     * Agent instance you are working with
-     * to know more about agents go to https://docs.d-id.com/reference/agents
+     * Agent instance you are working with.
+     * To know more about agents go to https://docs.d-id.com/reference/agents
      */
     agent: Agent;
     /**
