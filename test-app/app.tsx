@@ -1,4 +1,4 @@
-
+// TODO delete this app before launch
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl, agentId, didSocketApiUrl } from './environment';

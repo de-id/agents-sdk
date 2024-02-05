@@ -92,7 +92,7 @@ export interface AgentAPI {
      */
     rate: (payload: RatingPayload, id?: string) => Promise<RatingEntity>;
     /**
-     * Method to make you passed
+     * Method to make your agent to read text you provide or reproduce sound
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
