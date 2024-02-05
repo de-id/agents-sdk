@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl, agentId, didSocketApiUrl } from './environment';
-import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingManager, StreamingState, VideoType, createAgentsAPI, createStreamingAPI, AgentsAPI } from '../src';
+import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingManager, StreamingState, VideoType, createAgentManager, createStreamingManager, AgentsAPI } from '../src';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter?.type === VideoType.Clip) {
@@ -80,7 +80,7 @@ export function App() {
 
     async function onClickNew() {
         if (!agentAPI) {
-            const agentAPI = await createAgentsAPI(agentId, {callbacks, baseURL: didApiUrl, auth} )
+            const agentAPI = await createAgentManager(agentId, {callbacks, baseURL: didApiUrl, auth} )
             // TODO check why IDE do not show SDK options
             setAgentAPI(agentAPI)
             // agentAPI.onChatEvents((e) => {console.log(e)})
@@ -120,7 +120,7 @@ export function App() {
             if ([State.New, State.Fail].includes(streamState)) {
                 setStreamState(State.Connecting);
                 await rtcConnection?.terminate();
-                const newRtcConnection = await createStreamingAPI(getAgentStreamArgs(agent), {
+                const newRtcConnection = await createStreamingManager(getAgentStreamArgs(agent), {
                     auth,
                     baseURL: didApiUrl,
                     callbacks

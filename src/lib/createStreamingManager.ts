@@ -2,10 +2,11 @@ import { createApi as createClipApi } from '$/lib/api/clipStream';
 import { createApi as createTalkApi } from '$/lib/api/talkStream';
 import {
     CreateStreamOptions,
-    StreamingAPICallbacksKeys,
+    ManagerCallbacks,
+    ManagerCallbackKeys,
     PayloadType,
     StreamEvents,
-    StreamingAPIOptions,
+    StreamingManagerOptions,
     StreamingState,
     VideoType,
 } from '$/types/index';
@@ -18,9 +19,9 @@ const actualRTCPC = (
     (window as any).mozRTCPeerConnection
 ).bind(window);
 
-export async function createStreamingAPI<T extends CreateStreamOptions>(
+export async function createStreamingManager<T extends CreateStreamOptions>(
     agent: T,
-    { debug = false, callbacks, auth, baseURL = 'https://api.d-id.com' }: StreamingAPIOptions
+    { debug = false, callbacks, auth, baseURL = 'https://api.d-id.com' }: StreamingManagerOptions
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
@@ -114,10 +115,10 @@ export async function createStreamingAPI<T extends CreateStreamOptions>(
         },
         sessionId: session_id,
         streamId: streamIdFromServer,
-        addCallback(eventName: StreamingAPICallbacksKeys, callback: Function): void {
+        addCallback(eventName: ManagerCallbackKeys, callback: Function): void {
             callbacksObj[eventName] = callback;
         },
     };
 }
 
-export type StreamingManager<T extends CreateStreamOptions> = Awaited<ReturnType<typeof createStreamingAPI<T>>>;
+export type StreamingManager<T extends CreateStreamOptions> = Awaited<ReturnType<typeof createStreamingManager<T>>>;

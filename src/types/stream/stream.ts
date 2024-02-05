@@ -17,14 +17,14 @@ export enum StreamEvents {
     StreamStarted = 'stream/started',
 }
 
-export interface StreamingAPICallbacks {
+export interface ManagerCallbacks {
     onMessage?: (event: string, data: string) => void;
     onConnectionStateChange?: (state: RTCIceConnectionState) => void;
     onVideoStateChange?: (state: StreamingState) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
 }
 
-export type StreamingAPICallbacksKeys = keyof StreamingAPICallbacks;
+export type ManagerCallbackKeys = keyof ManagerCallbacks;
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
     videoType: VideoType.Talk;
 }
@@ -53,8 +53,8 @@ export interface RtcApi {
     close(streamId: string, sessionId: string): Promise<Status>;
 }
 
-export interface StreamingAPIOptions {
-    callbacks?: StreamingAPICallbacks;
+export interface StreamingManagerOptions {
+    callbacks?: ManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
     auth: Auth;

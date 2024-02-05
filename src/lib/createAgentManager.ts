@@ -1,6 +1,6 @@
 import {
     Agent,
-    AgentsManagerOptions as AgentAPIOptions,
+    AgentManagerOptions,
     CreateStreamOptions,
     Message,
     SupportedStreamScipt,
@@ -8,8 +8,8 @@ import {
     RatingPayload,
     AgentAPI,
 } from '$/types/index';
-import { createStreamingAPI } from '..';
-import { createAgentsApi } from './api/agents';
+import {createAgentsApi} from './api/agents'
+import {  createStreamingManager } from '..';
 import { createRatingssApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
 
@@ -34,7 +34,7 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
  * @summary - entry point to create and work with AgentAPI in SDK
  */
 
-export async function createAgentsAPI(agentId: string, options: AgentAPIOptions): Promise<AgentAPI> {
+export async function createAgentManager(agentId: string, options: AgentManagerOptions) {
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, options.baseURL);
 
@@ -44,7 +44,7 @@ export async function createAgentsAPI(agentId: string, options: AgentAPIOptions)
     const ratingsAPI = await createRatingssApi(options.auth, options.baseURL);
 
     const streamingCallbacks = filterCallbacks(options);
-    let streamingAPI = await createStreamingAPI(getAgentStreamArgs(agent), {
+    let streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
         ...options,
         callbacks: streamingCallbacks,
     });
@@ -55,7 +55,7 @@ export async function createAgentsAPI(agentId: string, options: AgentAPIOptions)
     return {
         agent,
         async reconnectToChat() {
-            streamingAPI = await createStreamingAPI(getAgentStreamArgs(agent), {
+            streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
                 ...options,
                 callbacks: streamingCallbacks,
             });
@@ -123,7 +123,7 @@ export async function createAgentsAPI(agentId: string, options: AgentAPIOptions)
     };
 }
 
-function filterCallbacks(options: AgentAPIOptions) {
+function filterCallbacks(options: AgentManagerOptions) {
     const filteredCallbacks: any = {};
     for (const key in options.callbacks) {
         if (options.callbacks[key] !== undefined && options.callbacks[key] !== null) {
@@ -134,4 +134,4 @@ function filterCallbacks(options: AgentAPIOptions) {
     return filteredCallbacks;
 }
 
-export type AgentsAPI = Awaited<ReturnType<typeof createAgentsAPI>>;
+export type AgentsAPI = Awaited<ReturnType<typeof createAgentManager>>;
