@@ -68,7 +68,7 @@ export interface AgentsAPI {
     agent: Agent;
     /**
      * Method to be reconnected to chat
-     * Since chat uses an RTC connection to communicate with the agent, it could be dropped and to continue chat you need to reconnect
+     * Since chat uses an RTC connection to communicate with the agent, it could be dropped and to continue to chat you need to reconnect
      */
     reconnectToChat: () => Promise<void>;
     /**
