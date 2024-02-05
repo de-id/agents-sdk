@@ -7,6 +7,9 @@ import {
     VideoType,
     RatingPayload,
     AgentAPI,
+    ChatProgressCallback,
+    ConnectionStateChangeCallback,
+    VideoStateChangeCallback
 } from '$/types/index';
 import {createAgentsApi} from './api/agents'
 import {  createStreamingManager } from '..';
@@ -111,13 +114,13 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
 
             return streamingAPI.speak(completePayload);
         },
-        onChatEvents(callback: Function) {
+        onChatEvents(callback: ChatProgressCallback) {
             socketManager.subscribeToEvents(callback);
         },
-        onConnectionEvents(callback: Function) {
+        onConnectionEvents(callback: ConnectionStateChangeCallback) {
             streamingAPI.addCallback('onConnectionStateChange', callback);
         },
-        onVideoEvents(callback: Function) {
+        onVideoEvents(callback: VideoStateChangeCallback) {
             streamingAPI.addCallback('onVideoStateChange', callback);
         },
     };
