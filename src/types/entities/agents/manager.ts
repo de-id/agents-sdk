@@ -60,7 +60,7 @@ export interface AgentManagerOptions {
     auth: Auth;
 }
 
-export interface AgentAPI {
+export interface AgentsAPI {
     /**
      * Agent instance you are working with.
      * To know more about agents go to https://docs.d-id.com/reference/agents
@@ -92,7 +92,7 @@ export interface AgentAPI {
      */
     rate: (payload: RatingPayload, id?: string) => Promise<RatingEntity>;
     /**
-     * Method to make your agent to read text you provide or reproduce sound
+     * Method to make your agent read the text you provide or reproduce sound
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
@@ -100,15 +100,15 @@ export interface AgentAPI {
      * Optional callback function that will be triggered each time any changes happen in the chat
      * @param callback
      */
-    onChatEvents: (progress: ChatProgress) => void;
+    onChatEvents: (callback: ChatProgressCallback) => void;
     /**
      * Optional callback function that will be triggered each time the RTC connection gets new status
      * @param callback
      */
-    onConnectionEvents: (state: RTCIceConnectionState) => void;
+    onConnectionEvents: (callback: ConnectionStateChangeCallback) => void;
     /**
      * Optional callback function that will be triggered each time video events happen
      * @param callback
      */
-    onVideoEvents: (state: StreamingState) => void;
-}
+    onVideoEvents: (callback: VideoStateChangeCallback) => void;
+};

@@ -80,10 +80,8 @@ export function App() {
 
     async function onClickNew() {
         if (!agentAPI) {
-            const agentAPI = await createAgentManager(agentId, {callbacks, baseURL: didApiUrl, auth} )
-
+            const agentAPI: AgentsAPI = await createAgentManager(agentId, {callbacks, baseURL: didApiUrl, auth} )
             setAgentAPI(agentAPI)
-
             // agentAPI.onChatEvents((e) => {console.log(e)})
             agentAPI.onChatEvents(e => {console.log('works sub to wss', e)})
             agentAPI.onConnectionEvents(onConnectionStateChange)

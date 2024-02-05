@@ -1,5 +1,6 @@
 import {
     Agent,
+    AgentsAPI,
     AgentManagerOptions,
     ChatProgressCallback,
     ConnectionStateChangeCallback,
@@ -34,7 +35,7 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
  *
  * @param {string} agentId - The ID of the agent to chat with.
  * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
- * @returns {Promise<AgentsAPI>} - A promise that resolves to an instance of the AgentsAPI interface.
+ * * @returns {Promise<AgentsAPI>} - A promise that resolves to an instance of the AgentsAPI interface.
  *
  * @throws {Error} Throws an error if the agent is not initialized.
  *
@@ -42,7 +43,7 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
 
-export async function createAgentManager(agentId: string, options: AgentManagerOptions) {
+export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentsAPI> {
     const baseURL = options.baseURL ? options.baseURL : CONSTANTS.baseURL;
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, baseURL);
@@ -62,15 +63,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     await socketManager.connect();
 
     const resultAPI = {
-        /**
-         * Agent instance you are working with
-         * to know more about agents go to https://docs.d-id.com/reference/agents
-         */
         agent,
-        /**
-         * Method to be reconnected to chat
-         * Since chat uses an RTC connection to communicate with the agent, it could be dropped and to continue chat you need to reconnect
-         */
         async reconnectToChat() {
             streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
                 ...options,
@@ -78,22 +71,12 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             });
             streamingAPI.sessionId;
         },
-        /**
-         * Method to close all connections with agent, stream and web socket
-         */
         terminate() {
             abortController.abort();
             socketManager.terminate();
             return streamingAPI.terminate();
         },
-        /**
-         * ID of chat you are working on now
-         */
         chatId: chat.id,
-        /**
-         * Method to send a chat message to existing chat with the agent
-         * @param messages
-         */
         chat(messages: Message[]) {
             return agentsApi.chat(
                 agentId,
@@ -102,11 +85,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
                 { signal: abortController.signal }
             );
         },
-        /**
-         * This method provides you the possibility to rate your chat experience
-         * @param payload
-         * @param id - id of Rating entity. Leave it empty to create a new, one or pass it to work with the existing one
-         */
         rate(payload: RatingPayload, id?: string) {
             if (id) {
                 return ratingsAPI.update(id, payload);
@@ -114,10 +92,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
                 return ratingsAPI.create(payload);
             }
         },
-        /**
-         * Method to make your agent to read text you provide
-         * @param payload
-         */
         speak(payload: SupportedStreamScipt) {
             if (!agent) {
                 throw new Error('Agent not initializated');
@@ -147,24 +121,12 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
 
             return streamingAPI.speak(completePayload);
         },
-        /**
-         * Optional callback function that will be triggered each time any changes happen in the chat
-         * @param callback
-         */
         onChatEvents(callback: ChatProgressCallback) {
             socketManager.subscribeToEvents(callback);
         },
-        /**
-         * Optional callback function that will be triggered each time the RTC connection gets new status
-         * @param callback
-         */
         onConnectionEvents(callback: ConnectionStateChangeCallback) {
             streamingAPI.addCallback('onConnectionStateChange', callback);
         },
-        /**
-         * Optional callback function that will be triggered each time video events happen
-         * @param callback
-         */
         onVideoEvents(callback: VideoStateChangeCallback) {
             streamingAPI.addCallback('onVideoStateChange', callback);
         },
@@ -184,4 +146,3 @@ function filterCallbacks(options: AgentManagerOptions) {
     return filteredCallbacks;
 }
 
-export type AgentsAPI = Awaited<ReturnType<typeof createAgentManager>>;
