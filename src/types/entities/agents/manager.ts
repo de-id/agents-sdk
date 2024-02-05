@@ -4,10 +4,25 @@ import { SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
 import { ChatResponse, Message, RatingEntity, RatingPayload } from './chat';
 
+/**
+ * Types of events provided in Chat Progress Callback
+ */
 enum ChatProgress {
+    /**
+     * Chat was successfully embedded
+     */
     Embed,
+    /**
+     * Server processing chat message
+     */
     Query,
+    /**
+     * Server processed message and returned response
+     */
     Answer,
+    /**
+     * Chat was closed
+     */
     Complete,
 }
 
