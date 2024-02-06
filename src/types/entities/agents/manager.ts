@@ -42,10 +42,14 @@ interface ManagerCallbacks {
      */
     onVideoStateChange?(state: StreamingState): void;
     /**
-     * Callback function that will be triggered each time the video stream starts or stop
+     * Callback function that will be triggered each time the video stream starts or stops to update html element on webpage
+     * Required callback for SDK
      * @param srcObject
+     * @example
+     * const videoRef = useRef<HTMLVideoElement>(null);
+     * onSrcObjectReady(value) { videoRef.current.srcObject = value }
      */
-    onSrcObjectReady?(srcObject: MediaStream): void;
+    onSrcObjectReady(srcObject: MediaStream): void;
     /**
      * Optional callback function that will be triggered each time any changes happen in the chat
      * @param progress
@@ -54,13 +58,13 @@ interface ManagerCallbacks {
 }
 
 export interface AgentManagerOptions {
-    callbacks?: ManagerCallbacks;
+    callbacks: ManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
     auth: Auth;
 }
 
-export interface AgentsAPI {
+export interface AgentsManagerAPI {
     /**
      * Agent instance you are working with.
      * To know more about agents go to https://docs.d-id.com/reference/agents

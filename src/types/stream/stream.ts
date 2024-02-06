@@ -54,7 +54,7 @@ export interface RtcApi {
 }
 
 export interface StreamingManagerOptions {
-    callbacks?: ManagerCallbacks;
+    callbacks: ManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
     auth: Auth;

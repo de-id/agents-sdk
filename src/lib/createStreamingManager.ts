@@ -10,6 +10,7 @@ import {
     StreamingState,
     VideoType,
 } from '$/types/index';
+import { didApiUrl } from './environment';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
@@ -21,11 +22,11 @@ const actualRTCPC = (
 
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agent: T,
-    { debug = false, callbacks, auth, baseURL = 'https://api.d-id.com' }: StreamingManagerOptions
+    { debug = false, callbacks, auth, baseURL = didApiUrl }: StreamingManagerOptions
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
-    const callbacksObj: any = callbacks ? callbacks : {};
+    const callbacksObj: ManagerCallbacks = callbacks;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip ? createClipApi(auth, baseURL) : createTalkApi(auth, baseURL);
@@ -133,9 +134,15 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
          * @param eventName 
          * @param callback 
          */
-        onCallback(eventName: ManagerCallbackKeys, callback: Function): void {
+        onCallback<T extends ManagerCallbackKeys>(eventName: T, callback: ManagerCallbacks[T]): void {
             callbacksObj[eventName] = callback;
         },
+        /**
+         * existing callback is internal method to pass calbacks added after create in new connection
+         */
+        getCallbacks() {
+            return callbacksObj
+        }
     };
 }
 

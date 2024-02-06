@@ -1,7 +1,9 @@
 import {
     Agent,
-    AgentsAPI,
     AgentManagerOptions,
+    AgentsAPI,
+    AgentsManagerAPI,
+    Chat,
     ChatProgressCallback,
     ConnectionStateChangeCallback,
     CreateStreamOptions,
@@ -11,12 +13,11 @@ import {
     VideoStateChangeCallback,
     VideoType,
 } from '$/types/index';
-import { createStreamingManager } from '..';
+import { StreamingManager, createStreamingManager } from '..';
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
 import { didApiUrl } from './environment';
-
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
@@ -31,115 +32,119 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
         source_url: agent.presenter.source_url,
     };
 }
+
+function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, agentsApi: AgentsAPI) {
+    return new Promise<{ chat: Chat; streamingAPI: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(async (resolve, reject) => {
+        const previousCallback = options.callbacks?.onConnectionStateChange ?? null;
+        options.callbacks.onConnectionStateChange = async (state: RTCIceConnectionState) => {
+            if (previousCallback) previousCallback(state);
+            if (state === 'connected') {
+                const chat = await agentsApi.newChat(agent.id);
+                if (previousCallback) {
+                    streamingAPI.onCallback('onConnectionStateChange', previousCallback);
+                }
+                resolve({
+                    chat,
+                    streamingAPI,
+                });
+            } else if (state === 'failed') {
+                reject(new Error('Cannot create connection'));
+            }
+        };
+        const streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), options);
+    });
+}
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
  * @param {string} agentId - The ID of the agent to chat with.
  * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
- * * @returns {Promise<AgentsAPI>} - A promise that resolves to an instance of the AgentsAPI interface.
+ * * @returns {Promise<AgentsManagerAPI>} - A promise that resolves to an instance of the AgentsAPI interface.
  *
  * @throws {Error} Throws an error if the agent is not initialized.
  *
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-
-export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentsAPI> {
+export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentsManagerAPI> {
     const baseURL = options.baseURL ?? didApiUrl;
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, baseURL);
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
-    const chat = await agentsApi.newChat(agentId);
-
-    const streamingCallbacks = filterCallbacks(options);
-    let streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
-        ...options,
-        callbacks: streamingCallbacks,
-    });
-
     const socketManager = await SocketManager(options.auth);
+    
+    return initializeStreamAndChat(agent, options, agentsApi).then(result => {
+        let { chat, streamingAPI } = result;
 
-    return {
-        agent,
-        async reconnectToChat() {
-            streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
-                ...options,
-                callbacks: streamingCallbacks,
-            });
-            streamingAPI.sessionId;
-        },
-        terminate() {
-            abortController.abort();
-            socketManager.terminate();
-            return streamingAPI.terminate();
-        },
-        chatId: chat.id,
-        chat(messages: Message[]) {
-            return agentsApi.chat(
-                agentId,
-                chat.id,
-                { sessionId: streamingAPI.sessionId, streamId: streamingAPI.streamId, messages },
-                { signal: abortController.signal }
-            );
-        },
-        rate(payload: RatingPayload, id?: string) {
-            if (id) {
-                return ratingsAPI.update(id, payload);
-            } else {
-                return ratingsAPI.create(payload);
-            }
-        },
-        speak(payload: SupportedStreamScipt) {
-            if (!agent) {
-                throw new Error('Agent not initializated');
-            }
+        return {
+            agent,
+            async reconnectToChat() {
+                await initializeStreamAndChat(agent, options, agentsApi).then(result => {
+                    chat = result.chat
+                    streamingAPI = result.streamingAPI
+                })
+            },
+            terminate() {
+                abortController.abort();
+                socketManager.terminate();
+                return streamingAPI.terminate();
+            },
+            chatId: chat.id,
+            chat(messages: Message[]) {
+                return agentsApi.chat(
+                    agentId,
+                    chat.id,
+                    { sessionId: streamingAPI.sessionId, streamId: streamingAPI.streamId, messages },
+                    { signal: abortController.signal }
+                );
+            },
+            rate(payload: RatingPayload, id?: string) {
+                if (id) {
+                    return ratingsAPI.update(id, payload);
+                } else {
+                    return ratingsAPI.create(payload);
+                }
+            },
+            speak(payload: SupportedStreamScipt) {
+                if (!agent) {
+                    throw new Error('Agent not initializated');
+                }
 
-            let completePayload: any;
+                let completePayload;
 
-            if (payload.type === 'text') {
-                // Handling Stream_Text_Script
-                completePayload = {
-                    script: {
-                        type: 'text',
-                        provider: payload.provider,
-                        input: payload.input,
-                        ssml: payload.ssml || false,
-                    },
-                };
-            } else if (payload.type === 'audio') {
-                // Handling Stream_Audio_Script
-                completePayload = {
-                    script: {
-                        type: 'audio',
-                        audio_url: payload.audio_url,
-                    },
-                };
-            }
+                if (payload.type === 'text') {
+                    // Handling Stream_Text_Script
+                    completePayload = {
+                        script: {
+                            type: 'text',
+                            provider: payload.provider,
+                            input: payload.input,
+                            ssml: payload.ssml || false,
+                        },
+                    };
+                } else if (payload.type === 'audio') {
+                    // Handling Stream_Audio_Script
+                    completePayload = {
+                        script: {
+                            type: 'audio',
+                            audio_url: payload.audio_url,
+                        },
+                    };
+                }
 
-            return streamingAPI.speak(completePayload);
-        },
-        onChatEvents(callback: ChatProgressCallback) {
-            socketManager.subscribeToEvents(callback);
-        },
-        onConnectionEvents(callback: ConnectionStateChangeCallback) {
-            streamingAPI.onCallback('onConnectionStateChange', callback);
-        },
-        onVideoEvents(callback: VideoStateChangeCallback) {
-            streamingAPI.onCallback('onVideoStateChange', callback);
-        },
-    };
+                return streamingAPI.speak(completePayload);
+            },
+            onChatEvents(callback: ChatProgressCallback) {
+                socketManager.subscribeToEvents(callback);
+            },
+            onConnectionEvents(callback: ConnectionStateChangeCallback) {
+                streamingAPI.onCallback('onConnectionStateChange', callback);
+            },
+            onVideoEvents(callback: VideoStateChangeCallback) {
+                streamingAPI.onCallback('onVideoStateChange', callback);
+            },
+        };
+    });
 }
-
-function filterCallbacks(options: AgentManagerOptions) {
-    const filteredCallbacks: any = {};
-    for (const key in options.callbacks) {
-        if (options.callbacks[key] !== undefined && options.callbacks[key] !== null) {
-            filteredCallbacks[key] = options.callbacks[key];
-        }
-    }
-
-    return filteredCallbacks;
-}
-
