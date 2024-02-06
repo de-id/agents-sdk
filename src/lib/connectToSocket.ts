@@ -1,5 +1,6 @@
 import { Auth } from '$/types/auth';
 import { getAuthHeader } from './auth/getAuthHeader';
+import { didSocketApiUrl } from './environment';
 
 interface Options {
     auth: Auth;
@@ -19,8 +20,6 @@ interface SocketManager {
     connect: () => Promise<WebSocket>;
     subscribeToEvents: (data: any) => void
 }
-
-const socketHost = 'wss://notifications-dev.d-id.com';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const getRandomID = (length) => {
@@ -80,7 +79,8 @@ export async function connectToSocket(options: Options): Promise<WebSocket> {
 }
 
 
-export async function SocketManager(auth: Auth, host: string = socketHost): Promise<SocketManager> {
+export async function SocketManager(auth: Auth, host: string = didSocketApiUrl): Promise<SocketManager> {
+    console.log(" ws url", didSocketApiUrl)
     let socket: WebSocket | null
     let messageCallbacks: ((data: any) => void)[] = [];
     let socketManager: SocketManager = {

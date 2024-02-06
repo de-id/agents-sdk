@@ -13,9 +13,10 @@ import {
 } from '$/types/index';
 import { createStreamingManager } from '..';
 import { createAgentsApi } from './api/agents';
-import { createRatingssApi } from './api/ratings';
+import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
-import { CONSTANTS } from './constants';
+import { didApiUrl } from './environment';
+
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
@@ -44,14 +45,13 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
  */
 
 export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentsAPI> {
-    const baseURL = options.baseURL ? options.baseURL : CONSTANTS.baseURL;
+    const baseURL = options.baseURL ?? didApiUrl;
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, baseURL);
+    const ratingsAPI = await createRatingsApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
     const chat = await agentsApi.newChat(agentId);
-
-    const ratingsAPI = await createRatingssApi(options.auth, baseURL);
 
     const streamingCallbacks = filterCallbacks(options);
     let streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
@@ -62,7 +62,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const socketManager = await SocketManager(options.auth);
     await socketManager.connect();
 
-    const resultAPI = {
+    return {
         agent,
         async reconnectToChat() {
             streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
@@ -131,8 +131,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             streamingAPI.onCallback('onVideoStateChange', callback);
         },
     };
-
-    return resultAPI;
 }
 
 function filterCallbacks(options: AgentManagerOptions) {
