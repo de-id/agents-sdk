@@ -48,7 +48,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const baseURL = options.baseURL ?? didApiUrl;
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, baseURL);
-    const ratingsAPI = await createRatingsApi(options.auth, baseURL);
+    const ratingsAPI = createRatingsApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
     const chat = await agentsApi.newChat(agentId);
@@ -60,7 +60,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     });
 
     const socketManager = await SocketManager(options.auth);
-    await socketManager.connect();
 
     return {
         agent,

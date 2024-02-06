@@ -7,9 +7,10 @@ import {
     QueryResult,
     RecordData,
 } from '$/types/index'
+import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
-export function createKnowledgeApi(auth: Auth, host = 'https://api.d-id.com') {
+export function createKnowledgeApi(auth: Auth, host = didApiUrl) {
     const client = createClient(auth, `${host}/knowledge`);
 
     return {

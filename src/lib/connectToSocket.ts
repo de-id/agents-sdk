@@ -17,12 +17,11 @@ interface Options {
 interface SocketManager {
     socket?: WebSocket;
     terminate: () => void;
-    connect: () => Promise<WebSocket>;
-    subscribeToEvents: (data: any) => void
+    subscribeToEvents: (data: any) => void;
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const getRandomID = (length) => {
+const getRandomID = length => {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let randomID = '';
 
@@ -32,13 +31,13 @@ const getRandomID = (length) => {
     }
 
     return randomID;
-}
+};
 
 function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
         const { callbacks, host, auth } = options;
         const { onMessage = null, onOpen = null, onClose = null, onError = null } = callbacks || {};
-        // TODO discuss with Sagi. If I create socket with randomID, haven't recieve messages
+        // TODO switch to socket connection with random ID when it will return messages
         // const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}.${getRandomID(8)}`);
         const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}`);
 
@@ -59,7 +58,7 @@ function connect(options: Options): Promise<WebSocket> {
     });
 }
 
-export async function connectToSocket(options: Options): Promise<WebSocket> {
+async function connectWithRetries(options: Options): Promise<WebSocket> {
     const { retries = 1 } = options;
     let socket: WebSocket | null = null;
 
@@ -75,41 +74,27 @@ export async function connectToSocket(options: Options): Promise<WebSocket> {
         }
     }
 
-    return socket
+    return socket;
 }
-
 
 export async function SocketManager(auth: Auth, host: string = didSocketApiUrl): Promise<SocketManager> {
-    console.log(" ws url", didSocketApiUrl)
-    let socket: WebSocket | null
-    let messageCallbacks: ((data: any) => void)[] = [];
-    let socketManager: SocketManager = {
-        terminate: () => socketManager.socket?.close(),
-        connect: async () => {
-            socket = await connectToSocket({
-                auth,
-                host,
-                callbacks: { onMessage: handleMessage },
-            });
-
-            socketManager.socket = socket;  
-
-            return socket;
+    const messageCallbacks: ((data: any) => void)[] = [];
+    const socket: WebSocket = await connectWithRetries({
+        auth,
+        host,
+        callbacks: {
+            onMessage: (event: MessageEvent) => {
+                console.log('event', event);
+                messageCallbacks.forEach(callback => callback(event));
+            },
         },
-        subscribeToEvents: (callback: (data: any) => void) => {
-            if (socketManager.socket) {
-                messageCallbacks.push(callback);
-            } else {
-                console.warn('Socket is not connected. Please call connect() first.');
-            }
+    });
+
+    return {
+        socket,
+        terminate: () => socket.close(),
+        subscribeToEvents: <T>(callback: (data: T) => void) => {
+            messageCallbacks.push(callback);
         },
-    };
-
-    function handleMessage(event: MessageEvent) {
-        console.log('event', event)
-        messageCallbacks.forEach(callback => callback(event));
-    }
-
-    return socketManager;
+    };;
 }
-

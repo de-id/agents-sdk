@@ -1,7 +1,8 @@
 import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse } from '%/index';
+import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
-export function createAgentsApi(auth: Auth, host = 'https://api.d-id.com') {
+export function createAgentsApi(auth: Auth, host = didApiUrl) {
     const client = createClient(auth, `${host}/agents`);
 
     return {

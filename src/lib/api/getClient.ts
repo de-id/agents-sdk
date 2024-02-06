@@ -1,7 +1,8 @@
 import { Auth } from '%/auth';
 import { getAuthHeader } from '../auth/getAuthHeader';
+import { didApiUrl } from '../environment';
 
-export function createClient(auth: Auth, host = 'https://api.d-id.com') {
+export function createClient(auth: Auth, host = didApiUrl) {
     const client = async <T>(url: string, options?: RequestInit) => {
         const request = await fetch(host + (url?.startsWith('/') ? url : `/${url}`), {
             ...options,
