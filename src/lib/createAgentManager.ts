@@ -125,10 +125,10 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             socketManager.subscribeToEvents(callback);
         },
         onConnectionEvents(callback: ConnectionStateChangeCallback) {
-            streamingAPI.addCallback('onConnectionStateChange', callback);
+            streamingAPI.onCallback('onConnectionStateChange', callback);
         },
         onVideoEvents(callback: VideoStateChangeCallback) {
-            streamingAPI.addCallback('onVideoStateChange', callback);
+            streamingAPI.onCallback('onVideoStateChange', callback);
         },
     };
 

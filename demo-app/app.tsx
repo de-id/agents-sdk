@@ -1,7 +1,7 @@
 // TODO delete this app before launch
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
-import { clientKey, didApiUrl, agentId, didSocketApiUrl } from './environment';
+import { clientKey, didApiUrl, agentId } from './environment';
 import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingManager, StreamingState, VideoType, createAgentManager, createStreamingManager, AgentsAPI } from '../src';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {

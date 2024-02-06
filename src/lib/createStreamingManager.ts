@@ -133,7 +133,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
          * @param eventName 
          * @param callback 
          */
-        addCallback(eventName: ManagerCallbackKeys, callback: Function): void {
+        onCallback(eventName: ManagerCallbackKeys, callback: Function): void {
             callbacksObj[eventName] = callback;
         },
     };
