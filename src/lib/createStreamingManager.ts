@@ -26,7 +26,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
-    const callbacksObj: ManagerCallbacks = callbacks;
+    const callbacksObj: ManagerCallbacks = {...callbacks};
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip ? createClipApi(auth, baseURL) : createTalkApi(auth, baseURL);
