@@ -5,4 +5,4 @@ export * from './lib/api/knowledge';
 export * from './lib/connectToSocket';
 export * from './lib/createAgentManager';
 export * from './lib/createStreamingManager';
-export * from './types'
+export * from '%/index'

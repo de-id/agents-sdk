@@ -1,4 +1,4 @@
-import { Auth } from '$/types/auth';
+import { Auth } from '%/auth';
 import { getAuthHeader } from './auth/getAuthHeader';
 import { didSocketApiUrl } from './environment';
 

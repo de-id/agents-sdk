@@ -6,7 +6,7 @@ import {
     KnowledgePayload,
     QueryResult,
     RecordData,
-} from '$/types/index'
+} from '%/index'
 import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
