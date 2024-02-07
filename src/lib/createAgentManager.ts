@@ -67,7 +67,7 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
 export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentsManagerAPI> {
-    const baseURL = options.baseURL ?? didApiUrl;
+    const baseURL = options.baseURL || didApiUrl;
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, baseURL);
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
