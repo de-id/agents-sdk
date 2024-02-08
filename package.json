@@ -1,7 +1,7 @@
 {
     "name": "@d-id/client-sdk",
     "private": false,
-    "version": "1.0.16",
+    "version": "1.0.18-beta.8",
     "type": "module",
     "description": "d-id client sdk",
     "repository": {
@@ -20,14 +20,15 @@
     ],
     "main": "./dist/index.umd.cjs",
     "module": "./dist/index.js",
-    "types": "./dist/types/index.d.ts",
+    "types": "./dist/src/types/index.d.ts",
     "scripts": {
         "dev": "vite",
         "build": "node ./infra/build.js -m production",
         "build:dev": "node ./infra/build.js -m development",
         "deploy:prod": "node ./infra/deploy.js --version patch",
         "preview": "vite preview",
-        "test-build": "node .infra/build.js -m development"
+        "test-build": "node .infra/build.js -m development",
+        "build:docs": "typedoc"
     },
     "devDependencies": {
         "@preact/preset-vite": "^2.5.0",
@@ -38,6 +39,7 @@
         "prettier": "^3.1.0",
         "prettier-plugin-organize-imports": "^3.2.4",
         "serverless": "3.32.2",
+        "typedoc": "^0.25.7",
         "typescript": "^5.3.2",
         "vite": "^4.4.5",
         "vite-plugin-dts": "^3.6.0",

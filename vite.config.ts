@@ -18,7 +18,7 @@ export default ({ mode }) => {
             minify: mode !== 'development',
             copyPublicDir: false,
             lib: {
-                entry: resolve(__dirname, './lib/index.ts'),
+                entry: resolve(__dirname, './src/index.ts'),
                 name: 'index',
                 fileName: 'index',
             },
@@ -26,12 +26,11 @@ export default ({ mode }) => {
         plugins: [
             preact(),
             VitePluginHtmlEnv({ compiler: false }),
-            dts({ include: [resolve(__dirname, './lib/**/*.{ts,tsx}'), './types/**/*.{ts,tsx}'] }),
+            dts({ include: [resolve(__dirname, './src/**/*.{ts,tsx}'), './types/**/*.{ts,tsx}'] }),
         ],
         resolve: {
             alias: {
-                '@': resolve(__dirname, './src'),
-                $: resolve(__dirname, './lib'),
+                $: resolve(__dirname, './src'),
                 '%': resolve(__dirname, './types'),
             },
         },
