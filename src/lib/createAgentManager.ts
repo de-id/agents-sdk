@@ -33,21 +33,23 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     };
 }
 
-function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, agentsApi: AgentsAPI) {
-    return new Promise<{ chat: Chat; streamingAPI: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(
+function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, agentsApi: AgentsAPI, chatId?: string) {
+    return new Promise<{ chat: Chat; streamingManager: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(
         async (resolve, reject) => {
-            const streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
+            const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
                 ...options,
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
-                        if (state === 'connected') {
-                            const chat = await agentsApi.newChat(agent.id);
-                            resolve({ chat, streamingAPI });
-                        } else if (state === 'failed') {
-                            reject(new Error('Cannot create connection'));
+                        if (!chatId) {
+                            if (state === 'connected') {
+                                const chat = await agentsApi.newChat(agent.id);
+                                resolve({ chat, streamingManager });
+                            } else if (state === 'failed') {
+                                reject(new Error('Cannot create connection'));
+                            }
                         }
-                        
+
                         options.callbacks.onConnectionStateChange?.(state);
                     },
                 },
@@ -76,77 +78,76 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
 
     const agent = await agentsApi.getById(agentId);
     const socketManager = await SocketManager(options.auth);
+    let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
 
-    return initializeStreamAndChat(agent, options, agentsApi).then(result => {
-        let { chat, streamingAPI } = result;
+    return {
+        agent,
+        async reconnectToChat() {
+            await initializeStreamAndChat(agent, options, agentsApi, chat?.id).then(result => {
+                chat = result.chat;
+                streamingManager = result.streamingManager;
+            });
+        },
+        terminate() {
+            abortController.abort();
+            socketManager.terminate();
+            return streamingManager.terminate();
+        },
+        chatId: chat.id,
+        chat(messages: Message[]) {
+            // should be diffrent after reconnect
+            console.log(streamingManager.sessionId)
+            return agentsApi.chat(
+                agentId,
+                chat.id,
+                { sessionId: streamingManager.sessionId, streamId: streamingManager.streamId, messages },
+                { signal: abortController.signal }
+            );
+        },
+        rate(payload: RatingPayload, id?: string) {
+            if (id) {
+                return ratingsAPI.update(id, payload);
+            } 
 
-        return {
-            agent,
-            async reconnectToChat() {
-                await initializeStreamAndChat(agent, options, agentsApi).then(result => {
-                    chat = result.chat;
-                    streamingAPI = result.streamingAPI;
-                });
-            },
-            terminate() {
-                abortController.abort();
-                socketManager.terminate();
-                return streamingAPI.terminate();
-            },
-            chatId: chat.id,
-            chat(messages: Message[]) {
-                return agentsApi.chat(
-                    agentId,
-                    chat.id,
-                    { sessionId: streamingAPI.sessionId, streamId: streamingAPI.streamId, messages },
-                    { signal: abortController.signal }
-                );
-            },
-            rate(payload: RatingPayload, id?: string) {
-                if (id) {
-                    return ratingsAPI.update(id, payload);
-                } else {
-                    return ratingsAPI.create(payload);
-                }
-            },
-            speak(payload: SupportedStreamScipt) {
-                if (!agent) {
-                    throw new Error('Agent not initializated');
-                }
+            return ratingsAPI.create(payload);
+        },
+        speak(payload: SupportedStreamScipt) {
+            if (!agent) {
+                throw new Error('Agent not initializated');
+            }
 
-                let completePayload;
+            let completePayload;
 
-                if (payload.type === 'text') {
-                    // Handling Stream_Text_Script
-                    completePayload = {
-                        script: {
-                            type: 'text',
-                            provider: payload.provider,
-                            input: payload.input,
-                            ssml: payload.ssml || false,
-                        },
-                    };
-                } else if (payload.type === 'audio') {
-                    // Handling Stream_Audio_Script
-                    completePayload = {
-                        script: {
-                            type: 'audio',
-                            audio_url: payload.audio_url,
-                        },
-                    };
-                }
+            if (payload.type === 'text') {
+                // Handling Stream_Text_Script
+                completePayload = {
+                    script: {
+                        type: 'text',
+                        provider: payload.provider,
+                        input: payload.input,
+                        ssml: payload.ssml || false,
+                    },
+                };
+            } else if (payload.type === 'audio') {
+                // Handling Stream_Audio_Script
+                completePayload = {
+                    script: {
+                        type: 'audio',
+                        audio_url: payload.audio_url,
+                    },
+                };
+            }
 
-                return streamingAPI.speak(completePayload);
-            },
-            onChatEvents(callback: ChatProgressCallback) {
-                socketManager.subscribeToEvents(callback);
-            },
-            onConnectionEvents(callback: ConnectionStateChangeCallback) {
-                streamingAPI.onCallback('onConnectionStateChange', callback);
-            },
-            onVideoEvents(callback: VideoStateChangeCallback) {
-                streamingAPI.onCallback('onVideoStateChange', callback);
-            },
-        };
-    });
+            return streamingManager.speak(completePayload);
+        },
+        onChatEvents(callback: ChatProgressCallback) {
+            socketManager.subscribeToEvents(callback);
+        },
+        onConnectionEvents(callback: ConnectionStateChangeCallback) {
+            streamingManager.onCallback('onConnectionStateChange', callback);
+        },
+        onVideoEvents(callback: VideoStateChangeCallback) {
+            streamingManager.onCallback('onVideoStateChange', callback);
+        },
+    };
 }
