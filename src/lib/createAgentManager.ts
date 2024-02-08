@@ -33,7 +33,7 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     };
 }
 
-function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, agentsApi: AgentsAPI, chatId?: string) {
+function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, agentsApi: AgentsAPI, chat?: Chat) {
     return new Promise<{ chat: Chat; streamingManager: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(
         async (resolve, reject) => {
             const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
@@ -41,13 +41,13 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
-                        if (!chatId) {
-                            if (state === 'connected') {
-                                const chat = await agentsApi.newChat(agent.id);
-                                resolve({ chat, streamingManager });
-                            } else if (state === 'failed') {
-                                reject(new Error('Cannot create connection'));
+                        if (state === 'connected') {
+                            if (!chat) {
+                                chat = await agentsApi.newChat(agent.id);
                             }
+                            resolve({ chat, streamingManager });
+                        } else if (state === 'failed') {
+                            reject(new Error('Cannot create connection'));
                         }
 
                         options.callbacks.onConnectionStateChange?.(state);
@@ -83,10 +83,14 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     return {
         agent,
         async reconnectToChat() {
-            await initializeStreamAndChat(agent, options, agentsApi, chat?.id).then(result => {
-                chat = result.chat;
-                streamingManager = result.streamingManager;
-            });
+            const { chat: newChat, streamingManager: newStreamingManager } = await initializeStreamAndChat(
+                agent,
+                options,
+                agentsApi,
+                chat
+            );
+            chat = newChat;
+            streamingManager = newStreamingManager;
         },
         terminate() {
             abortController.abort();
@@ -95,8 +99,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
         },
         chatId: chat.id,
         chat(messages: Message[]) {
-            // should be diffrent after reconnect
-            console.log(streamingManager.sessionId)
             return agentsApi.chat(
                 agentId,
                 chat.id,
@@ -107,7 +109,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
         rate(payload: RatingPayload, id?: string) {
             if (id) {
                 return ratingsAPI.update(id, payload);
-            } 
+            }
 
             return ratingsAPI.create(payload);
         },
