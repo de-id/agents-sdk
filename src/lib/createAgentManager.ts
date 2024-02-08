@@ -2,7 +2,7 @@ import {
     Agent,
     AgentManagerOptions,
     AgentsAPI,
-    AgentsManagerAPI,
+    AgentsManager,
     Chat,
     ChatProgressCallback,
     ConnectionStateChangeCallback,
@@ -63,14 +63,14 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
  *
  * @param {string} agentId - The ID of the agent to chat with.
  * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
- * * @returns {Promise<AgentsManagerAPI>} - A promise that resolves to an instance of the AgentsAPI interface.
+ * * @returns {Promise<AgentsManager>} - A promise that resolves to an instance of the AgentsAPI interface.
  *
  * @throws {Error} Throws an error if the agent is not initialized.
  *
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentsManagerAPI> {
+export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentsManager> {
     const baseURL = options.baseURL || didApiUrl;
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, baseURL);

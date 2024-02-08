@@ -64,7 +64,7 @@ export interface AgentManagerOptions {
     auth: Auth;
 }
 
-export interface AgentsManagerAPI {
+export interface AgentsManager {
     /**
      * Agent instance you are working with.
      * To know more about agents go to https://docs.d-id.com/reference/agents
