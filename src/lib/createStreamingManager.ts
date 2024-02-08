@@ -136,12 +136,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
          */
         onCallback<T extends ManagerCallbackKeys>(eventName: T, callback: ManagerCallbacks[T]): void {
             callbacksObj[eventName] = callback;
-        },
-        /**
-         * existing callback is internal method to pass calbacks added after create in new connection
-         */
-        getCallbacks() {
-            return callbacksObj
         }
     };
 }

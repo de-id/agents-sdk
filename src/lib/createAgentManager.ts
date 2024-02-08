@@ -83,13 +83,12 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     return {
         agent,
         async reconnectToChat() {
-            const { chat: newChat, streamingManager: newStreamingManager } = await initializeStreamAndChat(
+            const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agent,
                 options,
                 agentsApi,
                 chat
             );
-            chat = newChat;
             streamingManager = newStreamingManager;
         },
         terminate() {
