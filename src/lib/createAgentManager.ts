@@ -34,26 +34,28 @@ export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
 }
 
 function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, agentsApi: AgentsAPI) {
-    return new Promise<{ chat: Chat; streamingAPI: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(async (resolve, reject) => {
-        const previousCallback = options.callbacks?.onConnectionStateChange ?? null;
-        options.callbacks.onConnectionStateChange = async (state: RTCIceConnectionState) => {
-            if (previousCallback) previousCallback(state);
-            if (state === 'connected') {
-                const chat = await agentsApi.newChat(agent.id);
-                if (previousCallback) {
-                    streamingAPI.onCallback('onConnectionStateChange', previousCallback);
-                }
-                resolve({
-                    chat,
-                    streamingAPI,
-                });
-            } else if (state === 'failed') {
-                reject(new Error('Cannot create connection'));
-            }
-        };
-        const streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), options);
-    });
+    return new Promise<{ chat: Chat; streamingAPI: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(
+        async (resolve, reject) => {
+            const streamingAPI = await createStreamingManager(getAgentStreamArgs(agent), {
+                ...options,
+                callbacks: {
+                    ...options.callbacks,
+                    onConnectionStateChange: async state => {
+                        if (state === 'connected') {
+                            const chat = await agentsApi.newChat(agent.id);
+                            resolve({ chat, streamingAPI });
+                        } else if (state === 'failed') {
+                            reject(new Error('Cannot create connection'));
+                        }
+                        
+                        options.callbacks.onConnectionStateChange?.(state);
+                    },
+                },
+            });
+        }
+    );
 }
+
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
@@ -74,7 +76,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
 
     const agent = await agentsApi.getById(agentId);
     const socketManager = await SocketManager(options.auth);
-    
+
     return initializeStreamAndChat(agent, options, agentsApi).then(result => {
         let { chat, streamingAPI } = result;
 
@@ -82,9 +84,9 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             agent,
             async reconnectToChat() {
                 await initializeStreamAndChat(agent, options, agentsApi).then(result => {
-                    chat = result.chat
-                    streamingAPI = result.streamingAPI
-                })
+                    chat = result.chat;
+                    streamingAPI = result.streamingAPI;
+                });
             },
             terminate() {
                 abortController.abort();
