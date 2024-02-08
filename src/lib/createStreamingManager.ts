@@ -9,7 +9,7 @@ import {
     StreamingManagerOptions,
     StreamingState,
     VideoType,
-} from '%/index';
+} from '$/types/index';
 import { didApiUrl } from './environment';
 
 let _debug = false;

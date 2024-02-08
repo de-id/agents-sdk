@@ -1,4 +1,4 @@
-import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse } from '%/index';
+import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse } from '$/types/index';
 import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 

@@ -1,4 +1,4 @@
-import { Auth } from '%/auth';
+import { Auth } from '$/types/auth';
 
 export function getAuthHeader(auth: Auth) {
     if (auth.type === 'bearer') {

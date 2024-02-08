@@ -12,7 +12,7 @@ import {
     SupportedStreamScipt,
     VideoStateChangeCallback,
     VideoType,
-} from '%/index';
+} from '$/types/index';
 import { StreamingManager, createStreamingManager } from '..';
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';

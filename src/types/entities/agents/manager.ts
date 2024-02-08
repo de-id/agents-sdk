@@ -1,4 +1,4 @@
-import { SupportedStreamScipt } from '%/StreamScript';
+import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
 import { SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
