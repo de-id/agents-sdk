@@ -84,7 +84,6 @@ export async function SocketManager(auth: Auth, host: string = didSocketApiUrl):
         host,
         callbacks: {
             onMessage: (event: MessageEvent) => {
-                console.log('event', event);
                 messageCallbacks.forEach(callback => callback(event));
             },
         },
