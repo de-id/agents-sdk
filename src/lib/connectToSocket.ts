@@ -92,8 +92,6 @@ export async function SocketManager(auth: Auth, host: string = didSocketApiUrl):
     return {
         socket,
         terminate: () => socket.close(),
-        subscribeToEvents: <T>(callback: (data: T) => void) => {
-            messageCallbacks.push(callback);
-        },
-    };;
+        subscribeToEvents: <T>(callback: (data: T) => void) => messageCallbacks.push(callback),
+    };
 }
