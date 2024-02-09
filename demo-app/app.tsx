@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl, agentId } from './environment';
-import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingManager, StreamingState, VideoType, createAgentManager, createStreamingManager, AgentsManagerAPI } from '../src';
+import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingManager, StreamingState, VideoType, createAgentManager, createStreamingManager, AgentsManager } from '../src/types/index';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter?.type === VideoType.Clip) {
@@ -34,7 +34,7 @@ export function App() {
     const [streamState, setStreamState] = useState<State>(State.New);
     const [text, setText] = useState('');
     const [agent, setAgent] = useState<Agent>();
-    const [agentAPI, setAgentAPI] = useState<AgentsManagerAPI>();
+    const [agentAPI, setAgentAPI] = useState<AgentsManager>();
 
     useEffect(() => {
         // createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
@@ -82,7 +82,7 @@ export function App() {
 
     async function onClickNew() {
         if (!agentAPI) {
-            const agentAPI: AgentsManagerAPI = await createAgentManager(agentId, {callbacks, baseURL: didApiUrl, auth} )
+            const agentAPI: AgentsManager = await createAgentManager(agentId, {callbacks, baseURL: didApiUrl, auth} )
             setAgentAPI(agentAPI)
             // agentAPI.onChatEvents((e) => {console.log(e)})
             agentAPI.onChatEvents(e => {console.log('works sub to wss', e)})
