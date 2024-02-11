@@ -4,6 +4,17 @@ import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload
 import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
 
 export type CompatibilityMode = 'on' | 'off' | 'auto';
+export interface SlimRTCStatsReport {
+    index: number;
+    timestamp: any;
+    bytesReceived: any;
+    packetsReceived: any;
+    packetsLost: any;
+    jitter: any;
+    frameWidth: any;
+    frameHeight: any;
+    frameRate: any;
+}
 
 export enum StreamingState {
     Start = 'START',
@@ -12,7 +23,7 @@ export enum StreamingState {
 
 export interface ManagerCallbacks {
     onConnectionStateChange?: (state: RTCIceConnectionState) => void;
-    onVideoStateChange?: (state: StreamingState) => void;
+    onVideoStateChange?: (state: StreamingState, stats?: SlimRTCStatsReport[]) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
 }
 

@@ -1,6 +1,7 @@
 import { createApi as createClipApi } from '$/api/clipStream';
 import { createApi as createTalkApi } from '$/api/talkStream';
-import { CreateStreamOptions, PayloadType, StreamingManagerOptions, StreamingState, VideoType } from '%/index'
+import { CreateStreamOptions, PayloadType, SlimRTCStatsReport, StreamingManagerOptions, StreamingState, VideoType } from '%/index'
+import { createVideoStatsReport } from '$/utils/webrtc';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
@@ -23,6 +24,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
+    const videoStats = [] as SlimRTCStatsReport[];
+    let videoStatsStartIndex = 0;
+    let videoStatsInterval: NodeJS.Timeout;
 
     if (!session_id) {
         throw new Error('Could not create session_id');
@@ -55,7 +59,29 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     pcDataChannel.onmessage = (message: MessageEvent) => {
         if (pcDataChannel.readyState === 'open') {
-            callbacks.onVideoStateChange?.(message.data === 'stream/done' ? StreamingState.Stop : StreamingState.Start);
+            if (message.data === 'stream/started') {
+                videoStatsStartIndex = videoStats.length;
+                videoStatsInterval = setInterval(() => {
+                    const stats = peerConnection.getStats();
+                    stats.then((result) => {
+                        result.forEach((report) => {
+                            if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                                videoStats.push(report);
+                            }
+                        });
+                    });
+                }, 1000);
+            }
+            else if (message.data === 'stream/done') {
+                clearInterval(videoStatsInterval);
+                const stats = videoStats.slice(videoStatsStartIndex);
+                if (stats) {
+                    const previousStats = videoStatsStartIndex === 0 ? undefined : videoStats[videoStatsStartIndex - 1];
+                    const videoStatsReport = createVideoStatsReport(stats, previousStats);
+                    videoStatsStartIndex = videoStats.length;
+                    callbacks.onVideoStateChange?.(StreamingState.Stop, videoStatsReport.sort((a, b) => b.packetsLost - a.packetsLost).slice(0, 5));
+                }
+            }
         }
     };
 
