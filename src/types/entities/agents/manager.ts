@@ -1,6 +1,6 @@
 import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
-import { SendStreamPayloadResponse, StreamingState } from '../../stream';
+import { SendStreamPayloadResponse, SlimRTCStatsReport, StreamingState } from '../../stream';
 import { Agent } from './agent';
 import { ChatResponse, Message, RatingEntity, RatingPayload } from './chat';
 
@@ -28,7 +28,7 @@ enum ChatProgress {
 
 export type ChatProgressCallback = (progress: ChatProgress) => void;
 export type ConnectionStateChangeCallback = (state: RTCIceConnectionState) => void;
-export type VideoStateChangeCallback = (state: StreamingState) => void
+export type VideoStateChangeCallback = (state: StreamingState, stats?: SlimRTCStatsReport[]) => void
 
 interface ManagerCallbacks {
     /**
