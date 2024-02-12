@@ -59,3 +59,15 @@ export interface StreamingManagerOptions {
     debug?: boolean;
     auth: Auth;
 }
+
+export interface SlimRTCStatsReport {
+    index: number;
+    timestamp: any;
+    bytesReceived: any;
+    packetsReceived: any;
+    packetsLost: any;
+    jitter: any;
+    frameWidth: any;
+    frameHeight: any;
+    frameRate: any;
+}
