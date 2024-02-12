@@ -1,8 +1,8 @@
 import {
     Agent,
+    AgentManager,
     AgentManagerOptions,
     AgentsAPI,
-    AgentManager,
     Chat,
     ChatProgressCallback,
     ConnectionStateChangeCallback,
@@ -151,10 +151,9 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
         onVideoEvents(callback: VideoStateChangeCallback) {
             streamingManager.onCallback('onVideoStateChange', callback);
         },
-        async getStarterMessages() {
-            if(!agent.knowledge?.id) return Promise.resolve([]);
-            const knowledge = await knowledgeApi.getKnowledge(agent.knowledge?.id);
-            return knowledge?.starter_message || [];
-        }
+        getStarterMessages() {
+            if (!agent.knowledge?.id) return Promise.resolve([]);
+            return knowledgeApi.getKnowledge(agent.knowledge?.id).then(knowledge => knowledge?.starter_message || []);
+        },
     };
 }
