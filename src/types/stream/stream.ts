@@ -18,9 +18,26 @@ export enum StreamEvents {
 }
 
 export interface ManagerCallbacks {
+    /**
+     * Triggered each time when stream manager recieve new message
+     * @param event 
+     * @param data 
+     */
     onMessage?: (event: string, data: string) => void;
+    /**
+     * Triggered each time the RTC connection changes state
+     * @param state
+     */
     onConnectionStateChange?: (state: RTCIceConnectionState) => void;
+    /**
+     * Optional callback function that will be triggered each time video events happen
+     * @param state
+     */
     onVideoStateChange?: (state: StreamingState, stats?: SlimRTCStatsReport[]) => void;
+    /**
+     * Optional callback function that will be triggered each time any changes happen in the chat
+     * @param progress
+     */
     onSrcObjectReady?: (value: MediaStream) => void;
 }
 
