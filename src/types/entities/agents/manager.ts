@@ -1,6 +1,6 @@
 import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
-import { ManagerCallbacks, SendStreamPayloadResponse, SlimRTCStatsReport, StreamingState } from '../../stream';
+import { SendStreamPayloadResponse, SlimRTCStatsReport, StreamingState } from '../../stream';
 import { Agent } from './agent';
 import { ChatResponse, Message, RatingEntity, RatingPayload } from './chat';
 
@@ -30,6 +30,32 @@ export type ChatProgressCallback = (progress: ChatProgress) => void;
 export type ConnectionStateChangeCallback = (state: RTCIceConnectionState) => void;
 export type VideoStateChangeCallback = (state: StreamingState, stats?: SlimRTCStatsReport[]) => void
 
+interface ManagerCallbacks {
+    /**
+     * This callback will be triggered each time the RTC connection changes state
+     * @param state
+     */
+    onConnectionStateChange?(state: RTCIceConnectionState): void;
+    /**
+     * Optional callback function that will be triggered each time video events happen
+     * @param state
+     */
+    onVideoStateChange?(state: StreamingState): void;
+    /**
+     * Callback function that will be triggered each time the video stream starts or stops to update html element on webpage
+     * Required callback for SDK
+     * @param srcObject
+     * @example
+     * const videoRef = useRef<HTMLVideoElement>(null);
+     * onSrcObjectReady(value) { videoRef.current.srcObject = value }
+     */
+    onSrcObjectReady(srcObject: MediaStream): void;
+    /**
+     * Optional callback function that will be triggered each time any changes happen in the chat
+     * @param progress
+     */
+    onChatEvents?(progress: ChatProgress): void;
+}
 
 export interface AgentManagerOptions {
     callbacks: ManagerCallbacks;
