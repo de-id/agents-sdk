@@ -64,7 +64,7 @@ export interface AgentManagerOptions {
     auth: Auth;
 }
 
-export interface AgentsManager {
+export interface AgentManager {
     /**
      * Agent instance you are working with.
      * To know more about agents go to https://docs.d-id.com/reference/agents
@@ -115,4 +115,9 @@ export interface AgentsManager {
      * @param callback
      */
     onVideoEvents: (callback: VideoStateChangeCallback) => void;
+    /**
+     * Get Starter messages from agent knowledge
+     * @param agent 
+     */
+    getStarterMessages: () => Promise<string[]>;
 };

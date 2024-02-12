@@ -2,7 +2,7 @@ import {
     Agent,
     AgentManagerOptions,
     AgentsAPI,
-    AgentsManager,
+    AgentManager,
     Chat,
     ChatProgressCallback,
     ConnectionStateChangeCallback,
@@ -13,7 +13,7 @@ import {
     VideoStateChangeCallback,
     VideoType,
 } from '$/types/index';
-import { StreamingManager, createStreamingManager } from '..';
+import { StreamingManager, createKnowledgeApi, createStreamingManager } from '..';
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
@@ -63,18 +63,19 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
  *
  * @param {string} agentId - The ID of the agent to chat with.
  * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
- * * @returns {Promise<AgentsManager>} - A promise that resolves to an instance of the AgentsAPI interface.
+ * * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
  *
  * @throws {Error} Throws an error if the agent is not initialized.
  *
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentsManager> {
+export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentManager> {
     const baseURL = options.baseURL || didApiUrl;
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, baseURL);
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
+    const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
     const socketManager = await SocketManager(options.auth);
@@ -150,5 +151,10 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
         onVideoEvents(callback: VideoStateChangeCallback) {
             streamingManager.onCallback('onVideoStateChange', callback);
         },
+        async getStarterMessages() {
+            if(!agent.knowledge?.id) return Promise.resolve([]);
+            const knowledge = await knowledgeApi.getKnowledge(agent.knowledge?.id);
+            return knowledge?.starter_message || [];
+        }
     };
 }
