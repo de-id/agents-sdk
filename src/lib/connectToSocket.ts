@@ -84,7 +84,14 @@ export async function SocketManager(auth: Auth, host: string = didSocketApiUrl):
         host,
         callbacks: {
             onMessage: (event: MessageEvent) => {
-                messageCallbacks.forEach(callback => callback(event));
+                console.log('webscoket on message', event)
+                const data = JSON.parse(event.data)
+                let payload;
+                if(data.event === 'answer') {
+                    payload = data.content;
+                }
+                // @ts-ignore comment
+                messageCallbacks.forEach(callback => callback(data.event, payload));
             },
         },
     });

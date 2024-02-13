@@ -13,7 +13,7 @@ import {
     VideoStateChangeCallback,
     VideoType,
 } from '$/types/index';
-import { StreamingManager, createKnowledgeApi, createStreamingManager } from '..';
+import { ChatProgress, StreamEvents, StreamingManager, createKnowledgeApi, createStreamingManager } from '..';
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
@@ -52,6 +52,12 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
 
                         options.callbacks.onConnectionStateChange?.(state);
                     },
+                    onMessage: (event, data) => {
+                        console.log('on message!!!!!!!!!!!!', event)
+                        if(event === StreamEvents.ChatPartial) {
+                            options.callbacks.onChatEvents?.(ChatProgress.Partial, data);
+                        }
+                    }
                 },
             });
         }
