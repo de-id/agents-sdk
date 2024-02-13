@@ -1,4 +1,5 @@
 import { Auth } from '$/types/auth';
+import { ChatProgress } from '..';
 import { getAuthHeader } from './auth/getAuthHeader';
 import { didSocketApiUrl } from './environment';
 
@@ -86,7 +87,7 @@ export async function SocketManager(auth: Auth, host: string = didSocketApiUrl):
             onMessage: (event: MessageEvent) => {
                 const data = JSON.parse(event.data)
                 let payload;
-                if(data.event === 'answer') {
+                if(data.event === ChatProgress.Answer) {
                     payload = data.content;
                 }
                 // TODO fix later
