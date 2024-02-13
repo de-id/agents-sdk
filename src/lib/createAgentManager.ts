@@ -53,7 +53,6 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                         options.callbacks.onConnectionStateChange?.(state);
                     },
                     onMessage: (event, data) => {
-                        console.log('on message!!!!!!!!!!!!', event)
                         if(event === StreamEvents.ChatPartial) {
                             options.callbacks.onChatEvents?.(ChatProgress.Partial, data);
                         }
