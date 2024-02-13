@@ -30,28 +30,6 @@ export enum ChatProgress {
     Complete = 'done',
 }
 
-// export type ChatProgress =
-//     /**
-//      * Chat was successfully embedded
-//      */
-//     | 'embed'
-//     /**
-//      * Server processing chat message
-//      */
-//     | 'query'
-//     /**
-//      * Server returns a part of the message
-//      */
-//     | 'chat/partial'
-//     /**
-//      * Server processed message and returns the whole message
-//      */
-//     | 'answer'
-//     /**
-//      * Chat was closed
-//      */
-//     | 'complete';
-
 export type ChatProgressCallback = (progress: ChatProgress, data: string) => void;
 export type ConnectionStateChangeCallback = (state: RTCIceConnectionState) => void;
 export type VideoStateChangeCallback = (state: StreamingState, stats?: SlimRTCStatsReport[]) => void;
