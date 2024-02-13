@@ -11,7 +11,7 @@ export enum ChatProgress {
     /**
      * Chat was successfully embedded
      */
-    Embed = 'embeded',
+    Embed = 'embed',
     /**
      * Server processing chat message
      */
