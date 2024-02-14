@@ -1,5 +1,5 @@
 import { Auth } from '$/types/auth';
-import { ChatProgress } from '..';
+import { ChatProgressCallback } from '..';
 import { getAuthHeader } from './auth/getAuthHeader';
 import { didSocketApiUrl } from './environment';
 
@@ -78,21 +78,21 @@ async function connectWithRetries(options: Options): Promise<WebSocket> {
     return socket;
 }
 
-export async function SocketManager(auth: Auth, host: string = didSocketApiUrl): Promise<SocketManager> {
-    const messageCallbacks: ((data: any) => void)[] = [];
+export async function SocketManager(
+    auth: Auth,
+    onMessage?: ChatProgressCallback,
+    host: string = didSocketApiUrl
+): Promise<SocketManager> {
+    const messageCallbacks: ChatProgressCallback[] = onMessage ? [onMessage] : [];
+    console.log('messageCallbacks', messageCallbacks);
     const socket: WebSocket = await connectWithRetries({
         auth,
         host,
         callbacks: {
             onMessage: (event: MessageEvent) => {
-                const data = JSON.parse(event.data)
-                let payload;
-                if(data.event === ChatProgress.Answer) {
-                    payload = data.content;
-                }
-                // TODO fix later
-                // @ts-ignore comment
-                messageCallbacks.forEach(callback => callback(data.event, payload));
+                const parsedData = JSON.parse(event.data);
+                console.log('parsedData', parsedData);
+                messageCallbacks.forEach(callback => callback(parsedData.event, parsedData.content));
             },
         },
     });
@@ -100,6 +100,6 @@ export async function SocketManager(auth: Auth, host: string = didSocketApiUrl):
     return {
         socket,
         terminate: () => socket.close(),
-        subscribeToEvents: <T>(callback: (data: T) => void) => messageCallbacks.push(callback),
+        subscribeToEvents: (callback: ChatProgressCallback) => messageCallbacks.push(callback),
     };
 }

@@ -53,6 +53,7 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                         options.callbacks.onConnectionStateChange?.(state);
                     },
                     onMessage: (event, data) => {
+                        console.log('event in onMessage',event, data)
                         if(event === StreamEvents.ChatPartial) {
                             options.callbacks.onChatEvents?.(ChatProgress.Partial, data);
                         }
@@ -83,7 +84,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
-    const socketManager = await SocketManager(options.auth);
+    const socketManager = await SocketManager(options.auth, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
 
     return {
@@ -119,10 +120,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             return ratingsAPI.create(payload);
         },
         speak(payload: SupportedStreamScipt) {
-            if (!agent) {
-                throw new Error('Agent not initializated');
-            }
-
             let completePayload;
 
             if (payload.type === 'text') {

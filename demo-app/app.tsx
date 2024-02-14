@@ -39,8 +39,6 @@ export function App() {
 
     useEffect(() => {
         // createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
-        // test socket mock
-        // SocketManager(auth).then((SM) => SM.connect())
     }, [auth]);
 
     const onConnectionStateChange = function(state) { 
@@ -91,7 +89,7 @@ export function App() {
             videoRef.current.srcObject = value;
         },
         onConnectionStateChange,
-        // onChatEvents
+        onChatEvents
     }
 
     async function onClick() {
@@ -100,7 +98,6 @@ export function App() {
             setAgentAPI(agentAPI)
             agentAPI.onConnectionEvents(onConnectionStateChange)
             agentAPI.onVideoEvents(onVideoStateChange)
-            agentAPI.onChatEvents(onChatEvents)
         }
         else if(text) {
             setStreamState(State.Speaking);
