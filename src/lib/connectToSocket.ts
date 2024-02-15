@@ -84,7 +84,6 @@ export async function SocketManager(
     host: string = didSocketApiUrl
 ): Promise<SocketManager> {
     const messageCallbacks: ChatProgressCallback[] = onMessage ? [onMessage] : [];
-    console.log('messageCallbacks', messageCallbacks);
     const socket: WebSocket = await connectWithRetries({
         auth,
         host,
