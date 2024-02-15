@@ -93,12 +93,16 @@ export interface AgentManager {
      */
     chat: (messages: Message[]) => Promise<ChatResponse>;
     /**
-     * This method provides you the possibility to rate your chat experience
-     * TODO asks Sagi how it's work
+     * Method to rate the answer in chat
      * @param payload
      * @param id - id of Rating entity. Leave it empty to create a new, one or pass it to work with the existing one
      */
     rate: (payload: RatingPayload, id?: string) => Promise<RatingEntity>;
+    /**
+     * Method to delete rating from answer in chat
+     * @param id - id of Rating entity.
+     */
+    deleteRate:(id: string) => Promise<RatingEntity>;
     /**
      * Method to make your agent read the text you provide or reproduce sound
      * @param payload

@@ -123,6 +123,9 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
 
             return ratingsAPI.create(payload);
         },
+        deleteRate(id: string) {
+            return ratingsAPI.delete(id)
+        },
         speak(payload: SupportedStreamScipt) {
             let completePayload;
 
