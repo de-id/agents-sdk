@@ -19,7 +19,7 @@ export enum ChatProgress {
     /**
      * Server returns a part of the message
      */
-    Partial = 'chat/partial',
+    Partial = 'partial',
     /**
      * Server processed message and returned response
      */

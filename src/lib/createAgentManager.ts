@@ -52,10 +52,14 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
 
                         options.callbacks.onConnectionStateChange?.(state);
                     },
+                    // TODO remove when webscoket will return partial
                     onMessage: (event, data) => {
-                        console.log('event in onMessage',event, data)
                         if(event === StreamEvents.ChatPartial) {
-                            options.callbacks.onChatEvents?.(ChatProgress.Partial, data);
+                            // Mock ws event result to remove in future
+                            options.callbacks.onChatEvents?.(ChatProgress.Partial, {
+                                content: data,
+                                event: ChatProgress.Partial
+                            });
                         }
                     }
                 },

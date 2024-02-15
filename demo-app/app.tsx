@@ -72,11 +72,10 @@ export function App() {
     }
 
     const onChatEvents = function(event, data) {
-        console.log('onChatEvents', event, data)
         if (event === ChatProgress.Partial) {
-            setAnswer(answer => answer + data);
+            setAnswer(answer => answer + data.content);
         } else if (event === ChatProgress.Answer) {
-            setAnswer(data);
+            setAnswer(data.content);
         }
     }
 

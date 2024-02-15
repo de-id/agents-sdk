@@ -91,8 +91,7 @@ export async function SocketManager(
         callbacks: {
             onMessage: (event: MessageEvent) => {
                 const parsedData = JSON.parse(event.data);
-                console.log('parsedData', parsedData);
-                messageCallbacks.forEach(callback => callback(parsedData.event, parsedData.content));
+                messageCallbacks.forEach(callback => callback(parsedData.event, parsedData));
             },
         },
     });
