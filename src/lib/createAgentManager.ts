@@ -14,7 +14,7 @@ import { ChatProgress, StreamEvents, StreamingManager, createKnowledgeApi, creat
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
-import { didApiUrl } from './environment';
+import { didApiUrl, didSocketApiUrl } from './environment';
 
 export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
@@ -79,13 +79,14 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
  */
 export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentManager> {
     const baseURL = options.baseURL || didApiUrl;
+    const wsURL = options.wsURL || didSocketApiUrl;
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, baseURL);
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
-    const socketManager = await SocketManager(options.auth, options.callbacks.onChatEvents, options.wsURL);
+    const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents,);
     let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
 
     return {
