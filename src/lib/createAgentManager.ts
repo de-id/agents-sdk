@@ -4,13 +4,10 @@ import {
     AgentManagerOptions,
     AgentsAPI,
     Chat,
-    ChatProgressCallback,
-    ConnectionStateChangeCallback,
     CreateStreamOptions,
     Message,
     RatingPayload,
     SupportedStreamScipt,
-    VideoStateChangeCallback,
     VideoType,
 } from '$/types/index';
 import { ChatProgress, StreamEvents, StreamingManager, createKnowledgeApi, createStreamingManager } from '..';
@@ -54,14 +51,14 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                     },
                     // TODO remove when webscoket will return partial
                     onMessage: (event, data) => {
-                        if(event === StreamEvents.ChatPartial) {
+                        if (event === StreamEvents.ChatPartial) {
                             // Mock ws event result to remove in future
                             options.callbacks.onChatEvents?.(ChatProgress.Partial, {
                                 content: data,
-                                event: ChatProgress.Partial
+                                event: ChatProgress.Partial,
                             });
                         }
-                    }
+                    },
                 },
             });
         }
@@ -88,7 +85,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
-    const socketManager = await SocketManager(options.auth, options.callbacks.onChatEvents);
+    const socketManager = await SocketManager(options.auth, options.callbacks.onChatEvents, options.wsURL);
     let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
 
     return {
@@ -124,7 +121,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             return ratingsAPI.create(payload);
         },
         deleteRate(id: string) {
-            return ratingsAPI.delete(id)
+            return ratingsAPI.delete(id);
         },
         speak(payload: SupportedStreamScipt) {
             let completePayload;
