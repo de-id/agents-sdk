@@ -129,10 +129,8 @@ export function App() {
     }
 
     async function onChat() {
-        console.log('on chat');
         const newMessages: any[] = [{ role: 'user', content: text.trim(), created_at: new Date().toISOString() }];
         const response = agentAPI?.chat(newMessages);
-        console.log(response);
     }
 
     function terminate() {
