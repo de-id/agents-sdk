@@ -64,6 +64,7 @@ interface ManagerCallbacks {
 export interface AgentManagerOptions {
     callbacks: ManagerCallbacks;
     baseURL?: string;
+    wsURL?: string;
     debug?: boolean;
     auth: Auth;
 }

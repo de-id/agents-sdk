@@ -80,8 +80,8 @@ async function connectWithRetries(options: Options): Promise<WebSocket> {
 
 export async function SocketManager(
     auth: Auth,
+    host: string,
     onMessage?: ChatProgressCallback,
-    host: string = didSocketApiUrl
 ): Promise<SocketManager> {
     const messageCallbacks: ChatProgressCallback[] = onMessage ? [onMessage] : [];
     const socket: WebSocket = await connectWithRetries({
