@@ -36,7 +36,7 @@ export type VideoStateChangeCallback = (state: StreamingState, stats?: SlimRTCSt
 
 interface ManagerCallbacks {
     /**
-     * This callback will be triggered each time the RTC connection changes state
+     * Optional callback will be triggered each time the RTC connection changes state
      * @param state
      */
     onConnectionStateChange?(state: RTCIceConnectionState): void;
@@ -107,22 +107,6 @@ export interface AgentManager {
     /**
      * Optional callback function that will be triggered each time any changes happen in the chat
      * @param callback
-     */
-    onChatEvents: (callback: (ChatProgressCallback)) => void;
-    /**
-     * Optional callback function that will be triggered each time the RTC connection gets new status
-     * @param callback
-     */
-    onConnectionEvents: (callback: ConnectionStateChangeCallback) => void;
-    /**
-     * Optional callback function that will be triggered each time video events happen
-     * @param callback
-     */
-    onVideoEvents: (callback: VideoStateChangeCallback) => void;
-    /**
-     * Get Starter messages from agent knowledge
-     * Used as a proposal for a user to ask Agent these questions
-     * @param agent
      */
     getStarterMessages: () => Promise<string[]>;
 }

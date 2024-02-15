@@ -148,15 +148,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
 
             return streamingManager.speak(completePayload);
         },
-        onChatEvents(callback: ChatProgressCallback) {
-            socketManager.subscribeToEvents(callback);
-        },
-        onConnectionEvents(callback: ConnectionStateChangeCallback) {
-            streamingManager.onCallback('onConnectionStateChange', callback);
-        },
-        onVideoEvents(callback: VideoStateChangeCallback) {
-            streamingManager.onCallback('onVideoStateChange', callback);
-        },
         getStarterMessages() {
             if (!agent.knowledge?.id) return Promise.resolve([]);
             return knowledgeApi.getKnowledge(agent.knowledge?.id).then(knowledge => knowledge?.starter_message || []);

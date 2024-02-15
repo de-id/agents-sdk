@@ -88,6 +88,7 @@ export function App() {
             videoRef.current.srcObject = value;
         },
         onConnectionStateChange,
+        onVideoStateChange,
         onChatEvents
     }
 
@@ -95,8 +96,6 @@ export function App() {
         if (!agentAPI) {
             const agentAPI: AgentManager = await createAgentManager(agentId, {callbacks, baseURL: didApiUrl, auth} )
             setAgentAPI(agentAPI)
-            agentAPI.onConnectionEvents(onConnectionStateChange)
-            agentAPI.onVideoEvents(onVideoStateChange)
         }
         else if(text) {
             setStreamState(State.Speaking);
