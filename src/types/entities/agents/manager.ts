@@ -7,32 +7,36 @@ import { ChatResponse, Message, RatingEntity, RatingPayload } from './chat';
 /**
  * Types of events provided in Chat Progress Callback
  */
-enum ChatProgress {
+export enum ChatProgress {
     /**
      * Chat was successfully embedded
      */
-    Embed,
+    Embed = 'embed',
     /**
      * Server processing chat message
      */
-    Query,
+    Query = 'query',
+    /**
+     * Server returns a part of the message
+     */
+    Partial = 'partial',
     /**
      * Server processed message and returned response
      */
-    Answer,
+    Answer = 'answer',
     /**
      * Chat was closed
      */
-    Complete,
+    Complete = 'done',
 }
 
-export type ChatProgressCallback = (progress: ChatProgress) => void;
+export type ChatProgressCallback = (progress: ChatProgress, data: string) => void;
 export type ConnectionStateChangeCallback = (state: RTCIceConnectionState) => void;
-export type VideoStateChangeCallback = (state: StreamingState, stats?: SlimRTCStatsReport[]) => void
+export type VideoStateChangeCallback = (state: StreamingState, stats?: SlimRTCStatsReport[]) => void;
 
 interface ManagerCallbacks {
     /**
-     * This callback will be triggered each time the RTC connection changes state
+     * Optional callback will be triggered each time the RTC connection changes state
      * @param state
      */
     onConnectionStateChange?(state: RTCIceConnectionState): void;
@@ -54,7 +58,7 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered each time any changes happen in the chat
      * @param progress
      */
-    onChatEvents?(progress: ChatProgress): void;
+    onChatEvents?(progress: ChatProgress, data): void;
 }
 
 export interface AgentManagerOptions {
@@ -64,7 +68,7 @@ export interface AgentManagerOptions {
     auth: Auth;
 }
 
-export interface AgentsManager {
+export interface AgentManager {
     /**
      * Agent instance you are working with.
      * To know more about agents go to https://docs.d-id.com/reference/agents
@@ -104,15 +108,5 @@ export interface AgentsManager {
      * Optional callback function that will be triggered each time any changes happen in the chat
      * @param callback
      */
-    onChatEvents: (callback: ChatProgressCallback) => void;
-    /**
-     * Optional callback function that will be triggered each time the RTC connection gets new status
-     * @param callback
-     */
-    onConnectionEvents: (callback: ConnectionStateChangeCallback) => void;
-    /**
-     * Optional callback function that will be triggered each time video events happen
-     * @param callback
-     */
-    onVideoEvents: (callback: VideoStateChangeCallback) => void;
-};
+    getStarterMessages: () => Promise<string[]>;
+}

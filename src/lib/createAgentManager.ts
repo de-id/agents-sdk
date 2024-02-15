@@ -1,8 +1,8 @@
 import {
     Agent,
+    AgentManager,
     AgentManagerOptions,
     AgentsAPI,
-    AgentsManager,
     Chat,
     ChatProgressCallback,
     ConnectionStateChangeCallback,
@@ -13,7 +13,7 @@ import {
     VideoStateChangeCallback,
     VideoType,
 } from '$/types/index';
-import { StreamingManager, createStreamingManager } from '..';
+import { ChatProgress, StreamEvents, StreamingManager, createKnowledgeApi, createStreamingManager } from '..';
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
@@ -52,6 +52,16 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
 
                         options.callbacks.onConnectionStateChange?.(state);
                     },
+                    // TODO remove when webscoket will return partial
+                    onMessage: (event, data) => {
+                        if(event === StreamEvents.ChatPartial) {
+                            // Mock ws event result to remove in future
+                            options.callbacks.onChatEvents?.(ChatProgress.Partial, {
+                                content: data,
+                                event: ChatProgress.Partial
+                            });
+                        }
+                    }
                 },
             });
         }
@@ -63,21 +73,22 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
  *
  * @param {string} agentId - The ID of the agent to chat with.
  * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
- * * @returns {Promise<AgentsManager>} - A promise that resolves to an instance of the AgentsAPI interface.
+ * * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
  *
  * @throws {Error} Throws an error if the agent is not initialized.
  *
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentsManager> {
+export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentManager> {
     const baseURL = options.baseURL || didApiUrl;
     const abortController: AbortController = new AbortController();
     const agentsApi = createAgentsApi(options.auth, baseURL);
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
+    const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
-    const socketManager = await SocketManager(options.auth);
+    const socketManager = await SocketManager(options.auth, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
 
     return {
@@ -113,10 +124,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             return ratingsAPI.create(payload);
         },
         speak(payload: SupportedStreamScipt) {
-            if (!agent) {
-                throw new Error('Agent not initializated');
-            }
-
             let completePayload;
 
             if (payload.type === 'text') {
@@ -141,14 +148,9 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
 
             return streamingManager.speak(completePayload);
         },
-        onChatEvents(callback: ChatProgressCallback) {
-            socketManager.subscribeToEvents(callback);
-        },
-        onConnectionEvents(callback: ConnectionStateChangeCallback) {
-            streamingManager.onCallback('onConnectionStateChange', callback);
-        },
-        onVideoEvents(callback: VideoStateChangeCallback) {
-            streamingManager.onCallback('onVideoStateChange', callback);
+        getStarterMessages() {
+            if (!agent.knowledge?.id) return Promise.resolve([]);
+            return knowledgeApi.getKnowledge(agent.knowledge?.id).then(knowledge => knowledge?.starter_message || []);
         },
     };
 }

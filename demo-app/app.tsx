@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import './app.css';
 import { clientKey, didApiUrl, agentId } from './environment';
-import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingManager, StreamingState, VideoType, createAgentManager, createStreamingManager, AgentsManager } from '../src/types/index';
+import { Agent, Auth, ClipStreamOptions, CreateStreamOptions, StreamingManager, StreamingState, VideoType, createAgentManager, createStreamingManager, AgentManager, ChatProgress } from '../src/types/index';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter?.type === VideoType.Clip) {
@@ -34,12 +34,11 @@ export function App() {
     const [streamState, setStreamState] = useState<State>(State.New);
     const [text, setText] = useState('');
     const [agent, setAgent] = useState<Agent>();
-    const [agentAPI, setAgentAPI] = useState<AgentsManager>();
+    const [agentAPI, setAgentAPI] = useState<AgentManager>();
+    const [answer, setAnswer] = useState('');
 
     useEffect(() => {
         // createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
-        // test socket mock
-        // SocketManager(auth).then((SM) => SM.connect())
     }, [auth]);
 
     const onConnectionStateChange = function(state) { 
@@ -72,6 +71,14 @@ export function App() {
         }
     }
 
+    const onChatEvents = function(event, data) {
+        if (event === ChatProgress.Partial) {
+            setAnswer(answer => answer + data.content);
+        } else if (event === ChatProgress.Answer) {
+            setAnswer(data.content);
+        }
+    }
+
     const callbacks ={
         onSrcObjectReady(value) {
             if (!videoRef.current) {
@@ -80,17 +87,15 @@ export function App() {
 
             videoRef.current.srcObject = value;
         },
-        onConnectionStateChange
+        onConnectionStateChange,
+        onVideoStateChange,
+        onChatEvents
     }
 
-    async function onClickNew() {
+    async function onClick() {
         if (!agentAPI) {
-            const agentAPI: AgentsManager = await createAgentManager(agentId, {callbacks, baseURL: didApiUrl, auth} )
+            const agentAPI: AgentManager = await createAgentManager(agentId, {callbacks, baseURL: didApiUrl, auth} )
             setAgentAPI(agentAPI)
-            // agentAPI.onChatEvents((e) => {console.log(e)})
-            agentAPI.onChatEvents(e => {console.log('works sub to wss', e)})
-            agentAPI.onConnectionEvents(onConnectionStateChange)
-            agentAPI.onVideoEvents(onVideoStateChange)
         }
         else if(text) {
             setStreamState(State.Speaking);
@@ -118,50 +123,12 @@ export function App() {
         )
         console.log(response)
     }
-    
-    async function onClick() {
-        if (agent) {
-            if ([State.New, State.Fail].includes(streamState)) {
-                setStreamState(State.Connecting);
-                await rtcConnection?.terminate();
-                const newRtcConnection = await createStreamingManager(getAgentStreamArgs(agent), {
-                    auth,
-                    baseURL: didApiUrl,
-                    callbacks
-                }).catch(e => {
-                    setStreamState(State.Fail);
-                    throw e;
-                });
-
-                setRtcConnection(newRtcConnection);
-            } else if (streamState === State.Connected && text && rtcConnection && agent.presenter.voice) {
-                setStreamState(State.Speaking);
-
-                await rtcConnection
-                    .speak({
-                        script: {
-                            type: 'text',
-                            provider: agent.presenter.voice,
-                            input: text,
-                        },
-                    })
-                    .catch(e => {
-                        console.log(e);
-                        setStreamState(State.Fail);
-                    });
-            }
-        }
-    }
 
     function terminate() {
         agentAPI?.terminate()
         // rtcConnection?.terminate();
         setRtcConnection(null);
         setStreamState(State.New);
-    }
-
-    function reconect() {
-        agentAPI?.reconnectToChat()
     }
 
     return (
@@ -173,8 +140,9 @@ export function App() {
                     value={text}
                     onInput={e => setText(e.currentTarget.value)}
                 />
+                <span>agent answer: {answer}</span>
                 <button
-                    onClick={onClickNew}
+                    onClick={onClick}
                     disabled={
                         [State.Connecting, State.Speaking].includes(streamState) ||
                         (!text && ![State.New, State.Fail].includes(streamState))
@@ -190,9 +158,6 @@ export function App() {
                 <button onClick={onChat} disabled={streamState !== State.Connected}>Send to chat text</button>
                 <button onClick={terminate} disabled={streamState !== State.Connected}>
                     Close connection
-                </button>
-                <button onClick={reconect} disabled={streamState === State.Connected}>
-                    reconnect To Chat
                 </button>
             </div>
             <video

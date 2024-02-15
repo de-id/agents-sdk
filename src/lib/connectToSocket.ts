@@ -1,4 +1,5 @@
 import { Auth } from '$/types/auth';
+import { ChatProgressCallback } from '..';
 import { getAuthHeader } from './auth/getAuthHeader';
 import { didSocketApiUrl } from './environment';
 
@@ -77,14 +78,19 @@ async function connectWithRetries(options: Options): Promise<WebSocket> {
     return socket;
 }
 
-export async function SocketManager(auth: Auth, host: string = didSocketApiUrl): Promise<SocketManager> {
-    const messageCallbacks: ((data: any) => void)[] = [];
+export async function SocketManager(
+    auth: Auth,
+    onMessage?: ChatProgressCallback,
+    host: string = didSocketApiUrl
+): Promise<SocketManager> {
+    const messageCallbacks: ChatProgressCallback[] = onMessage ? [onMessage] : [];
     const socket: WebSocket = await connectWithRetries({
         auth,
         host,
         callbacks: {
             onMessage: (event: MessageEvent) => {
-                messageCallbacks.forEach(callback => callback(event));
+                const parsedData = JSON.parse(event.data);
+                messageCallbacks.forEach(callback => callback(parsedData.event, parsedData));
             },
         },
     });
@@ -92,6 +98,6 @@ export async function SocketManager(auth: Auth, host: string = didSocketApiUrl):
     return {
         socket,
         terminate: () => socket.close(),
-        subscribeToEvents: <T>(callback: (data: T) => void) => messageCallbacks.push(callback),
+        subscribeToEvents: (callback: ChatProgressCallback) => messageCallbacks.push(callback),
     };
 }
