@@ -45,11 +45,17 @@ export interface IRetrivalMetadata {
     source_url: string;
 }
 
+export enum ChatMode {
+    Functional = 'Functional',
+    TextOnly = 'TextOnly',
+    Maintainance = 'Maintainance',
+}
 export interface ChatResponse {
     // TODO: Delete this, it's for backwards compatibility
     result?: string;
     documentIds?: string[];
     matches?: IRetrivalMetadata[];
+    chatMode?: ChatMode;
 }
 
 export interface Chat {
