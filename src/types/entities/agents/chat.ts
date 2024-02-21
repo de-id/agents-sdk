@@ -48,7 +48,7 @@ export interface IRetrivalMetadata {
 export enum ChatMode {
     Functional = 'Functional',
     TextOnly = 'TextOnly',
-    Maintainance = 'Maintainance',
+    Maintenance = 'Maintenance',
 }
 export interface ChatResponse {
     // TODO: Delete this, it's for backwards compatibility
