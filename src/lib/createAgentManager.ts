@@ -10,7 +10,7 @@ import {
     SupportedStreamScipt,
     VideoType,
 } from '$/types/index';
-import { ChatProgress, StreamEvents, StreamingManager, createKnowledgeApi, createStreamingManager } from '..';
+import { Auth, ChatProgress, StreamEvents, StreamingManager, createKnowledgeApi, createStreamingManager } from '..';
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
@@ -65,6 +65,12 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
     );
 }
 
+export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise<Agent> {
+    const url = baseURL || didApiUrl;
+    const agentsApi = createAgentsApi(auth, url);
+    return agentsApi.getById(agentId);
+}
+
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
@@ -86,7 +92,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
-    const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents,);
+    const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
 
     return {
