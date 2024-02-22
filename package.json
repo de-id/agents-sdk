@@ -1,7 +1,7 @@
 {
-    "name": "@d-id/agents-sdk",
+    "name": "@d-id/client-sdk",
     "private": false,
-    "version": "0.0.1",
+    "version": "1.0.19-beta.5",
     "type": "module",
     "description": "d-id client sdk",
     "repository": {
