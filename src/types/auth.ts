@@ -8,13 +8,13 @@ export interface BasicAuth {
     username: string;
     password: string;
 }
-export interface ApiKeyAuth {
+export interface ClientKeyAuth {
     type: 'key';
     clientKey: string;
     externalId: string;
 }
 
-export type Auth = BearerToken | BasicAuth | ApiKeyAuth;
+export type Auth = BearerToken | BasicAuth | ClientKeyAuth;
 
 export interface GetAuthParams {
     token?: string | null;

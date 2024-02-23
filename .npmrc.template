@@ -1,7 +1,0 @@
-@de-id:registry=https://npm.pkg.github.com
-link-workspace-packages=true
-shamefully-hoist=true
-arch=x64
-platform=linux
-libc=glibc
-//npm.pkg.github.com/:_authToken=$NPM_AUTH_TOKEN

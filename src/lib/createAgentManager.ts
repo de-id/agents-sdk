@@ -4,6 +4,7 @@ import {
     AgentManagerOptions,
     AgentsAPI,
     Chat,
+    ClientKeyAuth,
     CreateStreamOptions,
     Message,
     RatingPayload,
@@ -99,7 +100,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
-    console.log(`AUTH: ${options.auth.clientKey},${options.auth.externalId}, ${wsURL}`)
+    console.log(`AUTH: ${(options.auth as ClientKeyAuth).clientKey},${(options.auth as ClientKeyAuth).externalId}, ${wsURL}`)
     const agent = await agentsApi.getById(agentId);
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
