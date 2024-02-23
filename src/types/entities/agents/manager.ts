@@ -1,6 +1,6 @@
 import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
-import { SendStreamPayloadResponse, SlimRTCStatsReport, StreamingState } from '../../stream';
+import { SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
 import { ChatResponse, Message, RatingEntity, RatingPayload } from './chat';
 
@@ -44,7 +44,7 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered each time video events happen
      * @param state
      */
-    onVideoStateChange?(state: StreamingState, data: any): void;
+    onVideoStateChange?(state: StreamingState, data?: any): void;
     /**
      * Callback function that will be triggered each time the video stream starts or stops to update html element on webpage
      * Required callback for SDK
@@ -58,7 +58,7 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered each time any changes happen in the chat
      * @param progress
      */
-    onChatEvents?(progress: ChatProgress, data: string): void;
+    onChatEvents?(progress: ChatProgress, data: any): void;
 }
 
 export interface AgentManagerOptions {
