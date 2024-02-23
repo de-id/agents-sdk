@@ -32,7 +32,7 @@ export enum ChatProgress {
 
 export type ChatProgressCallback = (progress: ChatProgress, data: string) => void;
 export type ConnectionStateChangeCallback = (state: RTCIceConnectionState) => void;
-export type VideoStateChangeCallback = (state: StreamingState, stats?: SlimRTCStatsReport[]) => void;
+export type VideoStateChangeCallback = (state: StreamingState, data: any) => void;
 
 interface ManagerCallbacks {
     /**
@@ -44,7 +44,7 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered each time video events happen
      * @param state
      */
-    onVideoStateChange?(state: StreamingState): void;
+    onVideoStateChange?(state: StreamingState, data: any): void;
     /**
      * Callback function that will be triggered each time the video stream starts or stops to update html element on webpage
      * Required callback for SDK
@@ -58,7 +58,7 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered each time any changes happen in the chat
      * @param progress
      */
-    onChatEvents?(progress: ChatProgress, data): void;
+    onChatEvents?(progress: ChatProgress, data: string): void;
 }
 
 export interface AgentManagerOptions {

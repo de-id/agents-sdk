@@ -69,7 +69,7 @@ export function App() {
         }
     };
 
-    const onVideoStateChange = function (state, stats) {
+    const onVideoStateChange = function (state, data) {
         setStreamState(streamState => {
             if (streamState === State.Speaking) {
                 return state === StreamingState.Stop ? State.Connected : State.Speaking;
@@ -77,8 +77,8 @@ export function App() {
 
             return streamState;
         });
-        if (state === StreamingState.Stop && stats) {
-            console.log('Video stats', stats);
+        if (state === StreamingState.Stop && data) {
+            console.log('Video stats', data);
         }
     };
 

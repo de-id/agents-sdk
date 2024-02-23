@@ -20,7 +20,7 @@ export enum StreamEvents {
 export interface ManagerCallbacks {
     onMessage?: (event: string, data: string) => void;
     onConnectionStateChange?: (state: RTCIceConnectionState) => void;
-    onVideoStateChange?: (state: StreamingState, stats?: SlimRTCStatsReport[]) => void;
+    onVideoStateChange?: (state: StreamingState, data: any) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
 }
 
