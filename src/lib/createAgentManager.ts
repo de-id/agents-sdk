@@ -51,12 +51,20 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                     },
                     // TODO remove when webscoket will return partial
                     onMessage: (event, data) => {
-                        if (event === StreamEvents.ChatPartial) {
+                        /*if (event === StreamEvents.ChatPartial) {
                             // Mock ws event result to remove in future
+                            console.log("BENNNNNN ChatPartial", event, data)
                             options.callbacks.onChatEvents?.(ChatProgress.Partial, {
                                 content: data,
                                 event: ChatProgress.Partial,
                             });
+                        } else*/
+                        if(event === StreamEvents.ChatAnswer){
+                            console.log("ChatAnswer", event, data)
+                            options.callbacks.onChatEvents?.(ChatProgress.Answer, {
+                                content: data,
+                                event: ChatProgress.Answer,
+                            }); 
                         }
                     },
                 },
@@ -91,6 +99,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
+    console.log(`AUTH: ${options.auth.clientKey},${options.auth.externalId}, ${wsURL}`)
     const agent = await agentsApi.getById(agentId);
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);

@@ -112,6 +112,7 @@ export function App() {
                 auth,
                 wsURL: didSocketApiUrl,
             });
+            console.log(`createAgentManager setAuth ${auth}`)
             setAgentAPI(agentAPI);
         } else if (text) {
             setStreamState(State.Speaking);

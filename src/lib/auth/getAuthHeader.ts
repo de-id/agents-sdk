@@ -6,7 +6,7 @@ export function getAuthHeader(auth: Auth) {
     } else if (auth.type === 'basic') {
         return `Basic ${btoa(`${auth.username}:${auth.password}`)}`;
     } else if (auth.type === 'key') {
-        return `Client-Key ${auth.clientKey}`;
+        return `Client-Key ${auth.clientKey}.${auth.externalId}`;
     } else {
         throw new Error(`Unknown auth type: ${auth}`);
     }

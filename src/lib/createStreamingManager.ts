@@ -73,6 +73,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         if (pcDataChannel.readyState === 'open') {
             const [event, data] = message.data.split(':');
             if (event === StreamEvents.StreamStarted) {
+                console.log("StreamStarted", event, data)
                 videoStatsStartIndex = videoStats.length;
                 videoStatsInterval = setInterval(() => {
                     const stats = peerConnection.getStats();
@@ -87,6 +88,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 callbacksObj.onVideoStateChange?.(StreamingState.Start);
             }
             else if (event === StreamEvents.StreamDone) {
+                console.log("StreamDone", event, data)
                 clearInterval(videoStatsInterval);
                 const stats = videoStats.slice(videoStatsStartIndex);
                 if (stats) {
