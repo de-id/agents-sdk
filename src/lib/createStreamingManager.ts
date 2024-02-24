@@ -73,18 +73,13 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         statsIntervalId = setInterval(() => {
             
             if(videoStats?.length && videoStatsLastIndex < videoStats?.length){
-                const isPlaying = (videoStats.slice(-1)?.[0].bytesReceived ?? Infinity) > lastBytesReceived 
-                lastBytesReceived = (videoStats.slice(-1)?.[0].bytesReceived ?? 0)
-                console.log("videoStatsStartIndex ", isPlaying, videoStats.slice(-1)?.[0].bytesReceived, lastBytesReceived, videoStats)
-                if(!isPlaying) {
-                    callbacksObj.onVideoStateChange?.(StreamingState.Stop)
-                    console.log("isPlaying NO by stats")
-                }else{
-                    console.log("PLAYYYY.....")
-                }
+                const currBytesReceived = videoStats[videoStatsLastIndex]?.bytesReceived
+                const isPlaying = (currBytesReceived ?? Infinity) - lastBytesReceived > 0 || (lastBytesReceived == 0 && currBytesReceived == 0)
+                lastBytesReceived = currBytesReceived ?? 0
+                callbacksObj.onVideoStateChange?.(isPlaying ? StreamingState.Start : StreamingState.Stop, {isPlaying})
                 videoStatsLastIndex = videoStats?.length
             }
-        },500)
+        },1000)
     }
 
     pcDataChannel.onmessage = (message: MessageEvent) => {
