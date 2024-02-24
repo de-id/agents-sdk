@@ -38,6 +38,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
     const videoStats = [] as SlimRTCStatsReport[];
     let videoStatsStartIndex = 0;
+    let videoStatsLastIndex = 0;
     let lastBytesReceived = 0;
     let statsIntervalId
     let videoStatsInterval: NodeJS.Timeout;
@@ -70,11 +71,19 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         log('peerConnection.ontrack', event);
         callbacksObj.onSrcObjectReady?.(event.streams[0]);
         statsIntervalId = setInterval(() => {
-            console.log("videoStatsStartIndex ", videoStatsStartIndex, lastBytesReceived)
-            // const previousStats = videoStatsStartIndex === 0 ? undefined : videoStats[videoStatsStartIndex - 1];
-            const isPlaying = videoStats[videoStatsStartIndex] > lastBytesReceived 
-            lastBytesReceived = videoStats[videoStatsStartIndex]
-            if(!isPlaying) callbacksObj.onConnectionStateChange?.("new")
+            
+            if(videoStats?.length && videoStatsLastIndex < videoStats?.length){
+                const isPlaying = (videoStats.slice(-1)?.[0].bytesReceived ?? Infinity) > lastBytesReceived 
+                lastBytesReceived = (videoStats.slice(-1)?.[0].bytesReceived ?? 0)
+                console.log("videoStatsStartIndex ", isPlaying, videoStats.slice(-1)?.[0].bytesReceived, lastBytesReceived, videoStats)
+                if(!isPlaying) {
+                    callbacksObj.onVideoStateChange?.(StreamingState.Stop)
+                    console.log("isPlaying NO by stats")
+                }else{
+                    console.log("PLAYYYY.....")
+                }
+                videoStatsLastIndex = videoStats?.length
+            }
         },500)
     }
 
@@ -97,14 +106,15 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 callbacksObj.onVideoStateChange?.(StreamingState.Start);
             }
             else if (event === StreamEvents.StreamDone) {
-                console.log("StreamDone", event, data)
+                console.log("StreamDone")
                 clearInterval(videoStatsInterval);
+                clearInterval(statsIntervalId);
                 const stats = videoStats.slice(videoStatsStartIndex);
                 if (stats) {
                     const previousStats = videoStatsStartIndex === 0 ? undefined : videoStats[videoStatsStartIndex - 1];
                     const videoStatsReport = createVideoStatsReport(stats, previousStats);
                     videoStatsStartIndex = videoStats.length;
-                    callbacksObj.onVideoStateChange?.(StreamingState.Stop, videoStatsReport.sort((a, b) => b.packetsLost - a.packetsLost).slice(0, 5));
+                    //callbacksObj.onVideoStateChange?.(StreamingState.Stop, videoStatsReport.sort((a, b) => b.packetsLost - a.packetsLost).slice(0, 5));
                 }
             } else if (event === StreamEvents.StreamFailed) {
                 callbacksObj.onVideoStateChange?.(StreamingState.Stop, {event, data});
