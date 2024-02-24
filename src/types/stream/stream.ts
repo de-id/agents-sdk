@@ -15,6 +15,7 @@ export enum StreamEvents {
     ChatPartial = 'chat/partial',
     StreamDone = 'stream/done',
     StreamStarted = 'stream/started',
+    StreamFailed = 'stream/error',
 }
 
 export interface ManagerCallbacks {

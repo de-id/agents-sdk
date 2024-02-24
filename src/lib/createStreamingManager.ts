@@ -38,6 +38,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
     const videoStats = [] as SlimRTCStatsReport[];
     let videoStatsStartIndex = 0;
+    let lastBytesReceived = 0;
+    let statsIntervalId
     let videoStatsInterval: NodeJS.Timeout;
 
     if (!session_id) {
@@ -67,7 +69,14 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     peerConnection.ontrack = (event: RTCTrackEvent) => {
         log('peerConnection.ontrack', event);
         callbacksObj.onSrcObjectReady?.(event.streams[0]);
-    };
+        statsIntervalId = setInterval(() => {
+            console.log("videoStatsStartIndex ", videoStatsStartIndex, lastBytesReceived)
+            // const previousStats = videoStatsStartIndex === 0 ? undefined : videoStats[videoStatsStartIndex - 1];
+            const isPlaying = videoStats[videoStatsStartIndex] > lastBytesReceived 
+            lastBytesReceived = videoStats[videoStatsStartIndex]
+            if(!isPlaying) callbacksObj.onConnectionStateChange?.("new")
+        },500)
+    }
 
     pcDataChannel.onmessage = (message: MessageEvent) => {
         if (pcDataChannel.readyState === 'open') {
@@ -97,7 +106,10 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     videoStatsStartIndex = videoStats.length;
                     callbacksObj.onVideoStateChange?.(StreamingState.Stop, videoStatsReport.sort((a, b) => b.packetsLost - a.packetsLost).slice(0, 5));
                 }
-            } else {
+            } else if (event === StreamEvents.StreamFailed) {
+                callbacksObj.onVideoStateChange?.(StreamingState.Stop, {event, data});
+            }
+            else {
                 callbacksObj.onMessage?.(event, decodeURIComponent(data));
             }
         }
@@ -139,6 +151,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     peerConnection.onnegotiationneeded = null;
                     peerConnection.onicecandidate = null;
                     peerConnection.ontrack = null;
+                    clearInterval(statsIntervalId);
                 }
 
                 await close(streamIdFromServer, session_id).catch(_ => {});
