@@ -60,7 +60,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                             isPlaying = currBytesReceived - lastBytesReceived > 0
                             let videoStatsReport
                             if(prevPlaying !== isPlaying){
-                               callbacksObj.onVideoStateChange?.(isPlaying ? StreamingState.Start : StreamingState.Stop, {isPlaying})
+                               
                                 if(isPlaying){
                                     videoStatsStartIndex = videoStats.length
                                 }else{   
@@ -69,7 +69,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                                     videoStatsReport = createVideoStatsReport(stats, previousStats);
                                     videoStatsReport = videoStatsReport.sort((a, b) => b.packetsLost - a.packetsLost).slice(0, 5)
                                 }
-                                callbacksObj.onVideoStateChange?.(StreamingState.Stop, videoStatsReport);
+                                callbacksObj.onVideoStateChange?.(isPlaying ? StreamingState.Start : StreamingState.Stop, videoStatsReport)
                             }
                         }   
                         videoStats.push(report);
