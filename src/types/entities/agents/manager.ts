@@ -59,6 +59,12 @@ interface ManagerCallbacks {
      * @param progress
      */
     onChatEvents?(progress: ChatProgress, data: any): void;
+
+    /**
+     * Optional callback function that will be triggered when the agent is ready
+     * @param agent - Agent instance you are working with
+     */
+    onAgentReady?(agent: Agent): void;
 }
 
 export interface AgentManagerOptions {

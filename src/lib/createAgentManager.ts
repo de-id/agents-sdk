@@ -4,20 +4,27 @@ import {
     AgentManagerOptions,
     AgentsAPI,
     Chat,
-    ClientKeyAuth,
     CreateStreamOptions,
     Message,
     RatingPayload,
     SupportedStreamScipt,
     VideoType,
 } from '$/types/index';
-import { Auth, ChatProgress, StreamEvents, StreamingManager, createKnowledgeApi, createStreamingManager } from '..';
+import {
+    Auth,
+    ChatProgress,
+    StreamEvents,
+    StreamScript,
+    StreamingManager,
+    createKnowledgeApi,
+    createStreamingManager,
+} from '..';
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
 import { didApiUrl, didSocketApiUrl } from './environment';
 
-export function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
+function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
         return {
             videoType: VideoType.Clip,
@@ -47,7 +54,7 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                                 resolve({ chat, streamingManager });
                             } catch (error: any) {
                                 console.error(error);
-                                reject(new Error('Cannot create new chat'));    
+                                reject(new Error('Cannot create new chat'));
                             }
                         } else if (state === 'failed') {
                             reject(new Error('Cannot create connection'));
@@ -65,12 +72,12 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                                 event: ChatProgress.Partial,
                             });
                         } else*/
-                        if(event === StreamEvents.ChatAnswer){
-                            console.log("ChatAnswer", event, data)
+                        if (event === StreamEvents.ChatAnswer) {
+                            console.log('ChatAnswer', event, data);
                             options.callbacks.onChatEvents?.(ChatProgress.Answer, {
                                 content: data,
                                 event: ChatProgress.Answer,
-                            }); 
+                            });
                         }
                     },
                 },
@@ -82,6 +89,7 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
 export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise<Agent> {
     const url = baseURL || didApiUrl;
     const agentsApi = createAgentsApi(auth, url);
+
     return agentsApi.getById(agentId);
 }
 
@@ -106,11 +114,14 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
     const agent = await agentsApi.getById(agentId);
+    options.callbacks?.onAgentReady?.(agent);
+
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
 
     return {
         agent,
+        chatId: chat.id,
         async reconnectToChat() {
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agent,
@@ -118,14 +129,15 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
                 agentsApi,
                 chat
             );
+
             streamingManager = newStreamingManager;
         },
         terminate() {
             abortController.abort();
             socketManager.terminate();
+
             return streamingManager.terminate();
         },
-        chatId: chat.id,
         chat(messages: Message[]) {
             return agentsApi.chat(
                 agentId,
@@ -145,33 +157,32 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             return ratingsAPI.delete(id);
         },
         speak(payload: SupportedStreamScipt) {
-            let completePayload;
-
-            if (payload.type === 'text') {
-                // Handling Stream_Text_Script
-                completePayload = {
-                    script: {
+            function getScript(): StreamScript {
+                if (payload.type === 'text') {
+                    return {
                         type: 'text',
                         provider: payload.provider,
                         input: payload.input,
                         ssml: payload.ssml || false,
-                    },
-                };
-            } else if (payload.type === 'audio') {
-                // Handling Stream_Audio_Script
-                completePayload = {
-                    script: {
+                    };
+                } else if (payload.type === 'audio') {
+                    return {
                         type: 'audio',
                         audio_url: payload.audio_url,
-                    },
-                };
+                    };
+                }
+
+                throw new Error('Invalid payload');
             }
 
-            return streamingManager.speak(completePayload);
+            return streamingManager.speak({ script: getScript() });
         },
-        getStarterMessages() {
-            if (!agent.knowledge?.id) return Promise.resolve([]);
-            return knowledgeApi.getKnowledge(agent.knowledge?.id).then(knowledge => knowledge?.starter_message || []);
+        async getStarterMessages() {
+            if (!agent.knowledge?.id) {
+                return [];
+            }
+
+            return knowledgeApi.getKnowledge(agent.knowledge.id).then(knowledge => knowledge?.starter_message || []);
         },
     };
 }
