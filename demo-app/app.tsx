@@ -53,7 +53,6 @@ export function App() {
     }, [auth]);
 
     const onConnectionStateChange = function (state) {
-        console.log('state callabck', state);
         if (state === 'connected') {
             setStreamState(State.Connected);
         } else if (state === 'new') {
@@ -105,14 +104,12 @@ export function App() {
 
     async function onClick() {
         if (!agentAPI) {
-            console.log('ws url', didSocketApiUrl)
             const agentAPI: AgentManager = await createAgentManager(agentId, {
                 callbacks,
                 baseURL: didApiUrl,
                 auth,
                 wsURL: didSocketApiUrl,
             });
-            console.log(`createAgentManager setAuth ${auth}`)
             setAgentAPI(agentAPI);
         } else if (text) {
             setStreamState(State.Speaking);

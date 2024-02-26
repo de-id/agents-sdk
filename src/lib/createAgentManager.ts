@@ -59,7 +59,7 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                     onMessage: (event, data) => {
                         /*if (event === StreamEvents.ChatPartial) {
                             // Mock ws event result to remove in future
-                            console.log("BENNNNNN ChatPartial", event, data)
+                           
                             options.callbacks.onChatEvents?.(ChatProgress.Partial, {
                                 content: data,
                                 event: ChatProgress.Partial,
@@ -105,7 +105,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
-    console.log(`AUTH: ${(options.auth as ClientKeyAuth).clientKey},${(options.auth as ClientKeyAuth).externalId}, ${wsURL}`)
     const agent = await agentsApi.getById(agentId);
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
