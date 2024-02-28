@@ -1,5 +1,5 @@
 import { Auth } from '$/types/auth';
-import { ChatProgressCallback } from '..';
+import { ChatProgressCallback } from '.';
 import { getAuthHeader } from './auth/getAuthHeader';
 import { didSocketApiUrl } from './environment';
 

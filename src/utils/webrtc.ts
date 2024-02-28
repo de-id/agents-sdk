@@ -1,4 +1,4 @@
-import { SlimRTCStatsReport } from "../../types";
+import { SlimRTCStatsReport } from "../types";
 
 export function createVideoStatsReport(stats: SlimRTCStatsReport[], previousStats?: SlimRTCStatsReport): SlimRTCStatsReport[] {
     return stats.map((report, index) => {

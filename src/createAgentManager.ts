@@ -18,7 +18,7 @@ import {
     StreamingManager,
     createKnowledgeApi,
     createStreamingManager,
-} from '..';
+} from '.';
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';

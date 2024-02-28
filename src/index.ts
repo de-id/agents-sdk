@@ -1,9 +1,9 @@
 // TODO Test that all works wihout this export in embeded and then remove
-export * from './lib/api/agents';
-export * from './lib/api/getClient';
-export * from './lib/api/knowledge';
-export * from './lib/api/ratings';
-export * from './lib/connectToSocket';
-export * from './lib/createAgentManager';
-export * from './lib/createStreamingManager';
-export * from '$/types/index'
+export * from './api/agents';
+export * from './api/getClient';
+export * from './api/knowledge';
+export * from './api/ratings';
+export * from './connectToSocket';
+export * from './createAgentManager';
+export * from './createStreamingManager';
+export * from './types/index';
