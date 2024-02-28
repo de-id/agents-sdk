@@ -37,7 +37,7 @@ enum State {
     Speaking,
 }
 
-const auth: Auth = { type: 'key', clientKey, externalId: 'test' };
+const auth: Auth = { type: 'key', clientKey };
 export function App() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [rtcConnection, setRtcConnection] = useState<StreamingManager<ClipStreamOptions> | null>(null);

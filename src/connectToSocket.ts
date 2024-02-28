@@ -1,7 +1,6 @@
 import { Auth } from '$/types/auth';
 import { ChatProgressCallback } from '.';
 import { getAuthHeader } from './auth/getAuthHeader';
-import { didSocketApiUrl } from './environment';
 
 interface Options {
     auth: Auth;
@@ -27,15 +26,13 @@ function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
         const { callbacks, host, auth } = options;
         const { onMessage = null, onOpen = null, onClose = null, onError = null } = callbacks || {};
-        // TODO switch to socket connection with random ID when it will return messages
-        // const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}.${getRandomID(8)}`);
         const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}`);
         
         socket.onmessage = onMessage;
         socket.onclose = onClose;
 
         socket.onerror = e => {
-            console.log(e);
+            console.error(e);
             onError?.(e);
             reject(e);
         };
