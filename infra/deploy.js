@@ -44,7 +44,7 @@ try {
 
     console.log(`Publishing version ${finalVersion}`);
     await asyncExec('npm publish --access public --registry https://registry.npmjs.org/');
-    console.log(`Succesful build ${mode}`)
+    console.log(`Succesful deploy`)
 } catch (e) {
     console.error(e);
     fs.writeFileSync(root + '/package.json', copy);

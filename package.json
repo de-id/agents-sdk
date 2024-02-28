@@ -1,7 +1,7 @@
 {
     "name": "@d-id/client-sdk",
     "private": false,
-    "version": "1.0.19-beta.36",
+    "version": "1.0.19-beta.37",
     "type": "module",
     "description": "d-id client sdk",
     "repository": {
@@ -25,7 +25,7 @@
         "dev": "vite",
         "build": "node ./infra/build.js -m production",
         "build:dev": "node ./infra/build.js -m development",
-        "deploy:prod": "node ./infra/deploy.js --version patch",
+        "deploy:prod": "node ./infra/deploy.js --version beta",
         "preview": "vite preview",
         "test-build": "node .infra/build.js -m development",
         "build:docs": "typedoc"
