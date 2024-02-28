@@ -4,7 +4,6 @@ import dns from 'dns';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
-import VitePluginHtmlEnv from 'vite-plugin-html-env';
 
 // https://vitejs.dev/config/
 export default ({ mode }) => {
@@ -23,11 +22,7 @@ export default ({ mode }) => {
                 fileName: 'index',
             },
         },
-        plugins: [
-            preact(),
-            VitePluginHtmlEnv({ compiler: false }),
-            dts({ include: [resolve(__dirname, './src/**/*.{ts,tsx}'), './types/**/*.{ts,tsx}'] }),
-        ],
+        plugins: [preact(), dts({ include: [resolve(__dirname, './src/**/*.{ts,tsx}'), './types/**/*.{ts,tsx}'] })],
         resolve: {
             alias: {
                 $: resolve(__dirname, './src'),

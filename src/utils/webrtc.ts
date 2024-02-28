@@ -1,31 +1,39 @@
-import { SlimRTCStatsReport } from "../types";
+import { SlimRTCStatsReport } from '../types';
 
-export function createVideoStatsReport(stats: SlimRTCStatsReport[], previousStats?: SlimRTCStatsReport): SlimRTCStatsReport[] {
+export function createVideoStatsReport(
+    stats: SlimRTCStatsReport[],
+    previousStats?: SlimRTCStatsReport
+): SlimRTCStatsReport[] {
     return stats.map((report, index) => {
         if (index === 0) {
-            return !previousStats ? {
-                index,
-                timestamp: report.timestamp,
-                bytesReceived: report.bytesReceived,
-                packetsReceived: report.packetsReceived,
-                packetsLost: report.packetsLost,
-                jitter: report.jitter,
-                frameWidth: report.frameWidth,
-                frameHeight: report.frameHeight,
-                frameRate: report.frameRate,
-            } :
-                {
+            if (!previousStats) {
+                return {
                     index,
                     timestamp: report.timestamp,
-                    bytesReceived: report.bytesReceived - previousStats.bytesReceived,
-                    packetsReceived: report.packetsReceived - previousStats.packetsReceived,
-                    packetsLost: report.packetsLost - previousStats.packetsLost,
+                    bytesReceived: report.bytesReceived,
+                    packetsReceived: report.packetsReceived,
+                    packetsLost: report.packetsLost,
                     jitter: report.jitter,
                     frameWidth: report.frameWidth,
                     frameHeight: report.frameHeight,
                     frameRate: report.frameRate,
                 };
-        } else return {
+            }
+            
+            return {
+                index,
+                timestamp: report.timestamp,
+                bytesReceived: report.bytesReceived - previousStats.bytesReceived,
+                packetsReceived: report.packetsReceived - previousStats.packetsReceived,
+                packetsLost: report.packetsLost - previousStats.packetsLost,
+                jitter: report.jitter,
+                frameWidth: report.frameWidth,
+                frameHeight: report.frameHeight,
+                frameRate: report.frameRate,
+            };
+        }
+
+        return {
             index,
             timestamp: report.timestamp,
             bytesReceived: report.bytesReceived - stats[index - 1].bytesReceived,
@@ -35,6 +43,6 @@ export function createVideoStatsReport(stats: SlimRTCStatsReport[], previousStat
             frameWidth: report.frameWidth,
             frameHeight: report.frameHeight,
             frameRate: report.frameRate,
-        }
+        };
     });
 }
