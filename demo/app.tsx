@@ -1,4 +1,3 @@
-// TODO delete this app before launch
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
     Agent,
@@ -116,7 +115,7 @@ export function App() {
             try {
                 agentAPI.speak({
                     type: 'text',
-                    provider: agentAPI.agent.presenter.voice,
+                    provider: agentAPI.agent.presenter.voice as any,
                     input: text,
                 });
             } catch (e) {

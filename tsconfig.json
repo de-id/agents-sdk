@@ -26,7 +26,7 @@
         "moduleResolution": "bundler",
         "jsx": "react-jsx",
         "jsxImportSource": "preact",
-        
+
         "useDefineForClassFields": true,
         "lib": ["ES2020", "DOM", "DOM.Iterable"],
         "skipLibCheck": true,
@@ -41,9 +41,8 @@
         "paths": {
             "$/*": ["src/*"],
             "%/*": ["src/types/*"]
-        },
-
+        }
     },
-    "include": [ "src/types/**/*", "src/**/*"],
+    "include": ["src", "demo"],
     "references": [{ "path": "./tsconfig.node.json" }]
 }
