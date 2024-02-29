@@ -1,11 +1,11 @@
 import { Auth } from '$/types/auth';
 
 function getExternalId() {
-    let key = window.localStorage.getItem('external_key_d_id');
+    let key = window.localStorage.getItem('did_external_key_id');
 
     if (!key) {
         key = Math.random().toString(16).slice(2);
-        window.localStorage.setItem('external_key_d_id', key);
+        window.localStorage.setItem('did_external_key_id', key);
     }
 
     return key;
