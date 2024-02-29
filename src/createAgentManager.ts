@@ -96,7 +96,7 @@ export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
- * @param {string} agentId - The ID of the agent to chat with.
+ * @param {string} agent - The ID or instance of the agent to chat with.
  * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
  * * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
  *
@@ -105,7 +105,7 @@ export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentManager> {
+export async function createAgentManager(agent: string | Agent, options: AgentManagerOptions): Promise<AgentManager> {
     const baseURL = options.baseURL || didApiUrl;
     const wsURL = options.wsURL || didSocketApiUrl;
     const abortController: AbortController = new AbortController();
@@ -113,18 +113,18 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
-    const agent = await agentsApi.getById(agentId);
-    options.callbacks?.onAgentReady?.(agent);
+    const agentInstance = typeof agent === 'string' ? await agentsApi.getById(agent) : agent;
+    options.callbacks?.onAgentReady?.(agentInstance);
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
-    let { chat, streamingManager } = await initializeStreamAndChat(agent, options, agentsApi);
+    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi);
 
     return {
-        agent,
+        agent: agentInstance,
         chatId: chat.id,
         async reconnectToChat() {
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
-                agent,
+                agentInstance,
                 options,
                 agentsApi,
                 chat
@@ -140,7 +140,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
         },
         chat(messages: Message[]) {
             return agentsApi.chat(
-                agentId,
+                agentInstance.id,
                 chat.id,
                 { sessionId: streamingManager.sessionId, streamId: streamingManager.streamId, messages },
                 { signal: abortController.signal }
@@ -178,11 +178,13 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             return streamingManager.speak({ script: getScript() });
         },
         async getStarterMessages() {
-            if (!agent.knowledge?.id) {
+            if (!agentInstance.knowledge?.id) {
                 return [];
             }
 
-            return knowledgeApi.getKnowledge(agent.knowledge.id).then(knowledge => knowledge?.starter_message || []);
+            return knowledgeApi
+                .getKnowledge(agentInstance.knowledge.id)
+                .then(knowledge => knowledge?.starter_message || []);
         },
     };
 }

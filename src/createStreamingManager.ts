@@ -60,7 +60,7 @@ function pollStats(peerConnection, onVideoStateChange) {
                 }
             });
         });
-    }, 250);
+    }, 500);
 }
 
 export async function createStreamingManager<T extends CreateStreamOptions>(
