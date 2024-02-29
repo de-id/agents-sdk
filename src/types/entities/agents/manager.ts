@@ -68,11 +68,13 @@ interface ManagerCallbacks {
 }
 
 export interface AgentManagerOptions {
+    auth: Auth;
     callbacks: ManagerCallbacks;
     baseURL?: string;
     wsURL?: string;
     debug?: boolean;
-    auth: Auth;
+    enableAnalitics?: boolean;
+    mixpanelKey?: string;
 }
 
 export interface AgentManager {
@@ -120,4 +122,12 @@ export interface AgentManager {
      * @param callback
      */
     getStarterMessages: () => Promise<string[]>;
+    /**
+     * TODO describe event and props from MixPanel Docs
+     * TODO add response
+     * @param event 
+     * @param props 
+     * @returns 
+     */
+    track: (event: string, props?: Record<string, any>) => Promise<any>;
 }

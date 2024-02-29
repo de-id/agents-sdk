@@ -1,3 +1,4 @@
+import MixPanelManager from '$/api/mixPanel';
 import { Auth } from '../auth';
 import { VideoType } from '../entities';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
@@ -59,6 +60,7 @@ export interface StreamingManagerOptions {
     baseURL?: string;
     debug?: boolean;
     auth: Auth;
+    mixPanel?: MixPanelManager;
 }
 
 export interface SlimRTCStatsReport {

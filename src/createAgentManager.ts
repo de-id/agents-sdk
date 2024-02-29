@@ -12,9 +12,10 @@ import {
 } from '$/types/index';
 import { Auth, StreamScript, StreamingManager, createKnowledgeApi, createStreamingManager } from '.';
 import { createAgentsApi } from './api/agents';
+import MixPanelManager from './api/mixPanel';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
-import { didApiUrl, didSocketApiUrl } from './environment';
+import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
@@ -30,7 +31,13 @@ function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     };
 }
 
-function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, agentsApi: AgentsAPI, chat?: Chat) {
+function initializeStreamAndChat(
+    agent: Agent,
+    options: AgentManagerOptions,
+    agentsApi: AgentsAPI,
+    mixPanel: MixPanelManager,
+    chat?: Chat
+) {
     return new Promise<{ chat: Chat; streamingManager: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(
         async (resolve, reject) => {
             const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
@@ -42,6 +49,11 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                             try {
                                 if (!chat) {
                                     chat = await agentsApi.newChat(agent.id);
+                                    mixPanel.track('agent-new-chat', {
+                                        event: 'click',
+                                        agentId: agent?.id,
+                                        chatId: chat.id,
+                                    });
                                 }
                                 resolve({ chat, streamingManager });
                             } catch (error: any) {
@@ -83,6 +95,10 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const baseURL = options.baseURL || didApiUrl;
     const wsURL = options.wsURL || didSocketApiUrl;
     const abortController: AbortController = new AbortController();
+    const mxKey = options.mixpanelKey || mixpanelKey;
+
+    const mixPanel = new MixPanelManager(mxKey);
+
     const agentsApi = createAgentsApi(options.auth, baseURL);
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
@@ -91,8 +107,9 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     options.callbacks?.onAgentReady?.(agentInstance);
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
-    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi);
+    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, mixPanel);
 
+    mixPanel.track('')
     return {
         agent: agentInstance,
         chatId: chat.id,
@@ -101,6 +118,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                 agentInstance,
                 options,
                 agentsApi,
+                mixPanel,
                 chat
             );
 
@@ -159,6 +177,12 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             return knowledgeApi
                 .getKnowledge(agentInstance.knowledge.id)
                 .then(knowledge => knowledge?.starter_message || []);
+        },
+        track(event: string, props?: Record<string, any>) {
+            if (!options.enableAnalitics) {
+                return Promise.reject(new Error('Analytics was disabled on create step'));
+            }
+            return mixPanel.track(event, props);
         },
     };
 }
