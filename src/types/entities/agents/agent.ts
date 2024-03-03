@@ -17,6 +17,7 @@ export interface Agent {
     preview_name?: string;
     preview_description?: string;
     preview_thumbnail?: string;
+    preview_url?: string;
 }
 
 export type AgentPayload = Omit<Agent, 'type' | 'created_at' | 'modified_at' | 'id' | 'owner_id' | 'idle_video_url'>;
