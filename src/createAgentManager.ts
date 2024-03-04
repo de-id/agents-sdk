@@ -12,7 +12,7 @@ import {
 } from '$/types/index';
 import { Auth, StreamScript, StreamingManager, createKnowledgeApi, createStreamingManager } from '.';
 import { createAgentsApi } from './api/agents';
-import MixPanelManager from './api/mixPanel';
+import AnalyticsProvider from './api/mixPanel';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
@@ -35,7 +35,7 @@ function initializeStreamAndChat(
     agent: Agent,
     options: AgentManagerOptions,
     agentsApi: AgentsAPI,
-    mixPanel: MixPanelManager,
+    mixPanel: AnalyticsProvider,
     chat?: Chat
 ) {
     return new Promise<{ chat: Chat; streamingManager: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(
@@ -49,9 +49,10 @@ function initializeStreamAndChat(
                             try {
                                 if (!chat) {
                                     chat = await agentsApi.newChat(agent.id);
+                                    mixPanel.setChatId(chat.id);
                                     mixPanel.track('agent-new-chat', {
-                                        event: 'click',
-                                        agentId: agent?.id,
+                                        event: 'sdk',
+                                        agentId: agent.id,
                                         chatId: chat.id,
                                     });
                                 }
@@ -97,8 +98,6 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const abortController: AbortController = new AbortController();
     const mxKey = options.mixpanelKey || mixpanelKey;
 
-    const mixPanel = new MixPanelManager(mxKey);
-
     const agentsApi = createAgentsApi(options.auth, baseURL);
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
@@ -106,14 +105,17 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const agentInstance = typeof agent === 'string' ? await agentsApi.getById(agent) : agent;
     options.callbacks?.onAgentReady?.(agentInstance);
 
+    // User id from STUDio
+    const mixPanel = new AnalyticsProvider({ mixPanelKey: mxKey, agentId: agentInstance.id });
+
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, mixPanel);
 
-    mixPanel.track('')
     return {
         agent: agentInstance,
         chatId: chat.id,
         async reconnectToChat() {
+            mixPanel.track('agent-resume-chat');
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agentInstance,
                 options,
@@ -125,12 +127,19 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             streamingManager = newStreamingManager;
         },
         terminate() {
+            mixPanel.track('agent-terminate-chat');
             abortController.abort();
             socketManager.terminate();
 
             return streamingManager.terminate();
         },
         chat(messages: Message[]) {
+            mixPanel.track('agent-message-send', {
+                event: 'success',
+                messages: messages.length + 1,
+                agent_id: agentInstance.id,
+                chatId: chat.id,
+            });
             return agentsApi.chat(
                 agentInstance.id,
                 chat.id,
@@ -139,6 +148,12 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             );
         },
         rate(payload: RatingPayload, id?: string) {
+            mixPanel.track('agent-rate', {
+                event: id ? 'update' : 'create',
+                score: payload.score,
+                knowledge_id: payload.knowledge_id,
+                matches: payload.matches,
+            });
             if (id) {
                 return ratingsAPI.update(id, payload);
             }
@@ -146,11 +161,24 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             return ratingsAPI.create(payload);
         },
         deleteRate(id: string) {
+            mixPanel.track('agent-rate-delete', {
+                agent_id: agentInstance.id,
+                chatId: chat.id,
+                id,
+            });
             return ratingsAPI.delete(id);
         },
         speak(payload: SupportedStreamScipt) {
             function getScript(): StreamScript {
                 if (payload.type === 'text') {
+                    mixPanel.track('agent-speak', {
+                        type: 'text',
+                        provider: payload.provider,
+                        input: payload.input,
+                        ssml: payload.ssml || false,
+                        agent_id: agentInstance.id,
+                        chatId: chat.id,
+                    });
                     return {
                         type: 'text',
                         provider: payload.provider,
@@ -158,6 +186,12 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                         ssml: payload.ssml || false,
                     };
                 } else if (payload.type === 'audio') {
+                    mixPanel.track('agent-speak', {
+                        type: 'audio',
+                        audio_url: payload.audio_url,
+                        agent_id: agentInstance.id,
+                        chatId: chat.id,
+                    });
                     return {
                         type: 'audio',
                         audio_url: payload.audio_url,
@@ -170,6 +204,10 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             return streamingManager.speak({ script: getScript() });
         },
         async getStarterMessages() {
+            mixPanel.track('agent-get-starter-messages', {
+                agent_id: agentInstance.id,
+                chatId: chat.id,
+            });
             if (!agentInstance.knowledge?.id) {
                 return [];
             }

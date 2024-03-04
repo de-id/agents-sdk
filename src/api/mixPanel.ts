@@ -1,10 +1,27 @@
-class MixPanelManager {
-    private mixPanelKey?: string; 
-    private UUID?: string;
+export interface MixPanelOptions {
+    mixPanelKey: string;
+    chatId?: string;
+    agentId: string;
+    isEnabled?: boolean;
+    UUID?: string;
+}
 
-    constructor(mixPanelKey?: string, UUID?: string) {
-        this.mixPanelKey = mixPanelKey || 'testKey';
-        this.UUID = UUID || 'testUUID'
+class AnalyticsProvider {
+    private mixPanelKey: string;
+    private UUID?: string;
+    private isEnabled: boolean = true;
+    private chatId?: string;
+    private agentId: string;
+
+    constructor(config: MixPanelOptions) {
+        this.mixPanelKey = config.mixPanelKey || 'testKey';
+        this.UUID = config.UUID || 'testUUID';
+        this.isEnabled = config.isEnabled || true;
+        this.chatId = config.chatId;
+    }
+
+    setChatId(id: string) {
+        this.chatId = id;
     }
 
     getRandom() {
@@ -18,7 +35,10 @@ class MixPanelManager {
     }
 
     track(event: string, props?: Record<string, any>) {
-        console.log('inside track')
+        console.log('inside track');
+        if (!this.isEnabled) {
+            return Promise.reject('MixPanel anlitics is disabled on created');
+        }
         const options = {
             method: 'POST',
             headers: {
@@ -32,7 +52,9 @@ class MixPanelManager {
                             ...props,
                             token: this.mixPanelKey,
                             time: Date.now(),
-                            distinct_id: this.UUID,
+                            chatId: this.chatId,
+                            agentId: this.agentId,
+                            distinct_id: this.UUID, //should be one, we setup when create SDK
                             $insert_id: this.getRandom(),
                             protect_id: this.mixPanelKey,
                             origin: window.location.href,
@@ -51,4 +73,4 @@ class MixPanelManager {
     }
 }
 
-export default MixPanelManager;
+export default AnalyticsProvider;

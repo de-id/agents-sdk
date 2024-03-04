@@ -1,4 +1,4 @@
-import MixPanelManager from '$/api/mixPanel';
+import AnalyticsProvider from '$/api/mixPanel';
 import { Auth } from '../auth';
 import { VideoType } from '../entities';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
@@ -20,10 +20,10 @@ export enum StreamEvents {
 }
 
 export interface ManagerCallbacks {
-    onMessage?: (event: string, data: string) => void;
-    onConnectionStateChange?: (state: RTCIceConnectionState) => void;
-    onVideoStateChange?: (state: StreamingState, data?: any) => void;
-    onSrcObjectReady?: (value: MediaStream) => void;
+    onMessage?: (event: string, data: string) => void; //mixpanel 'agent-on-message-streaming'
+    onConnectionStateChange?: (state: RTCIceConnectionState) => void; // do not track
+    onVideoStateChange?: (state: StreamingState, data?: any) => void; //mixpanel 'agent-video'
+    onSrcObjectReady?: (value: MediaStream) => void; // mixpanel 'agent-SrcObjectReady'
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
@@ -60,7 +60,7 @@ export interface StreamingManagerOptions {
     baseURL?: string;
     debug?: boolean;
     auth: Auth;
-    mixPanel?: MixPanelManager;
+    mixPanel?: AnalyticsProvider;
 }
 
 export interface SlimRTCStatsReport {

@@ -110,6 +110,7 @@ export function App() {
                 wsURL: didSocketApiUrl,
             });
             setAgentAPI(agentAPI);
+            agentAPI.getStarterMessages();
         } else if (text) {
             setStreamState(State.Speaking);
             try {
@@ -132,7 +133,7 @@ export function App() {
 
     function terminate() {
         agentAPI?.terminate();
-        // rtcConnection?.terminate();
+        rtcConnection?.terminate();
         setRtcConnection(null);
         setStreamState(State.New);
     }
