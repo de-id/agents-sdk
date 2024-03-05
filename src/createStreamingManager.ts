@@ -128,9 +128,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 clearInterval(videoStatsInterval);
                 console.log('StreamFailed');
             } else {
+                // Better remove it, because it's too noisy, since message have too many partial messages
                 analytics?.track('agent-on-message-streaming', {
-                    event,
-                    message: decodeURIComponent(data),
+                    event
                 });
                 callbacks.onMessage?.(event, decodeURIComponent(data));
             }
