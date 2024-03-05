@@ -51,7 +51,6 @@ class AnalyticsProvider {
     }
 
     track(event: string, props?: Record<string, any>) {
-        console.log('inside track');
         if (!this.isEnabled) {
             return Promise.reject('MixPanel analytics is disabled on creation');
         }
