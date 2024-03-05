@@ -1,4 +1,4 @@
-export interface MixPanelOptions {
+export interface AnalyticsOptions {
     mixPanelKey: string;
     chatId?: string;
     agentId: string;
@@ -7,17 +7,29 @@ export interface MixPanelOptions {
 }
 
 class AnalyticsProvider {
+    private static instance: AnalyticsProvider;
     private mixPanelKey: string;
     private UUID?: string;
     private isEnabled: boolean = true;
     private chatId?: string;
     private agentId: string;
 
-    constructor(config: MixPanelOptions) {
+    private constructor(config: AnalyticsOptions) {
         this.mixPanelKey = config.mixPanelKey || 'testKey';
         this.UUID = config.UUID || 'testUUID';
         this.isEnabled = config.isEnabled || true;
         this.chatId = config.chatId;
+        this.agentId = config.agentId;
+    }
+
+    static getInstance(config?: AnalyticsOptions) {
+        if (!AnalyticsProvider.instance) {
+            if(!config) {
+                throw Error('Trying to use Analytics before initiaalize and without config')
+            }
+            AnalyticsProvider.instance = new AnalyticsProvider(config);
+        }
+        return AnalyticsProvider.instance;
     }
 
     setChatId(id: string) {
@@ -37,7 +49,7 @@ class AnalyticsProvider {
     track(event: string, props?: Record<string, any>) {
         console.log('inside track');
         if (!this.isEnabled) {
-            return Promise.reject('MixPanel anlitics is disabled on created');
+            return Promise.reject('MixPanel analytics is disabled on creation');
         }
         const options = {
             method: 'POST',
@@ -54,7 +66,7 @@ class AnalyticsProvider {
                             time: Date.now(),
                             chatId: this.chatId,
                             agentId: this.agentId,
-                            distinct_id: this.UUID, //should be one, we setup when create SDK
+                            distinct_id: this.UUID, // should be one, we set up when creating SDK
                             $insert_id: this.getRandom(),
                             protect_id: this.mixPanelKey,
                             origin: window.location.href,

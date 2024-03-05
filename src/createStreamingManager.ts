@@ -65,7 +65,7 @@ function pollStats(peerConnection, onVideoStateChange) {
 
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agent: T,
-    { debug = false, callbacks, auth, baseURL = didApiUrl }: StreamingManagerOptions
+    { debug = false, callbacks, auth, analytics, baseURL = didApiUrl }: StreamingManagerOptions
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
@@ -101,10 +101,12 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     peerConnection.oniceconnectionstatechange = () => {
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
         callbacks.onConnectionStateChange?.(peerConnection.iceConnectionState);
+        analytics?.track('agent-chat-loaded');
     };
 
     peerConnection.ontrack = (event: RTCTrackEvent) => {
         log('peerConnection.ontrack', event);
+        analytics?.track('agent-src-object-ready');
         callbacks.onSrcObjectReady?.(event.streams[0]);
     };
 
@@ -114,13 +116,22 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
             if (event === StreamEvents.StreamStarted) {
                 console.log('StreamStarted', event, data);
+                analytics?.track('agent-video', {
+                    event,
+                    rtcStats: data ?? [] 
+                })
             } else if (event === StreamEvents.StreamDone) {
                 console.log('StreamDone');
             } else if (event === StreamEvents.StreamFailed) {
                 callbacks.onVideoStateChange?.(StreamingState.Stop, { event, data });
+
                 clearInterval(videoStatsInterval);
                 console.log('StreamFailed');
             } else {
+                analytics?.track('agent-on-message-streaming', {
+                    event,
+                    message: decodeURIComponent(data),
+                });
                 callbacks.onMessage?.(event, decodeURIComponent(data));
             }
         }

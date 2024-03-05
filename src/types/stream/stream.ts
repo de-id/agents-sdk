@@ -60,7 +60,7 @@ export interface StreamingManagerOptions {
     baseURL?: string;
     debug?: boolean;
     auth: Auth;
-    mixPanel?: AnalyticsProvider;
+    analytics?: AnalyticsProvider;
 }
 
 export interface SlimRTCStatsReport {

@@ -35,13 +35,14 @@ function initializeStreamAndChat(
     agent: Agent,
     options: AgentManagerOptions,
     agentsApi: AgentsAPI,
-    mixPanel: AnalyticsProvider,
+    analytics: AnalyticsProvider,
     chat?: Chat
 ) {
     return new Promise<{ chat: Chat; streamingManager: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(
         async (resolve, reject) => {
             const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
                 ...options,
+                analytics,
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
@@ -49,8 +50,8 @@ function initializeStreamAndChat(
                             try {
                                 if (!chat) {
                                     chat = await agentsApi.newChat(agent.id);
-                                    mixPanel.setChatId(chat.id);
-                                    mixPanel.track('agent-new-chat', {
+                                    analytics.setChatId(chat.id);
+                                    analytics.track('agent-new-chat', {
                                         event: 'sdk',
                                         agentId: agent.id,
                                         chatId: chat.id,
@@ -106,39 +107,37 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     options.callbacks?.onAgentReady?.(agentInstance);
 
     // User id from STUDio
-    const mixPanel = new AnalyticsProvider({ mixPanelKey: mxKey, agentId: agentInstance.id });
+    const analytics = AnalyticsProvider.getInstance({ mixPanelKey: mxKey, agentId: agentInstance.id });
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
-    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, mixPanel);
+    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics);
 
     return {
         agent: agentInstance,
         chatId: chat.id,
         async reconnectToChat() {
-            mixPanel.track('agent-resume-chat');
+            analytics.track('agent-resume-chat');
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agentInstance,
                 options,
                 agentsApi,
-                mixPanel,
+                analytics,
                 chat
             );
 
             streamingManager = newStreamingManager;
         },
         terminate() {
-            mixPanel.track('agent-terminate-chat');
+            analytics.track('agent-terminate-chat');
             abortController.abort();
             socketManager.terminate();
 
             return streamingManager.terminate();
         },
         chat(messages: Message[]) {
-            mixPanel.track('agent-message-send', {
+            analytics.track('agent-message-send', {
                 event: 'success',
                 messages: messages.length + 1,
-                agent_id: agentInstance.id,
-                chatId: chat.id,
             });
             return agentsApi.chat(
                 agentInstance.id,
@@ -148,9 +147,10 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             );
         },
         rate(payload: RatingPayload, id?: string) {
-            mixPanel.track('agent-rate', {
+            analytics.track('agent-rate', {
                 event: id ? 'update' : 'create',
                 score: payload.score,
+                thumb: payload.score === 1 ? 'up' : 'down',
                 knowledge_id: payload.knowledge_id,
                 matches: payload.matches,
             });
@@ -161,23 +161,19 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             return ratingsAPI.create(payload);
         },
         deleteRate(id: string) {
-            mixPanel.track('agent-rate-delete', {
-                agent_id: agentInstance.id,
-                chatId: chat.id,
-                id,
+            analytics.track('agent-rate-delete', {
+                rateId: id,
             });
             return ratingsAPI.delete(id);
         },
         speak(payload: SupportedStreamScipt) {
             function getScript(): StreamScript {
                 if (payload.type === 'text') {
-                    mixPanel.track('agent-speak', {
+                    analytics.track('agent-speak', {
                         type: 'text',
                         provider: payload.provider,
                         input: payload.input,
                         ssml: payload.ssml || false,
-                        agent_id: agentInstance.id,
-                        chatId: chat.id,
                     });
                     return {
                         type: 'text',
@@ -186,11 +182,9 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                         ssml: payload.ssml || false,
                     };
                 } else if (payload.type === 'audio') {
-                    mixPanel.track('agent-speak', {
+                    analytics.track('agent-speak', {
                         type: 'audio',
                         audio_url: payload.audio_url,
-                        agent_id: agentInstance.id,
-                        chatId: chat.id,
                     });
                     return {
                         type: 'audio',
@@ -204,7 +198,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             return streamingManager.speak({ script: getScript() });
         },
         async getStarterMessages() {
-            mixPanel.track('agent-get-starter-messages', {
+            analytics.track('agent-get-starter-messages', {
                 agent_id: agentInstance.id,
                 chatId: chat.id,
             });
@@ -220,7 +214,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             if (!options.enableAnalitics) {
                 return Promise.reject(new Error('Analytics was disabled on create step'));
             }
-            return mixPanel.track(event, props);
+            return analytics.track(event, props);
         },
     };
 }
