@@ -81,6 +81,34 @@ export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise
     return agentsApi.getById(agentId);
 }
 
+function getInitAnaliticsInfo(agent: Agent) {
+    const mobileOrDesktop= () => {
+        return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop'
+    };
+    const getUserOS = () => {
+        var platform = navigator.platform;
+        
+        if (platform.toLowerCase().includes("win")) {
+            return "Windows";
+        } else if (platform.toLowerCase().includes("mac")) {
+            return "MacOS";
+        } else if (platform.toLowerCase().includes("linux")) {
+            return "Linux";
+        } else {
+            return "Unknown"; // Unable to determine the OS
+        }
+    }
+    return {
+        os: `${getUserOS()} - ${mobileOrDesktop()}`,
+        origin: window.location.origin,
+        agent_type: agent.presenter.type,
+        agent_voice: {
+            voice_id: agent.presenter.voice?.voice_id,
+            provider:  agent.presenter.voice?.type
+        }
+    }
+}
+
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
@@ -106,11 +134,15 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const agentInstance = typeof agent === 'string' ? await agentsApi.getById(agent) : agent;
     options.callbacks?.onAgentReady?.(agentInstance);
 
-    // User id from STUDio
-    const analytics = AnalyticsProvider.getInstance({ mixPanelKey: mxKey, agentId: agentInstance.id });
+    const analytics = AnalyticsProvider.getInstance({
+        mixPanelKey: mxKey,
+        agent: agentInstance,
+    });
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics);
+
+    analytics.track('agent-create-sdk', getInitAnaliticsInfo(agentInstance));
 
     return {
         agent: agentInstance,

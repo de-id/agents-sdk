@@ -1,25 +1,29 @@
+import { Agent } from "..";
+
 export interface AnalyticsOptions {
     mixPanelKey: string;
+    agent: Agent;
     chatId?: string;
-    agentId: string;
     isEnabled?: boolean;
-    UUID?: string;
+    distinct_id?: string;
 }
 
 class AnalyticsProvider {
     private static instance: AnalyticsProvider;
     private mixPanelKey: string;
-    private UUID?: string;
+    private distinct_id?: string;
     private isEnabled: boolean = true;
     private chatId?: string;
     private agentId: string;
+    private owner_id: string;
 
     private constructor(config: AnalyticsOptions) {
         this.mixPanelKey = config.mixPanelKey || 'testKey';
-        this.UUID = config.UUID || 'testUUID';
+        this.distinct_id = config.distinct_id || this.getUUID();
         this.isEnabled = config.isEnabled || true;
         this.chatId = config.chatId;
-        this.agentId = config.agentId;
+        this.agentId = config.agent.id;
+        this.owner_id = config.agent.owner_id ?? ''
     }
 
     static getInstance(config?: AnalyticsOptions) {
@@ -66,7 +70,8 @@ class AnalyticsProvider {
                             time: Date.now(),
                             chatId: this.chatId,
                             agentId: this.agentId,
-                            distinct_id: this.UUID, // should be one, we set up when creating SDK
+                            owner_id: this.owner_id,
+                            distinct_id: this.distinct_id,
                             $insert_id: this.getRandom(),
                             protect_id: this.mixPanelKey,
                             origin: window.location.href,
