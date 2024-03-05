@@ -142,7 +142,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics);
 
-    analytics.track('agent-create-sdk', getInitAnaliticsInfo(agentInstance));
+    analytics.track('agent-sdk-created', getInitAnaliticsInfo(agentInstance));
 
     return {
         agent: agentInstance,
