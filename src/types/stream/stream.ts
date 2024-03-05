@@ -20,10 +20,10 @@ export enum StreamEvents {
 }
 
 export interface ManagerCallbacks {
-    onMessage?: (event: string, data: string) => void; //mixpanel 'agent-on-message-streaming'
-    onConnectionStateChange?: (state: RTCIceConnectionState) => void; // do not track
-    onVideoStateChange?: (state: StreamingState, data?: any) => void; //mixpanel 'agent-video'
-    onSrcObjectReady?: (value: MediaStream) => void; // mixpanel 'agent-SrcObjectReady'
+    onMessage?: (event: string, data: string) => void;
+    onConnectionStateChange?: (state: RTCIceConnectionState) => void;
+    onVideoStateChange?: (state: StreamingState, data?: any) => void;
+    onSrcObjectReady?: (value: MediaStream) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
