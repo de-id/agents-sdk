@@ -31,9 +31,11 @@
         "build:docs": "typedoc"
     },
     "devDependencies": {
+        "@preact/preset-vite": "^2.8.1",
         "@trivago/prettier-plugin-sort-imports": "^4.3.0",
         "commander": "^11.1.0",
         "glob": "^10.3.10",
+        "preact": "^10.19.6",
         "prettier": "^3.2.5",
         "prettier-plugin-organize-imports": "^3.2.4",
         "typedoc": "^0.25.7",
