@@ -51,10 +51,8 @@ function initializeStreamAndChat(
                                 if (!chat) {
                                     chat = await agentsApi.newChat(agent.id);
                                     analytics.setChatId(chat.id);
-                                    analytics.track('agent-new-chat', {
-                                        event: 'sdk',
-                                        agentId: agent.id,
-                                        chatId: chat.id,
+                                    analytics.track('agent-chat', {
+                                        event: 'created',
                                     });
                                 }
                                 resolve({ chat, streamingManager });
@@ -82,31 +80,31 @@ export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise
 }
 
 function getInitAnaliticsInfo(agent: Agent) {
-    const mobileOrDesktop= () => {
-        return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop'
+    const mobileOrDesktop = () => {
+        return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
     };
     const getUserOS = () => {
         var platform = navigator.platform;
-        
-        if (platform.toLowerCase().includes("win")) {
-            return "Windows";
-        } else if (platform.toLowerCase().includes("mac")) {
-            return "MacOS";
-        } else if (platform.toLowerCase().includes("linux")) {
-            return "Linux";
+
+        if (platform.toLowerCase().includes('win')) {
+            return 'Windows';
+        } else if (platform.toLowerCase().includes('mac')) {
+            return 'MacOS';
+        } else if (platform.toLowerCase().includes('linux')) {
+            return 'Linux';
         } else {
-            return "Unknown"; // Unable to determine the OS
+            return 'Unknown'; // Unable to determine the OS
         }
-    }
+    };
     return {
         os: `${getUserOS()} - ${mobileOrDesktop()}`,
         origin: window.location.origin,
         agent_type: agent.presenter.type,
         agent_voice: {
             voice_id: agent.presenter.voice?.voice_id,
-            provider:  agent.presenter.voice?.type
-        }
-    }
+            provider: agent.presenter.voice?.type,
+        },
+    };
 }
 
 /**
@@ -160,7 +158,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             streamingManager = newStreamingManager;
         },
         terminate() {
-            analytics.track('agent-terminate-chat');
+            analytics.track('agent-chat', { event: 'terminates' });
             abortController.abort();
             socketManager.terminate();
 
@@ -193,9 +191,6 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             return ratingsAPI.create(payload);
         },
         deleteRate(id: string) {
-            analytics.track('agent-rate-delete', {
-                rateId: id,
-            });
             return ratingsAPI.delete(id);
         },
         speak(payload: SupportedStreamScipt) {
@@ -230,10 +225,6 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             return streamingManager.speak({ script: getScript() });
         },
         async getStarterMessages() {
-            analytics.track('agent-get-starter-messages', {
-                agent_id: agentInstance.id,
-                chatId: chat.id,
-            });
             if (!agentInstance.knowledge?.id) {
                 return [];
             }
