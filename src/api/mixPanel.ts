@@ -72,7 +72,6 @@ class AnalyticsProvider {
                             owner_id: this.owner_id,
                             distinct_id: this.distinct_id,
                             $insert_id: this.getRandom(),
-                            protect_id: this.mixPanelKey,
                             origin: window.location.href,
                             'Screen Height': window.screen.height || window.innerWidth,
                             'Screen Width': window.screen.width || window.innerHeight,
