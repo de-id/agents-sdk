@@ -75,6 +75,9 @@ export interface AgentManagerOptions {
     debug?: boolean;
     enableAnalitics?: boolean;
     mixpanelKey?: string;
+    /**
+     * Unique ID of agent user used in analitics. Pass it to override the default way to get distinctId
+     */
     distinctId?: string;
 }
 
