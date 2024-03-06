@@ -159,7 +159,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             streamingManager = newStreamingManager;
         },
         terminate() {
-            analytics.track('agent-chat', { event: 'terminates' });
+            analytics.track('agent-chat', { event: 'terminated' });
             abortController.abort();
             socketManager.terminate();
 

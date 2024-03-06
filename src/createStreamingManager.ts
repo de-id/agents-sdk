@@ -131,7 +131,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 console.log('StreamFailed');
             } else {
                 if(event === StreamEvents.ChatAnswer) {
-                    analytics?.track('agent-on-message-streaming', {
+                    analytics?.track('agent-message-recieved ', {
                         event
                     });
                 }
