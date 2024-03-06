@@ -75,6 +75,7 @@ export interface AgentManagerOptions {
     debug?: boolean;
     enableAnalitics?: boolean;
     mixpanelKey?: string;
+    distinctId?: string;
 }
 
 export interface AgentManager {

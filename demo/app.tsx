@@ -108,6 +108,7 @@ export function App() {
                 baseURL: didApiUrl,
                 auth,
                 wsURL: didSocketApiUrl,
+                distinctId: 'testDistinctIdToSDKTest'
             });
             setAgentAPI(agentAPI);
             agentAPI.getStarterMessages();

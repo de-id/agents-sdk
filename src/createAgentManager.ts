@@ -135,6 +135,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const analytics = AnalyticsProvider.getInstance({
         mixPanelKey: mxKey,
         agent: agentInstance,
+        ...options
     });
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);

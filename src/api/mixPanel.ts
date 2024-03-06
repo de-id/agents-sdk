@@ -5,7 +5,7 @@ export interface AnalyticsOptions {
     agent: Agent;
     chatId?: string;
     isEnabled?: boolean;
-    distinct_id?: string;
+    distinctId?: string;
 }
 
 class AnalyticsProvider {
@@ -19,7 +19,7 @@ class AnalyticsProvider {
 
     private constructor(config: AnalyticsOptions) {
         this.mixPanelKey = config.mixPanelKey || 'testKey';
-        this.distinct_id = config.distinct_id || this.getUUID();
+        this.distinct_id = config.distinctId || this.getUUID();
         this.isEnabled = config.isEnabled || true;
         this.chatId = config.chatId;
         this.agentId = config.agent.id;
