@@ -81,7 +81,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         throw new Error('Could not create session_id');
     }
 
-    const videoStatsInterval: NodeJS.Timeout = pollStats(peerConnection, callbacks.onVideoStateChange);
+    const videoStatsInterval = pollStats(peerConnection, callbacks.onVideoStateChange);
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         log('peerConnection.onicecandidate', event);
