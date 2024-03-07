@@ -135,7 +135,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const analytics = AnalyticsProvider.getInstance({
         mixPanelKey: mxKey,
         agent: agentInstance,
-        ...options
+        ...options,
     });
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
@@ -166,16 +166,34 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             return streamingManager.terminate();
         },
         chat(messages: Message[]) {
+            const messageSentTimestamp = Date.now();
             analytics.track('agent-message-send', {
                 event: 'success',
                 messages: messages.length + 1,
             });
-            return agentsApi.chat(
-                agentInstance.id,
-                chat.id,
-                { sessionId: streamingManager.sessionId, streamId: streamingManager.streamId, messages },
-                { signal: abortController.signal }
-            );
+
+            return agentsApi
+                .chat(
+                    agentInstance.id,
+                    chat.id,
+                    { sessionId: streamingManager.sessionId, streamId: streamingManager.streamId, messages },
+                    { signal: abortController.signal }
+                )
+                .then(response => {
+                    analytics.track('agent-message-received', {
+                        latency: Date.now() - messageSentTimestamp,
+                        messages: messages.length + 1,
+                    });
+                    return response;
+                })
+                .catch(error => {
+                    analytics.track('agent-message-send', {
+                        event: 'error',
+                        reason: error.message, // Assuming error has a message property
+                    });
+
+                    throw error;
+                });
         },
         rate(payload: RatingPayload, id?: string) {
             analytics.track('agent-rate', {

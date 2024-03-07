@@ -1,3 +1,4 @@
+import { getExternalId } from "$/auth/getAuthHeader";
 import { Agent } from "..";
 
 export interface AnalyticsOptions {
@@ -19,7 +20,7 @@ class AnalyticsProvider {
 
     private constructor(config: AnalyticsOptions) {
         this.mixPanelKey = config.mixPanelKey || 'testKey';
-        this.distinct_id = config.distinctId || this.getUUID();
+        this.distinct_id = config.distinctId || getExternalId();
         this.isEnabled = config.isEnabled || true;
         this.chatId = config.chatId;
         this.agentId = config.agent.id;
@@ -42,12 +43,6 @@ class AnalyticsProvider {
 
     getRandom() {
         return Math.random().toString(16).slice(2);
-    }
-
-    getUUID() {
-        const trackingId = localStorage.getItem('tracking_id') ?? this.getRandom();
-        localStorage.setItem('tracking_id', trackingId);
-        return trackingId;
     }
 
     track(event: string, props?: Record<string, any>) {

@@ -1,6 +1,6 @@
 import { Auth } from '$/types/auth';
 
-function getExternalId() {
+export function getExternalId() {
     let key = window.localStorage.getItem('did_external_key_id');
 
     if (!key) {

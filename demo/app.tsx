@@ -129,7 +129,7 @@ export function App() {
 
     async function onChat() {
         const newMessages: any[] = [{ role: 'user', content: text.trim(), created_at: new Date().toISOString() }];
-        const response = agentAPI?.chat(newMessages);
+        const response = await agentAPI?.chat(newMessages);
     }
 
     function terminate() {
