@@ -89,7 +89,7 @@ function getInitAnaliticsInfo(agent: Agent) {
         if (platform.toLowerCase().includes('win')) {
             return 'Windows';
         } else if (platform.toLowerCase().includes('mac')) {
-            return 'MacOS';
+            return 'Mac OS X';
         } else if (platform.toLowerCase().includes('linux')) {
             return 'Linux';
         } else {
@@ -97,7 +97,7 @@ function getInitAnaliticsInfo(agent: Agent) {
         }
     };
     return {
-        os: `${getUserOS()}`,
+        $os: `${getUserOS()}`,
         mobileOrDesktop: `${mobileOrDesktop()}`,
         browser: navigator.userAgent,
         origin: window.location.origin,
