@@ -116,7 +116,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 console.log('StreamStarted', event, data);
                 analytics?.track('agent-video', {
                     event,
-                    rtcStats: data ?? [] 
                 })
             } else if (event === StreamEvents.StreamDone) {
                 analytics?.track('agent-video', {
