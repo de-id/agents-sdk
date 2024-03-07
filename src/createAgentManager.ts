@@ -98,6 +98,7 @@ function getInitAnaliticsInfo(agent: Agent) {
     };
     return {
         os: `${getUserOS()} - ${mobileOrDesktop()}`,
+        browser: navigator.userAgent,
         origin: window.location.origin,
         agent_type: agent.presenter.type,
         agent_voice: {
@@ -147,7 +148,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
         agent: agentInstance,
         chatId: chat.id,
         async reconnectToChat() {
-            analytics.track('agent-resume-chat');
+            analytics.track('agent-chat', {event: 'resume'});
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agentInstance,
                 options,
