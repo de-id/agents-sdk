@@ -16,7 +16,7 @@ export function createVideoStatsReport(
                     jitter: report.jitter,
                     frameWidth: report.frameWidth,
                     frameHeight: report.frameHeight,
-                    frameRate: report.framesPerSecond,
+                    framesPerSecond: report.framesPerSecond,
                 };
             }
 
@@ -29,7 +29,7 @@ export function createVideoStatsReport(
                 jitter: report.jitter,
                 frameWidth: report.frameWidth,
                 frameHeight: report.frameHeight,
-                frameRate: report.framesPerSecond,
+                framesPerSecond: report.framesPerSecond,
             };
         }
 
@@ -42,7 +42,7 @@ export function createVideoStatsReport(
             jitter: report.jitter,
             frameWidth: report.frameWidth,
             frameHeight: report.frameHeight,
-            frameRate: report.framesPerSecond,
+            framesPerSecond: report.framesPerSecond,
         };
     });
 }
