@@ -97,7 +97,8 @@ function getInitAnaliticsInfo(agent: Agent) {
         }
     };
     return {
-        os: `${getUserOS()} - ${mobileOrDesktop()}`,
+        os: `${getUserOS()}`,
+        mobileOrDesctop: `${mobileOrDesktop()}`,
         browser: navigator.userAgent,
         origin: window.location.origin,
         agent_type: agent.presenter.type,
