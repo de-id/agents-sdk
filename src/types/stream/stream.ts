@@ -70,5 +70,5 @@ export interface SlimRTCStatsReport {
     jitter: any;
     frameWidth: any;
     frameHeight: any;
-    frameRate: any;
+    framesPerSecond: any;
 }

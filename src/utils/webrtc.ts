@@ -16,10 +16,10 @@ export function createVideoStatsReport(
                     jitter: report.jitter,
                     frameWidth: report.frameWidth,
                     frameHeight: report.frameHeight,
-                    frameRate: report.frameRate,
+                    frameRate: report.framesPerSecond,
                 };
             }
-            
+
             return {
                 index,
                 timestamp: report.timestamp,
@@ -29,7 +29,7 @@ export function createVideoStatsReport(
                 jitter: report.jitter,
                 frameWidth: report.frameWidth,
                 frameHeight: report.frameHeight,
-                frameRate: report.frameRate,
+                frameRate: report.framesPerSecond,
             };
         }
 
@@ -42,7 +42,7 @@ export function createVideoStatsReport(
             jitter: report.jitter,
             frameWidth: report.frameWidth,
             frameHeight: report.frameHeight,
-            frameRate: report.frameRate,
+            frameRate: report.framesPerSecond,
         };
     });
 }
