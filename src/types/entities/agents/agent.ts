@@ -6,7 +6,7 @@ import { Presenter } from './presenter';
 export interface Agent {
     id: string;
     username?: string;
-    is_branded_view?: boolean;
+    branded?: boolean;
     presenter: Presenter;
     llm?: LLM;
     knowledge?: Knowledge;
@@ -23,7 +23,7 @@ export interface Agent {
 
 export type AgentPayload = Omit<
     Agent,
-    'type' | 'created_at' | 'modified_at' | 'id' | 'owner_id' | 'is_branded_view' | 'idle_video_url'
+    'type' | 'created_at' | 'modified_at' | 'id' | 'owner_id' | 'branded' | 'idle_video_url'
 >;
 
 export interface AgentsAPI {
