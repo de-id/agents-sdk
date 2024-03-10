@@ -6,6 +6,7 @@ import { Presenter } from './presenter';
 export interface Agent {
     id: string;
     username?: string;
+    show_footer_brand?: boolean;
     presenter: Presenter;
     llm?: LLM;
     knowledge?: Knowledge;
@@ -20,7 +21,10 @@ export interface Agent {
     preview_url?: string;
 }
 
-export type AgentPayload = Omit<Agent, 'type' | 'created_at' | 'modified_at' | 'id' | 'owner_id' | 'idle_video_url'>;
+export type AgentPayload = Omit<
+    Agent,
+    'type' | 'created_at' | 'modified_at' | 'id' | 'owner_id' | 'show_footer_brand' | 'idle_video_url'
+>;
 
 export interface AgentsAPI {
     create(payload: AgentPayload, options?: RequestInit): Promise<Agent>;
