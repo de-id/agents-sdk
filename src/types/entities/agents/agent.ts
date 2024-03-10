@@ -33,7 +33,7 @@ export interface Agent {
     tags?: string[];
     chats?: number;
     access?: 'private' | 'pending-public' | 'unlisted' | 'rejected' | 'public';
-    metdata?: { plan: PlanGroup | UserPlan };
+    metadata?: { plan: PlanGroup | UserPlan };
 
     preview_name?: string;
     preview_description?: string;
