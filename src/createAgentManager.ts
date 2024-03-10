@@ -10,15 +10,7 @@ import {
     SupportedStreamScipt,
     VideoType,
 } from '$/types/index';
-import {
-    Auth,
-    ChatProgress,
-    StreamEvents,
-    StreamScript,
-    StreamingManager,
-    createKnowledgeApi,
-    createStreamingManager,
-} from '.';
+import { Auth, StreamScript, StreamingManager, createKnowledgeApi, createStreamingManager } from '.';
 import { createAgentsApi } from './api/agents';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
@@ -61,24 +53,6 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                         }
 
                         options.callbacks.onConnectionStateChange?.(state);
-                    },
-                    // TODO remove when webscoket will return partial
-                    onMessage: (event, data) => {
-                        /*if (event === StreamEvents.ChatPartial) {
-                            // Mock ws event result to remove in future
-                           
-                            options.callbacks.onChatEvents?.(ChatProgress.Partial, {
-                                content: data,
-                                event: ChatProgress.Partial,
-                            });
-                        } else*/
-                        if (event === StreamEvents.ChatAnswer) {
-                            console.log('ChatAnswer', event, data);
-                            options.callbacks.onChatEvents?.(ChatProgress.Answer, {
-                                content: data,
-                                event: ChatProgress.Answer,
-                            });
-                        }
                     },
                 },
             });
