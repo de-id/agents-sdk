@@ -115,12 +115,14 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
             if (event === StreamEvents.StreamStarted) {
                 console.log('StreamStarted', event, data);
                 analytics?.track('agent-video', {
-                    event,
+                    event: "start",
+                    ...event
                 })
             } else if (event === StreamEvents.StreamDone) {
                 analytics?.track('agent-video', {
-                    event,
-                    rtcStats: data ?? [] 
+                    event: "stop",
+                    rtcStats: data ?? [] ,
+                    ...event
                 })
                 console.log('StreamDone');
             } else if (event === StreamEvents.StreamFailed) {
@@ -131,7 +133,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
             } else {
                 if(event === StreamEvents.ChatAnswer) {
                     analytics?.track('agent-message-recieved ', {
-                        event
+                        ...event
                     });
                 }
                 callbacks.onMessage?.(event, decodeURIComponent(data));

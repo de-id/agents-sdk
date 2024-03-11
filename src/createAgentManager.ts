@@ -53,6 +53,8 @@ function initializeStreamAndChat(
                                     analytics.setChatId(chat.id);
                                     analytics.track('agent-chat', {
                                         event: 'created',
+                                        chatId: chat.id,
+                                        agentId: agent.id
                                     });
                                 }
                                 resolve({ chat, streamingManager });
@@ -98,12 +100,12 @@ function getInitAnaliticsInfo(agent: Agent) {
     };
     return {
         $os: `${getUserOS()}`,
-        mobileOrDesktop: `${mobileOrDesktop()}`,
+        isMobile: `${mobileOrDesktop() == 'Mobile'}`,
         browser: navigator.userAgent,
         origin: window.location.origin,
-        agent_type: agent.presenter.type,
-        agent_voice: {
-            voice_id: agent.presenter.voice?.voice_id,
+        agentType: agent.presenter.type,
+        agentVoice: {
+            voiceId: agent.presenter.voice?.voice_id,
             provider: agent.presenter.voice?.type,
         },
     };
@@ -143,13 +145,18 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics);
 
-    analytics.track('agent-sdk-created', getInitAnaliticsInfo(agentInstance));
+    analytics.track('agent-sdk', {event: 'loaded', ...getInitAnaliticsInfo(agentInstance)});
 
     return {
         agent: agentInstance,
         chatId: chat.id,
         async reconnectToChat() {
-            analytics.track('agent-chat', {event: 'resume'});
+            analytics.track('agent-chat', 
+            {
+                event: 'resume', 
+                chatId: chat.id,
+                agentId: agent.id
+            });
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agentInstance,
                 options,
@@ -161,7 +168,12 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             streamingManager = newStreamingManager;
         },
         terminate() {
-            analytics.track('agent-chat', { event: 'terminated' });
+            analytics.track('agent-chat', 
+            { 
+                event: 'terminated', 
+                chatId: chat.id,
+                agentId: agent.id 
+            });
             abortController.abort();
             socketManager.terminate();
 
@@ -191,7 +203,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                 .catch(error => {
                     analytics.track('agent-message-send', {
                         event: 'error',
-                        reason: error.message, // Assuming error has a message property
+                        reason: error.message ?? "", // Assuming error has a message property
                     });
 
                     throw error;
@@ -202,7 +214,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                 event: id ? 'update' : 'create',
                 score: payload.score,
                 thumb: payload.score === 1 ? 'up' : 'down',
-                knowledge_id: payload.knowledge_id,
+                knowledgeId: payload.knowledge_id,
                 matches: payload.matches,
             });
             if (id) {
