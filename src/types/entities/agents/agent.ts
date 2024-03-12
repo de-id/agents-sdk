@@ -32,6 +32,7 @@ export interface Agent {
     use_case?: string;
     tags?: string[];
     chats?: number;
+    greetings?: string[];
     access?: 'private' | 'pending-public' | 'unlisted' | 'rejected' | 'public';
     metadata?: { plan: PlanGroup | UserPlan };
 
