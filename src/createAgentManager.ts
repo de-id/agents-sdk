@@ -12,10 +12,11 @@ import {
 } from '$/types/index';
 import { Auth, StreamScript, StreamingManager, createKnowledgeApi, createStreamingManager } from '.';
 import { createAgentsApi } from './api/agents';
-import AnalyticsProvider from './api/mixPanel';
+import initializeAnalyticsProvider, { AnalyticsProvider } from './api/mixPanel';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
+import { getAnaliticsInfo } from './utils/analytics';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
@@ -50,7 +51,7 @@ function initializeStreamAndChat(
                             try {
                                 if (!chat) {
                                     chat = await agentsApi.newChat(agent.id);
-                                    analytics.setChatId(chat.id);
+
                                     analytics.track('agent-chat', {
                                         event: 'created',
                                         chatId: chat.id,
@@ -81,36 +82,6 @@ export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise
     return agentsApi.getById(agentId);
 }
 
-function getInitAnaliticsInfo(agent: Agent) {
-    const mobileOrDesktop = () => {
-        return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
-    };
-    const getUserOS = () => {
-        var platform = navigator.platform;
-
-        if (platform.toLowerCase().includes('win')) {
-            return 'Windows';
-        } else if (platform.toLowerCase().includes('mac')) {
-            return 'Mac OS X';
-        } else if (platform.toLowerCase().includes('linux')) {
-            return 'Linux';
-        } else {
-            return 'Unknown'; // Unable to determine the OS
-        }
-    };
-    return {
-        $os: `${getUserOS()}`,
-        isMobile: `${mobileOrDesktop() == 'Mobile'}`,
-        browser: navigator.userAgent,
-        origin: window.location.origin,
-        agentType: agent.presenter.type,
-        agentVoice: {
-            voiceId: agent.presenter.voice?.voice_id,
-            provider: agent.presenter.voice?.type,
-        },
-    };
-}
-
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
@@ -136,7 +107,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const agentInstance = typeof agent === 'string' ? await agentsApi.getById(agent) : agent;
     options.callbacks?.onAgentReady?.(agentInstance);
 
-    const analytics = AnalyticsProvider.getInstance({
+    const analytics = initializeAnalyticsProvider({
         mixPanelKey: mxKey,
         agent: agentInstance,
         ...options,
@@ -145,7 +116,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics);
 
-    analytics.track('agent-sdk', {event: 'loaded', ...getInitAnaliticsInfo(agentInstance)});
+    analytics.track('agent-sdk', {event: 'loaded', ...getAnaliticsInfo(agentInstance)});
 
     return {
         agent: agentInstance,
@@ -155,8 +126,9 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             {
                 event: 'resume', 
                 chatId: chat.id,
-                agentId: agent.id
+                agentId: typeof agent === 'string' ? agent : agent.id,
             });
+
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agentInstance,
                 options,
@@ -172,8 +144,9 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             { 
                 event: 'terminated', 
                 chatId: chat.id,
-                agentId: agent.id 
+                agentId: typeof agent === 'string' ? agent : agent.id,
             });
+
             abortController.abort();
             socketManager.terminate();
 
@@ -181,6 +154,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
         },
         chat(messages: Message[]) {
             const messageSentTimestamp = Date.now();
+
             analytics.track('agent-message-send', {
                 event: 'success',
                 messages: messages.length + 1,
@@ -198,6 +172,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                         latency: Date.now() - messageSentTimestamp,
                         messages: messages.length + 1,
                     });
+                    
                     return response;
                 })
                 .catch(error => {
@@ -246,6 +221,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                         type: 'audio',
                         audio_url: payload.audio_url,
                     });
+
                     return {
                         type: 'audio',
                         audio_url: payload.audio_url,
@@ -257,6 +233,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
 
             return streamingManager.speak({ script: getScript() });
         },
+
         async getStarterMessages() {
             if (!agentInstance.knowledge?.id) {
                 return [];
@@ -266,10 +243,12 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                 .getKnowledge(agentInstance.knowledge.id)
                 .then(knowledge => knowledge?.starter_message || []);
         },
+
         track(event: string, props?: Record<string, any>) {
             if (!options.enableAnalitics) {
                 return Promise.reject(new Error('Analytics was disabled on create step'));
             }
+            
             return analytics.track(event, props);
         },
     };

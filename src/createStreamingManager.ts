@@ -130,6 +130,32 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
                 clearInterval(videoStatsInterval);
                 console.log('StreamFailed');
+
+            } else if (event === StreamEvents.StreamCreated) {
+                console.log('StreamStarted', event, data);
+                analytics?.track('agent-video', {
+                    event: "created",
+                    ...event
+                })            
+            } else if (event === StreamEvents.StreamVideoCreated) {
+                    console.log('StreamVideoCreated', event, data);
+                    analytics?.track('agent-video', {
+                        event: "video-created",
+                        ...event
+                })
+            } else if (event === StreamEvents.StreamVideoDone) {
+                console.log('StreamVideoDone', event, data);
+                analytics?.track('agent-video', {
+                    event: "video-done",
+                    rtcStats: data ?? [] ,
+                    ...event
+                })
+            } else if (event === StreamEvents.StreamVideoError) {
+                console.log('StreamVideoError', event, data);
+                analytics?.track('agent-video', {
+                    event: "video-error",
+                    ...event
+                })                
             } else {
                 if(event === StreamEvents.ChatAnswer) {
                     analytics?.track('agent-message-recieved ', {

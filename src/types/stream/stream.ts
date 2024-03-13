@@ -1,4 +1,4 @@
-import AnalyticsProvider from '$/api/mixPanel';
+import { AnalyticsProvider } from '$/api/mixPanel';
 import { Auth } from '../auth';
 import { VideoType } from '../entities';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
@@ -17,6 +17,12 @@ export enum StreamEvents {
     StreamDone = 'stream/done',
     StreamStarted = 'stream/started',
     StreamFailed = 'stream/error',
+    StreamReady = 'stream/ready',
+    StreamCreated = 'stream/created',
+    StreamVideoCreated = 'stream-video/started',
+    StreamVideoDone = 'stream-video/done',
+    StreamVideoError = 'stream-video/error',
+    StreamVideoRejected = 'stream-video/rejected',
 }
 
 export interface ManagerCallbacks {
