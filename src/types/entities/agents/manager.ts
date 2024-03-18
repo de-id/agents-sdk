@@ -82,14 +82,18 @@ export interface AgentManager {
      */
     agent: Agent;
     /**
+     * Array of starter messages that will be sent to the agent when the chat starts
+     */
+    starterMessages: string[];
+    /**
      * Method to be reconnected to chat
      * Since chat uses an RTC connection to communicate with the agent, it could be dropped and to continue to chat you need to reconnect
      */
-    reconnectToChat: () => Promise<void>;
+    reconnect: () => Promise<void>;
     /**
      * Method to close all connections with agent, stream and web socket
      */
-    terminate: () => Promise<void>;
+    disconnect: () => Promise<void>;
     /**
      * ID of chat you are working on now
      */
@@ -109,15 +113,10 @@ export interface AgentManager {
      * Method to delete rating from answer in chat
      * @param id - id of Rating entity.
      */
-    deleteRate:(id: string) => Promise<RatingEntity>;
+    deleteRate: (id: string) => Promise<RatingEntity>;
     /**
      * Method to make your agent read the text you provide or reproduce sound
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
-    /**
-     * Optional callback function that will be triggered each time any changes happen in the chat
-     * @param callback
-     */
-    getStarterMessages: () => Promise<string[]>;
 }

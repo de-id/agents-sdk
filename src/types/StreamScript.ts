@@ -15,7 +15,7 @@ export interface Stream_Text_Script extends BaseStreamScript {
     /**
      * text-to-speech provider from list of supported providers. default is microsoft tts
      */
-    provider: StreamTextToSpeechProviders;
+    provider?: StreamTextToSpeechProviders;
 
     /**
      * The input text that will be synthesized to an audio file.

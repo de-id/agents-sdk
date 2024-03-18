@@ -16,7 +16,7 @@ interface Options {
 
 interface SocketManager {
     socket?: WebSocket;
-    terminate: () => void;
+    disconnect: () => void;
     subscribeToEvents: (data: any) => void;
 }
 
@@ -82,7 +82,7 @@ export async function SocketManager(
 
     return {
         socket,
-        terminate: () => socket.close(),
+        disconnect: () => socket.close(),
         subscribeToEvents: (callback: ChatProgressCallback) => messageCallbacks.push(callback),
     };
 }
