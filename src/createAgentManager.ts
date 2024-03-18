@@ -6,7 +6,6 @@ import {
     Chat,
     CreateStreamOptions,
     Message,
-    RatingPayload,
     SupportedStreamScipt,
     VideoType,
 } from '$/types/index';
@@ -143,12 +142,26 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                 { signal: abortController.signal }
             );
         },
-        rate(payload: RatingPayload, id?: string) {
+        rate(score: 1 | -1, message: Message, id?: string) {
+            const matches: [string, string][] = message.matches?.map(match => [match.document_id, match.id]) ?? [];
+
             if (id) {
-                return ratingsAPI.update(id, payload);
+                return ratingsAPI.update(id, {
+                    agent_id: agentInstance.id,
+                    knowledge_id: agentInstance.knowledge?.id ?? '',
+                    chat_id: chat.id,
+                    score,
+                    matches,
+                });
             }
 
-            return ratingsAPI.create(payload);
+            return ratingsAPI.create({
+                agent_id: agentInstance.id,
+                knowledge_id: agentInstance.knowledge?.id ?? '',
+                chat_id: chat.id,
+                score,
+                matches,
+            });
         },
         deleteRate(id: string) {
             return ratingsAPI.delete(id);

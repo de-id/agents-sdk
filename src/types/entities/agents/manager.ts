@@ -2,7 +2,7 @@ import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
 import { SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
-import { ChatResponse, Message, RatingEntity, RatingPayload } from './chat';
+import { ChatResponse, Message, RatingEntity } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -105,10 +105,11 @@ export interface AgentManager {
     chat: (messages: Message[]) => Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
-     * @param payload
+     * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
+     * @param matches - array of matches that were used to find the answer
      * @param id - id of Rating entity. Leave it empty to create a new, one or pass it to work with the existing one
      */
-    rate: (payload: RatingPayload, id?: string) => Promise<RatingEntity>;
+    rate: (score: 1 | -1, Message: Message, id?: string) => Promise<RatingEntity>;
     /**
      * Method to delete rating from answer in chat
      * @param id - id of Rating entity.

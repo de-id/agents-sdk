@@ -2,7 +2,6 @@ import { Auth, RatingEntity, RatingPayload } from '$/index';
 import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
-
 export function createRatingsApi(auth: Auth, host = didApiUrl) {
     const client = createClient(auth, `${host}/chats/ratings`);
 
