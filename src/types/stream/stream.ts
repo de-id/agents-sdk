@@ -32,6 +32,7 @@ export interface TalkStreamOptions extends CreateTalkStreamRequest {
 
 export interface ClipStreamOptions extends CreateClipStreamRequest {
     videoType: VideoType.Clip;
+    idle_video_url?: string;
 }
 
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;

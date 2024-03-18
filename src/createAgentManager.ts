@@ -31,6 +31,7 @@ function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
             videoType: VideoType.Clip,
             driver_id: agent.presenter.driver_id,
             presenter_id: agent.presenter.presenter_id,
+            idle_video_url: agent.presenter?.idle_video,
         };
     }
     return {
