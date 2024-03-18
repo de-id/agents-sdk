@@ -6,15 +6,24 @@ import {
     Chat,
     CreateStreamOptions,
     Message,
-    RatingPayload,
     SupportedStreamScipt,
     VideoType,
 } from '$/types/index';
-import { Auth, StreamScript, StreamingManager, createKnowledgeApi, createStreamingManager } from '.';
+import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
+import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
+import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl } from './environment';
+
+function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
+    if (!agent.knowledge?.id) {
+        return [];
+    }
+
+    return knowledgeApi.getKnowledge(agent.knowledge.id).then(knowledge => knowledge?.starter_message || []);
+}
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
@@ -43,9 +52,11 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                                 if (!chat) {
                                     chat = await agentsApi.newChat(agent.id);
                                 }
+
                                 resolve({ chat, streamingManager });
                             } catch (error: any) {
                                 console.error(error);
+
                                 reject(new Error('Cannot create new chat'));
                             }
                         } else if (state === 'failed') {
@@ -92,11 +103,13 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi);
+    const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
 
     return {
         agent: agentInstance,
         chatId: chat.id,
-        async reconnectToChat() {
+        starterMessages,
+        async reconnect() {
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agentInstance,
                 options,
@@ -106,13 +119,22 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
 
             streamingManager = newStreamingManager;
         },
-        terminate() {
+        disconnect() {
             abortController.abort();
-            socketManager.terminate();
+            socketManager.disconnect();
 
-            return streamingManager.terminate();
+            return streamingManager.disconnect();
         },
         chat(messages: Message[]) {
+            if (messages.length === 0) {
+                throw new Error('Messages cannot be empty');
+            }
+
+            messages[messages.length - 1].created_at = new Date().toISOString();
+            if (!messages[messages.length - 1].role) {
+                messages[messages.length - 1].role = 'user';
+            }
+
             return agentsApi.chat(
                 agentInstance.id,
                 chat.id,
@@ -120,12 +142,26 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                 { signal: abortController.signal }
             );
         },
-        rate(payload: RatingPayload, id?: string) {
+        rate(score: 1 | -1, message: Message, id?: string) {
+            const matches: [string, string][] = message.matches?.map(match => [match.document_id, match.id]) ?? [];
+
             if (id) {
-                return ratingsAPI.update(id, payload);
+                return ratingsAPI.update(id, {
+                    agent_id: agentInstance.id,
+                    knowledge_id: agentInstance.knowledge?.id ?? '',
+                    chat_id: chat.id,
+                    score,
+                    matches,
+                });
             }
 
-            return ratingsAPI.create(payload);
+            return ratingsAPI.create({
+                agent_id: agentInstance.id,
+                knowledge_id: agentInstance.knowledge?.id ?? '',
+                chat_id: chat.id,
+                score,
+                matches,
+            });
         },
         deleteRate(id: string) {
             return ratingsAPI.delete(id);
@@ -133,9 +169,15 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
         speak(payload: SupportedStreamScipt) {
             function getScript(): StreamScript {
                 if (payload.type === 'text') {
+                    let voiceProvider = agentInstance.presenter.voice;
+
+                    if (payload.provider) {
+                        voiceProvider = payload.provider;
+                    }
+
                     return {
                         type: 'text',
-                        provider: payload.provider,
+                        provider: voiceProvider,
                         input: payload.input,
                         ssml: payload.ssml || false,
                     };
@@ -150,15 +192,6 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             }
 
             return streamingManager.speak({ script: getScript() });
-        },
-        async getStarterMessages() {
-            if (!agentInstance.knowledge?.id) {
-                return [];
-            }
-
-            return knowledgeApi
-                .getKnowledge(agentInstance.knowledge.id)
-                .then(knowledge => knowledge?.starter_message || []);
         },
     };
 }

@@ -2,7 +2,7 @@ import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
 import { SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
-import { ChatResponse, Message, RatingEntity, RatingPayload } from './chat';
+import { ChatResponse, Message, RatingEntity } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -82,14 +82,18 @@ export interface AgentManager {
      */
     agent: Agent;
     /**
+     * Array of starter messages that will be sent to the agent when the chat starts
+     */
+    starterMessages: string[];
+    /**
      * Method to be reconnected to chat
      * Since chat uses an RTC connection to communicate with the agent, it could be dropped and to continue to chat you need to reconnect
      */
-    reconnectToChat: () => Promise<void>;
+    reconnect: () => Promise<void>;
     /**
      * Method to close all connections with agent, stream and web socket
      */
-    terminate: () => Promise<void>;
+    disconnect: () => Promise<void>;
     /**
      * ID of chat you are working on now
      */
@@ -101,23 +105,19 @@ export interface AgentManager {
     chat: (messages: Message[]) => Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
-     * @param payload
+     * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
+     * @param matches - array of matches that were used to find the answer
      * @param id - id of Rating entity. Leave it empty to create a new, one or pass it to work with the existing one
      */
-    rate: (payload: RatingPayload, id?: string) => Promise<RatingEntity>;
+    rate: (score: 1 | -1, Message: Message, id?: string) => Promise<RatingEntity>;
     /**
      * Method to delete rating from answer in chat
      * @param id - id of Rating entity.
      */
-    deleteRate:(id: string) => Promise<RatingEntity>;
+    deleteRate: (id: string) => Promise<RatingEntity>;
     /**
      * Method to make your agent read the text you provide or reproduce sound
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
-    /**
-     * Optional callback function that will be triggered each time any changes happen in the chat
-     * @param callback
-     */
-    getStarterMessages: () => Promise<string[]>;
 }
