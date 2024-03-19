@@ -17,7 +17,7 @@ import { SocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl } from './environment';
 
-function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
+async function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi): Promise<string[]> {
     if (!agent.knowledge?.id) {
         return [];
     }
@@ -39,36 +39,48 @@ function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     };
 }
 
-function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, agentsApi: AgentsAPI, chat?: Chat) {
-    return new Promise<{ chat: Chat; streamingManager: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(
-        async (resolve, reject) => {
-            const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
-                ...options,
-                callbacks: {
-                    ...options.callbacks,
-                    onConnectionStateChange: async state => {
-                        if (state === 'connected') {
-                            try {
-                                if (!chat) {
-                                    chat = await agentsApi.newChat(agent.id);
-                                }
-
-                                resolve({ chat, streamingManager });
-                            } catch (error: any) {
-                                console.error(error);
-
-                                reject(new Error('Cannot create new chat'));
+function initializeStreamAndChat(
+    agent: Agent,
+    options: AgentManagerOptions,
+    agentsApi: AgentsAPI,
+    knowledgeApi: KnowledegeApi,
+    chat?: Chat
+) {
+    return new Promise<{
+        starterMessages: string[];
+        chat: Chat;
+        streamingManager: StreamingManager<ReturnType<typeof getAgentStreamArgs>>;
+    }>(async (resolve, reject) => {
+        const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
+            ...options,
+            callbacks: {
+                ...options.callbacks,
+                onConnectionStateChange: async state => {
+                    if (state === 'connected') {
+                        try {
+                            let starterMessages: string[] = [];
+                            if (!chat) {
+                                [chat, starterMessages] = await Promise.all([
+                                    agentsApi.newChat(agent.id),
+                                    getStarterMessages(agent, knowledgeApi),
+                                ]);
                             }
-                        } else if (state === 'failed') {
-                            reject(new Error('Cannot create connection'));
-                        }
 
-                        options.callbacks.onConnectionStateChange?.(state);
-                    },
+                            resolve({ chat, streamingManager, starterMessages });
+                        } catch (error: any) {
+                            console.error(error);
+
+                            reject(new Error('Cannot create new chat'));
+                        }
+                    } else if (state === 'failed') {
+                        reject(new Error('Cannot create connection'));
+                    }
+
+                    options.callbacks.onConnectionStateChange?.(state);
                 },
-            });
-        }
-    );
+            },
+        });
+    });
 }
 
 export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise<Agent> {
@@ -102,8 +114,12 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     options.callbacks?.onAgentReady?.(agentInstance);
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
-    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi);
-    const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
+    let { chat, streamingManager, starterMessages } = await initializeStreamAndChat(
+        agentInstance,
+        options,
+        agentsApi,
+        knowledgeApi
+    );
 
     return {
         agent: agentInstance,
@@ -114,6 +130,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                 agentInstance,
                 options,
                 agentsApi,
+                knowledgeApi,
                 chat
             );
 
