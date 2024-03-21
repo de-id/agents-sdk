@@ -102,7 +102,7 @@ export interface AgentManager {
      * Method to send a chat message to existing chat with the agent
      * @param messages
      */
-    chat: (messages: Message[]) => Promise<ChatResponse>;
+    chat: (messages: Message[], append_chat?: boolean) => Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
      * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
