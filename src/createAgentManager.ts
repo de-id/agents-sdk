@@ -125,7 +125,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
 
             return streamingManager.disconnect();
         },
-        chat(messages: Message[]) {
+        chat(messages: Message[], append_chat: boolean = false) {
             if (messages.length === 0) {
                 throw new Error('Messages cannot be empty');
             }
@@ -138,7 +138,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             return agentsApi.chat(
                 agentInstance.id,
                 chat.id,
-                { sessionId: streamingManager.sessionId, streamId: streamingManager.streamId, messages },
+                { sessionId: streamingManager.sessionId, streamId: streamingManager.streamId, messages, append_chat },
                 { signal: abortController.signal }
             );
         },

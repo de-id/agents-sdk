@@ -101,8 +101,9 @@ export interface AgentManager {
     /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
+     * @param append_chat: when true, append to existing agent chat, rather than creating a new one.
      */
-    chat: (messages: Message[]) => Promise<ChatResponse>;
+    chat: (messages: Message[], append_chat?: boolean) => Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
      * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
