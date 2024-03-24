@@ -11,11 +11,13 @@ import {
 } from '$/types/index';
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
+import initializeAnalyticsProvider, { AnalyticsProvider } from './services/mixpanel';
 import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
-import { didApiUrl, didSocketApiUrl } from './environment';
+import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
+import { getAnaliticsInfo } from './utils/analytics';
 
 function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
     if (!agent.knowledge?.id) {
@@ -39,11 +41,18 @@ function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     };
 }
 
-function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, agentsApi: AgentsAPI, chat?: Chat) {
+function initializeStreamAndChat(
+    agent: Agent,
+    options: AgentManagerOptions,
+    agentsApi: AgentsAPI,
+    analytics: AnalyticsProvider,
+    chat?: Chat
+) {
     return new Promise<{ chat: Chat; streamingManager: StreamingManager<ReturnType<typeof getAgentStreamArgs>> }>(
         async (resolve, reject) => {
             const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
                 ...options,
+                analytics,
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
@@ -51,6 +60,12 @@ function initializeStreamAndChat(agent: Agent, options: AgentManagerOptions, age
                             try {
                                 if (!chat) {
                                     chat = await agentsApi.newChat(agent.id);
+
+                                    analytics.track('agent-chat', {
+                                        event: 'created',
+                                        chatId: chat.id,
+                                        agentId: agent.id
+                                    });
                                 }
 
                                 resolve({ chat, streamingManager });
@@ -94,6 +109,8 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const baseURL = options.baseURL || didApiUrl;
     const wsURL = options.wsURL || didSocketApiUrl;
     const abortController: AbortController = new AbortController();
+    const mxKey = options.mixpanelKey || mixpanelKey;
+
     const agentsApi = createAgentsApi(options.auth, baseURL);
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
     const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
@@ -101,8 +118,16 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     const agentInstance = typeof agent === 'string' ? await agentsApi.getById(agent) : agent;
     options.callbacks?.onAgentReady?.(agentInstance);
 
+    const analytics = initializeAnalyticsProvider({
+        mixPanelKey: mxKey,
+        agent: agentInstance,
+        ...options,
+    });
+
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
-    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi);
+    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics);
+    analytics.track('agent-sdk', {event: 'loaded', ...getAnaliticsInfo(agentInstance)});
+
     const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
 
     return {
@@ -110,25 +135,44 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
         chatId: chat.id,
         starterMessages,
         async reconnect() {
+            analytics.track('agent-chat', 
+            {
+                event: 'reconnect', 
+                chatId: chat.id,
+                agentId: typeof agent === 'string' ? agent : agent.id,
+            });
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agentInstance,
                 options,
                 agentsApi,
+                analytics,
                 chat
             );
 
             streamingManager = newStreamingManager;
         },
         disconnect() {
+            analytics.track('agent-chat', 
+            {
+                event: 'disconnect', 
+                chatId: chat.id,
+                agentId: typeof agent === 'string' ? agent : agent.id,
+            });
+
             abortController.abort();
             socketManager.disconnect();
 
             return streamingManager.disconnect();
         },
+
         chat(messages: Message[], append_chat: boolean = false) {
             if (messages.length === 0) {
                 throw new Error('Messages cannot be empty');
             }
+            analytics.track('agent-message-send', {
+                event: 'success',
+                messages: messages.length + 1,
+            });
 
             messages[messages.length - 1].created_at = new Date().toISOString();
             if (!messages[messages.length - 1].role) {
@@ -144,6 +188,13 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
         },
         rate(score: 1 | -1, message: Message, id?: string) {
             const matches: [string, string][] = message.matches?.map(match => [match.document_id, match.id]) ?? [];
+            analytics.track('agent-rate', {
+                event: id ? 'update' : 'create',
+                score: score,
+                thumb: score === 1 ? 'up' : 'down',
+                knowledge_id: agentInstance.knowledge?.id ?? '',
+                matches: matches,
+            });
 
             if (id) {
                 return ratingsAPI.update(id, {
@@ -164,11 +215,23 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             });
         },
         deleteRate(id: string) {
+            analytics.track('agent-rate-delete', {
+                type: 'text',
+                chat_id: chat.id,
+                id: id
+            });
             return ratingsAPI.delete(id);
         },
         speak(payload: SupportedStreamScipt) {
             function getScript(): StreamScript {
                 if (payload.type === 'text') {
+                    analytics.track('agent-speak', {
+                        type: 'text',
+                        provider: payload.provider,
+                        input: payload.input,
+                        ssml: payload.ssml || false,
+                    });
+
                     let voiceProvider = agentInstance.presenter.voice;
 
                     if (payload.provider) {
@@ -182,6 +245,11 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                         ssml: payload.ssml || false,
                     };
                 } else if (payload.type === 'audio') {
+                    analytics.track('agent-speak', {
+                        type: 'audio',
+                        audio_url: payload.audio_url,
+                    });
+
                     return {
                         type: 'audio',
                         audio_url: payload.audio_url,
@@ -192,6 +260,24 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             }
 
             return streamingManager.speak({ script: getScript() });
+        },
+
+        async getStarterMessages() {
+            if (!agentInstance.knowledge?.id) {
+                return [];
+            }
+
+            return knowledgeApi
+                .getKnowledge(agentInstance.knowledge.id)
+                .then(knowledge => knowledge?.starter_message || []);
+        },
+
+        track(event: string, props?: Record<string, any>) {
+            if (!options.enableAnalitics) {
+                return Promise.reject(new Error('Analytics was disabled on create step'));
+            }
+            
+            return analytics.track(event, props);
         },
     };
 }

@@ -68,11 +68,17 @@ interface ManagerCallbacks {
 }
 
 export interface AgentManagerOptions {
+    auth: Auth;
     callbacks: ManagerCallbacks;
     baseURL?: string;
     wsURL?: string;
     debug?: boolean;
-    auth: Auth;
+    enableAnalitics?: boolean;
+    mixpanelKey?: string;
+    /**
+     * Unique ID of agent user used in analytics. Pass it to override the default way to get distinctId
+     */
+    distinctId?: string;
 }
 
 export interface AgentManager {
@@ -121,4 +127,17 @@ export interface AgentManager {
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
+    /**
+     * Optional callback function that will be triggered each time any changes happen in the chat
+     * @param callback
+     */
+    getStarterMessages: () => Promise<string[]>;
+    /**
+     * TODO describe event and props from MixPanel Docs
+     * TODO add response
+     * @param event 
+     * @param props 
+     * @returns 
+     */
+    track: (event: string, props?: Record<string, any>) => Promise<any>;
 }

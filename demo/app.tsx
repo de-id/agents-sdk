@@ -108,8 +108,10 @@ export function App() {
                 baseURL: didApiUrl,
                 auth,
                 wsURL: didSocketApiUrl,
+                distinctId: 'testDistinctIdToSDKTest'
             });
             setAgentAPI(agentAPI);
+            agentAPI.getStarterMessages();
         } else if (text) {
             setStreamState(State.Speaking);
             try {
