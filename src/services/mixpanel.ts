@@ -20,15 +20,18 @@ export interface AnalyticsProvider {
     track(event: string, props?: Record<string, any>): Promise<any>;
 }
 
-
 function initializeAnalyticsProvider(config: AnalyticsOptions): AnalyticsProvider {
-    const instance: AnalyticsProvider = {
+    const instanceConfig =  {
         mixPanelKey: config.mixPanelKey || 'testKey',
         distinct_id: config.distinctId || getExternalId(),
         isEnabled: config.isEnabled ?? true,
         chatId: config.chatId,
         agentId: config.agent.id,
         owner_id: config.agent.owner_id ?? '',
+    }
+
+    const instance: AnalyticsProvider = {
+        ...instanceConfig,
 
         getRandom() {
             return Math.random().toString(16).slice(2);
@@ -48,12 +51,8 @@ function initializeAnalyticsProvider(config: AnalyticsOptions): AnalyticsProvide
                             event,
                             properties: {
                                 ...props,
-                                token: this.mixPanelKey,
+                                ...instanceConfig,
                                 time: Date.now(),
-                                chatId: this.chatId,
-                                agentId: this.agentId,
-                                owner_id: this.owner_id,
-                                distinct_id: this.distinct_id,
                                 $insert_id: this.getRandom(),
                                 origin: window.location.href,
                                 'Screen Height': window.screen.height || window.innerWidth,

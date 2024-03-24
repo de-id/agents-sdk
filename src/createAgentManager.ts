@@ -11,7 +11,7 @@ import {
 } from '$/types/index';
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
-import initializeAnalyticsProvider, { AnalyticsProvider } from './api/mixPanel';
+import initializeAnalyticsProvider, { AnalyticsProvider } from './services/mixpanel';
 import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
@@ -125,7 +125,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     });
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
-    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi);
+    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics);
     analytics.track('agent-sdk', {event: 'loaded', ...getAnaliticsInfo(agentInstance)});
 
     const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
@@ -137,7 +137,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
         async reconnect() {
             analytics.track('agent-chat', 
             {
-                event: 'resume', 
+                event: 'reconnect', 
                 chatId: chat.id,
                 agentId: typeof agent === 'string' ? agent : agent.id,
             });
@@ -152,56 +152,27 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             streamingManager = newStreamingManager;
         },
         disconnect() {
+            analytics.track('agent-chat', 
+            {
+                event: 'disconnect', 
+                chatId: chat.id,
+                agentId: typeof agent === 'string' ? agent : agent.id,
+            });
+
             abortController.abort();
             socketManager.disconnect();
 
             return streamingManager.disconnect();
         },
-        chat(messages: Message[]) {
-            const messageSentTimestamp = Date.now();
-
-            analytics.track('agent-message-send', {
-                event: 'success',
-                messages: messages.length + 1,
-            });
-
-            return agentsApi
-                .chat(
-                    agentInstance.id,
-                    chat.id,
-                    { sessionId: streamingManager.sessionId, streamId: streamingManager.streamId, messages },
-                    { signal: abortController.signal }
-                )
-                .then(response => {
-                    analytics.track('agent-message-received', {
-                        latency: Date.now() - messageSentTimestamp,
-                        messages: messages.length + 1,
-                    });
-                    
-                    return response;
-                })
-                .catch(error => {
-                    analytics.track('agent-message-send', {
-                        event: 'error',
-                        reason: error.message ?? "", // Assuming error has a message property
-                    });
-
-                    throw error;
-                });
-        },
-        rate(payload: RatingPayload, id?: string) {
-            analytics.track('agent-rate', {
-                event: id ? 'update' : 'create',
-                score: payload.score,
-                thumb: payload.score === 1 ? 'up' : 'down',
-                knowledgeId: payload.knowledge_id,
-                matches: payload.matches,
-            });
 
         chat(messages: Message[], append_chat: boolean = false) {
             if (messages.length === 0) {
                 throw new Error('Messages cannot be empty');
             }
+            analytics.track('agent-message-send', {
+                event: 'success',
+                messages: messages.length + 1,
+            });
 
             messages[messages.length - 1].created_at = new Date().toISOString();
             if (!messages[messages.length - 1].role) {
@@ -217,6 +188,13 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
         },
         rate(score: 1 | -1, message: Message, id?: string) {
             const matches: [string, string][] = message.matches?.map(match => [match.document_id, match.id]) ?? [];
+            analytics.track('agent-rate', {
+                event: id ? 'update' : 'create',
+                score: score,
+                thumb: score === 1 ? 'up' : 'down',
+                knowledge_id: agentInstance.knowledge?.id ?? '',
+                matches: matches,
+            });
 
             if (id) {
                 return ratingsAPI.update(id, {
@@ -237,6 +215,11 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             });
         },
         deleteRate(id: string) {
+            analytics.track('agent-rate-delete', {
+                type: 'text',
+                chat_id: chat.id,
+                id: id
+            });
             return ratingsAPI.delete(id);
         },
         speak(payload: SupportedStreamScipt) {
