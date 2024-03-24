@@ -6,17 +6,26 @@ import {
     Chat,
     CreateStreamOptions,
     Message,
-    RatingPayload,
     SupportedStreamScipt,
     VideoType,
 } from '$/types/index';
-import { Auth, StreamScript, StreamingManager, createKnowledgeApi, createStreamingManager } from '.';
+import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
 import initializeAnalyticsProvider, { AnalyticsProvider } from './api/mixPanel';
+import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
+import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { getAnaliticsInfo } from './utils/analytics';
+
+function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
+    if (!agent.knowledge?.id) {
+        return [];
+    }
+
+    return knowledgeApi.getKnowledge(agent.knowledge.id).then(knowledge => knowledge?.starter_message || []);
+}
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter.type === VideoType.Clip) {
@@ -58,9 +67,11 @@ function initializeStreamAndChat(
                                         agentId: agent.id
                                     });
                                 }
+
                                 resolve({ chat, streamingManager });
                             } catch (error: any) {
                                 console.error(error);
+
                                 reject(new Error('Cannot create new chat'));
                             }
                         } else if (state === 'failed') {
@@ -114,21 +125,22 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
     });
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
-    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics);
-
+    let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi);
     analytics.track('agent-sdk', {event: 'loaded', ...getAnaliticsInfo(agentInstance)});
+
+    const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
 
     return {
         agent: agentInstance,
         chatId: chat.id,
-        async reconnectToChat() {
+        starterMessages,
+        async reconnect() {
             analytics.track('agent-chat', 
             {
                 event: 'resume', 
                 chatId: chat.id,
                 agentId: typeof agent === 'string' ? agent : agent.id,
             });
-
             const { streamingManager: newStreamingManager } = await initializeStreamAndChat(
                 agentInstance,
                 options,
@@ -139,18 +151,11 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
 
             streamingManager = newStreamingManager;
         },
-        terminate() {
-            analytics.track('agent-chat', 
-            { 
-                event: 'terminated', 
-                chatId: chat.id,
-                agentId: typeof agent === 'string' ? agent : agent.id,
-            });
-
+        disconnect() {
             abortController.abort();
-            socketManager.terminate();
+            socketManager.disconnect();
 
-            return streamingManager.terminate();
+            return streamingManager.disconnect();
         },
         chat(messages: Message[]) {
             const messageSentTimestamp = Date.now();
@@ -192,11 +197,44 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                 knowledgeId: payload.knowledge_id,
                 matches: payload.matches,
             });
-            if (id) {
-                return ratingsAPI.update(id, payload);
+
+        chat(messages: Message[], append_chat: boolean = false) {
+            if (messages.length === 0) {
+                throw new Error('Messages cannot be empty');
             }
 
-            return ratingsAPI.create(payload);
+            messages[messages.length - 1].created_at = new Date().toISOString();
+            if (!messages[messages.length - 1].role) {
+                messages[messages.length - 1].role = 'user';
+            }
+
+            return agentsApi.chat(
+                agentInstance.id,
+                chat.id,
+                { sessionId: streamingManager.sessionId, streamId: streamingManager.streamId, messages, append_chat },
+                { signal: abortController.signal }
+            );
+        },
+        rate(score: 1 | -1, message: Message, id?: string) {
+            const matches: [string, string][] = message.matches?.map(match => [match.document_id, match.id]) ?? [];
+
+            if (id) {
+                return ratingsAPI.update(id, {
+                    agent_id: agentInstance.id,
+                    knowledge_id: agentInstance.knowledge?.id ?? '',
+                    chat_id: chat.id,
+                    score,
+                    matches,
+                });
+            }
+
+            return ratingsAPI.create({
+                agent_id: agentInstance.id,
+                knowledge_id: agentInstance.knowledge?.id ?? '',
+                chat_id: chat.id,
+                score,
+                matches,
+            });
         },
         deleteRate(id: string) {
             return ratingsAPI.delete(id);
@@ -210,9 +248,16 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
                         input: payload.input,
                         ssml: payload.ssml || false,
                     });
+
+                    let voiceProvider = agentInstance.presenter.voice;
+
+                    if (payload.provider) {
+                        voiceProvider = payload.provider;
+                    }
+
                     return {
                         type: 'text',
-                        provider: payload.provider,
+                        provider: voiceProvider,
                         input: payload.input,
                         ssml: payload.ssml || false,
                     };

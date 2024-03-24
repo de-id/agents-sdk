@@ -1,3 +1,4 @@
+import { StreamingManager } from '$/createStreamingManager';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
     Agent,
@@ -6,7 +7,6 @@ import {
     ChatProgress,
     ClipStreamOptions,
     CreateStreamOptions,
-    StreamingManager,
     StreamingState,
     VideoType,
     createAgentManager,
@@ -129,12 +129,11 @@ export function App() {
 
     async function onChat() {
         const newMessages: any[] = [{ role: 'user', content: text.trim(), created_at: new Date().toISOString() }];
-        const response = await agentAPI?.chat(newMessages);
+        const response = agentAPI?.chat(newMessages, true);
     }
 
-    function terminate() {
-        agentAPI?.terminate();
-        rtcConnection?.terminate();
+    function disconnect() {
+        agentAPI?.disconnect();
         setRtcConnection(null);
         setStreamState(State.New);
     }
@@ -166,7 +165,7 @@ export function App() {
                 <button onClick={onChat} disabled={streamState !== State.Connected}>
                     Send to chat text
                 </button>
-                <button onClick={terminate} disabled={streamState !== State.Connected}>
+                <button onClick={disconnect} disabled={streamState !== State.Connected}>
                     Close connection
                 </button>
             </div>

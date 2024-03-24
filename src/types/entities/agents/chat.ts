@@ -24,14 +24,15 @@ export type RatingPayload = Omit<
 >
 
 export interface Message {
-    role: 'system' | 'assistant' | 'user' | 'function' | 'tool';
+    role?: 'system' | 'assistant' | 'user' | 'function' | 'tool';
     content: string;
-    created_at: string;
+    created_at?: string;
     matches?: ChatResponse['matches'];
 }
 
 export interface ChatPayload {
     messages: Message[];
+    append_chat?: boolean;
     streamId: string;
     sessionId: string;
 }

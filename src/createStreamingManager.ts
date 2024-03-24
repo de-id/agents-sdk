@@ -190,7 +190,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         /**
          * Method to close RTC connection
          */
-        async terminate() {
+        async disconnect() {
             if (streamIdFromServer) {
                 if (srcObject) {
                     srcObject.getTracks().forEach(track => track.stop());

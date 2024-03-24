@@ -6,7 +6,7 @@ import {
     KnowledgePayload,
     QueryResult,
     RecordData,
-} from '$/types/index'
+} from '$/types/index';
 import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
@@ -46,3 +46,5 @@ export function createKnowledgeApi(auth: Auth, host = didApiUrl) {
         },
     };
 }
+
+export type KnowledegeApi = ReturnType<typeof createKnowledgeApi>;
