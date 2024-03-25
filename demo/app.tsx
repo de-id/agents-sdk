@@ -108,8 +108,10 @@ export function App() {
                 baseURL: didApiUrl,
                 auth,
                 wsURL: didSocketApiUrl,
+                distinctId: 'testDistinctIdToSDKTest'
             });
             setAgentAPI(agentAPI);
+            agentAPI.getStarterMessages();
         } else if (text) {
             setStreamState(State.Speaking);
             try {
@@ -127,7 +129,7 @@ export function App() {
 
     async function onChat() {
         const newMessages: any[] = [{ role: 'user', content: text.trim(), created_at: new Date().toISOString() }];
-        const response = agentAPI?.chat(newMessages);
+        const response = agentAPI?.chat(newMessages, true);
     }
 
     function disconnect() {
