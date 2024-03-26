@@ -2,7 +2,7 @@ import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
 import { SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
-import { ChatResponse, Message, RatingEntity } from './chat';
+import { ChatResponse, IRetrivalMetadata, Message, RatingEntity } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -59,12 +59,6 @@ interface ManagerCallbacks {
      * @param progress
      */
     onChatEvents?(progress: ChatProgress, data: any): void;
-
-    /**
-     * Optional callback function that will be triggered when the agent is ready
-     * @param agent - Agent instance you are working with
-     */
-    onAgentReady?(agent: Agent): void;
 }
 
 export interface AgentManagerOptions {
@@ -92,10 +86,9 @@ export interface AgentManager {
      */
     starterMessages: string[];
     /**
-     * Method to be reconnected to chat
-     * Since chat uses an RTC connection to communicate with the agent, it could be dropped and to continue to chat you need to reconnect
+     * Method to connect to stream and chat
      */
-    reconnect: () => Promise<void>;
+    connect: () => Promise<void>;
     /**
      * Method to close all connections with agent, stream and web socket
      */
@@ -103,7 +96,7 @@ export interface AgentManager {
     /**
      * ID of chat you are working on now
      */
-    chatId: string;
+    chatId?: string;
     /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
@@ -116,7 +109,7 @@ export interface AgentManager {
      * @param matches - array of matches that were used to find the answer
      * @param id - id of Rating entity. Leave it empty to create a new, one or pass it to work with the existing one
      */
-    rate: (score: 1 | -1, Message: Message, id?: string) => Promise<RatingEntity>;
+    rate: (score: 1 | -1, matches?: IRetrivalMetadata[], id?: string) => Promise<RatingEntity>;
     /**
      * Method to delete rating from answer in chat
      * @param id - id of Rating entity.
