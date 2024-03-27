@@ -114,53 +114,30 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
             if (event === StreamEvents.StreamStarted) {
                 console.log('StreamStarted', event, data);
-                analytics?.track('agent-video', {
-                    event: "start",
-                    ...event
-                })
+                analytics?.track('agent-video', { event: 'start', ...event });
             } else if (event === StreamEvents.StreamDone) {
-                analytics?.track('agent-video', {
-                    event: "stop",
-                    rtcStats: data ?? [] ,
-                    ...event
-                })
-                console.log('StreamDone');
+                analytics?.track('agent-video', { event: 'stop', rtcStats: data ?? [], ...event });
+                console.log('StreamDone', event, data);
             } else if (event === StreamEvents.StreamFailed) {
                 callbacks.onVideoStateChange?.(StreamingState.Stop, { event, data });
 
                 clearInterval(videoStatsInterval);
                 console.log('StreamFailed');
-
             } else if (event === StreamEvents.StreamCreated) {
                 console.log('StreamStarted', event, data);
-                analytics?.track('agent-video', {
-                    event: "created",
-                    ...event
-                })            
+                analytics?.track('agent-video', { event: 'created', ...event });
             } else if (event === StreamEvents.StreamVideoCreated) {
-                    console.log('StreamVideoCreated', event, data);
-                    analytics?.track('agent-video', {
-                        event: "video-created",
-                        ...event
-                })
+                console.log('StreamVideoCreated', event, data);
+                analytics?.track('agent-video', { event: 'video-created', ...event });
             } else if (event === StreamEvents.StreamVideoDone) {
                 console.log('StreamVideoDone', event, data);
-                analytics?.track('agent-video', {
-                    event: "video-done",
-                    rtcStats: data ?? [] ,
-                    ...event
-                })
+                analytics?.track('agent-video', { event: 'video-done', rtcStats: data ?? [], ...event });
             } else if (event === StreamEvents.StreamVideoError) {
                 console.log('StreamVideoError', event, data);
-                analytics?.track('agent-video', {
-                    event: "video-error",
-                    ...event
-                })                
+                analytics?.track('agent-video', { event: 'video-error', ...event });
             } else {
-                if(event === StreamEvents.ChatAnswer) {
-                    analytics?.track('agent-message-recieved ', {
-                        ...event
-                    });
+                if (event === StreamEvents.ChatAnswer) {
+                    analytics?.track('agent-message-recieved ', event);
                 }
                 callbacks.onMessage?.(event, decodeURIComponent(data));
             }

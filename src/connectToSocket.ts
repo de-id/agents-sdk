@@ -14,7 +14,7 @@ interface Options {
     host?: string;
 }
 
-interface SocketManager {
+export interface SocketManager {
     socket?: WebSocket;
     disconnect: () => void;
     subscribeToEvents: (data: any) => void;
@@ -63,7 +63,7 @@ async function connectWithRetries(options: Options): Promise<WebSocket> {
     return socket;
 }
 
-export async function SocketManager(
+export async function createSocketManager(
     auth: Auth,
     host: string,
     onMessage?: ChatProgressCallback,
