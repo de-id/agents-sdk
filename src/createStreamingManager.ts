@@ -1,6 +1,7 @@
 import { createApi as createClipApi } from '$/api/clipStream';
 import { createApi as createTalkApi } from '$/api/talkStream';
 import {
+    ConnectionState,
     CreateStreamOptions,
     PayloadType,
     SlimRTCStatsReport,
@@ -19,6 +20,22 @@ const actualRTCPC = (
     (window as any).webkitRTCPeerConnection ||
     (window as any).mozRTCPeerConnection
 ).bind(window);
+
+function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
+    switch (state) {
+        case 'connected':
+            return ConnectionState.Connected;
+        case 'checking':
+            return ConnectionState.Connecting;
+        case 'failed':
+            return ConnectionState.Fail;
+        case 'new':
+        case 'closed':
+        case 'disconnected':
+        default:
+            return ConnectionState.New;
+    }
+}
 
 function pollStats(peerConnection, onVideoStateChange) {
     let videoStats = [] as SlimRTCStatsReport[];
@@ -69,6 +86,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
+    let timeoutId: NodeJS.Timeout;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip ? createClipApi(auth, baseURL) : createTalkApi(auth, baseURL);
@@ -95,12 +113,29 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 },
                 session_id
             );
+        } else {
+            addIceCandidate(
+                streamIdFromServer,
+                {
+                    candidate: null,
+                },
+                session_id
+            );
         }
     };
 
     peerConnection.oniceconnectionstatechange = () => {
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
-        callbacks.onConnectionStateChange?.(peerConnection.iceConnectionState);
+        const newState = mapConnectionState(peerConnection.iceConnectionState);
+
+        if (newState === ConnectionState.Connected) {
+            timeoutId = setTimeout(() => {
+                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+            }, 5000);
+        } else {
+            clearTimeout(timeoutId);
+            callbacks.onConnectionStateChange?.(newState);
+        }
     };
 
     peerConnection.ontrack = (event: RTCTrackEvent) => {
@@ -120,6 +155,11 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 callbacks.onVideoStateChange?.(StreamingState.Stop, { event, data });
                 clearInterval(videoStatsInterval);
                 console.log('StreamFailed');
+            } else if (event === StreamEvents.StreamReady) {
+                console.log('StreamReady');
+                clearTimeout(timeoutId);
+
+                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
             } else {
                 callbacks.onMessage?.(event, decodeURIComponent(data));
             }
@@ -165,7 +205,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 }
 
                 await close(streamIdFromServer, session_id).catch(_ => {});
-                callbacks.onConnectionStateChange?.('closed');
+                callbacks.onConnectionStateChange?.(ConnectionState.New);
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
                 clearInterval(videoStatsInterval);
             }

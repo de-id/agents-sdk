@@ -15,12 +15,21 @@ export enum StreamEvents {
     ChatPartial = 'chat/partial',
     StreamDone = 'stream/done',
     StreamStarted = 'stream/started',
+    StreamReady = 'stream/ready',
     StreamFailed = 'stream/error',
+}
+
+export enum ConnectionState {
+    New,
+    Fail,
+    Connected,
+    Connecting,
+    Terminating,
 }
 
 export interface ManagerCallbacks {
     onMessage?: (event: string, data: string) => void;
-    onConnectionStateChange?: (state: RTCIceConnectionState) => void;
+    onConnectionStateChange?: (state: ConnectionState) => void;
     onVideoStateChange?: (state: StreamingState, data?: any) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
 }
