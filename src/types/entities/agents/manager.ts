@@ -135,9 +135,9 @@ export interface AgentManager {
     /**
      * TODO describe event and props from MixPanel Docs
      * TODO add response
-     * @param event 
-     * @param props 
-     * @returns 
+     * @param event
+     * @param props
+     * @returns
      */
     track: (event: string, props?: Record<string, any>) => Promise<any>;
 }
