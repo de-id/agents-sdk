@@ -45,19 +45,19 @@ export interface IceCandidate {
      * The format of this address is a candidate-attribute as defined in RFC 5245. This string is empty ("") if the
      * RTCIceCandidate is an "end of candidates" indicator.
      */
-    candidate: string;
+    candidate: string | null;
 
     /**
      * A string specifying the candidate's media stream identification tag which uniquely identifies the media stream
      * within the component with which the candidate is associated, or null if no such association exists.
      */
-    sdpMid: string;
+    sdpMid?: string;
 
     /**
      * If not null, sdpMLineIndex indicates the zero-based index number of the media description (as defined in RFC
      * 4566) in the SDP with which the candidate is associated.
      */
-    sdpMLineIndex: number;
+    sdpMLineIndex?: number;
 }
 
 export interface Status {

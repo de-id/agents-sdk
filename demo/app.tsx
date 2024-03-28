@@ -6,6 +6,7 @@ import {
     Auth,
     ChatProgress,
     ClipStreamOptions,
+    ConnectionState,
     CreateStreamOptions,
     StreamingState,
     VideoType,
@@ -51,19 +52,15 @@ export function App() {
         // createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
     }, [auth]);
 
-    const onConnectionStateChange = function (state) {
-        if (state === 'connected') {
+    const onConnectionStateChange = function (state: ConnectionState) {
+        if (state === ConnectionState.Connected) {
             setStreamState(State.Connected);
-        } else if (state === 'new') {
+        } else if (state === ConnectionState.New) {
             setStreamState(State.New);
-        } else if (state === 'closed') {
-            setStreamState(State.New);
-        } else if (state === 'checking') {
+        } else if (state === ConnectionState.Connecting) {
             setStreamState(State.Connecting);
-        } else if (state === 'failed') {
+        } else if (state === ConnectionState.Fail) {
             setStreamState(State.Fail);
-        } else if (state === 'disconnected') {
-            setStreamState(State.New);
         }
     };
 
@@ -108,7 +105,7 @@ export function App() {
                 baseURL: didApiUrl,
                 auth,
                 wsURL: didSocketApiUrl,
-                distinctId: 'testDistinctIdToSDKTest'
+                distinctId: 'testDistinctIdToSDKTest',
             });
             setAgentAPI(agentAPI);
             agentAPI.getStarterMessages();

@@ -4,6 +4,7 @@ import {
     AgentManagerOptions,
     AgentsAPI,
     Chat,
+    ConnectionState,
     CreateStreamOptions,
     Message,
     SupportedStreamScipt,
@@ -11,12 +12,12 @@ import {
 } from '$/types/index';
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
-import initializeAnalyticsProvider, { AnalyticsProvider } from './services/mixpanel';
 import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
 import { createRatingsApi } from './api/ratings';
 import { SocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
+import initializeAnalyticsProvider, { AnalyticsProvider } from './services/mixpanel';
 import { getAnaliticsInfo } from './utils/analytics';
 
 function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
@@ -56,7 +57,7 @@ function initializeStreamAndChat(
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
-                        if (state === 'connected') {
+                        if (state === ConnectionState.Connected) {
                             try {
                                 if (!chat) {
                                     chat = await agentsApi.newChat(agent.id);
@@ -64,7 +65,7 @@ function initializeStreamAndChat(
                                     analytics.track('agent-chat', {
                                         event: 'created',
                                         chatId: chat.id,
-                                        agentId: agent.id
+                                        agentId: agent.id,
                                     });
                                 }
 
@@ -74,7 +75,7 @@ function initializeStreamAndChat(
 
                                 reject(new Error('Cannot create new chat'));
                             }
-                        } else if (state === 'failed') {
+                        } else if (state === ConnectionState.Fail) {
                             reject(new Error('Cannot create connection'));
                         }
 
@@ -126,7 +127,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
 
     const socketManager = await SocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
     let { chat, streamingManager } = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics);
-    analytics.track('agent-sdk', {event: 'loaded', ...getAnaliticsInfo(agentInstance)});
+    analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
 
     const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
 
@@ -135,9 +136,8 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
         chatId: chat.id,
         starterMessages,
         async reconnect() {
-            analytics.track('agent-chat', 
-            {
-                event: 'reconnect', 
+            analytics.track('agent-chat', {
+                event: 'reconnect',
                 chatId: chat.id,
                 agentId: typeof agent === 'string' ? agent : agent.id,
             });
@@ -152,9 +152,8 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             streamingManager = newStreamingManager;
         },
         disconnect() {
-            analytics.track('agent-chat', 
-            {
-                event: 'disconnect', 
+            analytics.track('agent-chat', {
+                event: 'disconnect',
                 chatId: chat.id,
                 agentId: typeof agent === 'string' ? agent : agent.id,
             });
@@ -218,7 +217,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             analytics.track('agent-rate-delete', {
                 type: 'text',
                 chat_id: chat.id,
-                id: id
+                id: id,
             });
             return ratingsAPI.delete(id);
         },
@@ -276,7 +275,7 @@ export async function createAgentManager(agent: string | Agent, options: AgentMa
             if (!options.enableAnalitics) {
                 return Promise.reject(new Error('Analytics was disabled on create step'));
             }
-            
+
             return analytics.track(event, props);
         },
     };
