@@ -68,11 +68,17 @@ interface ManagerCallbacks {
 }
 
 export interface AgentManagerOptions {
+    auth: Auth;
     callbacks: ManagerCallbacks;
     baseURL?: string;
     wsURL?: string;
     debug?: boolean;
-    auth: Auth;
+    enableAnalitics?: boolean;
+    mixpanelKey?: string;
+    /**
+     * Unique ID of agent user used in analytics. Pass it to override the default way to get distinctId
+     */
+    distinctId?: string;
 }
 
 export interface AgentManager {
@@ -101,8 +107,9 @@ export interface AgentManager {
     /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
+     * @param append_chat: when true, append to existing agent chat, rather than creating a new one.
      */
-    chat: (messages: Message[]) => Promise<ChatResponse>;
+    chat: (messages: Message[], append_chat?: boolean) => Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
      * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
@@ -120,4 +127,17 @@ export interface AgentManager {
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
+    /**
+     * Optional callback function that will be triggered each time any changes happen in the chat
+     * @param callback
+     */
+    getStarterMessages: () => Promise<string[]>;
+    /**
+     * TODO describe event and props from MixPanel Docs
+     * TODO add response
+     * @param event 
+     * @param props 
+     * @returns 
+     */
+    track: (event: string, props?: Record<string, any>) => Promise<any>;
 }
