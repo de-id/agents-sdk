@@ -4,8 +4,8 @@ import {
     AgentManagerOptions,
     AgentsAPI,
     Chat,
+    ChatProgress,
     CreateStreamOptions,
-    IRetrivalMetadata,
     Message,
     SupportedStreamScipt,
     VideoType,
@@ -14,16 +14,18 @@ import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
 import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
 import { createRatingsApi } from './api/ratings';
+import { getRandom } from './auth/getAuthHeader';
 import { SocketManager, createSocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import initializeAnalytics, { Analytics } from './services/mixpanel';
 import { getAnaliticsInfo } from './utils/analytics';
 
-interface AgentManagreeItems {
+interface AgentManagrItems {
     chat?: Chat;
     streamingManager?: StreamingManager<CreateStreamOptions>;
     socketManager?: SocketManager;
+    messages: Message[];
 }
 
 function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
@@ -55,41 +57,40 @@ function initializeStreamAndChat(
     analytics: Analytics,
     chat?: Chat
 ) {
-    return new Promise<{
-        chat: Chat;
-        streamingManager: StreamingManager<ReturnType<typeof getAgentStreamArgs>>;
-    }>(async (resolve, reject) => {
-        const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
-            ...options,
-            callbacks: {
-                ...options.callbacks,
-                onConnectionStateChange: async state => {
-                    if (state === 'connected') {
-                        try {
-                            if (!chat) {
-                                chat = await agentsApi.newChat(agent.id);
-                                analytics.track('agent-chat', {
-                                    event: 'created',
-                                    chatId: chat.id,
-                                    agentId: agent.id,
-                                });
+    return new Promise<{ chat: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
+        async (resolve, reject) => {
+            const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
+                ...options,
+                callbacks: {
+                    ...options.callbacks,
+                    onConnectionStateChange: async state => {
+                        if (state === 'connected') {
+                            try {
+                                if (!chat) {
+                                    chat = await agentsApi.newChat(agent.id);
+                                    analytics.track('agent-chat', {
+                                        event: 'created',
+                                        chatId: chat.id,
+                                        agentId: agent.id,
+                                    });
+                                }
+
+                                resolve({ chat, streamingManager });
+                            } catch (error: any) {
+                                console.error(error);
+
+                                reject('Cannot create new chat');
                             }
-
-                            resolve({ chat, streamingManager });
-                        } catch (error: any) {
-                            console.error(error);
-
-                            reject(new Error('Cannot create new chat'));
+                        } else if (state === 'failed') {
+                            reject('Cannot create connection');
                         }
-                    } else if (state === 'failed') {
-                        reject(new Error('Cannot create connection'));
-                    }
 
-                    options.callbacks.onConnectionStateChange?.(state);
+                        options.callbacks.onConnectionStateChange?.(state);
+                    },
                 },
-            },
-        });
-    });
+            });
+        }
+    );
 }
 
 export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise<Agent> {
@@ -97,6 +98,25 @@ export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise
     const agentsApi = createAgentsApi(auth, url);
 
     return agentsApi.getById(agentId);
+}
+
+function getInitialMessages(agent: Agent): Message[] {
+    let content: string = '';
+    if (agent.greetings && agent.greetings.length > 0) {
+        const randomIndex = Math.floor(Math.random() * agent.greetings.length);
+        content = agent.greetings[randomIndex];
+    } else {
+        content = `Hi! I'm ${agent.preview_name}, welcome to agents. How can I help you?`;
+    }
+
+    return [
+        {
+            id: getRandom(),
+            content,
+            role: 'assistant',
+            created_at: new Date().toISOString(),
+        },
+    ];
 }
 
 /**
@@ -112,11 +132,12 @@ export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
-    const items: AgentManagreeItems = {};
+    const items: AgentManagrItems = {
+        messages: [],
+    };
 
     const baseURL = options.baseURL || didApiUrl;
     const wsURL = options.wsURL || didSocketApiUrl;
-    const abortController: AbortController = new AbortController();
     const mxKey = options.mixpanelKey || mixpanelKey;
 
     const agentsApi = createAgentsApi(options.auth, baseURL);
@@ -126,6 +147,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentInstance = await agentsApi.getById(agent);
     const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
 
+    items.messages = [...getInitialMessages(agentInstance)];
+    options.callbacks.onNewMessage?.(items.messages);
+
     const analytics = initializeAnalytics({ mixPanelKey: mxKey, agent: agentInstance, ...options });
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
 
@@ -133,8 +157,24 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         agent: agentInstance,
         chatId: items.chat?.id,
         starterMessages,
+        messages: items.messages,
         async connect() {
-            const socketManager = await createSocketManager(options.auth, wsURL, options.callbacks.onChatEvents);
+            const socketManager = await createSocketManager(options.auth, wsURL, (progress, data) => {
+                if ('content' in data) {
+                    const { content } = data;
+                    const lastMessage = items.messages[items.messages.length - 1];
+
+                    if (lastMessage?.role === 'assistant') {
+                        lastMessage.content =
+                            progress === ChatProgress.Partial ? lastMessage.content + content : content;
+                    }
+
+                    options.callbacks.onNewMessage?.(items.messages);
+                }
+
+                options.callbacks?.onChatEvents?.(progress, data);
+            });
+
             const { streamingManager, chat } = await initializeStreamAndChat(
                 agentInstance,
                 options,
@@ -147,6 +187,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             items.streamingManager = streamingManager;
             items.socketManager = socketManager;
             items.chat = chat;
+            items.messages = [...getInitialMessages(agentInstance)];
+
+            options.callbacks.onNewMessage?.(items.messages);
         },
         async disconnect() {
             items.socketManager?.disconnect();
@@ -154,48 +197,72 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
         },
-        chat(messages: Message[], append_chat: boolean = false) {
-            if (messages.length === 0) {
-                throw new Error('Messages cannot be empty');
-            } else if (!items.chat) {
-                throw new Error('Chat is not initialized');
-            } else if (!items.streamingManager) {
-                throw new Error('Streaming manager is not initialized');
-            }
-            analytics.track('agent-message-send', { event: 'success', messages: messages.length + 1 });
-
-            messages[messages.length - 1].created_at = new Date().toISOString();
-            if (!messages[messages.length - 1].role) {
-                messages[messages.length - 1].role = 'user';
+        async chat(userMessage: string, append_chat: boolean = false) {
+            if (userMessage.length === 0) {
+                throw new Error('Message cannot be empty');
             }
 
-            return agentsApi.chat(agentInstance.id, items.chat.id, {
-                sessionId: items.streamingManager.sessionId,
-                streamId: items.streamingManager.streamId,
-                messages,
-            });
-        },
-        rate(score: 1 | -1, matches?: IRetrivalMetadata[], id?: string) {
             if (!items.chat) {
                 throw new Error('Chat is not initialized');
             }
 
-            const matchesMapped: [string, string][] = matches?.map(match => [match.document_id, match.id]) ?? [];
+            if (!items.streamingManager) {
+                throw new Error('Streaming manager is not initialized');
+            }
 
-            analytics.track('agent-rate', {
-                event: id ? 'update' : 'create',
-                score: score,
-                thumb: score === 1 ? 'up' : 'down',
-                knowledge_id: agentInstance.knowledge?.id ?? '',
-                matches: matches,
+            analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
+            items.messages.push({
+                id: getRandom(),
+                role: 'user',
+                content: userMessage,
+                created_at: new Date().toISOString(),
             });
 
-            if (id) {
-                return ratingsAPI.update(id, {
+            const response = await agentsApi.chat(agentInstance.id, items.chat.id, {
+                sessionId: items.streamingManager.sessionId,
+                streamId: items.streamingManager.streamId,
+                messages: items.messages,
+                append_chat,
+            });
+
+            items.messages.push({
+                id: getRandom(),
+                role: 'assistant',
+                content: response.result ?? '',
+                created_at: new Date().toISOString(),
+                matches: response.matches,
+            });
+
+            options.callbacks.onNewMessage?.(items.messages);
+
+            return response;
+        },
+        rate(messageId: string, score: 1 | -1, rateId?: string) {
+            const message = items.messages.find(message => message.id === messageId);
+
+            if (!items.chat) {
+                throw new Error('Chat is not initialized');
+            } else if (!message) {
+                throw new Error('Message not found');
+            }
+
+            const matches: [string, string][] = message.matches?.map(match => [match.document_id, match.id]) ?? [];
+
+            analytics.track('agent-rate', {
+                event: rateId ? 'update' : 'create',
+                thumb: score === 1 ? 'up' : 'down',
+                knowledge_id: agentInstance.knowledge?.id ?? '',
+                matches,
+                score,
+            });
+
+            if (rateId) {
+                return ratingsAPI.update(rateId, {
                     agent_id: agentInstance.id,
                     knowledge_id: agentInstance.knowledge?.id ?? '',
-                    matches: matchesMapped,
                     chat_id: items.chat.id,
+                    messageId,
+                    matches,
                     score,
                 });
             }
@@ -203,8 +270,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return ratingsAPI.create({
                 agent_id: agentInstance.id,
                 knowledge_id: agentInstance.knowledge?.id ?? '',
-                matches: matchesMapped,
                 chat_id: items.chat.id,
+                messageId,
+                matches,
                 score,
             });
         },
@@ -254,24 +322,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
 
             return items.streamingManager.speak({ script: getScript() });
-        },
-
-        async getStarterMessages() {
-            if (!agentInstance.knowledge?.id) {
-                return [];
-            }
-
-            return knowledgeApi
-                .getKnowledge(agentInstance.knowledge.id)
-                .then(knowledge => knowledge?.starter_message || []);
-        },
-
-        track(event: string, props?: Record<string, any>) {
-            if (!options.enableAnalitics) {
-                return Promise.reject(new Error('Analytics was disabled on create step'));
-            }
-
-            return analytics.track(event, props);
         },
     };
 }

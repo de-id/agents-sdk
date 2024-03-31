@@ -2,7 +2,7 @@ import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
 import { SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
-import { ChatResponse, IRetrivalMetadata, Message, RatingEntity } from './chat';
+import { ChatResponse, Message, RatingEntity } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -30,7 +30,7 @@ export enum ChatProgress {
     Complete = 'done',
 }
 
-export type ChatProgressCallback = (progress: ChatProgress, data: string) => void;
+export type ChatProgressCallback = (progress: ChatProgress, data: any) => void;
 export type ConnectionStateChangeCallback = (state: RTCIceConnectionState) => void;
 export type VideoStateChangeCallback = (state: StreamingState, data: any) => void;
 
@@ -59,6 +59,11 @@ interface ManagerCallbacks {
      * @param progress
      */
     onChatEvents?(progress: ChatProgress, data: any): void;
+    /**
+     * Optional callback function that will be triggered each time new message is received
+     * @param messages - array of messages
+     */
+    onNewMessage?(messages: Message[]): void;
 }
 
 export interface AgentManagerOptions {
@@ -85,6 +90,11 @@ export interface AgentManager {
      * Array of starter messages that will be sent to the agent when the chat starts
      */
     starterMessages: string[];
+
+    /**
+     * Array of messages that were sent and received by the agent
+     */
+    messages: Message[];
     /**
      * Method to connect to stream and chat
      */
@@ -102,14 +112,14 @@ export interface AgentManager {
      * @param messages
      * @param append_chat: when true, append to existing agent chat, rather than creating a new one.
      */
-    chat: (messages: Message[], append_chat?: boolean) => Promise<ChatResponse>;
+    chat: (userMessage: string, append_chat?: boolean) => Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
      * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
      * @param matches - array of matches that were used to find the answer
      * @param id - id of Rating entity. Leave it empty to create a new, one or pass it to work with the existing one
      */
-    rate: (score: 1 | -1, matches?: IRetrivalMetadata[], id?: string) => Promise<RatingEntity>;
+    rate: (messageId: string, score: 1 | -1, rateId?: string) => Promise<RatingEntity>;
     /**
      * Method to delete rating from answer in chat
      * @param id - id of Rating entity.
@@ -120,17 +130,4 @@ export interface AgentManager {
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
-    /**
-     * Optional callback function that will be triggered each time any changes happen in the chat
-     * @param callback
-     */
-    getStarterMessages: () => Promise<string[]>;
-    /**
-     * TODO describe event and props from MixPanel Docs
-     * TODO add response
-     * @param event 
-     * @param props 
-     * @returns 
-     */
-    track: (event: string, props?: Record<string, any>) => Promise<any>;
 }
