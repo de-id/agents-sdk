@@ -186,7 +186,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             items.streamingManager = streamingManager;
             items.socketManager = socketManager;
             items.chat = chat;
-            items.messages = [...getInitialMessages(agentInstance)];
+            items.messages = getInitialMessages(agentInstance);
 
             options.callbacks.onNewMessage?.(items.messages);
         },
