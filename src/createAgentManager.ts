@@ -5,6 +5,7 @@ import {
     AgentsAPI,
     Chat,
     ChatProgress,
+    ConnectionState,
     CreateStreamOptions,
     Message,
     SupportedStreamScipt,
@@ -64,7 +65,7 @@ function initializeStreamAndChat(
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
-                        if (state === 'connected') {
+                        if (state === ConnectionState.Connected) {
                             try {
                                 if (!chat) {
                                     chat = await agentsApi.newChat(agent.id);
@@ -81,8 +82,8 @@ function initializeStreamAndChat(
 
                                 reject('Cannot create new chat');
                             }
-                        } else if (state === 'failed') {
-                            reject('Cannot create connection');
+                        } else if (state === ConnectionState.Fail) {
+                            reject(new Error('Cannot create connection'));
                         }
 
                         options.callbacks.onConnectionStateChange?.(state);

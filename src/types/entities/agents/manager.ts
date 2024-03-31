@@ -1,6 +1,6 @@
 import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
-import { SendStreamPayloadResponse, StreamingState } from '../../stream';
+import { ConnectionState, SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
 import { ChatResponse, Message, RatingEntity } from './chat';
 
@@ -31,7 +31,7 @@ export enum ChatProgress {
 }
 
 export type ChatProgressCallback = (progress: ChatProgress, data: any) => void;
-export type ConnectionStateChangeCallback = (state: RTCIceConnectionState) => void;
+export type ConnectionStateChangeCallback = (state: ConnectionState) => void;
 export type VideoStateChangeCallback = (state: StreamingState, data: any) => void;
 
 interface ManagerCallbacks {
@@ -39,7 +39,7 @@ interface ManagerCallbacks {
      * Optional callback will be triggered each time the RTC connection changes state
      * @param state
      */
-    onConnectionStateChange?(state: RTCIceConnectionState): void;
+    onConnectionStateChange?(state: ConnectionState): void;
     /**
      * Optional callback function that will be triggered each time video events happen
      * @param state
