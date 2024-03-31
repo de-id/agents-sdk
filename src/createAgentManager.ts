@@ -19,7 +19,7 @@ import { getRandom } from './auth/getAuthHeader';
 import { SocketManager, createSocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
-import initializeAnalytics, { Analytics } from './services/mixpanel';
+import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo } from './utils/analytics';
 
 interface AgentManagrItems {
@@ -156,9 +156,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     return {
         agent: agentInstance,
-        chatId: items.chat?.id,
         starterMessages,
-        messages: items.messages,
         async connect() {
             const socketManager = await createSocketManager(options.auth, wsURL, (progress, data) => {
                 if ('content' in data) {
@@ -288,18 +286,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             function getScript(): StreamScript {
                 if (payload.type === 'text') {
-                    analytics.track('agent-speak', {
-                        type: 'text',
-                        provider: payload.provider,
-                        input: payload.input,
-                        ssml: payload.ssml || false,
-                    });
-
-                    let voiceProvider = agentInstance.presenter.voice;
-
-                    if (payload.provider) {
-                        voiceProvider = payload.provider;
-                    }
+                    const voiceProvider = payload.provider ? payload.provider : agentInstance.presenter.voice;
 
                     return {
                         type: 'text',
@@ -308,21 +295,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         ssml: payload.ssml || false,
                     };
                 } else if (payload.type === 'audio') {
-                    analytics.track('agent-speak', {
-                        type: 'audio',
-                        audio_url: payload.audio_url,
-                    });
-
-                    return {
-                        type: 'audio',
-                        audio_url: payload.audio_url,
-                    };
+                    return { type: 'audio', audio_url: payload.audio_url };
                 }
 
                 throw new Error('Invalid payload');
             }
 
-            return items.streamingManager.speak({ script: getScript() });
+            const script = getScript();
+            analytics.track('agent-speak', script);
+
+            return items.streamingManager.speak({ script });
         },
     };
 }

@@ -4,7 +4,6 @@ import { Agent } from '..';
 export interface AnalyticsOptions {
     mixPanelKey: string;
     agent: Agent;
-    chatId?: string;
     isEnabled?: boolean;
     distinctId?: string;
 }
@@ -20,12 +19,11 @@ export interface Analytics {
     track(event: string, props?: Record<string, any>): Promise<any>;
 }
 
-function initializeAnalytics(config: AnalyticsOptions): Analytics {
+export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const instanceConfig = {
         mixPanelKey: config.mixPanelKey || 'testKey',
         distinct_id: config.distinctId || getExternalId(),
         isEnabled: config.isEnabled ?? true,
-        chatId: config.chatId,
         agentId: config.agent.id,
         owner_id: config.agent.owner_id ?? '',
     };
@@ -68,5 +66,3 @@ function initializeAnalytics(config: AnalyticsOptions): Analytics {
         },
     };
 }
-
-export default initializeAnalytics;

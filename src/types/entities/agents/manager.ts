@@ -90,11 +90,6 @@ export interface AgentManager {
      * Array of starter messages that will be sent to the agent when the chat starts
      */
     starterMessages: string[];
-
-    /**
-     * Array of messages that were sent and received by the agent
-     */
-    messages: Message[];
     /**
      * Method to connect to stream and chat
      */
@@ -103,10 +98,6 @@ export interface AgentManager {
      * Method to close all connections with agent, stream and web socket
      */
     disconnect: () => Promise<void>;
-    /**
-     * ID of chat you are working on now
-     */
-    chatId?: string;
     /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
