@@ -1,6 +1,7 @@
 import { Auth } from '$/types/auth';
 
-const getRandom = () => Math.random().toString(16).slice(2);
+export const getRandom = () => Math.random().toString(16).slice(2);
+
 export function getExternalId() {
     let key = window.localStorage.getItem('did_external_key_id');
 

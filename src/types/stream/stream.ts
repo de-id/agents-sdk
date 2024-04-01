@@ -1,4 +1,4 @@
-import { AnalyticsProvider } from '$/services/mixpanel';
+import { Analytics } from '$/services/mixpanel';
 import { Auth } from '../auth';
 import { VideoType } from '../entities';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
@@ -16,8 +16,8 @@ export enum StreamEvents {
     ChatPartial = 'chat/partial',
     StreamDone = 'stream/done',
     StreamStarted = 'stream/started',
-    StreamReady = 'stream/ready',
     StreamFailed = 'stream/error',
+    StreamReady = 'stream/ready',
     StreamCreated = 'stream/created',
     StreamVideoCreated = 'stream-video/started',
     StreamVideoDone = 'stream-video/done',
@@ -74,7 +74,7 @@ export interface StreamingManagerOptions {
     baseURL?: string;
     debug?: boolean;
     auth: Auth;
-    analytics?: AnalyticsProvider;
+    analytics?: Analytics;
 }
 
 export interface SlimRTCStatsReport {

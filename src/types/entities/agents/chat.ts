@@ -16,14 +16,16 @@ export interface RatingEntity {
     score: 1 | -1;
     created_at: string;
     modified_at: string;
+    message_id: string;
 }
 
 export type RatingPayload = Omit<
     RatingEntity,
     'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id'
->
+>;
 
 export interface Message {
+    id: string;
     role?: 'system' | 'assistant' | 'user' | 'function' | 'tool';
     content: string;
     created_at?: string;
