@@ -260,7 +260,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     agent_id: agentInstance.id,
                     knowledge_id: agentInstance.knowledge?.id ?? '',
                     chat_id: items.chat.id,
-                    messageId,
+                    message_id: messageId,
                     matches,
                     score,
                 });
@@ -270,7 +270,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 agent_id: agentInstance.id,
                 knowledge_id: agentInstance.knowledge?.id ?? '',
                 chat_id: items.chat.id,
-                messageId,
+                message_id: messageId,
                 matches,
                 score,
             });

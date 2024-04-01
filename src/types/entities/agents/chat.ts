@@ -16,7 +16,7 @@ export interface RatingEntity {
     score: 1 | -1;
     created_at: string;
     modified_at: string;
-    messageId: string;
+    message_id: string;
 }
 
 export type RatingPayload = Omit<
