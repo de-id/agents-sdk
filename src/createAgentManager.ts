@@ -71,15 +71,14 @@ function initializeStreamAndChat(
                                     chat = await agentsApi.newChat(agent.id);
                                     analytics.track('agent-chat', {
                                         event: 'created',
-                                        chatId: chat.id,
-                                        agentId: agent.id,
+                                        chat_id: chat.id,
+                                        agent_id: agent.id,
                                     });
                                 }
 
                                 resolve({ chat, streamingManager });
                             } catch (error: any) {
                                 console.error(error);
-
                                 reject('Cannot create new chat');
                             }
                         } else if (state === ConnectionState.Fail) {
@@ -112,8 +111,8 @@ function getInitialMessages(agent: Agent): Message[] {
 
     return [
         {
-            id: getRandom(),
             content,
+            id: getRandom(),
             role: 'assistant',
             created_at: new Date().toISOString(),
         },
@@ -137,8 +136,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         messages: [],
     };
 
-    const baseURL = options.baseURL || didApiUrl;
     const wsURL = options.wsURL || didSocketApiUrl;
+    const baseURL = options.baseURL || didApiUrl;
     const mxKey = options.mixpanelKey || mixpanelKey;
 
     const agentsApi = createAgentsApi(options.auth, baseURL);
@@ -148,7 +147,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentInstance = await agentsApi.getById(agent);
     const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
 
-    items.messages = [...getInitialMessages(agentInstance)];
+    items.messages = getInitialMessages(agentInstance);
     options.callbacks.onNewMessage?.(items.messages);
 
     const analytics = initializeAnalytics({ mixPanelKey: mxKey, agent: agentInstance, ...options });
@@ -170,25 +169,28 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                     options.callbacks.onNewMessage?.(items.messages);
                 }
-
-                options.callbacks?.onChatEvents?.(progress, data);
             });
 
             const { streamingManager, chat } = await initializeStreamAndChat(
                 agentInstance,
                 options,
                 agentsApi,
-                analytics
+                analytics,
+                items.chat
             );
 
-            analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
+            items.messages = getInitialMessages(agentInstance);
+
+            options.callbacks.onNewMessage?.(items.messages);
+            if (chat?.id && chat.id !== items.chat?.id) {
+                options.callbacks.onNewChat?.(chat?.id);
+            }
 
             items.streamingManager = streamingManager;
             items.socketManager = socketManager;
             items.chat = chat;
-            items.messages = getInitialMessages(agentInstance);
 
-            options.callbacks.onNewMessage?.(items.messages);
+            analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
         },
         async disconnect() {
             items.socketManager?.disconnect();

@@ -55,15 +55,15 @@ interface ManagerCallbacks {
      */
     onSrcObjectReady(srcObject: MediaStream): void;
     /**
-     * Optional callback function that will be triggered each time any changes happen in the chat
-     * @param progress
-     */
-    onChatEvents?(progress: ChatProgress, data: any): void;
-    /**
      * Optional callback function that will be triggered each time new message is received
      * @param messages - array of messages
      */
     onNewMessage?(messages: Message[]): void;
+    /**
+     * Optional callback function that will be triggered each time new chat is created
+     * @param chatId - id of the new chat
+     */
+    onNewChat?(chatId: string): void;
 }
 
 export interface AgentManagerOptions {
