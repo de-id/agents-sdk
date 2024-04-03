@@ -9,7 +9,7 @@ interface Options {
         onMessage?: (event: MessageEvent) => void;
         onOpen?: (event: Event) => void;
         onClose?: (event: CloseEvent) => void;
-        onError?: (event: Event) => void;
+        onError?: (error: string, event: Event) => void;
     };
     host?: string;
 }
@@ -27,13 +27,13 @@ function connect(options: Options): Promise<WebSocket> {
         const { callbacks, host, auth } = options;
         const { onMessage = null, onOpen = null, onClose = null, onError = null } = callbacks || {};
         const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}`);
-        
+
         socket.onmessage = onMessage;
         socket.onclose = onClose;
 
         socket.onerror = e => {
             console.error(e);
-            onError?.(e);
+            onError?.('Websocket failed to connect', e);
             reject(e);
         };
 
@@ -66,13 +66,17 @@ async function connectWithRetries(options: Options): Promise<WebSocket> {
 export async function createSocketManager(
     auth: Auth,
     host: string,
-    onMessage?: ChatProgressCallback,
+    callback?: {
+        onMessage?: ChatProgressCallback;
+        onError?: (error: string, event: Event) => void;
+    }
 ): Promise<SocketManager> {
-    const messageCallbacks: ChatProgressCallback[] = onMessage ? [onMessage] : [];
+    const messageCallbacks: ChatProgressCallback[] = callback?.onMessage ? [callback.onMessage] : [];
     const socket: WebSocket = await connectWithRetries({
         auth,
         host,
         callbacks: {
+            onError: callback?.onError,
             onMessage: (event: MessageEvent) => {
                 const parsedData = JSON.parse(event.data);
                 messageCallbacks.forEach(callback => callback(parsedData.event, parsedData));
