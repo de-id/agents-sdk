@@ -60,6 +60,8 @@ function initializeStreamAndChat(
 ) {
     return new Promise<{ chat: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
         async (resolve, reject) => {
+            let newChat = chat;
+
             const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
                 ...options,
                 callbacks: {
@@ -67,16 +69,14 @@ function initializeStreamAndChat(
                     onConnectionStateChange: async state => {
                         if (state === ConnectionState.Connected) {
                             try {
-                                if (!chat) {
-                                    chat = await agentsApi.newChat(agent.id);
+                                if (!newChat) {
+                                    newChat = await agentsApi.newChat(agent.id);
                                     analytics.track('agent-chat', {
                                         event: 'created',
-                                        chat_id: chat.id,
+                                        chat_id: newChat.id,
                                         agent_id: agent.id,
                                     });
                                 }
-
-                                resolve({ chat, streamingManager });
                             } catch (error: any) {
                                 console.error(error);
                                 reject('Cannot create new chat');
@@ -92,7 +92,11 @@ function initializeStreamAndChat(
                         options.callbacks.onVideoStateChange?.(state, data);
                     },
                 },
-            });
+            }).catch(reject);
+
+            if (streamingManager && newChat) {
+                resolve({ chat: newChat, streamingManager });
+            }
         }
     );
 }
