@@ -122,7 +122,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
         const newState = mapConnectionState(peerConnection.iceConnectionState);
 
-        if (newState === ConnectionState.Connected) {
+        if (agent.videoType === VideoType.Talk && newState === ConnectionState.Connected) {
             timeoutId = setTimeout(() => {
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
             }, 5000);
