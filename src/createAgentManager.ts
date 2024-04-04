@@ -71,6 +71,7 @@ function initializeStreamAndChat(
                             try {
                                 if (!newChat) {
                                     newChat = await agentsApi.newChat(agent.id);
+
                                     analytics.track('agent-chat', {
                                         event: 'created',
                                         chat_id: newChat.id,
@@ -78,7 +79,7 @@ function initializeStreamAndChat(
                                     });
                                 }
 
-                                if (streamingManager && newChat) {
+                                if (streamingManager) {
                                     resolve({ chat: newChat, streamingManager });
                                 }
                             } catch (error: any) {
@@ -161,10 +162,58 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const analytics = initializeAnalytics({ mixPanelKey: mxKey, agent: agentInstance, ...options });
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
 
+    async function connect() {
+        const socketManager = await createSocketManager(options.auth, wsURL, {
+            onMessage: (progress, data) => {
+                if ('content' in data) {
+                    const { content } = data;
+                    const lastMessage = items.messages[items.messages.length - 1];
+
+                    if (lastMessage?.role === 'assistant') {
+                        lastMessage.content =
+                            progress === ChatProgress.Partial ? lastMessage.content + content : content;
+                    }
+
+                    if (progress === ChatProgress.Complete) {
+                        analytics.track('agent-message-received', { messages: items.messages.length });
+                    }
+
+                    options.callbacks.onNewMessage?.(items.messages);
+                }
+            },
+        });
+
+        const { streamingManager, chat } = await initializeStreamAndChat(
+            agentInstance,
+            options,
+            agentsApi,
+            analytics,
+            items.chat
+        );
+
+        items.messages = getInitialMessages(agentInstance);
+        options.callbacks.onNewMessage?.(items.messages);
+
+        if (chat?.id && chat.id !== items.chat?.id) {
+            options.callbacks.onNewChat?.(chat?.id);
+        }
+
+        items.streamingManager = streamingManager;
+        items.socketManager = socketManager;
+        items.chat = chat;
+
+        analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
+    }
+
     return {
         agent: agentInstance,
         starterMessages,
-        async connect() {
+        connect,
+        async reconnect() {
+            if (!items.chat) {
+                return connect();
+            }
+
             const socketManager = await createSocketManager(options.auth, wsURL, {
                 onMessage: (progress, data) => {
                     if ('content' in data) {
@@ -193,22 +242,17 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 items.chat
             );
 
-            items.messages = getInitialMessages(agentInstance);
-
-            options.callbacks.onNewMessage?.(items.messages);
-            if (chat?.id && chat.id !== items.chat?.id) {
-                options.callbacks.onNewChat?.(chat?.id);
-            }
-
             items.streamingManager = streamingManager;
             items.socketManager = socketManager;
-            items.chat = chat;
 
-            analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
+            analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
         },
         async disconnect() {
             items.socketManager?.disconnect();
             await items.streamingManager?.disconnect();
+
+            items.messages = getInitialMessages(agentInstance);
+            options.callbacks.onNewMessage?.(items.messages);
 
             analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
         },

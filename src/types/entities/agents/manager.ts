@@ -95,6 +95,10 @@ export interface AgentManager {
      */
     connect: () => Promise<void>;
     /**
+     * Method to reconnect to stream and continue chat
+     */
+    reconnect: () => Promise<void>;
+    /**
      * Method to close all connections with agent, stream and web socket
      */
     disconnect: () => Promise<void>;
