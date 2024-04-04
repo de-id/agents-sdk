@@ -77,6 +77,10 @@ function initializeStreamAndChat(
                                         agent_id: agent.id,
                                     });
                                 }
+
+                                if (streamingManager && newChat) {
+                                    resolve({ chat: newChat, streamingManager });
+                                }
                             } catch (error: any) {
                                 console.error(error);
                                 reject('Cannot create new chat');
@@ -93,10 +97,6 @@ function initializeStreamAndChat(
                     },
                 },
             }).catch(reject);
-
-            if (streamingManager && newChat) {
-                resolve({ chat: newChat, streamingManager });
-            }
         }
     );
 }
