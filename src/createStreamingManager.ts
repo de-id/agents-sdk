@@ -122,7 +122,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
         const newState = mapConnectionState(peerConnection.iceConnectionState);
 
-        if (agent.videoType === VideoType.Talk && newState === ConnectionState.Connected) {
+        if (newState === ConnectionState.Connected) {
             timeoutId = setTimeout(() => {
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
             }, 5000);
@@ -142,9 +142,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
             const [event, data] = message.data.split(':');
 
             if (event === StreamEvents.StreamStarted) {
-                analytics?.track('agent-video', { event: 'start', ...event });
+                analytics?.track('agent-video', { event: 'start', ...message });
             } else if (event === StreamEvents.StreamDone) {
-                analytics?.track('agent-video', { event: 'stop', rtcStats: data ?? [], ...event });
+                analytics?.track('agent-video', { event: 'stop', ...message });
             } else if (event === StreamEvents.StreamFailed) {
                 callbacks.onVideoStateChange?.(StreamingState.Stop, { event, data });
                 clearInterval(videoStatsInterval);
@@ -152,13 +152,13 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 clearTimeout(timeoutId);
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
             } else if (event === StreamEvents.StreamCreated) {
-                analytics?.track('agent-video', { event: 'created', ...event });
+                analytics?.track('agent-video', { event: 'created', ...message });
             } else if (event === StreamEvents.StreamVideoCreated) {
-                analytics?.track('agent-video', { event: 'video-created', ...event });
+                analytics?.track('agent-video', { event: 'video-created', ...message });
             } else if (event === StreamEvents.StreamVideoDone) {
-                analytics?.track('agent-video', { event: 'video-done', rtcStats: data ?? [], ...event });
+                analytics?.track('agent-video', { event: 'video-done', ...message });
             } else if (event === StreamEvents.StreamVideoError) {
-                analytics?.track('agent-video', { event: 'video-error', ...event });
+                analytics?.track('agent-video', { event: 'video-error', ...message });
             }
         }
     };
