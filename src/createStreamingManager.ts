@@ -159,12 +159,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 analytics?.track('agent-video', { event: 'video-done', rtcStats: data ?? [], ...event });
             } else if (event === StreamEvents.StreamVideoError) {
                 analytics?.track('agent-video', { event: 'video-error', ...event });
-            } else {
-                if (event === StreamEvents.ChatAnswer) {
-                    analytics?.track('agent-message-recieved ', event);
-                }
-
-                callbacks.onMessage?.(event, decodeURIComponent(data));
             }
         }
     };
