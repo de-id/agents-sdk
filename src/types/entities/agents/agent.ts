@@ -41,7 +41,6 @@ export interface Agent {
     preview_thumbnail?: string;
     preview_url?: string;
     owner_id?: string;
-    source_url?: string;
 }
 
 export type AgentPayload = Omit<
