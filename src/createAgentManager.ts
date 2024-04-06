@@ -13,7 +13,6 @@ import {
 } from '$/types/index';
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
-import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
 import { createRatingsApi } from './api/ratings';
 import { getRandom } from './auth/getAuthHeader';
 import { SocketManager, createSocketManager } from './connectToSocket';
@@ -27,14 +26,6 @@ interface AgentManagrItems {
     streamingManager?: StreamingManager<CreateStreamOptions>;
     socketManager?: SocketManager;
     messages: Message[];
-}
-
-function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
-    if (!agent.knowledge?.id) {
-        return [];
-    }
-
-    return knowledgeApi.getKnowledge(agent.knowledge.id).then(knowledge => knowledge?.starter_message || []);
 }
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
@@ -151,10 +142,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const agentsApi = createAgentsApi(options.auth, baseURL);
     const ratingsAPI = createRatingsApi(options.auth, baseURL);
-    const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
     const agentInstance = await agentsApi.getById(agent);
-    const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
 
     items.messages = getInitialMessages(agentInstance);
     options.callbacks.onNewMessage?.(items.messages);
@@ -207,7 +196,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     return {
         agent: agentInstance,
-        starterMessages,
+        starterMessages: agentInstance.knowledge?.starter_message || [],
         connect,
         async reconnect() {
             if (!items.chat) {
