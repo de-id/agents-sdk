@@ -5,6 +5,7 @@ import {
     AgentsAPI,
     Chat,
     ChatProgress,
+    ChatProgressCallback,
     ConnectionState,
     CreateStreamOptions,
     Message,
@@ -147,6 +148,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         messages: [],
     };
 
+    let lastMessageAnswerIdx = -1;
+
     const wsURL = options.wsURL || didSocketApiUrl;
     const baseURL = options.baseURL || didApiUrl;
     const mxKey = options.mixpanelKey || mixpanelKey;
@@ -164,26 +167,34 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const analytics = initializeAnalytics({ mixPanelKey: mxKey, agent: agentInstance, ...options });
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
 
-    async function connect() {
-        const socketManager = await createSocketManager(options.auth, wsURL, {
-            onMessage: (progress, data) => {
-                if ('content' in data) {
-                    const { content } = data;
-                    const lastMessage = items.messages[items.messages.length - 1];
+    const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
+        onMessage: (progress, data): void => {
+            if ('content' in data) {
+                const { content } = data;
+                const lastMessage = items.messages[items.messages.length - 1];
 
-                    if (lastMessage?.role === 'assistant') {
+                if (lastMessage?.role === 'assistant') {
+                    if (lastMessageAnswerIdx < items.messages.length) {
                         lastMessage.content =
                             progress === ChatProgress.Partial ? lastMessage.content + content : content;
                     }
 
-                    if (progress === ChatProgress.Complete) {
-                        analytics.track('agent-message-received', { messages: items.messages.length });
+                    if (progress === ChatProgress.Answer) {
+                        lastMessageAnswerIdx = items.messages.length;
                     }
-
-                    options.callbacks.onNewMessage?.(items.messages);
                 }
-            },
-        });
+
+                if (progress === ChatProgress.Complete) {
+                    analytics.track('agent-message-received', { messages: items.messages.length });
+                }
+
+                options.callbacks.onNewMessage?.(items.messages);
+            }
+        },
+    };
+
+    async function connect() {
+        const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
         const { streamingManager, chat } = await initializeStreamAndChat(
             agentInstance,
@@ -193,6 +204,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             items.chat
         );
 
+        lastMessageAnswerIdx = -1;
         items.messages = getInitialMessages(agentInstance);
         options.callbacks.onNewMessage?.(items.messages);
 
@@ -216,25 +228,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 return connect();
             }
 
-            const socketManager = await createSocketManager(options.auth, wsURL, {
-                onMessage: (progress, data) => {
-                    if ('content' in data) {
-                        const { content } = data;
-                        const lastMessage = items.messages[items.messages.length - 1];
-
-                        if (lastMessage?.role === 'assistant') {
-                            lastMessage.content =
-                                progress === ChatProgress.Partial ? lastMessage.content + content : content;
-                        }
-
-                        if (progress === ChatProgress.Complete) {
-                            analytics.track('agent-message-received', { messages: items.messages.length });
-                        }
-
-                        options.callbacks.onNewMessage?.(items.messages);
-                    }
-                },
-            });
+            const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
             const { streamingManager, chat } = await initializeStreamAndChat(
                 agentInstance,
