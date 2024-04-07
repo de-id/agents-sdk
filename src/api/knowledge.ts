@@ -10,6 +10,7 @@ import {
 import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
+//FIXME - ofek: redundant
 export function createKnowledgeApi(auth: Auth, host = didApiUrl) {
     const client = createClient(auth, `${host}/knowledge`);
 

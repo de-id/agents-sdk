@@ -141,7 +141,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const mxKey = options.mixpanelKey || mixpanelKey;
 
     const agentsApi = createAgentsApi(options.auth, baseURL);
-    const ratingsAPI = createRatingsApi(options.auth, baseURL);
+    const ratingsApi = createRatingsApi(options.auth, baseURL);
 
     const agentInstance = await agentsApi.getById(agent);
 
@@ -318,7 +318,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
 
             if (rateId) {
-                return ratingsAPI.update(rateId, {
+                return ratingsApi.update(rateId, {
                     agent_id: agentInstance.id,
                     knowledge_id: agentInstance.knowledge?.id ?? '',
                     chat_id: items.chat.id,
@@ -328,7 +328,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 });
             }
 
-            return ratingsAPI.create({
+            return ratingsApi.create({
                 agent_id: agentInstance.id,
                 knowledge_id: agentInstance.knowledge?.id ?? '',
                 chat_id: items.chat.id,
@@ -339,7 +339,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         deleteRate(id: string) {
             analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id });
-            return ratingsAPI.delete(id);
+            return ratingsApi.delete(id);
         },
         speak(payload: SupportedStreamScipt) {
             if (!items.streamingManager) {
