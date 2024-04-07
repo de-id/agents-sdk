@@ -43,11 +43,13 @@ function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
             videoType: VideoType.Clip,
             driver_id: agent.presenter.driver_id,
             presenter_id: agent.presenter.presenter_id,
+            stream_warmup: true,
         };
     }
     return {
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
+        stream_warmup: true,
     };
 }
 

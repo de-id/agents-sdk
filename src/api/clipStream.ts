@@ -7,7 +7,7 @@ import {
     SendClipStreamPayload,
     SendStreamPayloadResponse,
     Status,
-} from '$/types/index'
+} from '$/types/index';
 import { createClient } from './getClient';
 
 export function createApi(auth: Auth, host: string): RtcApi {
@@ -19,6 +19,7 @@ export function createApi(auth: Auth, host: string): RtcApi {
                 driver_id: options.driver_id,
                 presenter_id: options.presenter_id,
                 compatibility_mode: options.compatibility_mode,
+                stream_warmup: options.stream_warmup,
             });
         },
         startConnection(streamId: string, answer: RTCSessionDescriptionInit, sessionId?: string) {

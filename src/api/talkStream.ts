@@ -22,6 +22,7 @@ export function createApi(auth: Auth, host: string): RtcApi {
                     driver_url: streamOptions.driver_url,
                     face: streamOptions.face,
                     config: streamOptions.config,
+                    stream_warmup: streamOptions.stream_warmup,
                 },
                 options
             );
