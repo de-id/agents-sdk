@@ -48,6 +48,12 @@ export interface CreateClipStreamRequest {
      * @default auto
      */
     compatibility_mode?: CompatibilityMode;
+    /**
+     * Whether to stream wamrup video on the connection.
+     * If set to true, will stream a warmup video when connection is established.
+     * At the end of the warmup video, a message containing "stream/ready" will be sent on the data channel.
+     */
+    stream_warmup?: boolean;
 }
 
 export interface SendClipStreamPayload extends StickyRequest {

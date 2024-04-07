@@ -21,6 +21,7 @@ export interface CreateTalkStreamRequest {
         align_expand_factor?: number;
         stitch?: boolean;
     };
+    stream_warmup?: boolean;
 }
 
 export interface SendTalkStreamPayload {
@@ -45,5 +46,5 @@ export interface SendTalkStreamPayload {
     user_data?: Record<string, any>;
     name?: string;
     audio_optimization?: number;
-    metadata: Record<string, any>
+    metadata: Record<string, any>;
 }
