@@ -202,6 +202,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             items.chat
         );
 
+        lastMessageAnswerIdx = -1;
         items.messages = getInitialMessages(agentInstance);
         options.callbacks.onNewMessage?.(items.messages);
 
