@@ -52,7 +52,6 @@ export interface CreateClipStreamRequest {
      * Whether to stream wamrup video on the connection.
      * If set to true, will stream a warmup video when connection is established.
      * At the end of the warmup video, a message containing "stream/ready" will be sent on the data channel.
-     * @default false
      */
     stream_warmup?: boolean;
 }
