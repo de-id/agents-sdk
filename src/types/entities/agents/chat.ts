@@ -37,6 +37,7 @@ export interface ChatPayload {
     append_chat?: boolean;
     streamId: string;
     sessionId: string;
+    enforceTextOnly?: boolean;
 }
 
 export interface IRetrivalMetadata {
