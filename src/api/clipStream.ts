@@ -19,7 +19,7 @@ export function createApi(auth: Auth, host: string): RtcApi {
                 driver_id: options.driver_id,
                 presenter_id: options.presenter_id,
                 compatibility_mode: options.compatibility_mode,
-                stream_warmpup: options.stream_warmup,
+                stream_warmup: options.stream_warmup,
             });
         },
         startConnection(streamId: string, answer: RTCSessionDescriptionInit, sessionId?: string) {
