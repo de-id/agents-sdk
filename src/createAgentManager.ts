@@ -254,19 +254,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
         },
         async chatNoStream(userMessage: string) {
-            // create a new chat without stream, use createChat and chat with
-            // the agent without the stream
-            if (userMessage.length === 0) {
-                throw new Error('Message cannot be empty');
-            }
-
-            console.log('Starting chat without stream', { items, userMessage });
-            //  TODO : connect to socket?
-
-            let newChat = items.chat;
-            console.log('new chat', { newChat });
             try {
+                if (userMessage.length === 0) {
+                    throw new Error('Message cannot be empty');
+                }
+
+                console.log('Starting chat without stream', { items, userMessage });
+                //  TODO : connect to socket?
+
+                let newChat = items.chat;
+                console.log('new chat', { newChat });
+
                 if (!newChat) {
+                    console.log('creating a new chat, does not exist');
                     newChat = await agentsApi.newChat(agentInstance.id);
 
                     analytics.track('agent-chat', {
@@ -275,27 +275,46 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         agent_id: agentInstance.id,
                     });
                 }
-            } catch (error: any) {
-                console.error(error);
-                throw new Error('Cannot create new chat');
-            }
-            items.chat = newChat;
 
-            const messageSentTimestamp = Date.now();
-            items.messages.push({
-                id: getRandom(),
-                role: 'user',
-                content: userMessage,
-                created_at: new Date(messageSentTimestamp).toISOString(),
-            });
-            const response = await agentsApi.chat(agentInstance.id, newChat.id, {
-                sessionId: undefined,
-                streamId: undefined,
-                messages: items.messages,
-                append_chat: false,
-                chatMode: ChatMode.TextOnly, // chat without stream
-            });
-            return response;
+                items.chat = newChat;
+
+                const messageSentTimestamp = Date.now();
+                items.messages.push({
+                    id: getRandom(),
+                    role: 'user',
+                    content: userMessage,
+                    created_at: new Date(messageSentTimestamp).toISOString(),
+                });
+                const response = await agentsApi.chat(agentInstance.id, newChat.id, {
+                    sessionId: undefined,
+                    streamId: undefined,
+                    messages: items.messages,
+                    append_chat: false,
+                    chatMode: ChatMode.TextOnly, // chat without stream
+                });
+                analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
+                items.messages.push({
+                    id: getRandom(),
+                    role: 'assistant',
+                    content: response.result ?? '',
+                    created_at: new Date().toISOString(),
+                    matches: response.matches,
+                });
+                console.log('response', { response });
+                if (response.result) {
+                    analytics.track('agent-message-received', {
+                        latency: Date.now() - messageSentTimestamp,
+                        messages: items.messages.length,
+                    });
+                }
+                //  TODO : check this onNewMessage, where used
+                options.callbacks.onNewMessage?.(items.messages);
+
+                return response;
+            } catch (e) {
+                analytics.track('agent-message-send', { event: 'error', messages: items.messages.length });
+                throw e;
+            }
         },
         async chat(userMessage: string, append_chat: boolean = false) {
             try {
