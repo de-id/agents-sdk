@@ -253,7 +253,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
         },
-        async chatNoStream(userMessage: string) {
+        async chatWithoutStream(userMessage: string) {
             try {
                 if (userMessage.length === 0) {
                     throw new Error('Message cannot be empty');

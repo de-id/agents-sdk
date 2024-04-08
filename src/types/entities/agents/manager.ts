@@ -105,7 +105,7 @@ export interface AgentManager {
     /**
      * Method to send a create new chat and send a message without streaming
      */
-    chatNoStream: (userMessage: string) => Promise<ChatResponse>;
+    chatWithoutStream: (userMessage: string) => Promise<ChatResponse>;
     /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
