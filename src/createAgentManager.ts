@@ -241,7 +241,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
         },
-        async chat(userMessage: string, append_chat: boolean = false) {
+        async chat(userMessage: string, append_chat: boolean = false, enforceTextOnly: boolean = false) {
             try {
                 const messageSentTimestamp = Date.now();
                 if (userMessage.length === 0) {
@@ -268,6 +268,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     streamId: items.streamingManager.streamId,
                     messages: items.messages,
                     append_chat,
+                    enforceTextOnly,
                 });
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
