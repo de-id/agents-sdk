@@ -32,6 +32,12 @@ export interface Message {
     matches?: ChatResponse['matches'];
 }
 
+export enum ChatMode {
+    Functional = 'Functional',
+    TextOnly = 'TextOnly',
+    Maintenance = 'Maintenance',
+}
+
 export interface ChatPayload {
     messages: Message[];
     append_chat?: boolean;
@@ -49,11 +55,6 @@ export interface IRetrivalMetadata {
     source_url: string;
 }
 
-export enum ChatMode {
-    Functional = 'Functional',
-    TextOnly = 'TextOnly',
-    Maintenance = 'Maintenance',
-}
 export interface ChatResponse {
     // TODO: Delete this, it's for backwards compatibility
     result?: string;
