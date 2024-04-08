@@ -4,6 +4,7 @@ import {
     AgentManagerOptions,
     AgentsAPI,
     Chat,
+    ChatMode,
     ChatProgress,
     ChatProgressCallback,
     ConnectionState,
@@ -252,7 +253,51 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
         },
-        async chat(userMessage: string, append_chat: boolean = false, enforceTextOnly: boolean = false) {
+        async chatNoStream(userMessage: string) {
+            // create a new chat without stream, use createChat and chat with
+            // the agent without the stream
+            if (userMessage.length === 0) {
+                throw new Error('Message cannot be empty');
+            }
+
+            console.log('Starting chat without stream', { items, userMessage });
+            //  TODO : connect to socket?
+
+            let newChat = items.chat;
+            console.log('new chat', { newChat });
+            try {
+                if (!newChat) {
+                    newChat = await agentsApi.newChat(agentInstance.id);
+
+                    analytics.track('agent-chat', {
+                        event: 'created',
+                        chat_id: newChat.id,
+                        agent_id: agentInstance.id,
+                    });
+                }
+            } catch (error: any) {
+                console.error(error);
+                throw new Error('Cannot create new chat');
+            }
+            items.chat = newChat;
+
+            const messageSentTimestamp = Date.now();
+            items.messages.push({
+                id: getRandom(),
+                role: 'user',
+                content: userMessage,
+                created_at: new Date(messageSentTimestamp).toISOString(),
+            });
+            const response = await agentsApi.chat(agentInstance.id, newChat.id, {
+                sessionId: undefined,
+                streamId: undefined,
+                messages: items.messages,
+                append_chat: false,
+                chatMode: ChatMode.TextOnly, // chat without stream
+            });
+            return response;
+        },
+        async chat(userMessage: string, append_chat: boolean = false) {
             try {
                 const messageSentTimestamp = Date.now();
                 if (userMessage.length === 0) {
@@ -279,7 +324,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     streamId: items.streamingManager.streamId,
                     messages: items.messages,
                     append_chat,
-                    enforceTextOnly,
                 });
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });

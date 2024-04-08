@@ -2,7 +2,7 @@ import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
 import { ConnectionState, SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
-import { ChatResponse, Message, RatingEntity } from './chat';
+import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -103,11 +103,16 @@ export interface AgentManager {
      */
     disconnect: () => Promise<void>;
     /**
+     * Method to send a create new chat and send a message without streaming
+     */
+    chatNoStream: (userMessage: string) => Promise<ChatResponse>;
+    /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
      * @param append_chat: when true, append to existing agent chat, rather than creating a new one.
+     * @param chatMode: Chat mode used to determine how to handle chat.
      */
-    chat: (userMessage: string, append_chat?: boolean, enforceTextOnly?: boolean) => Promise<ChatResponse>;
+    chat: (userMessage: string, append_chat?: boolean, chatMode?: ChatMode) => Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
      * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
