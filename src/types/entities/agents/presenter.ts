@@ -15,6 +15,7 @@ export interface TalkPresenter extends BasePresenter {
     type: 'talk';
     source_url: string;
     driver_url?: string;
+    stitch?: boolean;
 }
 
 export interface ClipPresenter extends BasePresenter {

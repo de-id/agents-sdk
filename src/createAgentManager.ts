@@ -47,10 +47,17 @@ function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
             stream_warmup: true,
         };
     }
+    let config
+    if(agent.presenter.type === VideoType.Talk && agent.presenter.stitch) {
+        config = {
+            stitch: agent.presenter.stitch
+        }
+    }
     return {
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
         stream_warmup: true,
+        config: config && Object.keys(config).length > 0 ? config : undefined
     };
 }
 
