@@ -11,8 +11,9 @@ import {
     CreateStreamOptions,
     Message,
     SupportedStreamScipt,
-    VideoType,
-} from '$/types/index';
+    VideoType
+} from './types/index';
+
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
 import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
@@ -22,6 +23,7 @@ import { SocketManager, createSocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
+
 import { getAnaliticsInfo } from './utils/analytics';
 
 interface AgentManagrItems {
@@ -258,15 +260,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 if (userMessage.length === 0) {
                     throw new Error('Message cannot be empty');
                 }
-
-                console.log('Starting chat without stream', { items, userMessage });
-                //  TODO : connect to socket?
+                console.log('Starting chat without stream', { items: {...items}, userMessage });
 
                 let newChat = items.chat;
-                console.log('new chat', { newChat });
 
                 if (!newChat) {
-                    console.log('creating a new chat, does not exist');
                     newChat = await agentsApi.newChat(agentInstance.id);
 
                     analytics.track('agent-chat', {
@@ -290,7 +288,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     streamId: undefined,
                     messages: items.messages,
                     append_chat: false,
-                    chatMode: ChatMode.TextOnly, // chat without stream
+                    chatMode: 'TextOnly' as ChatMode, // chat without stream
                 });
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
                 items.messages.push({
@@ -307,7 +305,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         messages: items.messages.length,
                     });
                 }
-                //  TODO : check this onNewMessage, where used
+
                 options.callbacks.onNewMessage?.(items.messages);
 
                 return response;
