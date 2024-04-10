@@ -265,6 +265,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 let newChat = items.chat;
 
                 if (!newChat) {
+                    lastMessageAnswerIdx = -1;
+                    items.messages = getInitialMessages(agentInstance);
+                    options.callbacks.onNewMessage?.(items.messages);
+                    
                     newChat = await agentsApi.newChat(agentInstance.id);
 
                     analytics.track('agent-chat', {
