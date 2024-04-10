@@ -11,7 +11,7 @@ import {
     CreateStreamOptions,
     Message,
     SupportedStreamScipt,
-    VideoType
+    VideoType,
 } from './types/index';
 
 import { Auth, StreamScript } from '.';
@@ -260,7 +260,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 if (userMessage.length === 0) {
                     throw new Error('Message cannot be empty');
                 }
-                console.log('Starting chat without stream', { items: {...items}, userMessage });
+                console.log('Starting chat without stream', { items: { ...items }, userMessage });
 
                 let newChat = items.chat;
 
@@ -293,7 +293,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     append_chat: false,
                     chatMode: 'TextOnly' as ChatMode, // chat without stream
                 });
-                analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 , chatMode: 'TextOnly'});
+
+                analytics.track('agent-message-send', {
+                    event: 'success',
+                    messages: items.messages.length + 1,
+                    chatMode: 'TextOnly',
+                });
+
                 items.messages.push({
                     id: getRandom(),
                     role: 'assistant',
@@ -301,7 +307,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date().toISOString(),
                     matches: response.matches,
                 });
-                console.log('response', { response });
+
                 if (response.result) {
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
@@ -314,7 +320,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 return response;
             } catch (e) {
-                analytics.track('agent-message-send', { event: 'error', messages: items.messages.length, chatMode: 'TextOnly'});
+                analytics.track('agent-message-send', {
+                    event: 'error',
+                    messages: items.messages.length,
+                    chatMode: 'TextOnly',
+                });
                 throw e;
             }
         },
