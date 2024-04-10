@@ -265,16 +265,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 let newChat = items.chat;
 
                 if (!newChat) {
-                    lastMessageAnswerIdx = -1;
-                    items.messages = getInitialMessages(agentInstance);
-                    options.callbacks.onNewMessage?.(items.messages);
-                    
+                    console.log('Creating new chat');
                     newChat = await agentsApi.newChat(agentInstance.id);
 
                     analytics.track('agent-chat', {
                         event: 'created',
                         chat_id: newChat.id,
                         agent_id: agentInstance.id,
+                        chat_mode: 'TextOnly',
                     });
                 }
 
@@ -287,6 +285,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     content: userMessage,
                     created_at: new Date(messageSentTimestamp).toISOString(),
                 });
+
                 const response = await agentsApi.chat(agentInstance.id, newChat.id, {
                     sessionId: undefined,
                     streamId: undefined,
@@ -294,7 +293,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     append_chat: false,
                     chatMode: 'TextOnly' as ChatMode, // chat without stream
                 });
-                analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
+                analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 , chatMode: 'TextOnly'});
                 items.messages.push({
                     id: getRandom(),
                     role: 'assistant',
@@ -307,6 +306,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
                         messages: items.messages.length,
+                        chatMode: 'TextOnly',
                     });
                 }
 
@@ -314,7 +314,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 return response;
             } catch (e) {
-                analytics.track('agent-message-send', { event: 'error', messages: items.messages.length });
+                analytics.track('agent-message-send', { event: 'error', messages: items.messages.length, chatMode: 'TextOnly'});
                 throw e;
             }
         },
