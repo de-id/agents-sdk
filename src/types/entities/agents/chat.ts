@@ -35,8 +35,9 @@ export interface Message {
 export interface ChatPayload {
     messages: Message[];
     append_chat?: boolean;
-    streamId: string;
-    sessionId: string;
+    streamId?: string;
+    sessionId?: string;
+    chatMode?: ChatMode;
 }
 
 export interface IRetrivalMetadata {
@@ -53,6 +54,7 @@ export enum ChatMode {
     TextOnly = 'TextOnly',
     Maintenance = 'Maintenance',
 }
+
 export interface ChatResponse {
     // TODO: Delete this, it's for backwards compatibility
     result?: string;

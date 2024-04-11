@@ -22,7 +22,7 @@ export default ({ mode }) => {
                 fileName: 'index',
             },
         },
-        plugins: [preact(), dts({ include: [resolve(__dirname, './src/**/*.{ts,tsx}'), './types/**/*.{ts,tsx}'] })],
+        plugins: [preact(), dts({ include: [resolve(__dirname, './src/**/*.{ts,tsx}')] })],
         resolve: {
             alias: {
                 $: resolve(__dirname, './src'),
