@@ -36,6 +36,8 @@ try {
     console.log('start copy');
     const root = path.resolve(import.meta.url, '../../').split(':')[1];
     const dist = path.resolve(root, './dist');
+    const packageJson = path.resolve(root, './package.json');
+    console.log(packageJson);
     const embeddedModules = path.resolve(root, '../agents-ui/node_modules');
     const embeddedSdk = path.resolve(embeddedModules, './@d-id/client-sdk/dist');
     const embeddedViteCache = path.resolve(embeddedModules, './.vite');
@@ -52,6 +54,7 @@ try {
 
     console.log('Copying new package');
     fs.cpSync(dist, embeddedSdk, { recursive: true });
+    fs.copyFileSync(packageJson, path.resolve(embeddedSdk, '../package.json'));
 } catch (e) {
-    console.log('Copy failed');
+    console.log('Copy failed', e);
 }

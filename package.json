@@ -20,7 +20,7 @@
     ],
     "main": "./dist/index.umd.cjs",
     "module": "./dist/index.js",
-    "types": "./dist/src/types/index.d.ts",
+    "types": "./dist/src/index.d.ts",
     "scripts": {
         "dev": "vite",
         "build": "node ./infra/build.js -m production",
