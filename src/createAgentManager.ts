@@ -14,7 +14,6 @@ import {
 } from '$/types/index';
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
-import { createRatingsApi } from './api/ratings';
 import { getRandom } from './auth/getAuthHeader';
 import { SocketManager, createSocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
@@ -56,7 +55,7 @@ function initializeStreamAndChat(
         async (resolve, reject) => {
             let newChat = chat;
 
-            const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
+            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent), {
                 ...options,
                 callbacks: {
                     ...options.callbacks,
@@ -146,7 +145,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const mxKey = options.mixpanelKey || mixpanelKey;
 
     const agentsApi = createAgentsApi(options.auth, baseURL);
-    const ratingsApi = createRatingsApi(options.auth, baseURL);
 
     const agentInstance = await agentsApi.getById(agent);
 
@@ -315,28 +313,27 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
 
             if (rateId) {
-                return ratingsApi.update(rateId, {
-                    agent_id: agentInstance.id,
+                return agentsApi.updateRating(agentInstance.id, items.chat.id, rateId, {
                     knowledge_id: agentInstance.knowledge?.id ?? '',
-                    chat_id: items.chat.id,
                     message_id: messageId,
                     matches,
                     score,
                 });
             }
 
-            return ratingsApi.create({
-                agent_id: agentInstance.id,
+            return agentsApi.createRating(agentInstance.id, items.chat.id, {
                 knowledge_id: agentInstance.knowledge?.id ?? '',
-                chat_id: items.chat.id,
                 message_id: messageId,
                 matches,
                 score,
             });
         },
         deleteRate(id: string) {
+            if (!items.chat) {
+                throw new Error('Chat is not initialized');
+            }
             analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id });
-            return ratingsApi.delete(id);
+            return agentsApi.deleteRating(agentInstance.id, items.chat.id, id);
         },
         speak(payload: SupportedStreamScipt) {
             if (!items.streamingManager) {

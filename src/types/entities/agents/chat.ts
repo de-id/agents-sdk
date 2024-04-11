@@ -21,7 +21,7 @@ export interface RatingEntity {
 
 export type RatingPayload = Omit<
     RatingEntity,
-    'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id'
+    'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id' | 'agent_id' | 'chat_id'
 >;
 
 export interface Message {
