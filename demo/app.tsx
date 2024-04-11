@@ -1,5 +1,7 @@
 import { StreamingManager } from '$/createStreamingManager';
 import { useEffect, useRef, useState } from 'preact/hooks';
+
+import { createAgentManager } from '$/createAgentManager';
 import {
     Agent,
     AgentManager,
@@ -10,8 +12,7 @@ import {
     CreateStreamOptions,
     StreamingState,
     VideoType,
-    createAgentManager,
-} from '../src/types/index';
+} from '$/types';
 import './app.css';
 import { agentId, clientKey, didApiUrl, didSocketApiUrl } from './environment';
 

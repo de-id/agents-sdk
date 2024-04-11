@@ -4,6 +4,7 @@ import {
     AgentManagerOptions,
     AgentsAPI,
     Chat,
+    ChatMode,
     ChatProgress,
     ChatProgressCallback,
     ConnectionState,
@@ -11,7 +12,8 @@ import {
     Message,
     SupportedStreamScipt,
     VideoType,
-} from '$/types/index';
+} from './types/index';
+
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
 import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
@@ -21,6 +23,7 @@ import { SocketManager, createSocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
+
 import { getAnaliticsInfo } from './utils/analytics';
 
 interface AgentManagrItems {
@@ -28,6 +31,7 @@ interface AgentManagrItems {
     streamingManager?: StreamingManager<CreateStreamOptions>;
     socketManager?: SocketManager;
     messages: Message[];
+    chatMode: ChatMode;
 }
 
 function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
@@ -146,6 +150,7 @@ function getInitialMessages(agent: Agent): Message[] {
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
     const items: AgentManagrItems = {
         messages: [],
+        chatMode: options.mode || ChatMode.Functional,
     };
 
     let lastMessageAnswerIdx = -1;
@@ -218,11 +223,24 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
     }
+    async function disconnect() {
+        items.socketManager?.disconnect();
+        await items.streamingManager?.disconnect();
+
+        delete items.streamingManager;
+        delete items.socketManager;
+
+        items.messages = getInitialMessages(agentInstance);
+        options.callbacks.onNewMessage?.(items.messages);
+
+        analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
+    }
 
     return {
         agent: agentInstance,
         starterMessages,
         connect,
+        disconnect,
         async reconnect() {
             if (!items.chat) {
                 return connect();
@@ -243,30 +261,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
         },
-        async disconnect() {
-            items.socketManager?.disconnect();
-            await items.streamingManager?.disconnect();
-
-            items.messages = getInitialMessages(agentInstance);
-            options.callbacks.onNewMessage?.(items.messages);
-
-            analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
-        },
-        async chat(userMessage: string, append_chat: boolean = false, enforceTextOnly: boolean = false) {
+        async chat(userMessage: string, append_chat: boolean = false) {
             try {
                 const messageSentTimestamp = Date.now();
-                if (userMessage.length === 0) {
-                    throw new Error('Message cannot be empty');
-                }
-
-                if (!items.chat) {
-                    throw new Error('Chat is not initialized');
-                }
-
-                if (!items.streamingManager) {
-                    throw new Error('Streaming manager is not initialized');
-                }
-
                 items.messages.push({
                     id: getRandom(),
                     role: 'user',
@@ -274,12 +271,32 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date(messageSentTimestamp).toISOString(),
                 });
 
+                options.callbacks.onNewMessage?.(items.messages);
+
+                if (userMessage.length === 0) {
+                    throw new Error('Message cannot be empty');
+                }
+
+                if (options.mode !== ChatMode.TextOnly) {
+                    if (!items.streamingManager) {
+                        throw new Error('Streaming manager is not initialized');
+                    }
+
+                    if (!items.chat) {
+                        throw new Error('Chat is not initialized');
+                    }
+                } else if (items.chatMode === ChatMode.Maintenance) {
+                    throw new Error('Chat is in maintenance mode');
+                } else if (!items.chat) {
+                    items.chat = await agentsApi.newChat(agentInstance.id);
+                }
+
                 const response = await agentsApi.chat(agentInstance.id, items.chat.id, {
-                    sessionId: items.streamingManager.sessionId,
-                    streamId: items.streamingManager.streamId,
+                    sessionId: items.streamingManager?.sessionId,
+                    streamId: items.streamingManager?.streamId,
                     messages: items.messages,
+                    chatMode: items.chatMode,
                     append_chat,
-                    enforceTextOnly,
                 });
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
@@ -375,6 +392,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-speak', script);
 
             return items.streamingManager.speak({ script });
+        },
+        async changeMode(mode: ChatMode) {
+            analytics.track('agent-mode-change', { mode });
+            items.chatMode = mode;
+
+            if (items.chatMode !== ChatMode.Functional) {
+                await disconnect();
+            }
         },
     };
 }

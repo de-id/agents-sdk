@@ -1,7 +1,7 @@
 {
     "name": "@d-id/client-sdk",
     "private": false,
-    "version": "1.0.19-beta.69",
+    "version": "1.0.19-beta.70",
     "type": "module",
     "description": "d-id client sdk",
     "repository": {
@@ -20,7 +20,7 @@
     ],
     "main": "./dist/index.umd.cjs",
     "module": "./dist/index.js",
-    "types": "./dist/src/types/index.d.ts",
+    "types": "./dist/src/index.d.ts",
     "scripts": {
         "dev": "vite",
         "build": "node ./infra/build.js -m production",
