@@ -43,7 +43,9 @@ function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
 }
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
-    if (agent.presenter.type === VideoType.Clip) {
+    if (!agent.presenter) {
+        throw new Error('Presenter is not initialized');
+    } else if (agent.presenter.type === VideoType.Clip) {
         return {
             videoType: VideoType.Clip,
             driver_id: agent.presenter.driver_id,
@@ -221,6 +223,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.socketManager = socketManager;
         items.chat = chat;
 
+        changeMode(ChatMode.Functional);
+
         analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
     }
     async function disconnect() {
@@ -235,12 +239,25 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
     }
+    async function changeMode(mode: ChatMode) {
+        if (mode !== items.chatMode) {
+            analytics.track('agent-mode-change', { mode });
+            items.chatMode = mode;
+
+            if (items.chatMode !== ChatMode.Functional) {
+                await disconnect();
+            }
+
+            options.callbacks.onModeChange?.(mode);
+        }
+    }
 
     return {
         agent: agentInstance,
         starterMessages,
         connect,
         disconnect,
+        changeMode,
         async reconnect() {
             if (!items.chat) {
                 return connect();
@@ -258,6 +275,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             items.streamingManager = streamingManager;
             items.socketManager = socketManager;
+
+            changeMode(ChatMode.Functional);
 
             analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
         },
@@ -277,7 +296,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     throw new Error('Message cannot be empty');
                 }
 
-                if (options.mode !== ChatMode.TextOnly) {
+                if (items.chatMode === ChatMode.Maintenance) {
+                    throw new Error('Chat is in maintenance mode');
+                } else if (items.chatMode !== ChatMode.TextOnly) {
                     if (!items.streamingManager) {
                         throw new Error('Streaming manager is not initialized');
                     }
@@ -285,8 +306,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     if (!items.chat) {
                         throw new Error('Chat is not initialized');
                     }
-                } else if (items.chatMode === ChatMode.Maintenance) {
-                    throw new Error('Chat is in maintenance mode');
                 } else if (!items.chat) {
                     items.chat = await agentsApi.newChat(agentInstance.id);
                 }
@@ -372,7 +391,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
 
             function getScript(): StreamScript {
-                if (payload.type === 'text') {
+                if (!agentInstance.presenter) {
+                    throw new Error('Presenter is not initialized');
+                } else if (payload.type === 'text') {
                     const voiceProvider = payload.provider ? payload.provider : agentInstance.presenter.voice;
 
                     return {
@@ -392,14 +413,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-speak', script);
 
             return items.streamingManager.speak({ script });
-        },
-        async changeMode(mode: ChatMode) {
-            analytics.track('agent-mode-change', { mode });
-            items.chatMode = mode;
-
-            if (items.chatMode !== ChatMode.Functional) {
-                await disconnect();
-            }
         },
     };
 }

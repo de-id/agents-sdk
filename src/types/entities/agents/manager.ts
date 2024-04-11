@@ -64,6 +64,12 @@ interface ManagerCallbacks {
      * @param chatId - id of the new chat
      */
     onNewChat?(chatId: string): void;
+
+    /**
+     * Optional callback function that will be triggered each time the chat mode changes
+     * @param mode - ChatMode
+     */
+    onModeChange?(mode: ChatMode): void;
 }
 
 export interface AgentManagerOptions {

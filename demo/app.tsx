@@ -112,6 +112,9 @@ export function App() {
             });
             setAgentAPI(agentAPI);
         } else if (text) {
+            if (!agentAPI.agent.presenter) {
+                throw new Error('No presenter');
+            }
             setStreamState(State.Speaking);
             try {
                 agentAPI.speak({
