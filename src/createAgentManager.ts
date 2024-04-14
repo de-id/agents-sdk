@@ -16,8 +16,6 @@ import {
 
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
-import { KnowledegeApi, createKnowledgeApi } from './api/knowledge';
-import { createRatingsApi } from './api/ratings';
 import { getRandom } from './auth/getAuthHeader';
 import { SocketManager, createSocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
@@ -32,14 +30,6 @@ interface AgentManagrItems {
     socketManager?: SocketManager;
     messages: Message[];
     chatMode: ChatMode;
-}
-
-function getStarterMessages(agent: Agent, knowledgeApi: KnowledegeApi) {
-    if (!agent.knowledge?.id) {
-        return [];
-    }
-
-    return knowledgeApi.getKnowledge(agent.knowledge.id).then(knowledge => knowledge?.starter_message || []);
 }
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
@@ -71,7 +61,7 @@ function initializeStreamAndChat(
         async (resolve, reject) => {
             let newChat = chat;
 
-            const streamingManager = await createStreamingManager(getAgentStreamArgs(agent), {
+            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent), {
                 ...options,
                 callbacks: {
                     ...options.callbacks,
@@ -162,11 +152,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const mxKey = options.mixpanelKey || mixpanelKey;
 
     const agentsApi = createAgentsApi(options.auth, baseURL);
-    const ratingsAPI = createRatingsApi(options.auth, baseURL);
-    const knowledgeApi = createKnowledgeApi(options.auth, baseURL);
 
     const agentInstance = await agentsApi.getById(agent);
-    const starterMessages = await getStarterMessages(agentInstance, knowledgeApi);
 
     items.messages = getInitialMessages(agentInstance);
     options.callbacks.onNewMessage?.(items.messages);
@@ -254,7 +241,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     return {
         agent: agentInstance,
-        starterMessages,
+        starterMessages: agentInstance.knowledge?.starter_message || [],
         connect,
         disconnect,
         changeMode,
@@ -362,28 +349,27 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
 
             if (rateId) {
-                return ratingsAPI.update(rateId, {
-                    agent_id: agentInstance.id,
+                return agentsApi.updateRating(agentInstance.id, items.chat.id, rateId, {
                     knowledge_id: agentInstance.knowledge?.id ?? '',
-                    chat_id: items.chat.id,
                     message_id: messageId,
                     matches,
                     score,
                 });
             }
 
-            return ratingsAPI.create({
-                agent_id: agentInstance.id,
+            return agentsApi.createRating(agentInstance.id, items.chat.id, {
                 knowledge_id: agentInstance.knowledge?.id ?? '',
-                chat_id: items.chat.id,
                 message_id: messageId,
                 matches,
                 score,
             });
         },
         deleteRate(id: string) {
+            if (!items.chat) {
+                throw new Error('Chat is not initialized');
+            }
             analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id });
-            return ratingsAPI.delete(id);
+            return agentsApi.deleteRating(agentInstance.id, items.chat.id, id);
         },
         speak(payload: SupportedStreamScipt) {
             if (!items.streamingManager) {
