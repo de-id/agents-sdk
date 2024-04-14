@@ -53,18 +53,15 @@ function pollStats(peerConnection, onVideoStateChange) {
                     if (report && videoStats[videoStatsLastIndex]) {
                         const currBytesReceived = report.bytesReceived;
                         const lastBytesReceived = videoStats[videoStatsLastIndex].bytesReceived;
+                        const prevPlaying = isPlaying;
                         let videoStatsReport;
 
-                        const prevPlaying = isPlaying;
                         isPlaying = currBytesReceived - lastBytesReceived > 0;
                         isPlayingFalseNumIntervals = isPlaying ? 0 : isPlayingFalseNumIntervals + 1;
-
-                        console.log('ofek', isPlayingFalseNumIntervals, prevPlaying, isPlaying);
 
                         if (prevPlaying !== isPlaying) {
                             if (isPlaying) {
                                 videoStatsStartIndex = videoStats.length;
-                                console.log('start');
                                 onVideoStateChange?.(StreamingState.Start, videoStatsReport);
                             } else {
                                 const stats = videoStats.slice(videoStatsStartIndex);
@@ -77,8 +74,7 @@ function pollStats(peerConnection, onVideoStateChange) {
                             }
                         }
 
-                        if (!isPlaying && isPlayingFalseNumIntervals === 2) {
-                            console.log('stop');
+                        if (!isPlaying && isPlayingFalseNumIntervals === 3) {
                             onVideoStateChange?.(StreamingState.Stop, videoStatsReport);
                         }
                     }
