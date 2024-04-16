@@ -57,7 +57,7 @@ function pollStats(peerConnection, onVideoStateChange) {
                         let videoStatsReport;
 
                         isPlaying = currBytesReceived - lastBytesReceived > 0;
-                        isPlayingFalseNumIntervals = isPlaying ? 0 : isPlayingFalseNumIntervals + 1;
+                        isPlayingFalseNumIntervals = isPlaying ? 0 : ++isPlayingFalseNumIntervals;
 
                         if (prevPlaying !== isPlaying) {
                             if (isPlaying) {
@@ -209,7 +209,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     peerConnection.ontrack = null;
                 }
 
-                await close(streamIdFromServer, session_id).catch(_ => {});
+                await close(streamIdFromServer, session_id).catch(_ => { });
                 callbacks.onConnectionStateChange?.(ConnectionState.New);
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
                 clearInterval(videoStatsInterval);
