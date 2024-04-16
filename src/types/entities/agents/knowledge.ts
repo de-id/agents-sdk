@@ -8,5 +8,6 @@ export interface KnowledgeEmbedder {
 export interface Knowledge {
     id: string;
     provider: KnowledgeProvider;
+    starter_message?: string[];
     embedder?: KnowledgeEmbedder;
 }

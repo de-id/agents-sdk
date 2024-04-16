@@ -86,6 +86,7 @@ function pollStats(peerConnection, onVideoStateChange) {
 }
 
 export async function createStreamingManager<T extends CreateStreamOptions>(
+    agentId: string,
     agent: T,
     { debug = false, callbacks, auth, analytics, baseURL = didApiUrl }: StreamingManagerOptions
 ) {
@@ -94,7 +95,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     let timeoutId: NodeJS.Timeout;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
-        agent.videoType === VideoType.Clip ? createClipApi(auth, baseURL) : createTalkApi(auth, baseURL);
+        agent.videoType === VideoType.Clip
+            ? createClipApi(auth, baseURL, agentId)
+            : createTalkApi(auth, baseURL, agentId);
 
     const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
