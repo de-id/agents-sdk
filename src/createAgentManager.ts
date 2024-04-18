@@ -230,6 +230,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 return connect();
             }
 
+            items.socketManager?.disconnect();
+            items.streamingManager?.disconnect();
+
             const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
             const { streamingManager, chat } = await initializeStreamAndChat(
