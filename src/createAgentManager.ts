@@ -205,8 +205,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         );
 
         lastMessageAnswerIdx = -1;
-        items.messages = getInitialMessages(agentInstance);
-        options.callbacks.onNewMessage?.(items.messages);
+        if (items.messages.length > 0) {
+            items.messages = getInitialMessages(agentInstance);
+            options.callbacks.onNewMessage?.(items.messages);
+        }
 
         if (chat?.id && chat.id !== items.chat?.id) {
             options.callbacks.onNewChat?.(chat?.id);
