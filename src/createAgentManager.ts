@@ -287,22 +287,21 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 });
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
-                items.messages.push({
-                    id: getRandom(),
-                    role: 'assistant',
-                    content: response.result ?? '',
-                    created_at: new Date().toISOString(),
-                    matches: response.matches,
-                });
 
                 if (response.result) {
+                    items.messages.push({
+                        id: getRandom(),
+                        role: 'assistant',
+                        content: response.result,
+                        created_at: new Date().toISOString(),
+                        matches: response.matches,
+                    });
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
                         messages: items.messages.length,
                     });
+                    options.callbacks.onNewMessage?.(items.messages);
                 }
-
-                options.callbacks.onNewMessage?.(items.messages);
 
                 return response;
             } catch (e) {
