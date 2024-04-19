@@ -41,6 +41,7 @@ function pollStats(peerConnection, onVideoStateChange) {
     let videoStats = [] as SlimRTCStatsReport[];
     let videoStatsStartIndex = 0;
     let videoStatsLastIndex = 0;
+    let isPlayingFalseNumIntervals = 0;
     let isPlaying: boolean;
 
     return setInterval(() => {
@@ -52,12 +53,16 @@ function pollStats(peerConnection, onVideoStateChange) {
                     if (report && videoStats[videoStatsLastIndex]) {
                         const currBytesReceived = report.bytesReceived;
                         const lastBytesReceived = videoStats[videoStatsLastIndex].bytesReceived;
-                        let prevPlaying = isPlaying;
-                        isPlaying = currBytesReceived - lastBytesReceived > 0;
+                        const prevPlaying = isPlaying;
                         let videoStatsReport;
+
+                        isPlaying = currBytesReceived - lastBytesReceived > 0;
+                        isPlayingFalseNumIntervals = isPlaying ? 0 : ++isPlayingFalseNumIntervals;
+
                         if (prevPlaying !== isPlaying) {
                             if (isPlaying) {
                                 videoStatsStartIndex = videoStats.length;
+                                onVideoStateChange?.(StreamingState.Start, videoStatsReport);
                             } else {
                                 const stats = videoStats.slice(videoStatsStartIndex);
                                 const previousStats =
@@ -67,10 +72,10 @@ function pollStats(peerConnection, onVideoStateChange) {
                                     .sort((a, b) => b.packetsLost - a.packetsLost)
                                     .slice(0, 5);
                             }
-                            onVideoStateChange?.(
-                                isPlaying ? StreamingState.Start : StreamingState.Stop,
-                                videoStatsReport
-                            );
+                        }
+
+                        if (!isPlaying && isPlayingFalseNumIntervals === 3) {
+                            onVideoStateChange?.(StreamingState.Stop, videoStatsReport);
                         }
                     }
                     videoStats.push(report);
@@ -204,7 +209,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     peerConnection.ontrack = null;
                 }
 
-                await close(streamIdFromServer, session_id).catch(_ => {});
+                await close(streamIdFromServer, session_id).catch(_ => { });
                 callbacks.onConnectionStateChange?.(ConnectionState.New);
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
                 clearInterval(videoStatsInterval);
