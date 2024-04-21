@@ -269,6 +269,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async chat(userMessage: string, append_chat: boolean = false) {
             try {
+                if(userMessage.length >= 800) {
+                    throw new Error('Message cannot be more than 800 characters');
+                }
+
                 const messageSentTimestamp = Date.now();
                 items.messages.push({
                     id: getRandom(),
