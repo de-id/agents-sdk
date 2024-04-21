@@ -186,7 +186,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         /**
          * Method to close RTC connection
          */
-        async disconnect() {
+        async disconnect(isReconnect = false) {
             if (streamIdFromServer) {
                 if (srcObject) {
                     srcObject.getTracks().forEach(track => track.stop());
@@ -201,7 +201,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     peerConnection.ontrack = null;
                 }
 
-                await close(streamIdFromServer, session_id).catch(_ => {});
+                if (!isReconnect){
+                    await close(streamIdFromServer, session_id).catch(_ => {});
+                }
                 callbacks.onConnectionStateChange?.(ConnectionState.New);
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
                 clearInterval(videoStatsInterval);
