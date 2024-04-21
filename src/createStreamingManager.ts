@@ -41,6 +41,7 @@ function pollStats(peerConnection, onVideoStateChange) {
     let videoStats = [] as SlimRTCStatsReport[];
     let videoStatsStartIndex = 0;
     let videoStatsLastIndex = 0;
+    let isPlayingFalseNumIntervals = 0;
     let isPlaying: boolean;
 
     return setInterval(() => {
@@ -52,12 +53,16 @@ function pollStats(peerConnection, onVideoStateChange) {
                     if (report && videoStats[videoStatsLastIndex]) {
                         const currBytesReceived = report.bytesReceived;
                         const lastBytesReceived = videoStats[videoStatsLastIndex].bytesReceived;
-                        let prevPlaying = isPlaying;
-                        isPlaying = currBytesReceived - lastBytesReceived > 0;
+                        const prevPlaying = isPlaying;
                         let videoStatsReport;
+
+                        isPlaying = currBytesReceived - lastBytesReceived > 0;
+                        isPlayingFalseNumIntervals = isPlaying ? 0 : ++isPlayingFalseNumIntervals;
+
                         if (prevPlaying !== isPlaying) {
                             if (isPlaying) {
                                 videoStatsStartIndex = videoStats.length;
+                                onVideoStateChange?.(StreamingState.Start, videoStatsReport);
                             } else {
                                 const stats = videoStats.slice(videoStatsStartIndex);
                                 const previousStats =
@@ -67,10 +72,10 @@ function pollStats(peerConnection, onVideoStateChange) {
                                     .sort((a, b) => b.packetsLost - a.packetsLost)
                                     .slice(0, 5);
                             }
-                            onVideoStateChange?.(
-                                isPlaying ? StreamingState.Start : StreamingState.Stop,
-                                videoStatsReport
-                            );
+                        }
+
+                        if (!isPlaying && isPlayingFalseNumIntervals === 3) {
+                            onVideoStateChange?.(StreamingState.Stop, videoStatsReport);
                         }
                     }
                     videoStats.push(report);
@@ -81,6 +86,7 @@ function pollStats(peerConnection, onVideoStateChange) {
 }
 
 export async function createStreamingManager<T extends CreateStreamOptions>(
+    agentId: string,
     agent: T,
     { debug = false, callbacks, auth, analytics, baseURL = didApiUrl }: StreamingManagerOptions
 ) {
@@ -89,7 +95,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     let timeoutId: NodeJS.Timeout;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
-        agent.videoType === VideoType.Clip ? createClipApi(auth, baseURL) : createTalkApi(auth, baseURL);
+        agent.videoType === VideoType.Clip
+            ? createClipApi(auth, baseURL, agentId)
+            : createTalkApi(auth, baseURL, agentId);
 
     const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });

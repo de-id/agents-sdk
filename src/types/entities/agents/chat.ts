@@ -21,7 +21,7 @@ export interface RatingEntity {
 
 export type RatingPayload = Omit<
     RatingEntity,
-    'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id'
+    'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id' | 'agent_id' | 'chat_id'
 >;
 
 export interface Message {
@@ -35,8 +35,9 @@ export interface Message {
 export interface ChatPayload {
     messages: Message[];
     append_chat?: boolean;
-    streamId: string;
-    sessionId: string;
+    streamId?: string;
+    sessionId?: string;
+    chatMode?: ChatMode;
 }
 
 export interface IRetrivalMetadata {
@@ -53,6 +54,7 @@ export enum ChatMode {
     TextOnly = 'TextOnly',
     Maintenance = 'Maintenance',
 }
+
 export interface ChatResponse {
     // TODO: Delete this, it's for backwards compatibility
     result?: string;

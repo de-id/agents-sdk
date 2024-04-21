@@ -2,7 +2,7 @@ import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
 import { ConnectionState, SendStreamPayloadResponse, StreamingState } from '../../stream';
 import { Agent } from './agent';
-import { ChatResponse, Message, RatingEntity } from './chat';
+import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -64,6 +64,12 @@ interface ManagerCallbacks {
      * @param chatId - id of the new chat
      */
     onNewChat?(chatId: string): void;
+
+    /**
+     * Optional callback function that will be triggered each time the chat mode changes
+     * @param mode - ChatMode
+     */
+    onModeChange?(mode: ChatMode): void;
 }
 
 export interface AgentManagerOptions {
@@ -78,6 +84,7 @@ export interface AgentManagerOptions {
      * Unique ID of agent user used in analytics. Pass it to override the default way to get distinctId
      */
     distinctId?: string;
+    mode?: ChatMode;
 }
 
 export interface AgentManager {
@@ -125,4 +132,10 @@ export interface AgentManager {
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
+
+    /**
+     * Method to change the mode of the chat
+     * @param mode - ChatMode
+     */
+    changeMode(mode: ChatMode): void;
 }

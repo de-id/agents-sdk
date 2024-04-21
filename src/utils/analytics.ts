@@ -24,10 +24,10 @@ export function getAnaliticsInfo(agent: Agent) {
         isMobile: `${mobileOrDesktop() == 'Mobile'}`,
         browser: navigator.userAgent,
         origin: window.location.origin,
-        agentType: agent.presenter.type,
+        agentType: agent.presenter?.type,
         agentVoice: {
-            voiceId: agent.presenter.voice?.voice_id,
-            provider: agent.presenter.voice?.type,
+            voiceId: agent.presenter?.voice?.voice_id,
+            provider: agent.presenter?.voice?.type,
         },
     };
 }
