@@ -96,6 +96,7 @@ function initializeStreamAndChat(
                         options.callbacks.onVideoStateChange?.(state, data);
                     },
                 },
+                analytics: analytics
             }).catch(reject);
         }
     );
@@ -158,7 +159,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     items.messages = getInitialMessages(agentInstance);
     options.callbacks.onNewMessage?.(items.messages);
 
-    const analytics = initializeAnalytics({ mixPanelKey: mxKey, agent: agentInstance, ...options });
+    const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
 
     const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {

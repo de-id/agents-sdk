@@ -74,7 +74,7 @@ export interface StreamingManagerOptions {
     baseURL?: string;
     debug?: boolean;
     auth: Auth;
-    analytics?: Analytics;
+    analytics: Analytics;
 }
 
 export interface SlimRTCStatsReport {

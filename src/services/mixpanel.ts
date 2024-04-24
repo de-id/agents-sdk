@@ -2,14 +2,14 @@ import { getExternalId } from '$/auth/getAuthHeader';
 import { Agent } from '..';
 
 export interface AnalyticsOptions {
-    mixPanelKey: string;
+    token: string;
     agent: Agent;
     isEnabled?: boolean;
     distinctId?: string;
 }
 
 export interface Analytics {
-    mixPanelKey: string;
+    token: string;
     distinct_id?: string;
     isEnabled: boolean;
     chatId?: string;
@@ -21,7 +21,7 @@ export interface Analytics {
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const instanceConfig = {
-        mixPanelKey: config.mixPanelKey || 'testKey',
+        token: config.token || 'testKey',
         distinct_id: config.distinctId || getExternalId(),
         isEnabled: config.isEnabled ?? true,
         agentId: config.agent.id,
@@ -59,7 +59,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                     ]),
                 }),
             };
-
+            
             return fetch('https://api-js.mixpanel.com/track/?verbose=1&ip=1', options)
                 .then(response => response.json())
                 .catch(err => console.error(err));
