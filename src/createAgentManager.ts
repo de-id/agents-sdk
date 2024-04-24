@@ -253,7 +253,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
 
             items.socketManager?.disconnect();
-            items.streamingManager?.disconnect();
+            await items.streamingManager?.disconnect();
 
             const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
