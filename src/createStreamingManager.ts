@@ -74,7 +74,7 @@ function pollStats(peerConnection, onVideoStateChange) {
                             }
                         }
 
-                        if (!isPlaying && isPlayingFalseNumIntervals === 3) {
+                        if (!isPlaying && isPlayingFalseNumIntervals === 2) {
                             onVideoStateChange?.(StreamingState.Stop, videoStatsReport);
                         }
                     }
