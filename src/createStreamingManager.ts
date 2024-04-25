@@ -149,7 +149,10 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         if (pcDataChannel.readyState === 'open') {
             const [event, _] = message.data.split(':');
 
-            if (event === StreamEvents.StreamFailed || event === StreamEvents.StreamDone) {
+            if (event === StreamEvents.StreamVideoCreated || StreamEvents.StreamVideoDone || StreamEvents.StreamVideoError || StreamEvents.StreamVideoRejected) {
+                analytics.track('agent-video', { event: event, ...message});
+            }
+            else if (event === StreamEvents.StreamFailed || event === StreamEvents.StreamDone) {
                 clearInterval(videoStatsInterval);
             } else if (event === StreamEvents.StreamReady) {
                 clearTimeout(timeoutId);
