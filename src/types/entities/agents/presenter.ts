@@ -1,3 +1,4 @@
+import { Rect } from '../../face-rect';
 import { ExtendedTextToSpeechProviders } from '../../tts';
 
 export type videoType = 'talk' | 'clip';
@@ -15,6 +16,8 @@ export interface TalkPresenter extends BasePresenter {
     type: 'talk';
     source_url: string;
     driver_url?: string;
+    stitch?: boolean;
+    face?: Rect;
 }
 
 export interface ClipPresenter extends BasePresenter {
