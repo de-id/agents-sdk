@@ -165,6 +165,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
         onMessage: (progress, data): void => {
             if ('content' in data) {
+                // Chat event
                 const { content } = data;
                 const lastMessage = items.messages[items.messages.length - 1];
 
@@ -184,6 +185,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 }
 
                 options.callbacks.onNewMessage?.(items.messages);
+            } else if ('videoStartTime' in data) {
+                // Stream video event
+                analytics.track('agent-video', data);
             }
         },
     };
