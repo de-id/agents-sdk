@@ -10,6 +10,7 @@ import {
     ConnectionState,
     CreateStreamOptions,
     Message,
+    StreamEvents,
     SupportedStreamScipt,
     VideoType,
 } from './types/index';
@@ -92,7 +93,6 @@ function initializeStreamAndChat(
                         options.callbacks.onConnectionStateChange?.(state);
                     },
                     onVideoStateChange(state, data) {
-                        analytics.track('agent-video', { event: state, rtc_stats: data ?? [] });
                         options.callbacks.onVideoStateChange?.(state, data);
                     },
                 },
@@ -163,7 +163,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
 
     const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
-        onMessage: (progress, data): void => {
+        onMessage: (event, data): void => {
             if ('content' in data) {
                 // Chat event
                 const { content } = data;
@@ -172,20 +172,23 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 if (lastMessage?.role === 'assistant') {
                     if (lastMessageAnswerIdx < items.messages.length) {
                         lastMessage.content =
-                            progress === ChatProgress.Partial ? lastMessage.content + content : content;
+                            event === ChatProgress.Partial ? lastMessage.content + content : content;
                     }
 
-                    if (progress === ChatProgress.Answer) {
+                    if (event === ChatProgress.Answer) {
                         lastMessageAnswerIdx = items.messages.length;
                     }
                 }
 
-                if (progress === ChatProgress.Complete) {
+                if (event === ChatProgress.Complete) {
                     analytics.track('agent-message-received', { messages: items.messages.length });
                 }
 
                 options.callbacks.onNewMessage?.(items.messages);
-            } else if (progress && progress.startsWith("stream")) {
+            } else if ([StreamEvents.StreamVideoCreated, 
+                        StreamEvents.StreamVideoDone, 
+                        StreamEvents.StreamVideoError, 
+                        StreamEvents.StreamVideoRejected].includes(event as StreamEvents)) {
                 // Stream video event
                 analytics.track('agent-video', data);
             }

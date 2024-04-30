@@ -130,7 +130,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
         const newState = mapConnectionState(peerConnection.iceConnectionState);
         if (newState === ConnectionState.Connected) {
-            analytics.track('agent-chat-loaded');
             timeoutId = setTimeout(() => {
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
             }, 5000);
@@ -149,16 +148,11 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         if (pcDataChannel.readyState === 'open') {
             const [event, _] = message.data.split(':');
 
-            if (event === StreamEvents.StreamVideoCreated || StreamEvents.StreamVideoDone || StreamEvents.StreamVideoError || StreamEvents.StreamVideoRejected) {
-                analytics.track('agent-video', { event: event, ...message});
-            }
-            else if (event === StreamEvents.StreamFailed || event === StreamEvents.StreamDone) {
+            if (event === StreamEvents.StreamFailed || event === StreamEvents.StreamDone) {
                 clearInterval(videoStatsInterval);
             } else if (event === StreamEvents.StreamReady) {
                 clearTimeout(timeoutId);
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
-            } else if (event === StreamEvents.StreamCreated) {
-                analytics.track('agent-video', { event: 'created' });
             }
         }
     };
