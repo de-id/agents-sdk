@@ -185,7 +185,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 }
 
                 options.callbacks.onNewMessage?.(items.messages);
-            } else if ('videoStartTime' in data) {
+            } else if (progress && progress.startsWith("stream")) {
                 // Stream video event
                 analytics.track('agent-video', data);
             }
