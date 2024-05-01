@@ -93,7 +93,6 @@ function initializeStreamAndChat(
                         options.callbacks.onConnectionStateChange?.(state);
                     },
                     onVideoStateChange(state, data) {
-                        analytics.track('agent-video', { event: state, rtc_stats: data ?? [] });
                         options.callbacks.onVideoStateChange?.(state, data);
                     },
                 },
@@ -181,7 +180,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     }
                 }
 
-                if (event === ChatProgress.Complete) {
+                if (event === ChatProgress.Answer) {
                     analytics.track('agent-message-received', { messages: items.messages.length });
                 }
 
