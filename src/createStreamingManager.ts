@@ -147,10 +147,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     pcDataChannel.onmessage = (message: MessageEvent) => {
         if (pcDataChannel.readyState === 'open') {
             const [event, _] = message.data.split(':');
-
-            if (event === StreamEvents.StreamFailed || event === StreamEvents.StreamDone) {
-                clearInterval(videoStatsInterval);
-            } else if (event === StreamEvents.StreamReady) {
+            if (event === StreamEvents.StreamReady) {
                 clearTimeout(timeoutId);
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
             }

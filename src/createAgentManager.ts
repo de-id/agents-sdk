@@ -93,7 +93,6 @@ function initializeStreamAndChat(
                         options.callbacks.onConnectionStateChange?.(state);
                     },
                     onVideoStateChange(state, data) {
-                        analytics.track('agent-video', { event: state, rtc_stats: data ?? [] });
                         options.callbacks.onVideoStateChange?.(state, data);
                     },
                 },
