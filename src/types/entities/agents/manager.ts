@@ -1,6 +1,6 @@
 import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '../../auth';
-import { ConnectionState, SendStreamPayloadResponse, StreamingState } from '../../stream';
+import { ConnectionState, SendStreamPayloadResponse, StreamEvents, StreamingState } from '../../stream';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
 
@@ -30,7 +30,7 @@ export enum ChatProgress {
     Complete = 'done',
 }
 
-export type ChatProgressCallback = (progress: ChatProgress, data: any) => void;
+export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data: any) => void;
 export type ConnectionStateChangeCallback = (state: ConnectionState) => void;
 export type VideoStateChangeCallback = (state: StreamingState, data: any) => void;
 
