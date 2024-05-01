@@ -180,7 +180,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     }
                 }
 
-                if (event === ChatProgress.Complete) {
+                if (event === ChatProgress.Answer) {
                     analytics.track('agent-message-received', { messages: items.messages.length });
                 }
 
