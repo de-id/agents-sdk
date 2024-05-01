@@ -209,8 +209,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         );
 
         lastMessageAnswerIdx = -1;
-        items.messages = getInitialMessages(agentInstance);
-        options.callbacks.onNewMessage?.(items.messages);
+        if (items.messages.length === 0) {
+            items.messages = getInitialMessages(agentInstance);
+            options.callbacks.onNewMessage?.(items.messages);
+        }
 
         if (chat?.id && chat.id !== items.chat?.id) {
             options.callbacks.onNewChat?.(chat?.id);
@@ -259,6 +261,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             if (!items.chat) {
                 return connect();
             }
+
+            items.socketManager?.disconnect();
+            await items.streamingManager?.disconnect();
 
             const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
@@ -320,22 +325,21 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 });
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
+
                 items.messages.push({
                     id: getRandom(),
                     role: 'assistant',
-                    content: response.result ?? '',
+                    content: response.result || '',
                     created_at: new Date().toISOString(),
                     matches: response.matches,
-                });
-
+                })
                 if (response.result) {
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
                         messages: items.messages.length,
                     });
+                    options.callbacks.onNewMessage?.(items.messages);
                 }
-
-                options.callbacks.onNewMessage?.(items.messages);
 
                 return response;
             } catch (e) {

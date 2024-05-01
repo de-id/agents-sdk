@@ -74,7 +74,7 @@ function pollStats(peerConnection, onVideoStateChange) {
                             }
                         }
 
-                        if (!isPlaying && isPlayingFalseNumIntervals === 3) {
+                        if (!isPlaying && isPlayingFalseNumIntervals === 2) {
                             onVideoStateChange?.(StreamingState.Stop, videoStatsReport);
                         }
                     }
@@ -195,7 +195,11 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     peerConnection.ontrack = null;
                 }
 
-                await close(streamIdFromServer, session_id).catch(_ => { });
+                try {
+                    await close(streamIdFromServer, session_id).catch(_ => {});
+                } catch (e) {
+                    log('Error on close stream connection', e);
+                }
                 callbacks.onConnectionStateChange?.(ConnectionState.New);
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
                 clearInterval(videoStatsInterval);
