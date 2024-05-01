@@ -93,6 +93,7 @@ function initializeStreamAndChat(
                         options.callbacks.onConnectionStateChange?.(state);
                     },
                     onVideoStateChange(state, data) {
+                        analytics.track('agent-video', { event: state, rtc_stats: data ?? [] });
                         options.callbacks.onVideoStateChange?.(state, data);
                     },
                 },
@@ -190,7 +191,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         StreamEvents.StreamVideoError, 
                         StreamEvents.StreamVideoRejected].includes(event as StreamEvents)) {
                 // Stream video event
-                analytics.track('agent-video', data);
+                const streamEvent = event.split("/")[1];
+                analytics.track('agent-video', {...data, event: streamEvent});
             }
         },
     };
