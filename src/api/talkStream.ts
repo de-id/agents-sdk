@@ -23,7 +23,9 @@ export function createApi(auth: Auth, host: string, agentId: string): RtcApi {
                     driver_url: streamOptions.driver_url,
                     face: streamOptions.face,
                     config: streamOptions.config,
+                    compatibility_mode: streamOptions.compatibility_mode,
                     stream_warmup: streamOptions.stream_warmup,
+                    stream_resolution: streamOptions.stream_resolution,
                     type: VideoType.Talk,
                 },
                 options

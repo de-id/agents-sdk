@@ -1,4 +1,5 @@
 import { StreamScript } from '../..';
+import { CompatibilityMode } from '../stream';
 
 export interface CreateTalkStreamRequest {
     source_url: string;
@@ -21,7 +22,9 @@ export interface CreateTalkStreamRequest {
         align_expand_factor?: number;
         stitch?: boolean;
     };
+    compatibility_mode?: CompatibilityMode;
     stream_warmup?: boolean;
+    stream_resolution?: number;
 }
 
 export interface SendTalkStreamPayload {
