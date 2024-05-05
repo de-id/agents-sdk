@@ -48,7 +48,7 @@ function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
         stream_warmup: true,
-        ...(agent.presenter.stitch && { stream_resolution: 1080 })
+        ...(agent.presenter.stitch && { stream_resolution: 1080 }),
     };
 }
 
@@ -65,6 +65,7 @@ function initializeStreamAndChat(
 
             const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent), {
                 ...options,
+                analytics,
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
@@ -97,7 +98,6 @@ function initializeStreamAndChat(
                         options.callbacks.onVideoStateChange?.(state, data);
                     },
                 },
-                analytics: analytics
             }).catch(reject);
         }
     );
@@ -172,8 +172,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 if (lastMessage?.role === 'assistant') {
                     if (lastMessageAnswerIdx < items.messages.length) {
-                        lastMessage.content =
-                            event === ChatProgress.Partial ? lastMessage.content + content : content;
+                        lastMessage.content = event === ChatProgress.Partial ? lastMessage.content + content : content;
                     }
 
                     if (event === ChatProgress.Answer) {
@@ -186,13 +185,17 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 }
 
                 options.callbacks.onNewMessage?.(items.messages);
-            } else if ([StreamEvents.StreamVideoCreated, 
-                        StreamEvents.StreamVideoDone, 
-                        StreamEvents.StreamVideoError, 
-                        StreamEvents.StreamVideoRejected].includes(event as StreamEvents)) {
+            } else if (
+                [
+                    StreamEvents.StreamVideoCreated,
+                    StreamEvents.StreamVideoDone,
+                    StreamEvents.StreamVideoError,
+                    StreamEvents.StreamVideoRejected,
+                ].includes(event as StreamEvents)
+            ) {
                 // Stream video event
-                const streamEvent = event.split("/")[1];
-                analytics.track('agent-video', {...data, event: streamEvent});
+                const streamEvent = event.split('/')[1];
+                analytics.track('agent-video', { ...data, event: streamEvent });
             }
         },
     };
@@ -226,6 +229,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
     }
+
     async function disconnect() {
         items.socketManager?.disconnect();
         await items.streamingManager?.disconnect();
@@ -238,6 +242,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
     }
+
     async function changeMode(mode: ChatMode) {
         if (mode !== items.chatMode) {
             analytics.track('agent-mode-change', { mode });
@@ -284,11 +289,24 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async chat(userMessage: string, append_chat: boolean = false) {
             try {
-                if(userMessage.length >= 800) {
+                const messageSentTimestamp = Date.now();
+
+                if (userMessage.length >= 800) {
                     throw new Error('Message cannot be more than 800 characters');
+                } else if (userMessage.length === 0) {
+                    throw new Error('Message cannot be empty');
+                } else if (items.chatMode === ChatMode.Maintenance) {
+                    throw new Error('Chat is in maintenance mode');
+                } else if (![ChatMode.TextOnly, ChatMode.Playground].includes(items.chatMode)) {
+                    if (!items.streamingManager) {
+                        throw new Error('Streaming manager is not initialized');
+                    }
+
+                    if (!items.chat) {
+                        throw new Error('Chat is not initialized');
+                    }
                 }
 
-                const messageSentTimestamp = Date.now();
                 items.messages.push({
                     id: getRandom(),
                     role: 'user',
@@ -298,21 +316,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 options.callbacks.onNewMessage?.(items.messages);
 
-                if (userMessage.length === 0) {
-                    throw new Error('Message cannot be empty');
-                }
-
-                if (items.chatMode === ChatMode.Maintenance) {
-                    throw new Error('Chat is in maintenance mode');
-                } else if (items.chatMode !== ChatMode.TextOnly) {
-                    if (!items.streamingManager) {
-                        throw new Error('Streaming manager is not initialized');
-                    }
-
-                    if (!items.chat) {
-                        throw new Error('Chat is not initialized');
-                    }
-                } else if (!items.chat) {
+                if (!items.chat) {
                     items.chat = await agentsApi.newChat(agentInstance.id);
                 }
 
@@ -332,12 +336,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     content: response.result || '',
                     created_at: new Date().toISOString(),
                     matches: response.matches,
-                })
+                });
+
                 if (response.result) {
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
                         messages: items.messages.length,
                     });
+
                     options.callbacks.onNewMessage?.(items.messages);
                 }
 
