@@ -183,7 +183,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 if (event === ChatProgress.Answer) {
                     analytics.track('agent-message-received', { messages: items.messages.length });
                 }
-
                 options.callbacks.onNewMessage?.(items.messages);
             } else if (
                 [
@@ -288,6 +287,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
         },
         async chat(userMessage: string, append_chat: boolean = false) {
+            const id = getRandom();
             try {
                 const messageSentTimestamp = Date.now();
 
@@ -320,25 +320,28 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     items.chat = await agentsApi.newChat(agentInstance.id);
                 }
 
+                const newMessage: Message = {
+                    id,
+                    role: 'assistant',
+                    content: '',
+                    created_at: new Date().toISOString(),
+                    matches: [],
+                }
+                items.messages.push(newMessage);
+
                 const response = await agentsApi.chat(agentInstance.id, items.chat.id, {
                     sessionId: items.streamingManager?.sessionId,
                     streamId: items.streamingManager?.streamId,
-                    messages: items.messages,
+                    messages: items.messages.slice(0, -1),
                     chatMode: items.chatMode,
                     append_chat,
                 });
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
 
-                items.messages.push({
-                    id: getRandom(),
-                    role: 'assistant',
-                    content: response.result || '',
-                    created_at: new Date().toISOString(),
-                    matches: response.matches,
-                });
-
                 if (response.result) {
+                    newMessage.content = response.result;
+                    newMessage.matches = response.matches;
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
                         messages: items.messages.length,
@@ -349,6 +352,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 return response;
             } catch (e) {
+                if (items.messages[items.messages.length - 1].id === id) {
+                    items.messages.pop();
+                }
                 analytics.track('agent-message-send', { event: 'error', messages: items.messages.length });
                 throw e;
             }
