@@ -48,7 +48,6 @@ function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
         stream_warmup: true,
-        ...(agent.presenter.stitch && { stream_resolution: 1080 }),
     };
 }
 
