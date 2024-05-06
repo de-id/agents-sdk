@@ -76,7 +76,7 @@ function pollStats(peerConnection, onVideoStateChange, analytics) {
 
 
                         if (!isPlaying && isPlayingFalseNumIntervals === 1) {
-                            analytics.track('agent-video', { event: 'stop', rtc: videoStatsReport });
+                            analytics.track('agent-video', { event: 'stats', rtc: videoStatsReport });
                         }
 
                         if (!isPlaying && isPlayingFalseNumIntervals === 2) {
