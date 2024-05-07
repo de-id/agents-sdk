@@ -85,6 +85,7 @@ export interface AgentManagerOptions {
      */
     distinctId?: string;
     mode?: ChatMode;
+    streamResolution?: number;
 }
 
 export interface AgentManager {
