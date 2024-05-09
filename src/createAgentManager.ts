@@ -25,6 +25,8 @@ import { Analytics, initializeAnalytics } from './services/mixpanel';
 
 import { getAnaliticsInfo } from './utils/analytics';
 
+const stitchDefaultResolution = 1080;
+
 interface AgentManagrItems {
     chat?: Chat;
     streamingManager?: StreamingManager<CreateStreamOptions>;
@@ -33,7 +35,7 @@ interface AgentManagrItems {
     chatMode: ChatMode;
 }
 
-function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
+function getAgentStreamArgs(agent: Agent, userStreamResolution?: number): CreateStreamOptions {
     if (!agent.presenter) {
         throw new Error('Presenter is not initialized');
     } else if (agent.presenter.type === VideoType.Clip) {
@@ -44,11 +46,14 @@ function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
             stream_warmup: true,
         };
     }
+
+    const stream_resolution = userStreamResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined);
+
     return {
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
         stream_warmup: true,
-        ...(agent.presenter.stitch && { stream_resolution: 1080 }),
+        ...(stream_resolution && { stream_resolution }),
     };
 }
 
@@ -63,7 +68,7 @@ function initializeStreamAndChat(
         async (resolve, reject) => {
             let newChat = chat;
 
-            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent), {
+            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options.streamResolution), {
                 ...options,
                 analytics,
                 callbacks: {
@@ -183,7 +188,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 if (event === ChatProgress.Answer) {
                     analytics.track('agent-message-received', { messages: items.messages.length });
                 }
-
                 options.callbacks.onNewMessage?.(items.messages);
             } else if (
                 [
@@ -288,6 +292,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
         },
         async chat(userMessage: string, append_chat: boolean = false) {
+            const id = getRandom();
             try {
                 const messageSentTimestamp = Date.now();
 
@@ -320,26 +325,29 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     items.chat = await agentsApi.newChat(agentInstance.id);
                 }
 
+                const newMessage: Message = {
+                    id,
+                    role: 'assistant',
+                    content: '',
+                    created_at: new Date().toISOString(),
+                    matches: [],
+                }
+                items.messages.push(newMessage);
+
                 const response = await agentsApi.chat(agentInstance.id, items.chat.id, {
                     sessionId: items.streamingManager?.sessionId,
                     streamId: items.streamingManager?.streamId,
-                    messages: items.messages,
+                    messages: items.messages.slice(0, -1),
                     chatMode: items.chatMode,
                     append_chat,
                 });
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
 
-                items.messages.push({
-                    id: getRandom(),
-                    role: 'assistant',
-                    content: response.result || '',
-                    created_at: new Date().toISOString(),
-                    matches: response.matches,
-                    context: response.context,
-                });
-
+                newMessage.context = response.context;
                 if (response.result) {
+                    newMessage.content = response.result;
+                    newMessage.matches = response.matches;
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
                         messages: items.messages.length,
@@ -350,6 +358,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 return response;
             } catch (e) {
+                if (items.messages[items.messages.length - 1].id === id) {
+                    items.messages.pop();
+                }
                 analytics.track('agent-message-send', { event: 'error', messages: items.messages.length });
                 throw e;
             }

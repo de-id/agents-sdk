@@ -37,7 +37,7 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function pollStats(peerConnection, onVideoStateChange) {
+function pollStats(peerConnection, onVideoStateChange, analytics) {
     let videoStats = [] as SlimRTCStatsReport[];
     let videoStatsStartIndex = 0;
     let videoStatsLastIndex = 0;
@@ -74,6 +74,11 @@ function pollStats(peerConnection, onVideoStateChange) {
                             }
                         }
 
+
+                        if (!isPlaying && isPlayingFalseNumIntervals === 1) {
+                            analytics.track('agent-video', { event: 'stats', rtc: videoStatsReport });
+                        }
+
                         if (!isPlaying && isPlayingFalseNumIntervals === 2) {
                             onVideoStateChange?.(StreamingState.Stop, videoStatsReport);
                         }
@@ -107,7 +112,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         throw new Error('Could not create session_id');
     }
 
-    const videoStatsInterval = pollStats(peerConnection, callbacks.onVideoStateChange);
+    const videoStatsInterval = pollStats(peerConnection, callbacks.onVideoStateChange, analytics);
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         log('peerConnection.onicecandidate', event);
