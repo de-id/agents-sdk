@@ -344,6 +344,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
 
+                newMessage.context = response.context;
                 if (response.result) {
                     newMessage.content = response.result;
                     newMessage.matches = response.matches;
