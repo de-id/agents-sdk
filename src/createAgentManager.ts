@@ -336,6 +336,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     content: response.result || '',
                     created_at: new Date().toISOString(),
                     matches: response.matches,
+                    context: response.context,
                 });
 
                 if (response.result) {

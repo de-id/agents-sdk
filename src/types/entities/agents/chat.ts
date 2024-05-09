@@ -30,6 +30,7 @@ export interface Message {
     content: string;
     created_at?: string;
     matches?: ChatResponse['matches'];
+    context?: string;
 }
 
 export interface ChatPayload {
@@ -57,11 +58,11 @@ export enum ChatMode {
 }
 
 export interface ChatResponse {
-    // TODO: Delete this, it's for backwards compatibility
     result?: string;
     documentIds?: string[];
     matches?: IRetrivalMetadata[];
     chatMode?: ChatMode;
+    context?: string;
 }
 
 export interface Chat {
