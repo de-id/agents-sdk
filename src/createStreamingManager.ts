@@ -62,7 +62,6 @@ function pollStats(peerConnection, onVideoStateChange, analytics) {
                         if (prevPlaying !== isPlaying) {
                             if (isPlaying) {
                                 videoStatsStartIndex = videoStats.length;
-                                onVideoStateChange?.(StreamingState.Start, videoStatsReport);
                             } else {
                                 const stats = videoStats.slice(videoStatsStartIndex);
                                 const previousStats =
@@ -155,6 +154,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
             if (event === StreamEvents.StreamReady) {
                 clearTimeout(timeoutId);
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+            } else if (event === StreamEvents.StreamStarted) {
+                callbacks.onVideoStateChange?.(StreamingState.Start);
             }
         }
     };
