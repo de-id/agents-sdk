@@ -25,7 +25,7 @@ import { Analytics, initializeAnalytics } from './services/mixpanel';
 
 import { getAnaliticsInfo } from './utils/analytics';
 
-const stitchDefaultResolution = 1080;
+const stitchDefaultResolution = 840;
 
 interface AgentManagrItems {
     chat?: Chat;
