@@ -24,7 +24,7 @@ export interface CreateTalkStreamRequest {
     };
     compatibility_mode?: CompatibilityMode;
     stream_warmup?: boolean;
-    stream_resolution?: number;
+    output_resolution?: number;
 }
 
 export interface SendTalkStreamPayload {

@@ -90,7 +90,7 @@ export interface AgentManagerOptions {
      * @minimum 0
      * @maximum 1080
      */
-    streamResolution?: number;
+    outputResolution?: number;
 }
 
 export interface AgentManager {
