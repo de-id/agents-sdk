@@ -35,7 +35,7 @@ interface AgentManagrItems {
     chatMode: ChatMode;
 }
 
-function getAgentStreamArgs(agent: Agent, outputResolution?: number): CreateStreamOptions {
+function getAgentStreamArgs(agent: Agent, userOutputResolution?: number): CreateStreamOptions {
     if (!agent.presenter) {
         throw new Error('Presenter is not initialized');
     } else if (agent.presenter.type === VideoType.Clip) {
@@ -47,7 +47,7 @@ function getAgentStreamArgs(agent: Agent, outputResolution?: number): CreateStre
         };
     }
 
-    const output_resolution = outputResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined);
+    const output_resolution = userOutputResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined);
 
     return {
         videoType: VideoType.Talk,
