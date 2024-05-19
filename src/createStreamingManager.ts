@@ -190,6 +190,13 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 }
 
                 if (peerConnection) {
+                    const state = mapConnectionState(peerConnection.iceConnectionState);
+                    if (state === ConnectionState.New) {
+                        // Connection already closed
+                        callbacks.onVideoStateChange?.(StreamingState.Stop);
+                        clearInterval(videoStatsInterval);    
+                        return;
+                    }
                     peerConnection.close();
                     peerConnection.oniceconnectionstatechange = null;
                     peerConnection.onnegotiationneeded = null;
