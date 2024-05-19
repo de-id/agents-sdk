@@ -35,7 +35,7 @@ interface AgentManagrItems {
     chatMode: ChatMode;
 }
 
-function getAgentStreamArgs(agent: Agent, userStreamResolution?: number): CreateStreamOptions {
+function getAgentStreamArgs(agent: Agent, userOutputResolution?: number): CreateStreamOptions {
     if (!agent.presenter) {
         throw new Error('Presenter is not initialized');
     } else if (agent.presenter.type === VideoType.Clip) {
@@ -47,13 +47,13 @@ function getAgentStreamArgs(agent: Agent, userStreamResolution?: number): Create
         };
     }
 
-    const stream_resolution = userStreamResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined);
+    const output_resolution = userOutputResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined);
 
     return {
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
         stream_warmup: true,
-        ...(stream_resolution && { stream_resolution }),
+        ...(output_resolution && { output_resolution }),
     };
 }
 
@@ -68,7 +68,7 @@ function initializeStreamAndChat(
         async (resolve, reject) => {
             let newChat = chat;
 
-            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options.streamResolution), {
+            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options.outputResolution), {
                 ...options,
                 analytics,
                 callbacks: {
