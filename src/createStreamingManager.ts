@@ -37,57 +37,57 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function pollStats(peerConnection, onVideoStateChange, analytics) {
-    let videoStats = [] as SlimRTCStatsReport[];
-    let videoStatsStartIndex = 0;
-    let videoStatsLastIndex = 0;
-    let isPlayingFalseNumIntervals = 0;
-    let isPlaying: boolean;
+function createVideoStatsAnalyzer() {
+    let lastBytesReceived = 0;
 
-    return setInterval(() => {
-        const stats = peerConnection.getStats();
-        stats.then(result => {
-            result.forEach(report => {
-                if (report.type === 'inbound-rtp' && report.kind === 'video') {
-                    videoStatsLastIndex = videoStats.length - 1;
-                    if (report && videoStats[videoStatsLastIndex]) {
-                        const currBytesReceived = report.bytesReceived;
-                        const lastBytesReceived = videoStats[videoStatsLastIndex].bytesReceived;
-                        const prevPlaying = isPlaying;
-                        let videoStatsReport;
+    return (stats: RTCStatsReport) => {
+        for (const report of stats.values()) {
+            if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
+                const currBytesReceived = report.bytesReceived;
+                const isReceiving = currBytesReceived - lastBytesReceived > 0;
 
-                        isPlaying = currBytesReceived - lastBytesReceived > 0;
-                        isPlayingFalseNumIntervals = isPlaying ? 0 : ++isPlayingFalseNumIntervals;
+                lastBytesReceived = currBytesReceived;
 
-                        if (prevPlaying !== isPlaying) {
-                            if (isPlaying) {
-                                videoStatsStartIndex = videoStats.length;
-                                onVideoStateChange?.(StreamingState.Start, videoStatsReport);
-                            } else {
-                                const stats = videoStats.slice(videoStatsStartIndex);
-                                const previousStats =
-                                    videoStatsStartIndex === 0 ? undefined : videoStats[videoStatsStartIndex - 1];
-                                videoStatsReport = createVideoStatsReport(stats, previousStats);
-                                videoStatsReport = videoStatsReport
-                                    .sort((a, b) => b.packetsLost - a.packetsLost)
-                                    .slice(0, 5);
-                            }
-                        }
+                return isReceiving;
+            }
+        };
 
+        return false;
+    };
+}
 
-                        if (!isPlaying && isPlayingFalseNumIntervals === 1) {
-                            analytics.track('agent-video', { event: 'stats', rtc: videoStatsReport });
-                        }
+function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange, analytics) {
+    const interval = 100;
+    const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
 
-                        if (!isPlaying && isPlayingFalseNumIntervals === 2) {
-                            onVideoStateChange?.(StreamingState.Stop, videoStatsReport);
-                        }
-                    }
-                    videoStats.push(report);
-                }
-            });
-        });
-    }, 500);
+    let notReceivingNumIntervals = 0;
+    let isStreaming = false;
+
+    const isReceivingVideoBytes = createVideoStatsAnalyzer();
+
+    return setInterval(async () => {
+        const stats = await peerConnection.getStats();
+        const isReceiving = isReceivingVideoBytes(stats);
+
+        if (isReceiving) {
+            notReceivingNumIntervals = 0;
+
+            if (!isStreaming) {
+                onVideoStateChange?.(StreamingState.Start);
+
+                isStreaming = true;
+            }
+
+        } else if (isStreaming) {
+            notReceivingNumIntervals++;
+
+            if (notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
+                onVideoStateChange?.(StreamingState.Stop);
+
+                isStreaming = false;
+            }
+        }
+    }, interval);
 }
 
 export async function createStreamingManager<T extends CreateStreamOptions>(
@@ -194,7 +194,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     if (state === ConnectionState.New) {
                         // Connection already closed
                         callbacks.onVideoStateChange?.(StreamingState.Stop);
-                        clearInterval(videoStatsInterval);    
+                        clearInterval(videoStatsInterval);
                         return;
                     }
                     peerConnection.close();
@@ -205,7 +205,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 }
 
                 try {
-                    await close(streamIdFromServer, session_id).catch(_ => {});
+                    await close(streamIdFromServer, session_id).catch(_ => { });
                 } catch (e) {
                     log('Error on close stream connection', e);
                 }
