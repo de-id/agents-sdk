@@ -74,7 +74,7 @@ interface ManagerCallbacks {
     /**
      * Optional callback function that will be triggered on fetch request errors
      */
-    onFetchError?: (message: string, errorData: object) => void
+    onError?: (error: Error, errorData: object) => void
 }
 
 export interface AgentManagerOptions {

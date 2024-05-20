@@ -38,7 +38,7 @@ export interface ManagerCallbacks {
     onConnectionStateChange?: (state: ConnectionState) => void;
     onVideoStateChange?: (state: StreamingState, data?: any) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
-    onFetchError?: (message: string, errorData: object) => void
+    onError?: (error: Error, errorData: object) => void
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;

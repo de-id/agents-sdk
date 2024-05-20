@@ -101,8 +101,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip
-            ? createClipApi(auth, baseURL, agentId, callbacks.onFetchError)
-            : createTalkApi(auth, baseURL, agentId, callbacks.onFetchError);
+            ? createClipApi(auth, baseURL, agentId, callbacks.onError)
+            : createTalkApi(auth, baseURL, agentId, callbacks.onError);
 
     const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });

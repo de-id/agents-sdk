@@ -158,7 +158,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const baseURL = options.baseURL || didApiUrl;
     const mxKey = options.mixpanelKey || mixpanelKey;
 
-    const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onFetchError);
+    const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
 
     const agentInstance = await agentsApi.getById(agent);
 
