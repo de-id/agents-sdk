@@ -42,15 +42,13 @@ function createVideoStatsAnalyzer() {
 
     return (stats: RTCStatsReport) => {
         stats.forEach(report => {
-            if (report.type === 'inbound-rtp' && report.kind === 'video') {
-                if (report) {
-                    const currBytesReceived = report.bytesReceived;
-                    const isReceiving = currBytesReceived - lastBytesReceived > 0;
+            if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
+                const currBytesReceived = report.bytesReceived;
+                const isReceiving = currBytesReceived - lastBytesReceived > 0;
 
-                    lastBytesReceived = currBytesReceived
+                lastBytesReceived = currBytesReceived;
 
-                    return isReceiving
-                }
+                return isReceiving;
             }
         });
 
