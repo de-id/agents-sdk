@@ -41,7 +41,7 @@ function createVideoStatsAnalyzer() {
     let lastBytesReceived = 0;
 
     return (stats: RTCStatsReport) => {
-        for (const report of stats.values()) {
+        stats.forEach(report => {
             if (report.type === 'inbound-rtp' && report.kind === 'video') {
                 if (report) {
                     const currBytesReceived = report.bytesReceived;
@@ -52,7 +52,7 @@ function createVideoStatsAnalyzer() {
                     return isReceiving
                 }
             }
-        };
+        });
 
         return false;
     };
@@ -64,7 +64,7 @@ function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange, analyt
 
     let notReceivingNumIntervals = 0;
     let isStreaming = false;
-    
+
     const isReceivingBytes = createVideoStatsAnalyzer();
 
     return setInterval(async () => {
