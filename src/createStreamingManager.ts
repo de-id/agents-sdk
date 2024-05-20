@@ -77,10 +77,10 @@ function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange, analyt
                 isStreaming = true;
             }
 
-        } else {
+        } else if (isStreaming) {
             notReceivingNumIntervals++;
 
-            if (isStreaming && notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
+            if (notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
                 onVideoStateChange?.(StreamingState.Stop);
 
                 isStreaming = false;
