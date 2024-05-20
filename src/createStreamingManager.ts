@@ -41,9 +41,9 @@ function pollStats(peerConnection, onVideoStateChange, analytics) {
     let videoStats = [] as SlimRTCStatsReport[];
     let videoStatsStartIndex = 0;
     let videoStatsLastIndex = 0;
-    let isPlaying = false;
-    let intervalsSinceLastPlayback = 0;
-    let hasPlayedBefore = false;
+    let isStreaming = false;
+    let consecutiveNoBytesIntervals = 0;
+    const MAX_NO_BYTES_INTERVALS = 10;
 
     return setInterval(() => {
         const stats = peerConnection.getStats();
@@ -54,36 +54,32 @@ function pollStats(peerConnection, onVideoStateChange, analytics) {
                     if (report && videoStats[videoStatsLastIndex]) {
                         const currBytesReceived = report.bytesReceived;
                         const lastBytesReceived = videoStats[videoStatsLastIndex].bytesReceived;
-                        const prevPlaying = isPlaying;
-                        let videoStatsReport;
 
-                        isPlaying = currBytesReceived - lastBytesReceived > 0;
-                        hasPlayedBefore ||= isPlaying;
+                        if (currBytesReceived - lastBytesReceived > 0) {
+                            consecutiveNoBytesIntervals = 0;
+                            if (!isStreaming) {
+                                onVideoStateChange?.(StreamingState.Start, report);
 
-                        if (prevPlaying !== isPlaying) {
-                            if (isPlaying) {
+                                isStreaming = true;
+
                                 videoStatsStartIndex = videoStats.length;
-                                onVideoStateChange?.(StreamingState.Start, videoStatsReport);
-                            } else {
+                            }
+                        } else {
+                            consecutiveNoBytesIntervals++;
+                            if (isStreaming && consecutiveNoBytesIntervals >= MAX_NO_BYTES_INTERVALS) {
+                                onVideoStateChange?.(StreamingState.Stop, createVideoStatsReport(videoStats));
+
+                                isStreaming = false;
+
                                 const stats = videoStats.slice(videoStatsStartIndex);
                                 const previousStats =
                                     videoStatsStartIndex === 0 ? undefined : videoStats[videoStatsStartIndex - 1];
-                                videoStatsReport = createVideoStatsReport(stats, previousStats);
-                                videoStatsReport = videoStatsReport
+                                const videoStatsReport = createVideoStatsReport(stats, previousStats)
                                     .sort((a, b) => b.packetsLost - a.packetsLost)
                                     .slice(0, 5);
 
                                 analytics.track('agent-video', { event: 'stats', rtc: videoStatsReport });
                             }
-                        }
-
-                        if (!isPlaying && hasPlayedBefore) {
-                            intervalsSinceLastPlayback++;
-                            if (intervalsSinceLastPlayback === 10) {
-                                onVideoStateChange?.(StreamingState.Stop, videoStatsReport);
-                            }
-                        } else {
-                            intervalsSinceLastPlayback = 0;
                         }
                     }
                     videoStats.push(report);
