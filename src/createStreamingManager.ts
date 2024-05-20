@@ -37,56 +37,57 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function pollStats(peerConnection, onVideoStateChange, analytics) {
-    let videoStats = [] as SlimRTCStatsReport[];
-    let videoStatsStartIndex = 0;
-    let videoStatsLastIndex = 0;
-    let isStreaming = false;
-    let consecutiveNoBytesIntervals = 0;
-    const interval = 100;
-    const MAX_NO_BYTES_INTERVALS = Math.max(Math.ceil(1000 / interval), 1);
+function createVideoStatsAnalyzer() {
+    let lastBytesReceived = 0;
 
-    return setInterval(() => {
-        const stats = peerConnection.getStats();
-        stats.then(result => {
-            result.forEach(report => {
-                if (report.type === 'inbound-rtp' && report.kind === 'video') {
-                    videoStatsLastIndex = videoStats.length - 1;
-                    if (report && videoStats[videoStatsLastIndex]) {
-                        const currBytesReceived = report.bytesReceived;
-                        const lastBytesReceived = videoStats[videoStatsLastIndex].bytesReceived;
+    return (stats: RTCStatsReport) => {
+        for (const report of stats.values()) {
+            if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                if (report) {
+                    const currBytesReceived = report.bytesReceived;
+                    const isReceiving = currBytesReceived - lastBytesReceived > 0;
 
-                        if (currBytesReceived - lastBytesReceived > 0) {
-                            consecutiveNoBytesIntervals = 0;
-                            if (!isStreaming) {
-                                onVideoStateChange?.(StreamingState.Start, report);
+                    lastBytesReceived = currBytesReceived
 
-                                isStreaming = true;
-
-                                videoStatsStartIndex = videoStats.length;
-                            }
-                        } else {
-                            consecutiveNoBytesIntervals++;
-                            if (isStreaming && consecutiveNoBytesIntervals >= MAX_NO_BYTES_INTERVALS) {
-                                onVideoStateChange?.(StreamingState.Stop, createVideoStatsReport(videoStats));
-
-                                isStreaming = false;
-
-                                const stats = videoStats.slice(videoStatsStartIndex);
-                                const previousStats =
-                                    videoStatsStartIndex === 0 ? undefined : videoStats[videoStatsStartIndex - 1];
-                                const videoStatsReport = createVideoStatsReport(stats, previousStats)
-                                    .sort((a, b) => b.packetsLost - a.packetsLost)
-                                    .slice(0, 5);
-
-                                analytics.track('agent-video', { event: 'stats', rtc: videoStatsReport });
-                            }
-                        }
-                    }
-                    videoStats.push(report);
+                    return isReceiving
                 }
-            });
-        });
+            }
+        };
+
+        return false;
+    };
+}
+
+function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange, analytics) {
+    const interval = 100;
+    const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
+
+    let notReceivingNumIntervals = 0;
+    let isStreaming = false;
+
+    const isReceivingBytes = createVideoStatsAnalyzer();
+
+    return setInterval(async () => {
+        const stats = await peerConnection.getStats();
+
+        if (isReceivingBytes(stats)) {
+            notReceivingNumIntervals = 0;
+
+            if (!isStreaming) {
+                onVideoStateChange?.(StreamingState.Start);
+
+                isStreaming = true;
+            }
+
+        } else {
+            notReceivingNumIntervals++;
+            
+            if (isStreaming && notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
+                onVideoStateChange?.(StreamingState.Stop);
+
+                isStreaming = false;
+            }
+        }
     }, interval);
 }
 
