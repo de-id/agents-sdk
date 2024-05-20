@@ -36,7 +36,7 @@ export enum ConnectionState {
 export interface ManagerCallbacks {
     onMessage?: (event: string, data: string) => void;
     onConnectionStateChange?: (state: ConnectionState) => void;
-    onVideoStateChange?: (state: StreamingState, data?: any) => void;
+    onVideoStateChange?: (state: StreamingState) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
 }
 

@@ -64,7 +64,7 @@ function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange, analyt
 
     let notReceivingNumIntervals = 0;
     let isStreaming = false;
-
+    
     const isReceivingBytes = createVideoStatsAnalyzer();
 
     return setInterval(async () => {
@@ -81,7 +81,7 @@ function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange, analyt
 
         } else {
             notReceivingNumIntervals++;
-            
+
             if (isStreaming && notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
                 onVideoStateChange?.(StreamingState.Stop);
 
