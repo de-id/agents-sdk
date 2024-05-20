@@ -43,7 +43,8 @@ function pollStats(peerConnection, onVideoStateChange, analytics) {
     let videoStatsLastIndex = 0;
     let isStreaming = false;
     let consecutiveNoBytesIntervals = 0;
-    const MAX_NO_BYTES_INTERVALS = 10;
+    const interval = 100;
+    const MAX_NO_BYTES_INTERVALS = Math.max(Math.ceil(1000 / interval), 1);
 
     return setInterval(() => {
         const stats = peerConnection.getStats();
@@ -86,7 +87,7 @@ function pollStats(peerConnection, onVideoStateChange, analytics) {
                 }
             });
         });
-    }, 100);
+    }, interval);
 }
 
 export async function createStreamingManager<T extends CreateStreamOptions>(
