@@ -11,7 +11,6 @@ import {
     VideoType,
 } from '$/types/index';
 import { didApiUrl } from './environment';
-import { createVideoStatsReport } from './utils/webrtc';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
