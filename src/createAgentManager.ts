@@ -99,8 +99,8 @@ function initializeStreamAndChat(
 
                         options.callbacks.onConnectionStateChange?.(state);
                     },
-                    onVideoStateChange(state, data) {
-                        options.callbacks.onVideoStateChange?.(state, data);
+                    onVideoStateChange(state) {
+                        options.callbacks.onVideoStateChange?.(state);
                     },
                 },
             }).catch(reject);

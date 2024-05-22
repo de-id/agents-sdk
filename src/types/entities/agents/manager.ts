@@ -44,7 +44,7 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered each time video events happen
      * @param state
      */
-    onVideoStateChange?(state: StreamingState, data?: any): void;
+    onVideoStateChange?(state: StreamingState): void;
     /**
      * Callback function that will be triggered each time the video stream starts or stops to update html element on webpage
      * Required callback for SDK
