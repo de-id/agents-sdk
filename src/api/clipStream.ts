@@ -11,8 +11,8 @@ import {
 } from '$/types/index';
 import { createClient } from './getClient';
 
-export function createApi(auth: Auth, host: string, agentId: string): RtcApi {
-    const client = createClient(auth, `${host}/agents/${agentId}`);
+export function createApi(auth: Auth, host: string, agentId: string, onError?: (error: Error, errorData: object) => void): RtcApi {
+    const client = createClient(auth, `${host}/agents/${agentId}`, onError);
 
     return {
         createStream(options: ClipStreamOptions) {

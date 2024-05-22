@@ -2,7 +2,7 @@ import { Auth } from '$/types/auth';
 import { getAuthHeader } from '../auth/getAuthHeader';
 import { didApiUrl } from '../environment';
 
-export function createClient(auth: Auth, host = didApiUrl) {
+export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Error, errorData: object) => void) {
     const client = async <T>(url: string, options?: RequestInit) => {
         const request = await fetch(host + (url?.startsWith('/') ? url : `/${url}`), {
             ...options,
@@ -15,6 +15,9 @@ export function createClient(auth: Auth, host = didApiUrl) {
 
         if (!request.ok) {
             let error: any = await request.text().catch(() => 'Failed to fetch');
+            if (onError) {
+                onError(new Error(error), { url, options, headers: request.headers });
+            }
             throw new Error(error);
         }
 

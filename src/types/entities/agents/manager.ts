@@ -70,6 +70,11 @@ interface ManagerCallbacks {
      * @param mode - ChatMode
      */
     onModeChange?(mode: ChatMode): void;
+
+    /**
+     * Optional callback function that will be triggered on fetch request errors
+     */
+    onError?: (error: Error, errorData: object) => void
 }
 
 export interface AgentManagerOptions {

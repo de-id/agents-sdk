@@ -38,6 +38,7 @@ export interface ManagerCallbacks {
     onConnectionStateChange?: (state: ConnectionState) => void;
     onVideoStateChange?: (state: StreamingState) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
+    onError?: (error: Error, errorData: object) => void
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;

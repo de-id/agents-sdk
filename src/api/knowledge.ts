@@ -10,8 +10,8 @@ import {
 import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
-export function createKnowledgeApi(auth: Auth, host = didApiUrl) {
-    const client = createClient(auth, `${host}/knowledge`);
+export function createKnowledgeApi(auth: Auth, host = didApiUrl, onError?: (error: Error, errorData: object) => void) {
+    const client = createClient(auth, `${host}/knowledge`, onError);
 
     return {
         createKnowledge(payload: KnowledgePayload, options?: RequestInit) {

@@ -2,8 +2,8 @@ import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse, RatingEntit
 import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
-export function createAgentsApi(auth: Auth, host = didApiUrl) {
-    const client = createClient(auth, `${host}/agents`);
+export function createAgentsApi(auth: Auth, host: string = didApiUrl, onError?: (error: Error, errorData: object) => void) {
+    const client = createClient(auth, `${host}/agents`, onError);
 
     return {
         create(payload: AgentPayload, options?: RequestInit) {

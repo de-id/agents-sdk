@@ -158,7 +158,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const baseURL = options.baseURL || didApiUrl;
     const mxKey = options.mixpanelKey || mixpanelKey;
 
-    const agentsApi = createAgentsApi(options.auth, baseURL);
+    const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
 
     const agentInstance = await agentsApi.getById(agent);
 
@@ -189,17 +189,28 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     analytics.track('agent-message-received', { messages: items.messages.length });
                 }
                 options.callbacks.onNewMessage?.(items.messages);
-            } else if (
-                [
-                    StreamEvents.StreamVideoCreated,
-                    StreamEvents.StreamVideoDone,
-                    StreamEvents.StreamVideoError,
-                    StreamEvents.StreamVideoRejected,
-                ].includes(event as StreamEvents)
-            ) {
-                // Stream video event
-                const streamEvent = event.split('/')[1];
-                analytics.track('agent-video', { ...data, event: streamEvent });
+            } else {
+                if (
+                    [
+                        StreamEvents.StreamVideoCreated,
+                        StreamEvents.StreamVideoDone,
+                        StreamEvents.StreamVideoError,
+                        StreamEvents.StreamVideoRejected,
+                    ].includes(event as StreamEvents)
+                ) {
+                    // Stream video event
+                    const streamEvent = event.split('/')[1];
+                    analytics.track('agent-video', { ...data, event: streamEvent });
+                }
+                if (
+                    [
+                        StreamEvents.StreamFailed,
+                        StreamEvents.StreamVideoError,
+                        StreamEvents.StreamVideoRejected,
+                    ].includes(event as StreamEvents)
+                ){
+                    options.callbacks.onError?.(new Error(`Stream failed with event ${event as StreamEvents}`), { data });
+                }
             }
         },
     };
