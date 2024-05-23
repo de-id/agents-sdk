@@ -271,6 +271,22 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
     }
 
+    async function reconnectStream() {
+        if (!items.chat) {
+            return connect();
+        }
+        const { streamingManager, chat } = await initializeStreamAndChat(
+            agentInstance,
+            options,
+            agentsApi,
+            analytics,
+            items.chat
+        );
+        items.streamingManager = streamingManager;
+        changeMode(ChatMode.Functional);
+        analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
+    }
+
     return {
         agent: agentInstance,
         starterMessages: agentInstance.knowledge?.starter_message || [],
@@ -343,15 +359,32 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date().toISOString(),
                     matches: [],
                 }
-                items.messages.push(newMessage);
-
-                const response = await agentsApi.chat(agentInstance.id, items.chat.id, {
-                    sessionId: items.streamingManager?.sessionId,
-                    streamId: items.streamingManager?.streamId,
-                    messages: items.messages.slice(0, -1),
-                    chatMode: items.chatMode,
-                    append_chat,
-                });
+                items.messages.push(newMessage);                
+                const lastMessage = items.messages.slice(0, -1);
+                let response;
+                try {
+                    response = await agentsApi.chat(agentInstance.id, items.chat.id, {
+                        sessionId: items.streamingManager?.sessionId,
+                        streamId: items.streamingManager?.streamId,
+                        messages: lastMessage,
+                        chatMode: items.chatMode,
+                        append_chat,
+                    });
+                } catch (error: any) {
+                    if (error?.message?.includes('missing or invalid session_id')) {
+                        console.log('Invalid stream, try reconnect with new stream id');
+                        await reconnectStream();
+                        response = await agentsApi.chat(agentInstance.id, items.chat.id, {
+                            sessionId: items.streamingManager?.sessionId,
+                            streamId: items.streamingManager?.streamId,
+                            messages: lastMessage,
+                            chatMode: items.chatMode,
+                            append_chat,
+                        });
+                    } else {
+                        throw error;
+                    }
+                }
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
 
