@@ -14,7 +14,7 @@ import {
     VideoType,
 } from '$/types';
 import './app.css';
-import { agentId, clientKey, didApiUrl, didSocketApiUrl } from './environment';
+import { agentId, didApiUrl, didSocketApiUrl } from './environment';
 
 function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
     if (agent.presenter?.type === VideoType.Clip) {
@@ -41,7 +41,7 @@ enum State {
     Speaking,
 }
 
-const auth: Auth = { type: 'key', clientKey };
+const auth: Auth = { type: 'key', clientKey: import.meta.env.VITE_CLIENT_KEY };
 export function App() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [rtcConnection, setRtcConnection] = useState<StreamingManager<ClipStreamOptions> | null>(null);
