@@ -121,8 +121,10 @@ function getInitialMessages(agent: Agent): Message[] {
         const randomIndex = Math.floor(Math.random() * agent.greetings.length);
         content = agent.greetings[randomIndex];
     } else {
-        content = `Hi! I'm ${agent.preview_name}, welcome to agents. How can I help you?`;
+        content = `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
     }
+
+    console.log('getInitialMessages', content, agent);
 
     return [
         {
