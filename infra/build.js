@@ -44,7 +44,6 @@ try {
     if (!fs.existsSync(dist)) {
         throw new Error('dist does not exist');
     } else if (!fs.existsSync(embeddedSdk)) {
-        console.log(embeddedSdk);
         throw new Error('package does not exist');
     }
 
