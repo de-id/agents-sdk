@@ -444,6 +444,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 score,
             });
         },
+        getChatmode() {
+            if (!items.chat) {
+                throw new Error('Chat is not initialized');
+            }
+            return agentsApi.getChatMode(agentInstance.id, items.chat.id);
+        },
         deleteRate(id: string) {
             if (!items.chat) {
                 throw new Error('Chat is not initialized');
