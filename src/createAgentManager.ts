@@ -124,8 +124,6 @@ function getInitialMessages(agent: Agent): Message[] {
         content = `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
     }
 
-    console.log('getInitialMessages', content, agent);
-
     return [
         {
             content,
