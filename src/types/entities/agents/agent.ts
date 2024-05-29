@@ -39,7 +39,7 @@ export interface Agent {
     preview_name?: string;
     preview_description?: string;
     preview_thumbnail?: string;
-    preview_icon?: string;
+    logo?: string;
     preview_url?: string;
     owner_id?: string;
 }
