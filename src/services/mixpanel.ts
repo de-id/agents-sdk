@@ -20,6 +20,8 @@ export interface Analytics {
 }
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
+    const isStudio = window?.location?.hostname === 'studio.d-id.com' || window?.location?.hostname === 'studio-staging.d-id.com';
+    const source = isStudio ? 'studio' : window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
     const instanceConfig = {
         token: config.token || 'testKey',
         distinct_id: config.distinctId || getExternalId(),
@@ -48,6 +50,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                             properties: {
                                 ...props,
                                 ...instanceConfig,
+                                source,
                                 time: Date.now(),
                                 $insert_id: this.getRandom(),
                                 origin: window.location.href,
