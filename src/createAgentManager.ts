@@ -240,7 +240,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.socketManager = socketManager;
         items.chat = chat;
 
-        changeMode(ChatMode.Functional);
+        const chatMode = items.chat.chatMode || ChatMode.Functional;
+        changeMode(chatMode);
 
         analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
     }
@@ -283,7 +284,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             items.chat
         );
         items.streamingManager = streamingManager;
-        changeMode(ChatMode.Functional);
+        const chatMode = items.chat.chatMode || ChatMode.Functional;
+        changeMode(chatMode);
         analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
     }
 
@@ -314,7 +316,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             items.streamingManager = streamingManager;
             items.socketManager = socketManager;
 
-            changeMode(ChatMode.Functional);
+            const chatMode = items.chat.chatMode || ChatMode.Functional;
+            changeMode(chatMode);
 
             analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
         },
@@ -443,6 +446,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 matches,
                 score,
             });
+        },
+        getChatmode() {
+            if (!items.chat) {
+                throw new Error('Chat is not initialized');
+            }
+            return agentsApi.getChatMode(agentInstance.id, items.chat.id);
         },
         deleteRate(id: string) {
             if (!items.chat) {

@@ -74,4 +74,5 @@ export interface Chat {
     messages: Message[];
     agent_id__created_at: string;
     agent_id__modified_at: string;
+    chatMode?: ChatMode;
 }
