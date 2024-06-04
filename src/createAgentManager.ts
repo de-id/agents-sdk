@@ -186,7 +186,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 }
 
                 if (event === ChatProgress.Answer) {
-                    analytics.track('agent-message-received', { messages: items.messages.length });
+                    analytics.track('agent-message-received', {
+                        messages: items.messages.length,
+                        ...(data.latency && { latency: data.latency }),
+                        ...(data.template && { template: data.template }),
+                    });
                 }
                 options.callbacks.onNewMessage?.(items.messages);
             } else {
