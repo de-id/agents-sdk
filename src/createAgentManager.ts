@@ -25,8 +25,6 @@ import { Analytics, initializeAnalytics } from './services/mixpanel';
 
 import { getAnaliticsInfo } from './utils/analytics';
 
-const stitchDefaultResolution = 1080;
-
 interface AgentManagrItems {
     chat?: Chat;
     streamingManager?: StreamingManager<CreateStreamOptions>;
@@ -47,13 +45,11 @@ function getAgentStreamArgs(agent: Agent, userOutputResolution?: number): Create
         };
     }
 
-    const output_resolution = userOutputResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined);
-
     return {
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
         stream_warmup: true,
-        ...(output_resolution && { output_resolution }),
+        ...(userOutputResolution && { output_resolution: userOutputResolution }),
     };
 }
 
