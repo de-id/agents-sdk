@@ -11,6 +11,7 @@ import {
     CreateStreamOptions,
     Message,
     StreamEvents,
+    StreamingState,
     SupportedStreamScipt,
     VideoType,
 } from './types/index';
@@ -24,6 +25,8 @@ import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
 
 import { getAnaliticsInfo } from './utils/analytics';
+
+let messageSentTimestamp = 0;
 
 interface AgentManagrItems {
     chat?: Chat;
@@ -97,6 +100,11 @@ function initializeStreamAndChat(
                     },
                     onVideoStateChange(state) {
                         options.callbacks.onVideoStateChange?.(state);
+                        if (state === StreamingState.Start) {
+                            if (messageSentTimestamp > 0) {
+                                analytics.linkTrack('agent-video', { event: 'start', latency: Date.now() - messageSentTimestamp }, [StreamEvents.StreamVideoCreated], 'start');
+                            }
+                        }
                     },
                 },
             }).catch(reject);
@@ -186,13 +194,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 }
                 options.callbacks.onNewMessage?.(items.messages);
             } else {
-                if (
+                event = event as StreamEvents;
+                if (event === StreamEvents.StreamVideoCreated) {
+                    analytics.linkTrack('agent-video', { ...data, event }, ['start'], 'start');
+                } else if (
                     [
-                        StreamEvents.StreamVideoCreated,
                         StreamEvents.StreamVideoDone,
                         StreamEvents.StreamVideoError,
                         StreamEvents.StreamVideoRejected,
-                    ].includes(event as StreamEvents)
+                    ].includes(event)
                 ) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
@@ -203,15 +213,17 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         StreamEvents.StreamFailed,
                         StreamEvents.StreamVideoError,
                         StreamEvents.StreamVideoRejected,
-                    ].includes(event as StreamEvents)
-                ){
-                    options.callbacks.onError?.(new Error(`Stream failed with event ${event as StreamEvents}`), { data });
+                    ].includes(event)
+                ) {
+                    options.callbacks.onError?.(new Error(`Stream failed with event ${event}`), { data });
                 }
             }
         },
     };
 
     async function connect() {
+        messageSentTimestamp = 0;
+
         const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
         const { streamingManager, chat } = await initializeStreamAndChat(
@@ -269,6 +281,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     }
 
     async function reconnectStream() {
+        messageSentTimestamp = 0;
+
         if (!items.chat) {
             return connect();
         }
@@ -320,7 +334,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         async chat(userMessage: string, append_chat: boolean = false) {
             const id = getRandom();
             try {
-                const messageSentTimestamp = Date.now();
+                messageSentTimestamp = Date.now();
 
                 if (userMessage.length >= 800) {
                     throw new Error('Message cannot be more than 800 characters');
@@ -358,7 +372,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date().toISOString(),
                     matches: [],
                 }
-                items.messages.push(newMessage);                
+                items.messages.push(newMessage);
                 const lastMessage = items.messages.slice(0, -1);
                 let response;
                 try {
