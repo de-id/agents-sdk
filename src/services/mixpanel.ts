@@ -17,7 +17,28 @@ export interface Analytics {
     owner_id: string;
     getRandom(): string;
     track(event: string, props?: Record<string, any>): Promise<any>;
+    linkTrack(
+        mainEvent: string,
+        props: Record<string, any>,
+        requiredSubEvents: string[],
+        aggregateSubEvent: string
+    ): any
 }
+
+interface SubEvent {
+    data: Record<string, any>;
+}
+
+interface LinkedEvent {
+    subEvents: { [subEvent: string]: SubEvent };
+    completedSubEvents: string[];
+}
+
+interface LinkedEvents {
+    [event: string]: LinkedEvent;
+}
+
+let linkedEvents: LinkedEvents = {};
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
@@ -26,6 +47,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         distinct_id: config.distinctId || getExternalId(),
         isEnabled: config.isEnabled ?? true,
         agentId: config.agent.id,
+        agentType: config.agent.presenter.type,
         owner_id: config.agent.owner_id ?? '',
     };
 
@@ -61,10 +83,47 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                     ]),
                 }),
             };
-            
+
             return fetch('https://api-js.mixpanel.com/track/?verbose=1&ip=1', options)
                 .then(response => response.json())
                 .catch(err => console.error(err));
         },
-    };
-}
+        linkTrack(
+            mainEvent: string,
+            props: Record<string, any>,
+            requiredSubEvents: string[],
+            aggregateSubEvent: string
+        ) {
+            if (!linkedEvents[mainEvent]) {
+                linkedEvents[mainEvent] = { subEvents: {}, completedSubEvents: [] };
+            }
+
+            const { event: subEvent, ...data } = props;
+            const linkedEvent = linkedEvents[mainEvent];
+
+            requiredSubEvents.push(subEvent);
+            linkedEvent.subEvents[subEvent] = { data };
+            linkedEvent.completedSubEvents.push(subEvent);
+
+            const allSubEventsCompleted = requiredSubEvents.every(value => linkedEvent.completedSubEvents.includes(value));
+
+            if (allSubEventsCompleted) {
+                const aggregatedData = requiredSubEvents.reduce((acc, curr) => {
+                    if (linkedEvent.subEvents[curr]) {
+                        return { ...acc, ...linkedEvent.subEvents[curr].data };
+                    }
+                    return acc;
+                }, {});
+
+                this.track(mainEvent, { event: aggregateSubEvent, ...aggregatedData });
+
+                // cleanup
+                requiredSubEvents.forEach(subEvent => {
+                    delete linkedEvent.subEvents[subEvent];
+                });
+                linkedEvent.completedSubEvents = linkedEvent.completedSubEvents.filter(subEvent => !requiredSubEvents.includes(subEvent));
+            }
+        }
+    }
+};
+
