@@ -1,37 +1,9 @@
-import { StreamingManager } from '$/createStreamingManager';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 
 import { createAgentManager } from '$/createAgentManager';
-import {
-    Agent,
-    AgentManager,
-    Auth,
-    ChatProgress,
-    ClipStreamOptions,
-    ConnectionState,
-    CreateStreamOptions,
-    StreamingState,
-    VideoType,
-} from '$/types';
+import { AgentManager, Auth, ChatProgress, ConnectionState, StreamingState } from '$/types';
 import './app.css';
 import { agentId, didApiUrl, didSocketApiUrl } from './environment';
-
-function getAgentStreamArgs(agent: Agent): CreateStreamOptions {
-    if (agent.presenter?.type === VideoType.Clip) {
-        return {
-            videoType: VideoType.Clip,
-            driver_id: agent.presenter.driver_id,
-            presenter_id: agent.presenter.presenter_id,
-            stream_warmup: true,
-        };
-    } else {
-        return {
-            videoType: VideoType.Talk,
-            source_url: agent.presenter?.source_url ?? (agent as any).image_url,
-            stream_warmup: true,
-        };
-    }
-}
 
 enum State {
     New,
@@ -44,16 +16,11 @@ enum State {
 const auth: Auth = { type: 'key', clientKey: import.meta.env.VITE_CLIENT_KEY };
 export function App() {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [rtcConnection, setRtcConnection] = useState<StreamingManager<ClipStreamOptions> | null>(null);
-    const [streamState, setStreamState] = useState<State>(State.New);
     const [text, setText] = useState('');
-    const [agent, setAgent] = useState<Agent>();
-    const [agentAPI, setAgentAPI] = useState<AgentManager>();
     const [answer, setAnswer] = useState('');
-
-    useEffect(() => {
-        // createAgentsApi(auth, 'https://api-dev.d-id.com').getById(agentId).then(setAgent);
-    }, [auth]);
+    const [streamState, setStreamState] = useState<State>(State.New);
+    const [agentManager, setAgentManager] = useState<AgentManager>();
+    const [isConnecting, setIsConnecting] = useState(false);
 
     const onConnectionStateChange = function (state: ConnectionState) {
         if (state === ConnectionState.Connected) {
@@ -99,7 +66,9 @@ export function App() {
     };
 
     async function onClick() {
-        if (!agentAPI) {
+        if (!agentManager) {
+            setIsConnecting(true);
+
             const agentAPI: AgentManager = await createAgentManager(agentId, {
                 callbacks,
                 baseURL: didApiUrl,
@@ -107,16 +76,20 @@ export function App() {
                 wsURL: didSocketApiUrl,
                 distinctId: 'testDistinctIdToSDKTest',
             });
-            setAgentAPI(agentAPI);
+
+            await agentAPI.connect();
+            setAgentManager(agentAPI);
         } else if (text) {
-            if (!agentAPI.agent.presenter) {
+            if (!agentManager.agent.presenter) {
                 throw new Error('No presenter');
             }
+
             setStreamState(State.Speaking);
+
             try {
-                agentAPI.speak({
+                agentManager.speak({
                     type: 'text',
-                    provider: agentAPI.agent.presenter.voice as any,
+                    provider: agentManager.agent.presenter.voice as any,
                     input: text,
                 });
             } catch (e) {
@@ -127,12 +100,11 @@ export function App() {
     }
 
     async function onChat() {
-        const response = agentAPI?.chat(text.trim(), true);
+        agentManager?.chat(text.trim());
     }
 
     function disconnect() {
-        agentAPI?.disconnect();
-        setRtcConnection(null);
+        agentManager?.disconnect();
         setStreamState(State.New);
     }
 
@@ -149,12 +121,13 @@ export function App() {
                 <button
                     onClick={onClick}
                     disabled={
-                        [State.Connecting, State.Speaking].includes(streamState) ||
-                        (!text && ![State.New, State.Fail].includes(streamState))
+                        [State.Speaking].includes(streamState) ||
+                        (!text && ![State.New, State.Fail].includes(streamState)) ||
+                        isConnecting
                     }>
                     {[State.Connected, State.Speaking].includes(streamState)
                         ? 'Send'
-                        : streamState === State.Connecting
+                        : isConnecting
                           ? 'connecting'
                           : streamState === State.Fail
                             ? 'Failed, try again'

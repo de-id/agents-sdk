@@ -35,7 +35,6 @@ export interface Message {
 
 export interface ChatPayload {
     messages: Message[];
-    append_chat?: boolean;
     streamId?: string;
     sessionId?: string;
     chatMode?: ChatMode;
