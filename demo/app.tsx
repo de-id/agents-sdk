@@ -127,7 +127,7 @@ export function App() {
     }
 
     async function onChat() {
-        const response = agentAPI?.chat(text.trim(), true);
+        const response = agentAPI?.chat(text.trim());
     }
 
     function disconnect() {
