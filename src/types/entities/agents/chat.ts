@@ -38,7 +38,7 @@ export interface ChatPayload {
     append_chat?: boolean;
     streamId?: string;
     sessionId?: string;
-    chatMode?: ChatMode;
+    chatMode?: Exclude<ChatMode, ChatMode.Playground>;
 }
 
 export interface IRetrivalMetadata {
@@ -54,6 +54,7 @@ export enum ChatMode {
     Functional = 'Functional',
     TextOnly = 'TextOnly',
     Maintenance = 'Maintenance',
+    Playground = 'Playground',
 }
 
 export interface ChatResponse {
