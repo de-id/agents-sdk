@@ -10,6 +10,7 @@ export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Err
                 ...options?.headers,
                 Authorization: getAuthHeader(auth),
                 'Content-Type': 'application/json',
+                'X-Api-Full-Url': window.location.href
             },
         });
 
