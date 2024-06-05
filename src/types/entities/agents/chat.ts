@@ -54,7 +54,6 @@ export enum ChatMode {
     Functional = 'Functional',
     TextOnly = 'TextOnly',
     Maintenance = 'Maintenance',
-    Playground = 'Playground',
 }
 
 export interface ChatResponse {
