@@ -18,27 +18,25 @@ export interface Analytics {
     getRandom(): string;
     track(event: string, props?: Record<string, any>): Promise<any>;
     linkTrack(
-        event: string,
+        mixpanelEvent: string,
         props: Record<string, any>,
-        subEvent: string,
+        event: string,
         dependencies: string[],
     ): any
 }
 
-interface SubEvent {
-    props: Record<string, any>;
+interface MixpanelEvent {
+    resolvedDependencies: string[];
+    events: {
+        [event: string]: { props: Record<string, any> };
+    }
 }
 
-interface LinkedEvent {
-    subEvents: { [subEvent: string]: SubEvent };
-    completedSubEvents: string[];
+interface MixpanelEvents {
+    [mixpanelEvent: string]: MixpanelEvent;
 }
 
-interface LinkedEvents {
-    [event: string]: LinkedEvent;
-}
-
-let linkedEvents: LinkedEvents = {};
+let mixpanelEvents: MixpanelEvents = {};
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
@@ -89,34 +87,40 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                 .catch(err => console.error(err));
         },
         linkTrack(
-            event: string,
+            mixpanelEvent: string,
             props: Record<string, any>,
-            subEvent: string,
+            event: string,
             dependencies: string[],
         ) {
-            if (!linkedEvents[event]) {
-                linkedEvents[event] = { subEvents: {}, completedSubEvents: [] };
+            if (!mixpanelEvents[mixpanelEvent]) {
+                mixpanelEvents[mixpanelEvent] = { events: {}, resolvedDependencies: [] };
             }
 
-            const linkedEvent = linkedEvents[event];
-            linkedEvent.subEvents[subEvent] = { props };
-            linkedEvent.completedSubEvents.push(subEvent);
+            if (!dependencies.includes(event)) {
+                dependencies.push(event);
+            }
 
-            const allSubEventsCompleted = dependencies.every(value => linkedEvent.completedSubEvents.includes(value));
+            const linkedEvent = mixpanelEvents[mixpanelEvent];
 
-            if (allSubEventsCompleted) {
+            linkedEvent.events[event] = { props };
+            linkedEvent.resolvedDependencies.push(event);
+
+            const allDependenciesResolved = dependencies.every(value => linkedEvent.resolvedDependencies.includes(value));
+
+            if (allDependenciesResolved) {
                 const aggregatedProps = dependencies.reduce((acc, curr) => {
-                    if (linkedEvent.subEvents[curr]) {
-                        return { ...acc, ...linkedEvent.subEvents[curr].props };
+                    if (linkedEvent.events[curr]) {
+                        return { ...acc, ...linkedEvent.events[curr].props };
                     }
                     return acc;
                 }, {});
-                this.track(event, aggregatedProps);
 
-                dependencies.forEach(subEvent => {
-                    delete linkedEvent.subEvents[subEvent];
+                this.track(mixpanelEvent, aggregatedProps);
+
+                dependencies.forEach(event => {
+                    delete linkedEvent.events[event];
                 });
-                linkedEvent.completedSubEvents = linkedEvent.completedSubEvents.filter(subEvent => !dependencies.includes(subEvent));
+                linkedEvent.resolvedDependencies = linkedEvent.resolvedDependencies.filter(event => !dependencies.includes(event));
             }
         }
     }
