@@ -21,7 +21,7 @@ export interface Analytics {
         event: string,
         props: Record<string, any>,
         subEvent: string,
-        requiredSubEvents: string[],
+        dependencies: string[],
     ): any
 }
 
@@ -92,34 +92,31 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
             event: string,
             props: Record<string, any>,
             subEvent: string,
-            requiredSubEvents: string[],
+            dependencies: string[],
         ) {
             if (!linkedEvents[event]) {
                 linkedEvents[event] = { subEvents: {}, completedSubEvents: [] };
             }
 
             const linkedEvent = linkedEvents[event];
-
             linkedEvent.subEvents[subEvent] = { props };
             linkedEvent.completedSubEvents.push(subEvent);
 
-            const allSubEventsCompleted = requiredSubEvents.every(value => linkedEvent.completedSubEvents.includes(value));
+            const allSubEventsCompleted = dependencies.every(value => linkedEvent.completedSubEvents.includes(value));
 
             if (allSubEventsCompleted) {
-                const aggregatedProps = requiredSubEvents.reduce((acc, curr) => {
+                const aggregatedProps = dependencies.reduce((acc, curr) => {
                     if (linkedEvent.subEvents[curr]) {
                         return { ...acc, ...linkedEvent.subEvents[curr].props };
                     }
                     return acc;
                 }, {});
-
                 this.track(event, aggregatedProps);
 
-                // cleanup
-                requiredSubEvents.forEach(subEvent => {
+                dependencies.forEach(subEvent => {
                     delete linkedEvent.subEvents[subEvent];
                 });
-                linkedEvent.completedSubEvents = linkedEvent.completedSubEvents.filter(subEvent => !requiredSubEvents.includes(subEvent));
+                linkedEvent.completedSubEvents = linkedEvent.completedSubEvents.filter(subEvent => !dependencies.includes(subEvent));
             }
         }
     }
