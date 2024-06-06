@@ -117,7 +117,8 @@ function initializeStreamAndChat(
                             options.callbacks.onVideoStateChange?.(state);
                             if (messageSentTimestamp > 0) {
                                 if (state === StreamingState.Start) {
-                                    analytics.linkTrack('agent-video', { latency: Date.now() - messageSentTimestamp }, 'start', ['start', StreamEvents.StreamVideoCreated]);
+                                    const event = 'start';
+                                    analytics.linkTrack('agent-video', { event, latency: Date.now() - messageSentTimestamp }, event, [event, StreamEvents.StreamVideoCreated]);
                                 }
                             }
                         },
