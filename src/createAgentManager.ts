@@ -379,6 +379,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date().toISOString(),
                     matches: [],
                 }
+
                 items.messages.push(newMessage);
                 const lastMessage = items.messages.slice(0, -1);
                 let response;
