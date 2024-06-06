@@ -18,15 +18,15 @@ export interface Analytics {
     getRandom(): string;
     track(event: string, props?: Record<string, any>): Promise<any>;
     linkTrack(
-        mainEvent: string,
+        event: string,
         props: Record<string, any>,
+        subEvent: string,
         requiredSubEvents: string[],
-        aggregateSubEvent: string
     ): any
 }
 
 interface SubEvent {
-    data: Record<string, any>;
+    props: Record<string, any>;
 }
 
 interface LinkedEvent {
@@ -89,33 +89,31 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                 .catch(err => console.error(err));
         },
         linkTrack(
-            mainEvent: string,
+            event: string,
             props: Record<string, any>,
+            subEvent: string,
             requiredSubEvents: string[],
-            aggregateSubEvent: string
         ) {
-            if (!linkedEvents[mainEvent]) {
-                linkedEvents[mainEvent] = { subEvents: {}, completedSubEvents: [] };
+            if (!linkedEvents[event]) {
+                linkedEvents[event] = { subEvents: {}, completedSubEvents: [] };
             }
 
-            const { event: subEvent, ...data } = props;
-            const linkedEvent = linkedEvents[mainEvent];
+            const linkedEvent = linkedEvents[event];
 
-            requiredSubEvents.push(subEvent);
-            linkedEvent.subEvents[subEvent] = { data };
+            linkedEvent.subEvents[subEvent] = { props };
             linkedEvent.completedSubEvents.push(subEvent);
 
             const allSubEventsCompleted = requiredSubEvents.every(value => linkedEvent.completedSubEvents.includes(value));
 
             if (allSubEventsCompleted) {
-                const aggregatedData = requiredSubEvents.reduce((acc, curr) => {
+                const aggregatedProps = requiredSubEvents.reduce((acc, curr) => {
                     if (linkedEvent.subEvents[curr]) {
-                        return { ...acc, ...linkedEvent.subEvents[curr].data };
+                        return { ...acc, ...linkedEvent.subEvents[curr].props };
                     }
                     return acc;
                 }, {});
 
-                this.track(mainEvent, { event: aggregateSubEvent, ...aggregatedData });
+                this.track(event, aggregatedProps);
 
                 // cleanup
                 requiredSubEvents.forEach(subEvent => {
