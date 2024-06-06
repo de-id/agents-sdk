@@ -4,7 +4,6 @@ import {
     ConnectionState,
     CreateStreamOptions,
     PayloadType,
-    SlimRTCStatsReport,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
@@ -49,13 +48,13 @@ function createVideoStatsAnalyzer() {
 
                 return isReceiving;
             }
-        };
+        }
 
         return false;
     };
 }
 
-function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange, analytics) {
+function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange) {
     const interval = 100;
     const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
 
@@ -76,7 +75,6 @@ function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange, analyt
 
                 isStreaming = true;
             }
-
         } else if (isStreaming) {
             notReceivingNumIntervals++;
 
@@ -111,7 +109,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         throw new Error('Could not create session_id');
     }
 
-    const videoStatsInterval = pollStats(peerConnection, callbacks.onVideoStateChange, analytics);
+    const videoStatsInterval = pollStats(peerConnection, callbacks.onVideoStateChange);
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         log('peerConnection.onicecandidate', event);
@@ -204,7 +202,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 }
 
                 try {
-                    await close(streamIdFromServer, session_id).catch(_ => { });
+                    await close(streamIdFromServer, session_id).catch(_ => {});
                 } catch (e) {
                     log('Error on close stream connection', e);
                 }

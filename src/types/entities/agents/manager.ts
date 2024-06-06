@@ -74,7 +74,7 @@ interface ManagerCallbacks {
     /**
      * Optional callback function that will be triggered on fetch request errors
      */
-    onError?: (error: Error, errorData: object) => void
+    onError?: (error: Error, errorData: object) => void;
 }
 
 export interface AgentManagerOptions {
@@ -123,9 +123,8 @@ export interface AgentManager {
     /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
-     * @param append_chat: when true, append to existing agent chat, rather than creating a new one.
      */
-    chat: (userMessage: string, append_chat?: boolean) => Promise<ChatResponse>;
+    chat: (userMessage: string) => Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
      * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
@@ -153,6 +152,5 @@ export interface AgentManager {
     /**
      * Method to fetch the mode of the chat, dependend on the credit and chat history checks
      */
-    getChatmode: () => Promise<{chatMode: string}>;
-
+    getChatmode: () => Promise<{ chatMode: string }>;
 }
