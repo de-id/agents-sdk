@@ -80,21 +80,25 @@ function initializeStreamAndChat(
                             if (state === ConnectionState.Connected) {
                                 try {
                                     try {
-                                        newChat = await agentsApi.newChat(agent.id);
-
-                                        analytics.track('agent-chat', {
-                                            event: 'created',
-                                            chat_id: newChat.id,
-                                            agent_id: agent.id,
-                                        });
-                                    } catch (e: any) {
-                                        if (e?.kind === 'InsufficientCreditsError') {
+                                        if (!newChat) {
+                                            newChat = await agentsApi.newChat(agent.id);
+    
+                                            analytics.track('agent-chat', {
+                                                event: 'created',
+                                                chat_id: newChat.id,
+                                                agent_id: agent.id,
+                                            });
+                                        }
+    
+                                        if (streamingManager) {
+                                            resolve({ chat: newChat, streamingManager });
+                                        }
+                                    } catch (error: any) {
+                                        console.error(error);
+                                        if (error?.kind === 'InsufficientCreditsError') {
                                             options.mode === ChatMode.TextOnly;
                                         }
-                                    }
-
-                                    if (streamingManager && newChat) {
-                                        resolve({ chat: newChat, streamingManager });
+                                        reject('Cannot create new chat');
                                     }
                                 } catch (error: any) {
                                     console.error(error);
