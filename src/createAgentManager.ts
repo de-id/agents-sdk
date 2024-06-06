@@ -219,7 +219,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 } else if ([StreamEvents.StreamVideoDone, StreamEvents.StreamVideoError, StreamEvents.StreamVideoRejected].includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
-                    analytics.track('agent-video', { ...data, event: streamEvent });
+                    const props = { ...data, event: streamEvent };
+                    props.llm = { ...props.llm, template: (agentInstance.llm as any)?.template };
+                    analytics.track('agent-video', { ...props, event: streamEvent });
                 }
                 if (
                     [
