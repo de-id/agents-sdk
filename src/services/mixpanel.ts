@@ -117,10 +117,10 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
 
                 this.track(mixpanelEvent, aggregatedProps);
 
+                linkedEvent.resolvedDependencies = linkedEvent.resolvedDependencies.filter(event => !dependencies.includes(event));
                 dependencies.forEach(event => {
                     delete linkedEvent.events[event];
                 });
-                linkedEvent.resolvedDependencies = linkedEvent.resolvedDependencies.filter(event => !dependencies.includes(event));
             }
         }
     }

@@ -118,7 +118,7 @@ function initializeStreamAndChat(
                             if (messageSentTimestamp > 0) {
                                 if (state === StreamingState.Start) {
                                     const event = 'start';
-                                    analytics.linkTrack('agent-video', { event, latency: Date.now() - messageSentTimestamp }, event, [event, StreamEvents.StreamVideoCreated]);
+                                    analytics.linkTrack('agent-video', { event, latency: Date.now() - messageSentTimestamp }, event, [StreamEvents.StreamVideoCreated]);
                                 }
                             }
                         },
@@ -213,7 +213,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             } else {
                 event = event as StreamEvents;
                 if (event === StreamEvents.StreamVideoCreated) {
-                    analytics.linkTrack('agent-video', data, StreamEvents.StreamVideoCreated, [StreamEvents.StreamVideoCreated, 'start']);
+                    const { event, ...props } = data
+                    props.llm = { ...props.llm, template: (agentInstance.llm as any)?.template };
+                    analytics.linkTrack('agent-video', { ...props }, StreamEvents.StreamVideoCreated, ['start']);
                 } else if ([StreamEvents.StreamVideoDone, StreamEvents.StreamVideoError, StreamEvents.StreamVideoRejected].includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
