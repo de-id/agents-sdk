@@ -79,7 +79,7 @@ function initializeStreamAndChat(
                         onConnectionStateChange: async state => {
                             if (state === ConnectionState.Connected) {
                                 try {
-                                    if (!newChat) {
+                                    try {
                                         newChat = await agentsApi.newChat(agent.id);
 
                                         analytics.track('agent-chat', {
@@ -87,9 +87,13 @@ function initializeStreamAndChat(
                                             chat_id: newChat.id,
                                             agent_id: agent.id,
                                         });
+                                    } catch (e: any) {
+                                        if (e?.kind === 'InsufficientCreditsError') {
+                                            options.mode === ChatMode.TextOnly;
+                                        }
                                     }
 
-                                    if (streamingManager) {
+                                    if (streamingManager && newChat) {
                                         resolve({ chat: newChat, streamingManager });
                                     }
                                 } catch (error: any) {
