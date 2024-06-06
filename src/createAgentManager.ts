@@ -79,18 +79,26 @@ function initializeStreamAndChat(
                         onConnectionStateChange: async state => {
                             if (state === ConnectionState.Connected) {
                                 try {
-                                    if (!newChat) {
-                                        newChat = await agentsApi.newChat(agent.id);
-
-                                        analytics.track('agent-chat', {
-                                            event: 'created',
-                                            chat_id: newChat.id,
-                                            agent_id: agent.id,
-                                        });
-                                    }
-
-                                    if (streamingManager) {
-                                        resolve({ chat: newChat, streamingManager });
+                                    try {
+                                        if (!newChat) {
+                                            newChat = await agentsApi.newChat(agent.id);
+    
+                                            analytics.track('agent-chat', {
+                                                event: 'created',
+                                                chat_id: newChat.id,
+                                                agent_id: agent.id,
+                                            });
+                                        }
+    
+                                        if (streamingManager) {
+                                            resolve({ chat: newChat, streamingManager });
+                                        }
+                                    } catch (error: any) {
+                                        console.error(error);
+                                        if (error?.kind === 'InsufficientCreditsError') {
+                                            options.mode === ChatMode.TextOnly;
+                                        }
+                                        reject('Cannot create new chat');
                                     }
                                 } catch (error: any) {
                                     console.error(error);
