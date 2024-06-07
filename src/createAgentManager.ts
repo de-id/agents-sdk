@@ -232,24 +232,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     async function connect() {
         const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
-        let streamingManager, chat;
-        try {
-            const result = await initializeStreamAndChat(
-                agentInstance,
-                options,
-                agentsApi,
-                analytics,
-                items.chat
-            );
-            streamingManager = result.streamingManager;
-            chat = result.chat;
-        } catch (error) {
-            if (error === "InsufficientCreditsError") {
-                changeMode(ChatMode.Maintenance);
-            } else {
-                throw error;
-            }
-        }
+        const { streamingManager, chat } = await connectStreamAndChat();
 
         lastMessageAnswerIdx = -1;
         if (items.messages.length === 0) {
@@ -302,17 +285,30 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return connect();
         }
 
-        const { streamingManager, chat } = await initializeStreamAndChat(
-            agentInstance,
-            options,
-            agentsApi,
-            analytics,
-            items.chat
-        )
+        const { streamingManager, chat } = await connectStreamAndChat();
 
         items.streamingManager = streamingManager;
         changeMode(items.chat.chatMode || ChatMode.Functional);
         analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
+    }
+
+    async function connectStreamAndChat() {
+        let streamingManager, chat;
+        try {
+            const result = await initializeStreamAndChat(
+                agentInstance,
+                options,
+                agentsApi,
+                analytics,
+                items.chat
+            );
+            streamingManager = result.streamingManager;
+            chat = result.chat;
+        } catch (error) {
+            changeMode(ChatMode.Maintenance);
+            throw error;
+        }
+        return {streamingManager, chat};
     }
 
     return {
@@ -330,15 +326,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             await items.streamingManager?.disconnect();
 
             const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
-
-            const { streamingManager, chat } = await initializeStreamAndChat(
-                agentInstance,
-                options,
-                agentsApi,
-                analytics,
-                items.chat
-            );
-
+            const { streamingManager, chat } = await connectStreamAndChat();
             items.streamingManager = streamingManager;
             items.socketManager = socketManager;
 
