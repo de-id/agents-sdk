@@ -20,10 +20,10 @@ import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
 import { getRandom } from './auth/getAuthHeader';
 import { SocketManager, createSocketManager } from './connectToSocket';
+import { PLAYGROUND_HEADER } from './consts';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
-import { PLAYGROUND_HEADER } from './consts';
 import { getAnaliticsInfo } from './utils/analytics';
 
 const stitchDefaultResolution = 1080;
@@ -396,7 +396,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 const lastMessage = items.messages.slice(0, -1);
                 let response;
 
-                const chatOptions: any = {};
+                const chatOptions: RequestInit = {};
                 if (items.chatMode === ChatMode.Playground) {
                     chatOptions.headers = { [PLAYGROUND_HEADER]: 'true' };
                 }
