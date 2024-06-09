@@ -396,25 +396,39 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 const lastMessage = items.messages.slice(0, -1);
                 let response;
 
+                const chatOptions: any = {};
+                if (items.chatMode === ChatMode.Playground) {
+                    chatOptions.headers = { 'x-playground-chat': 'true' };
+                }
                 try {
-                    response = await agentsApi.chat(agentInstance.id, items.chat.id, {
-                        sessionId: items.streamingManager?.sessionId,
-                        streamId: items.streamingManager?.streamId,
-                        messages: lastMessage,
-                        chatMode: items.chatMode,
-                    });
+                    response = await agentsApi.chat(
+                        agentInstance.id,
+                        items.chat.id,
+                        {
+                            sessionId: items.streamingManager?.sessionId,
+                            streamId: items.streamingManager?.streamId,
+                            messages: lastMessage,
+                            chatMode: items.chatMode,
+                        },
+                        chatOptions
+                    );
                 } catch (error: any) {
                     if (error?.message?.includes('missing or invalid session_id')) {
                         console.log('Invalid stream, try reconnect with new stream id');
 
                         await reconnectStream();
 
-                        response = await agentsApi.chat(agentInstance.id, items.chat.id, {
-                            sessionId: items.streamingManager?.sessionId,
-                            streamId: items.streamingManager?.streamId,
-                            messages: lastMessage,
-                            chatMode: items.chatMode,
-                        });
+                        response = await agentsApi.chat(
+                            agentInstance.id,
+                            items.chat.id,
+                            {
+                                sessionId: items.streamingManager?.sessionId,
+                                streamId: items.streamingManager?.streamId,
+                                messages: lastMessage,
+                                chatMode: items.chatMode,
+                            },
+                            chatOptions
+                        );
                     } else {
                         throw error;
                     }
