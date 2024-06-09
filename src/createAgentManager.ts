@@ -81,32 +81,37 @@ function initializeStreamAndChat(
                         ...options.callbacks,
                         onConnectionStateChange: async state => {
                             if (state === ConnectionState.Connected) {
-                                try {
+                                if (!newChat) {
                                     try {
-                                        if (!newChat) {
-                                            newChat = await agentsApi.newChat(agent.id);
-
-                                            analytics.track('agent-chat', {
-                                                event: 'created',
-                                                chat_id: newChat.id,
-                                                agent_id: agent.id,
-                                            });
-                                        }
+                                        newChat = await agentsApi.newChat(agent.id);
+                                        analytics.track('agent-chat', {
+                                            event: 'created',
+                                            chat_id: newChat.id,
+                                            agent_id: agent.id,
+                                        });
 
                                         if (streamingManager) {
                                             resolve({ chat: newChat, streamingManager });
                                         }
                                     } catch (error: any) {
                                         console.error(error);
-                                        if (error?.kind === 'InsufficientCreditsError') {
-                                            options.mode === ChatMode.TextOnly;
+                                        let parsedError;
+                                        try {
+                                            parsedError = JSON.parse(error.message);
+                                        } catch (jsonError) {
+                                            console.error("Error parsing the error message:", jsonError);
                                         }
-                                        reject('Cannot create new chat');
+                                        if (parsedError?.kind === 'InsufficientCreditsError') {
+                                            reject("InsufficientCreditsError");
+                                        }
+                                        reject("Cannot create new chat");
                                     }
-                                } catch (error: any) {
-                                    console.error(error);
-                                    reject('Cannot create new chat');
                                 }
+
+                                if (streamingManager && newChat) {
+                                    resolve({ chat: newChat, streamingManager });
+                                }
+                               
                             } else if (state === ConnectionState.Fail) {
                                 reject(new Error('Cannot create connection'));
                             }
@@ -239,14 +244,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     async function connect() {
         messageSentTimestamp = 0;
         const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
-
-        const { streamingManager, chat } = await initializeStreamAndChat(
-            agentInstance,
-            options,
-            agentsApi,
-            analytics,
-            items.chat
-        );
+        const { streamingManager, chat } = await connectStreamAndChat();
 
         lastMessageAnswerIdx = -1;
         if (items.messages.length === 0) {
@@ -262,7 +260,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.socketManager = socketManager;
         items.chat = chat;
 
-        const chatMode = items.chat.chatMode || ChatMode.Functional;
+        const chatMode = items.chat?.chatMode || ChatMode.Functional;
         changeMode(chatMode);
 
         analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
@@ -299,17 +297,30 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return connect();
         }
 
-        const { streamingManager, chat } = await initializeStreamAndChat(
-            agentInstance,
-            options,
-            agentsApi,
-            analytics,
-            items.chat
-        );
+        const { streamingManager, chat } = await connectStreamAndChat();
 
         items.streamingManager = streamingManager;
         changeMode(items.chat.chatMode || ChatMode.Functional);
         analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
+    }
+
+    async function connectStreamAndChat() {
+        let streamingManager, chat;
+        try {
+            const result = await initializeStreamAndChat(
+                agentInstance,
+                options,
+                agentsApi,
+                analytics,
+                items.chat
+            );
+            streamingManager = result.streamingManager;
+            chat = result.chat;
+        } catch (error) {
+            changeMode(ChatMode.Maintenance);
+            throw error;
+        }
+        return {streamingManager, chat};
     }
 
     return {
@@ -327,15 +338,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             await items.streamingManager?.disconnect();
 
             const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
-
-            const { streamingManager, chat } = await initializeStreamAndChat(
-                agentInstance,
-                options,
-                agentsApi,
-                analytics,
-                items.chat
-            );
-
+            const { streamingManager, chat } = await connectStreamAndChat();
             items.streamingManager = streamingManager;
             items.socketManager = socketManager;
 
