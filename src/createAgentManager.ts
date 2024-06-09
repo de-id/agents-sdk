@@ -11,6 +11,7 @@ import {
     CreateStreamOptions,
     Message,
     StreamEvents,
+    StreamingState,
     SupportedStreamScipt,
     VideoType,
 } from './types/index';
@@ -26,6 +27,7 @@ import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo } from './utils/analytics';
 
 const stitchDefaultResolution = 1080;
+let messageSentTimestamp = 0;
 
 interface AgentManagrItems {
     chat?: Chat;
@@ -64,6 +66,7 @@ function initializeStreamAndChat(
     analytics: Analytics,
     chat?: Chat
 ) {
+    messageSentTimestamp = 0;
     return new Promise<{ chat: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
         async (resolve, reject) => {
             let newChat = chat;
@@ -82,14 +85,14 @@ function initializeStreamAndChat(
                                     try {
                                         if (!newChat) {
                                             newChat = await agentsApi.newChat(agent.id);
-    
+
                                             analytics.track('agent-chat', {
                                                 event: 'created',
                                                 chat_id: newChat.id,
                                                 agent_id: agent.id,
                                             });
                                         }
-    
+
                                         if (streamingManager) {
                                             resolve({ chat: newChat, streamingManager });
                                         }
@@ -112,6 +115,12 @@ function initializeStreamAndChat(
                         },
                         onVideoStateChange(state) {
                             options.callbacks.onVideoStateChange?.(state);
+                            if (messageSentTimestamp > 0) {
+                                if (state === StreamingState.Start) {
+                                    const event = 'start';
+                                    analytics.linkTrack('agent-video', { event, latency: Date.now() - messageSentTimestamp }, event, [StreamEvents.StreamVideoCreated]);
+                                }
+                            }
                         },
                     },
                 }
@@ -202,34 +211,33 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 options.callbacks.onNewMessage?.(items.messages);
             } else {
-                if (
-                    [
-                        StreamEvents.StreamVideoCreated,
-                        StreamEvents.StreamVideoDone,
-                        StreamEvents.StreamVideoError,
-                        StreamEvents.StreamVideoRejected,
-                    ].includes(event as StreamEvents)
-                ) {
+                event = event as StreamEvents;
+                if (event === StreamEvents.StreamVideoCreated) {
+                    const { event, ...props } = data
+                    props.llm = { ...props.llm, template: (agentInstance.llm as any)?.template };
+                    analytics.linkTrack('agent-video', { ...props }, StreamEvents.StreamVideoCreated, ['start']);
+                } else if ([StreamEvents.StreamVideoDone, StreamEvents.StreamVideoError, StreamEvents.StreamVideoRejected].includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
-                    analytics.track('agent-video', { ...data, event: streamEvent });
+                    const props = { ...data, event: streamEvent };
+                    props.llm = { ...props.llm, template: (agentInstance.llm as any)?.template };
+                    analytics.track('agent-video', { ...props, event: streamEvent });
                 }
                 if (
                     [
                         StreamEvents.StreamFailed,
                         StreamEvents.StreamVideoError,
                         StreamEvents.StreamVideoRejected,
-                    ].includes(event as StreamEvents)
+                    ].includes(event)
                 ) {
-                    options.callbacks.onError?.(new Error(`Stream failed with event ${event as StreamEvents}`), {
-                        data,
-                    });
+                    options.callbacks.onError?.(new Error(`Stream failed with event ${event}`), { data });
                 }
             }
         },
     };
 
     async function connect() {
+        messageSentTimestamp = 0;
         const socketManager = await createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
         const { streamingManager, chat } = await initializeStreamAndChat(
@@ -340,7 +348,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const id = getRandom();
 
             try {
-                const messageSentTimestamp = Date.now();
+                messageSentTimestamp = Date.now();
 
                 if (userMessage.length >= 800) {
                     throw new Error('Message cannot be more than 800 characters');
@@ -375,7 +383,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     content: '',
                     created_at: new Date().toISOString(),
                     matches: [],
-                };
+                }
 
                 items.messages.push(newMessage);
                 const lastMessage = items.messages.slice(0, -1);
