@@ -23,7 +23,7 @@ import { SocketManager, createSocketManager } from './connectToSocket';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
-
+import { PLAYGROUND_HEADER } from './consts';
 import { getAnaliticsInfo } from './utils/analytics';
 
 const stitchDefaultResolution = 1080;
@@ -398,7 +398,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 const chatOptions: any = {};
                 if (items.chatMode === ChatMode.Playground) {
-                    chatOptions.headers = { 'x-playground-chat': 'true' };
+                    chatOptions.headers = { [PLAYGROUND_HEADER]: 'true' };
                 }
                 try {
                     response = await agentsApi.chat(
