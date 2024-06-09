@@ -17,7 +17,26 @@ export interface Analytics {
     owner_id: string;
     getRandom(): string;
     track(event: string, props?: Record<string, any>): Promise<any>;
+    linkTrack(
+        mixpanelEvent: string,
+        props: Record<string, any>,
+        event: string,
+        dependencies: string[],
+    ): any
 }
+
+interface MixpanelEvent {
+    resolvedDependencies: string[];
+    events: {
+        [event: string]: { props: Record<string, any> };
+    }
+}
+
+interface MixpanelEvents {
+    [mixpanelEvent: string]: MixpanelEvent;
+}
+
+let mixpanelEvents: MixpanelEvents = {};
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
@@ -26,6 +45,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         distinct_id: config.distinctId || getExternalId(),
         isEnabled: config.isEnabled ?? true,
         agentId: config.agent.id,
+        agentType: config.agent.presenter.type,
         owner_id: config.agent.owner_id ?? '',
     };
 
@@ -61,10 +81,48 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                     ]),
                 }),
             };
-            
+
             return fetch('https://api-js.mixpanel.com/track/?verbose=1&ip=1', options)
                 .then(response => response.json())
                 .catch(err => console.error(err));
         },
-    };
-}
+        linkTrack(
+            mixpanelEvent: string,
+            props: Record<string, any>,
+            event: string,
+            dependencies: string[],
+        ) {
+            if (!mixpanelEvents[mixpanelEvent]) {
+                mixpanelEvents[mixpanelEvent] = { events: {}, resolvedDependencies: [] };
+            }
+
+            if (!dependencies.includes(event)) {
+                dependencies.push(event);
+            }
+
+            const linkedEvent = mixpanelEvents[mixpanelEvent];
+
+            linkedEvent.events[event] = { props };
+            linkedEvent.resolvedDependencies.push(event);
+
+            const allDependenciesResolved = dependencies.every(value => linkedEvent.resolvedDependencies.includes(value));
+
+            if (allDependenciesResolved) {
+                const aggregatedProps = dependencies.reduce((acc, curr) => {
+                    if (linkedEvent.events[curr]) {
+                        return { ...acc, ...linkedEvent.events[curr].props };
+                    }
+                    return acc;
+                }, {});
+
+                this.track(mixpanelEvent, aggregatedProps);
+
+                linkedEvent.resolvedDependencies = linkedEvent.resolvedDependencies.filter(event => !dependencies.includes(event));
+                dependencies.forEach(event => {
+                    delete linkedEvent.events[event];
+                });
+            }
+        }
+    }
+};
+
