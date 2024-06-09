@@ -99,19 +99,18 @@ function initializeStreamAndChat(
                                         try {
                                             parsedError = JSON.parse(error.message);
                                         } catch (jsonError) {
-                                            console.error("Error parsing the error message:", jsonError);
+                                            console.error('Error parsing the error message:', jsonError);
                                         }
                                         if (parsedError?.kind === 'InsufficientCreditsError') {
-                                            reject("InsufficientCreditsError");
+                                            reject('InsufficientCreditsError');
                                         }
-                                        reject("Cannot create new chat");
+                                        reject('Cannot create new chat');
                                     }
                                 }
 
                                 if (streamingManager && newChat) {
                                     resolve({ chat: newChat, streamingManager });
                                 }
-                               
                             } else if (state === ConnectionState.Fail) {
                                 reject(new Error('Cannot create connection'));
                             }
@@ -123,7 +122,12 @@ function initializeStreamAndChat(
                             if (messageSentTimestamp > 0) {
                                 if (state === StreamingState.Start) {
                                     const event = 'start';
-                                    analytics.linkTrack('agent-video', { event, latency: Date.now() - messageSentTimestamp }, event, [StreamEvents.StreamVideoCreated]);
+                                    analytics.linkTrack(
+                                        'agent-video',
+                                        { event, latency: Date.now() - messageSentTimestamp },
+                                        event,
+                                        [StreamEvents.StreamVideoCreated]
+                                    );
                                 }
                             }
                         },
@@ -218,10 +222,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             } else {
                 event = event as StreamEvents;
                 if (event === StreamEvents.StreamVideoCreated) {
-                    const { event, ...props } = data
+                    const { event, ...props } = data;
                     props.llm = { ...props.llm, template: (agentInstance.llm as any)?.template };
                     analytics.linkTrack('agent-video', { ...props }, StreamEvents.StreamVideoCreated, ['start']);
-                } else if ([StreamEvents.StreamVideoDone, StreamEvents.StreamVideoError, StreamEvents.StreamVideoRejected].includes(event)) {
+                } else if (
+                    [
+                        StreamEvents.StreamVideoDone,
+                        StreamEvents.StreamVideoError,
+                        StreamEvents.StreamVideoRejected,
+                    ].includes(event)
+                ) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
                     const props = { ...data, event: streamEvent };
@@ -307,20 +317,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     async function connectStreamAndChat() {
         let streamingManager, chat;
         try {
-            const result = await initializeStreamAndChat(
-                agentInstance,
-                options,
-                agentsApi,
-                analytics,
-                items.chat
-            );
+            const result = await initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat);
             streamingManager = result.streamingManager;
             chat = result.chat;
         } catch (error) {
             changeMode(ChatMode.Maintenance);
             throw error;
         }
-        return {streamingManager, chat};
+        return { streamingManager, chat };
     }
 
     return {
@@ -386,7 +390,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     content: '',
                     created_at: new Date().toISOString(),
                     matches: [],
-                }
+                };
 
                 items.messages.push(newMessage);
                 const lastMessage = items.messages.slice(0, -1);
