@@ -108,7 +108,7 @@ function initializeStreamAndChat(
                             if (state === ConnectionState.Connected) {
                                 if (!chat && options.mode !== ChatMode.DirectPlayback) {
                                     chat = await newChat(agent.id, agentsApi, analytics).catch(e => {
-                                        reject(new Error(e));
+                                        reject(e);
 
                                         return undefined;
                                     });
@@ -144,8 +144,10 @@ function initializeStreamAndChat(
 
 function getInitialMessages(agent: Agent): Message[] {
     let content: string = '';
+
     if (agent.greetings && agent.greetings.length > 0) {
         const randomIndex = Math.floor(Math.random() * agent.greetings.length);
+
         content = agent.greetings[randomIndex];
     } else {
         content = `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
@@ -264,6 +266,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw e;
             }
         );
+
         const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
 
         if (chat && chat.id !== items.chat?.id) {
@@ -304,15 +307,18 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         changeMode,
         async connect() {
             await connect(true);
+
             analytics.track('agent-chat', { event: 'connect', chatId: items.chat!.id, agentId: agentInstance.id });
         },
         async reconnect() {
             await disconnect();
             await connect(false);
+
             analytics.track('agent-chat', { event: 'reconnect', chatId: items.chat!.id, agentId: agentInstance.id });
         },
         async disconnect() {
             await disconnect();
+
             analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
         },
         async chat(userMessage: string) {
@@ -320,6 +326,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             try {
                 messageSentTimestamp = Date.now();
+
                 if (options.mode === ChatMode.DirectPlayback) {
                     throw new Error('Direct playback is enabled, chat is disabled');
                 } else if (userMessage.length >= 800) {
@@ -338,6 +345,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 if (!items.chat) {
                     items.chat = await newChat(agentInstance.id, agentsApi, analytics);
+
                     options.callbacks.onNewChat?.(items.chat.id);
                 }
 
