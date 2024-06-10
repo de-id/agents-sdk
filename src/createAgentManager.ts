@@ -93,7 +93,7 @@ function initializeStreamAndChat(
     analytics: Analytics,
     chat?: Chat
 ) {
-    return new Promise<{ chat: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
+    return new Promise<{ chat?: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
         async (resolve, reject) => {
             messageSentTimestamp = 0;
             const streamingManager = await createStreamingManager(
@@ -106,7 +106,7 @@ function initializeStreamAndChat(
                         ...options.callbacks,
                         onConnectionStateChange: async state => {
                             if (state === ConnectionState.Connected) {
-                                if (!chat) {
+                                if (!chat && options.mode !== ChatMode.DirectPlayback) {
                                     chat = await newChat(agent.id, agentsApi, analytics).catch(e => {
                                         reject(new Error(e));
 
@@ -114,7 +114,7 @@ function initializeStreamAndChat(
                                     });
                                 }
 
-                                if (streamingManager && chat) {
+                                if (streamingManager) {
                                     resolve({ chat, streamingManager });
                                 } else {
                                     reject(new Error('Something went wrong while initializing the chat'));
@@ -214,31 +214,28 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 options.callbacks.onNewMessage?.(items.messages);
             } else {
+                const SEvent = StreamEvents;
+                const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
+                const failedEvents = [SEvent.StreamFailed, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
+
                 event = event as StreamEvents;
-                if (event === StreamEvents.StreamVideoCreated) {
+                const template = (agentInstance.llm as any)?.template;
+
+                if (event === SEvent.StreamVideoCreated) {
                     const { event, ...props } = data;
-                    props.llm = { ...props.llm, template: (agentInstance.llm as any)?.template };
-                    analytics.linkTrack('agent-video', { ...props }, StreamEvents.StreamVideoCreated, ['start']);
-                } else if (
-                    [
-                        StreamEvents.StreamVideoDone,
-                        StreamEvents.StreamVideoError,
-                        StreamEvents.StreamVideoRejected,
-                    ].includes(event)
-                ) {
+
+                    props.llm = { ...props.llm, template };
+                    analytics.linkTrack('agent-video', { ...props }, SEvent.StreamVideoCreated, ['start']);
+                } else if (completedEvents.includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
                     const props = { ...data, event: streamEvent };
-                    props.llm = { ...props.llm, template: (agentInstance.llm as any)?.template };
+
+                    props.llm = { ...props.llm, template };
                     analytics.track('agent-video', { ...props, event: streamEvent });
                 }
-                if (
-                    [
-                        StreamEvents.StreamFailed,
-                        StreamEvents.StreamVideoError,
-                        StreamEvents.StreamVideoRejected,
-                    ].includes(event)
-                ) {
+
+                if (failedEvents.includes(event)) {
                     options.callbacks.onError?.(new Error(`Stream failed with event ${event}`), { data });
                 }
             }
@@ -256,15 +253,20 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             options.callbacks.onNewMessage?.(items.messages);
         }
 
-        const [socketManager, { streamingManager, chat }] = await Promise.all([
-            createSocketManager(options.auth, wsURL, socketManagerCallbacks),
-            initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat).catch(e => {
+        const websocketPromise =
+            options.mode === ChatMode.DirectPlayback
+                ? Promise.resolve(undefined)
+                : createSocketManager(options.auth, wsURL, socketManagerCallbacks);
+
+        const initPromise = initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat).catch(
+            e => {
                 changeMode(ChatMode.Maintenance);
                 throw e;
-            }),
-        ]);
+            }
+        );
+        const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
 
-        if (chat.id !== items.chat?.id) {
+        if (chat && chat.id !== items.chat?.id) {
             options.callbacks.onNewChat?.(chat.id);
         }
 
@@ -272,7 +274,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.socketManager = socketManager;
         items.chat = chat;
 
-        changeMode(chat.chatMode || ChatMode.Functional);
+        changeMode(chat?.chatMode ?? options.mode ?? ChatMode.Functional);
     }
 
     async function disconnect() {
@@ -318,8 +320,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             try {
                 messageSentTimestamp = Date.now();
-
-                if (userMessage.length >= 800) {
+                if (options.mode === ChatMode.DirectPlayback) {
+                    throw new Error('Direct playback is enabled, chat is disabled');
+                } else if (userMessage.length >= 800) {
                     throw new Error('Message cannot be more than 800 characters');
                 } else if (userMessage.length === 0) {
                     throw new Error('Message cannot be empty');
@@ -454,28 +457,26 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return agentsApi.deleteRating(agentInstance.id, items.chat.id, id);
         },
-        speak(payload: SupportedStreamScipt) {
+        speak(payload: string | SupportedStreamScipt) {
             if (!items.streamingManager) {
                 throw new Error('Please connect to the agent first');
             }
 
             function getScript(): StreamScript {
-                if (!agentInstance.presenter) {
-                    throw new Error('Presenter is not initialized');
-                } else if (payload.type === 'text') {
-                    const voiceProvider = payload.provider ? payload.provider : agentInstance.presenter.voice;
+                if (typeof payload === 'string') {
+                    if (!agentInstance.presenter) {
+                        throw new Error('Presenter is not initialized');
+                    }
 
                     return {
                         type: 'text',
-                        provider: voiceProvider,
-                        input: payload.input,
-                        ssml: payload.ssml || false,
+                        provider: agentInstance.presenter.voice,
+                        input: payload,
+                        ssml: false,
                     };
-                } else if (payload.type === 'audio') {
-                    return { type: 'audio', audio_url: payload.audio_url };
                 }
 
-                throw new Error('Invalid payload');
+                return payload;
             }
 
             const script = getScript();
