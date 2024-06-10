@@ -29,15 +29,18 @@ import { getAnaliticsInfo } from './utils/analytics';
 const stitchDefaultResolution = 1080;
 
 let messageSentTimestamp = 0;
-let expectedSequence = 0;
-let chatEventQueue: { [sequence: number]: { event: ChatProgress.Partial | ChatProgress.Answer, content: string } } = {};
 
-interface AgentManagrItems {
+interface AgentManagerItems {
     chat?: Chat;
     streamingManager?: StreamingManager<CreateStreamOptions>;
     socketManager?: SocketManager;
     messages: Message[];
     chatMode: ChatMode;
+}
+
+interface ChatEventQueue {
+    [sequence: number]: string,
+    'answer'?: string
 }
 
 function getAgentStreamArgs(agent: Agent, userOutputResolution?: number): CreateStreamOptions {
@@ -70,8 +73,6 @@ function initializeStreamAndChat(
     chat?: Chat
 ) {
     messageSentTimestamp = 0;
-    expectedSequence = 0;
-    chatEventQueue = {};
 
     return new Promise<{ chat: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
         async (resolve, reject) => {
@@ -170,6 +171,56 @@ function getInitialMessages(agent: Agent): Message[] {
     ];
 }
 
+function handleChatEvent(chatEventQueue: ChatEventQueue, items: AgentManagerItems, onNewMessage: AgentManagerOptions['callbacks']['onNewMessage']) {
+    const lastMessage = items.messages[items.messages.length - 1];
+    let content = '';
+
+    if (chatEventQueue["answer"] !== undefined) {
+        content = chatEventQueue['answer'];
+    } else {
+        let currentSequence = 0;
+
+        while (currentSequence in chatEventQueue) {
+            content += chatEventQueue[currentSequence];
+            currentSequence++;
+        }
+    }
+
+    if (lastMessage.content !== content) {
+        lastMessage.content = content;
+
+        onNewMessage?.(items.messages);
+    }
+}
+
+function processChatEvent(
+    event: ChatProgress,
+    data: any,
+    chatEventQueue: ChatEventQueue,
+    items: AgentManagerItems,
+    onNewMessage: AgentManagerOptions['callbacks']['onNewMessage']
+) {
+    if (!(event === ChatProgress.Partial || event === ChatProgress.Answer)) {
+        return;
+    }
+
+    const lastMessage = items.messages[items.messages.length - 1];
+
+    if (lastMessage?.role !== 'assistant') {
+        return;
+    }
+
+    const { content, sequence } = data;
+
+    chatEventQueue[sequence] = content;
+
+    if (event === ChatProgress.Answer) {
+        chatEventQueue['answer'] = content;
+    }
+
+    handleChatEvent(chatEventQueue, items, onNewMessage);
+}
+
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
@@ -183,7 +234,9 @@ function getInitialMessages(agent: Agent): Message[] {
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
-    const items: AgentManagrItems = {
+    let chatEventQueue: ChatEventQueue = {};
+
+    const items: AgentManagerItems = {
         messages: [],
         chatMode: options.mode || ChatMode.Functional,
     };
@@ -202,53 +255,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
 
-    const handleChatEvent = ({ content, event }: { event: ChatProgress.Partial | ChatProgress.Answer, content: string }) => {
-        const lastMessage = items.messages[items.messages.length - 1];
-
-        lastMessage.content = event === ChatProgress.Partial ? lastMessage.content + content : content;
-
-        options.callbacks.onNewMessage?.(items.messages);
-    }
-
-    const processChatEvent = (event: ChatProgress, data: any) => {
-        if (!(event === ChatProgress.Partial || event === ChatProgress.Answer)) {
-            return;
-        }
-
-        const lastMessage = items.messages[items.messages.length - 1];
-
-        if (lastMessage?.role !== 'assistant') {
-            return;
-        }
-
-        const { content, sequence } = data;
-
-        if (sequence !== expectedSequence) {
-            chatEventQueue[sequence] = { event, content }
-            return;
-        }
-
-        handleChatEvent({ event, content })
-
-        expectedSequence = event === ChatProgress.Partial ? expectedSequence + 1 : 0;
-
-        while (chatEventQueue[expectedSequence]) {
-            const chatEvent = chatEventQueue[expectedSequence];
-
-            handleChatEvent(chatEvent)
-
-            delete chatEventQueue[expectedSequence];
-
-            expectedSequence = chatEvent.event === ChatProgress.Partial ? expectedSequence + 1 : 0;
-        }
-
-    }
-
     const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
         onMessage: (event, data): void => {
             if ('content' in data) {
                 // Chat event
-                processChatEvent(event as ChatProgress, data);
+                processChatEvent(event as ChatProgress, data, chatEventQueue, items, options.callbacks.onNewMessage);
 
                 if (event === ChatProgress.Answer) {
                     analytics.track('agent-message-received', { messages: items.messages.length });
@@ -387,6 +398,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async chat(userMessage: string) {
             const id = getRandom();
+
+            chatEventQueue = {};
 
             try {
                 messageSentTimestamp = Date.now();
