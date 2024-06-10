@@ -171,26 +171,20 @@ function getInitialMessages(agent: Agent): Message[] {
     ];
 }
 
-function handleChatEvent(chatEventQueue: ChatEventQueue, items: AgentManagerItems, onNewMessage: AgentManagerOptions['callbacks']['onNewMessage']) {
-    const lastMessage = items.messages[items.messages.length - 1];
+function getMessageContent(chatEventQueue: ChatEventQueue) {
+    if (chatEventQueue["answer"] !== undefined) {
+        return chatEventQueue['answer']
+    }
+
+    let currentSequence = 0;
     let content = '';
 
-    if (chatEventQueue["answer"] !== undefined) {
-        content = chatEventQueue['answer'];
-    } else {
-        let currentSequence = 0;
-
-        while (currentSequence in chatEventQueue) {
-            content += chatEventQueue[currentSequence];
-            currentSequence++;
-        }
+    while (currentSequence in chatEventQueue) {
+        content += chatEventQueue[currentSequence];
+        currentSequence++;
     }
 
-    if (lastMessage.content !== content) {
-        lastMessage.content = content;
-
-        onNewMessage?.(items.messages);
-    }
+    return content;
 }
 
 function processChatEvent(
@@ -212,13 +206,19 @@ function processChatEvent(
 
     const { content, sequence } = data;
 
-    chatEventQueue[sequence] = content;
-
-    if (event === ChatProgress.Answer) {
+    if (event === ChatProgress.Partial) {
+        chatEventQueue[sequence] = content;
+    } else {
         chatEventQueue['answer'] = content;
     }
 
-    handleChatEvent(chatEventQueue, items, onNewMessage);
+    const messageContent = getMessageContent(chatEventQueue);
+
+    if (lastMessage.content !== messageContent) {
+        lastMessage.content = messageContent;
+
+        onNewMessage?.(items.messages);
+    }
 }
 
 /**
