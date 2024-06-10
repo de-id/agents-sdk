@@ -30,7 +30,7 @@ const stitchDefaultResolution = 1080;
 
 let messageSentTimestamp = 0;
 let expectedSequence = 0;
-let chatProgressQueue: { [sequence: number]: { event: ChatProgress.Partial | ChatProgress.Answer, content: string } } = {};
+let chatEventQueue: { [sequence: number]: { event: ChatProgress.Partial | ChatProgress.Answer, content: string } } = {};
 
 interface AgentManagrItems {
     chat?: Chat;
@@ -71,7 +71,7 @@ function initializeStreamAndChat(
 ) {
     messageSentTimestamp = 0;
     expectedSequence = 0;
-    chatProgressQueue = {};
+    chatEventQueue = {};
 
     return new Promise<{ chat: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
         async (resolve, reject) => {
@@ -224,7 +224,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         const { content, sequence } = data;
 
         if (sequence !== expectedSequence) {
-            chatProgressQueue[sequence] = { event, content }
+            chatEventQueue[sequence] = { event, content }
             return;
         }
 
@@ -232,12 +232,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         expectedSequence = event === ChatProgress.Partial ? expectedSequence + 1 : 0;
 
-        while (chatProgressQueue[expectedSequence]) {
-            const chatEvent = chatProgressQueue[expectedSequence];
+        while (chatEventQueue[expectedSequence]) {
+            const chatEvent = chatEventQueue[expectedSequence];
 
             handleChatEvent(chatEvent)
 
-            delete chatProgressQueue[expectedSequence];
+            delete chatEventQueue[expectedSequence];
 
             expectedSequence = chatEvent.event === ChatProgress.Partial ? expectedSequence + 1 : 0;
         }
