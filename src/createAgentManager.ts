@@ -381,7 +381,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 options.callbacks.onNewMessage?.(items.messages);
 
                 if (!items.chat) {
-                    items.chat = await agentsApi.newChat(agentInstance.id);
+                    const newChatOptions: RequestInit = {};
+                    if (items.chatMode === ChatMode.Playground) {
+                        newChatOptions.headers = { [PLAYGROUND_HEADER]: 'true' };
+                    }
+                    items.chat = await agentsApi.newChat(agentInstance.id, newChatOptions);
                 }
 
                 const newMessage: Message = {
@@ -494,13 +498,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 matches,
                 score,
             });
-        },
-        getChatmode() {
-            if (!items.chat) {
-                throw new Error('Chat is not initialized');
-            }
-
-            return agentsApi.getChatMode(agentInstance.id, items.chat.id);
         },
         deleteRate(id: string) {
             if (!items.chat) {
