@@ -148,9 +148,4 @@ export interface AgentManager {
      * @param mode - ChatMode
      */
     changeMode(mode: ChatMode): void;
-
-    /**
-     * Method to fetch the mode of the chat, dependend on the credit and chat history checks
-     */
-    getChatmode: () => Promise<{ chatMode: string }>;
 }

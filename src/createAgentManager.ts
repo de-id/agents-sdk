@@ -20,10 +20,10 @@ import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
 import { getRandom } from './auth/getAuthHeader';
 import { SocketManager, createSocketManager } from './connectToSocket';
+import { PLAYGROUND_HEADER } from './consts';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
-
 import { getAnaliticsInfo } from './utils/analytics';
 
 const stitchDefaultResolution = 1080;
@@ -381,7 +381,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 options.callbacks.onNewMessage?.(items.messages);
 
                 if (!items.chat) {
-                    items.chat = await agentsApi.newChat(agentInstance.id);
+                    const newChatOptions: RequestInit = {};
+                    if (items.chatMode === ChatMode.Playground) {
+                        newChatOptions.headers = { [PLAYGROUND_HEADER]: 'true' };
+                    }
+                    items.chat = await agentsApi.newChat(agentInstance.id, newChatOptions);
                 }
 
                 const newMessage: Message = {
@@ -396,25 +400,39 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 const lastMessage = items.messages.slice(0, -1);
                 let response;
 
+                const chatOptions: RequestInit = {};
+                if (items.chatMode === ChatMode.Playground) {
+                    chatOptions.headers = { [PLAYGROUND_HEADER]: 'true' };
+                }
                 try {
-                    response = await agentsApi.chat(agentInstance.id, items.chat.id, {
-                        sessionId: items.streamingManager?.sessionId,
-                        streamId: items.streamingManager?.streamId,
-                        messages: lastMessage,
-                        chatMode: items.chatMode,
-                    });
+                    response = await agentsApi.chat(
+                        agentInstance.id,
+                        items.chat.id,
+                        {
+                            sessionId: items.streamingManager?.sessionId,
+                            streamId: items.streamingManager?.streamId,
+                            messages: lastMessage,
+                            chatMode: items.chatMode,
+                        },
+                        chatOptions
+                    );
                 } catch (error: any) {
                     if (error?.message?.includes('missing or invalid session_id')) {
                         console.log('Invalid stream, try reconnect with new stream id');
 
                         await reconnectStream();
 
-                        response = await agentsApi.chat(agentInstance.id, items.chat.id, {
-                            sessionId: items.streamingManager?.sessionId,
-                            streamId: items.streamingManager?.streamId,
-                            messages: lastMessage,
-                            chatMode: items.chatMode,
-                        });
+                        response = await agentsApi.chat(
+                            agentInstance.id,
+                            items.chat.id,
+                            {
+                                sessionId: items.streamingManager?.sessionId,
+                                streamId: items.streamingManager?.streamId,
+                                messages: lastMessage,
+                                chatMode: items.chatMode,
+                            },
+                            chatOptions
+                        );
                     } else {
                         throw error;
                     }
@@ -480,13 +498,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 matches,
                 score,
             });
-        },
-        getChatmode() {
-            if (!items.chat) {
-                throw new Error('Chat is not initialized');
-            }
-
-            return agentsApi.getChatMode(agentInstance.id, items.chat.id);
         },
         deleteRate(id: string) {
             if (!items.chat) {

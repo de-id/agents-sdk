@@ -27,9 +27,6 @@ export function createAgentsApi(auth: Auth, host: string = didApiUrl, onError?: 
         chat(agentId: string, chatId: string, payload: ChatPayload, options?: RequestInit) {
             return client.post<ChatResponse>(`/${agentId}/chat/${chatId}`, payload, options);
         },
-        getChatMode(agentId: string, chatId: string, options?: RequestInit) {
-            return client.get<{chatMode: ChatMode}>(`/${agentId}/chat/${chatId}/mode`, options);
-        },
         createRating(agentId: string, chatId: string, payload: RatingPayload, options?: RequestInit) {
             return client.post<RatingEntity>(`/${agentId}/chat/${chatId}/ratings`, payload, options);
         },
