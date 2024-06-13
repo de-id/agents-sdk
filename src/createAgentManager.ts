@@ -270,7 +270,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.socketManager = socketManager;
         items.chat = chat;
 
-        const chatMode = items.chat?.chatMode || ChatMode.Functional;
+        const chatMode = items.chat?.chat_mode || ChatMode.Functional;
         changeMode(chatMode);
 
         analytics.track('agent-chat', { event: 'connect', chatId: chat.id, agentId: agentInstance.id });
@@ -310,7 +310,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         const { streamingManager, chat } = await connectStreamAndChat();
 
         items.streamingManager = streamingManager;
-        changeMode(items.chat.chatMode || ChatMode.Functional);
+        changeMode(items.chat.chat_mode || ChatMode.Functional);
         analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
     }
 
@@ -346,7 +346,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             items.streamingManager = streamingManager;
             items.socketManager = socketManager;
 
-            const chatMode = items.chat.chatMode || ChatMode.Functional;
+            const chatMode = items.chat.chat_mode || ChatMode.Functional;
             changeMode(chatMode);
 
             analytics.track('agent-chat', { event: 'reconnect', chatId: chat.id, agentId: agentInstance.id });
