@@ -40,17 +40,17 @@ let mixpanelEvents: MixpanelEvents = {};
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
-    const instanceConfig = {
+    const analyticProps = {
         token: config.token || 'testKey',
         distinct_id: config.distinctId || getExternalId(),
-        isEnabled: config.isEnabled ?? true,
         agentId: config.agent.id,
         agentType: config.agent.presenter.type,
         owner_id: config.agent.owner_id ?? '',
     };
 
     return {
-        ...instanceConfig,
+        ...analyticProps, 
+        isEnabled: config.isEnabled ?? true,
         getRandom: () => Math.random().toString(16).slice(2),
         track(event: string, props?: Record<string, any>) {
             if (!this.isEnabled) {
@@ -68,7 +68,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                             event,
                             properties: {
                                 ...props,
-                                ...instanceConfig,
+                                ...analyticProps,
                                 source,
                                 time: Date.now(),
                                 $insert_id: this.getRandom(),
