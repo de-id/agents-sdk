@@ -37,7 +37,7 @@ interface AgentManagrItems {
     chatMode: ChatMode;
 }
 
-function getAgentStreamArgs(agent: Agent, userOutputResolution?: number): CreateStreamOptions {
+function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
     if (!agent.presenter) {
         throw new Error('Presenter is not initialized');
     } else if (agent.presenter.type === VideoType.Clip) {
@@ -49,13 +49,13 @@ function getAgentStreamArgs(agent: Agent, userOutputResolution?: number): Create
         };
     }
 
-    const output_resolution = userOutputResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined);
-
     return {
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
-        stream_warmup: true,
-        ...(output_resolution && { output_resolution }),
+        session_timeout: options?.streamOptions?.session_timeout,
+        stream_warmup: options?.streamOptions?.stream_warmup ?? true,
+        compatibility_mode: options?.streamOptions?.compatibility_mode,
+        output_resolution: options?.outputResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined),
     };
 }
 
@@ -96,48 +96,44 @@ function initializeStreamAndChat(
     return new Promise<{ chat?: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
         async (resolve, reject) => {
             messageSentTimestamp = 0;
-            const streamingManager = await createStreamingManager(
-                agent.id,
-                getAgentStreamArgs(agent, options.outputResolution),
-                {
-                    ...options,
-                    analytics,
-                    callbacks: {
-                        ...options.callbacks,
-                        onConnectionStateChange: async state => {
-                            if (state === ConnectionState.Connected) {
-                                if (!chat && options.mode !== ChatMode.DirectPlayback) {
-                                    chat = await newChat(agent.id, agentsApi, analytics).catch(e => {
-                                        reject(e);
+            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options), {
+                ...options,
+                analytics,
+                callbacks: {
+                    ...options.callbacks,
+                    onConnectionStateChange: async state => {
+                        if (state === ConnectionState.Connected) {
+                            if (!chat && options.mode !== ChatMode.DirectPlayback) {
+                                chat = await newChat(agent.id, agentsApi, analytics).catch(e => {
+                                    reject(e);
 
-                                        return undefined;
-                                    });
-                                }
-
-                                if (streamingManager) {
-                                    resolve({ chat, streamingManager });
-                                } else {
-                                    reject(new Error('Something went wrong while initializing the chat'));
-                                }
+                                    return undefined;
+                                });
                             }
 
-                            options.callbacks.onConnectionStateChange?.(state);
-                        },
-                        onVideoStateChange(state) {
-                            options.callbacks.onVideoStateChange?.(state);
-
-                            if (messageSentTimestamp > 0 && state === StreamingState.Start) {
-                                analytics.linkTrack(
-                                    'agent-video',
-                                    { event: 'start', latency: Date.now() - messageSentTimestamp },
-                                    'start',
-                                    [StreamEvents.StreamVideoCreated]
-                                );
+                            if (streamingManager) {
+                                resolve({ chat, streamingManager });
+                            } else {
+                                reject(new Error('Something went wrong while initializing the chat'));
                             }
-                        },
+                        }
+
+                        options.callbacks.onConnectionStateChange?.(state);
                     },
-                }
-            ).catch(reject);
+                    onVideoStateChange(state) {
+                        options.callbacks.onVideoStateChange?.(state);
+
+                        if (messageSentTimestamp > 0 && state === StreamingState.Start) {
+                            analytics.linkTrack(
+                                'agent-video',
+                                { event: 'start', latency: Date.now() - messageSentTimestamp },
+                                'start',
+                                [StreamEvents.StreamVideoCreated]
+                            );
+                        }
+                    },
+                },
+            }).catch(reject);
         }
     );
 }

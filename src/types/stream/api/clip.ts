@@ -54,6 +54,13 @@ export interface CreateClipStreamRequest {
      * At the end of the warmup video, a message containing "stream/ready" will be sent on the data channel.
      */
     stream_warmup?: boolean;
+    /**
+     * Maximum duration (in seconds) between messages before session times out.
+     * Can only be used with proper permissions
+     * @maximum 300
+     * @example 180
+     */
+    session_timeout?: number;
 }
 
 export interface SendClipStreamPayload extends StickyRequest {
