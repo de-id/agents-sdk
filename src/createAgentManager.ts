@@ -117,8 +117,8 @@ function initializeStreamAndChat(
 
                             if (streamingManager) {
                                 resolve({ chat, streamingManager });
-                            } else {
-                                reject(new Error('Something went wrong while initializing the chat'));
+                            } else if (chat) {
+                                reject(new Error('Something went wrong while initializing the manager'));
                             }
                         }
 
@@ -191,7 +191,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentInstance = await agentsApi.getById(agent);
 
     items.messages = getInitialMessages(agentInstance);
-    options.callbacks.onNewMessage?.(items.messages);
+    options.callbacks.onNewMessage?.(items.messages, 'answer');
 
     const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
@@ -214,7 +214,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     }
                 }
 
-                options.callbacks.onNewMessage?.(items.messages);
+                options.callbacks.onNewMessage?.(items.messages, event === ChatProgress.Answer ? 'answer' : 'partial');
             } else {
                 const SEvent = StreamEvents;
                 const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
@@ -240,6 +240,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 if (failedEvents.includes(event)) {
                     options.callbacks.onError?.(new Error(`Stream failed with event ${event}`), { data });
                 }
+
+                if (data.event === SEvent.StreamDone) {
+                    options.callbacks.onConnectionStateChange?.(ConnectionState.New);
+                }
             }
         },
     };
@@ -252,7 +256,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             delete items.chat;
 
             items.messages = getInitialMessages(agentInstance);
-            options.callbacks.onNewMessage?.(items.messages);
+            options.callbacks.onNewMessage?.(items.messages, 'answer');
         }
 
         const websocketPromise =
@@ -356,7 +360,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date(messageSentTimestamp).toISOString(),
                 });
 
-                options.callbacks.onNewMessage?.(items.messages);
+                options.callbacks.onNewMessage?.(items.messages, 'user');
 
                 const newMessage: Message = {
                     id,
@@ -405,7 +409,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         messages: items.messages.length,
                     });
 
-                    options.callbacks.onNewMessage?.(items.messages);
+                    options.callbacks.onNewMessage?.(items.messages, 'answer');
                 }
 
                 return response;

@@ -64,7 +64,7 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered each time new message is received
      * @param messages - array of messages
      */
-    onNewMessage?(messages: Message[]): void;
+    onNewMessage?(messages: Message[], type: 'answer' | 'partial' | 'user'): void;
     /**
      * Optional callback function that will be triggered each time new chat is created
      * @param chatId - id of the new chat
