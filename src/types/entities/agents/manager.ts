@@ -176,15 +176,9 @@ export interface AgentManager {
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
-
     /**
      * Method to change the mode of the chat
      * @param mode - ChatMode
      */
     changeMode(mode: ChatMode): void;
-
-    /**
-     * Method to fetch the mode of the chat, dependend on the credit and chat history checks
-     */
-    getChatmode: () => Promise<{ chatMode: string }>;
 }
