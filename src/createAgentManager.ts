@@ -312,18 +312,33 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         async connect() {
             await connect(true);
 
-            analytics.track('agent-chat', { event: 'connect', chatId: items.chat!.id, agentId: agentInstance.id });
+            analytics.track('agent-chat', {
+                event: 'connect',
+                chatId: items.chat?.id,
+                agentId: agentInstance.id,
+                mode: items.chatMode,
+            });
         },
         async reconnect() {
             await disconnect();
             await connect(false);
 
-            analytics.track('agent-chat', { event: 'reconnect', chatId: items.chat!.id, agentId: agentInstance.id });
+            analytics.track('agent-chat', {
+                event: 'reconnect',
+                chatId: items.chat?.id,
+                agentId: agentInstance.id,
+                mode: items.chatMode,
+            });
         },
         async disconnect() {
             await disconnect();
 
-            analytics.track('agent-chat', { event: 'disconnect', chatId: items.chat?.id, agentId: agentInstance.id });
+            analytics.track('agent-chat', {
+                event: 'disconnect',
+                chatId: items.chat?.id,
+                agentId: agentInstance.id,
+                mode: items.chatMode,
+            });
         },
         async chat(userMessage: string) {
             const id = getRandom();
