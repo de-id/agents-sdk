@@ -11,7 +11,12 @@ import {
 } from '$/types/index';
 import { createClient } from './getClient';
 
-export function createApi(auth: Auth, host: string, agentId: string, onError?: (error: Error, errorData: object) => void): RtcApi {
+export function createApi(
+    auth: Auth,
+    host: string,
+    agentId: string,
+    onError?: (error: Error, errorData: object) => void
+): RtcApi {
     const client = createClient(auth, `${host}/agents/${agentId}`, onError);
 
     return {
@@ -26,6 +31,7 @@ export function createApi(auth: Auth, host: string, agentId: string, onError?: (
                     compatibility_mode: streamOptions.compatibility_mode,
                     stream_warmup: streamOptions.stream_warmup,
                     output_resolution: streamOptions.output_resolution,
+                    session_timeout: streamOptions.session_timeout,
                     type: VideoType.Talk,
                 },
                 options

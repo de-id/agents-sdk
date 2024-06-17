@@ -54,6 +54,7 @@ export enum ChatMode {
     TextOnly = 'TextOnly',
     Maintenance = 'Maintenance',
     Playground = 'Playground',
+    DirectPlayback = 'DirectPlayback',
 }
 
 export interface ChatResponse {

@@ -22,9 +22,28 @@ export interface CreateTalkStreamRequest {
         align_expand_factor?: number;
         stitch?: boolean;
     };
-    compatibility_mode?: CompatibilityMode;
-    stream_warmup?: boolean;
     output_resolution?: number;
+    /**
+     * Defines the video codec to be used in the stream.
+     * When set to on: VP8 will be used.
+     * When set to off: H264 will be used
+     * When set to auto the codec will be selected according to the browser.
+     * @default auto
+     */
+    compatibility_mode?: CompatibilityMode;
+    /**
+     * Whether to stream wamrup video on the connection.
+     * If set to true, will stream a warmup video when connection is established.
+     * At the end of the warmup video, a message containing "stream/ready" will be sent on the data channel.
+     */
+    stream_warmup?: boolean;
+    /**
+     * Maximum duration (in seconds) between messages before session times out.
+     * Can only be used with proper permissions
+     * @maximum 300
+     * @example 180
+     */
+    session_timeout?: number;
 }
 
 export interface SendTalkStreamPayload {

@@ -1,8 +1,12 @@
-import { Agent, AgentPayload, Auth, Chat, ChatMode, ChatPayload, ChatResponse, RatingEntity, RatingPayload } from '$/types/index';
+import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse, RatingEntity, RatingPayload } from '$/types/index';
 import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
-export function createAgentsApi(auth: Auth, host: string = didApiUrl, onError?: (error: Error, errorData: object) => void) {
+export function createAgentsApi(
+    auth: Auth,
+    host: string = didApiUrl,
+    onError?: (error: Error, errorData: object) => void
+) {
     const client = createClient(auth, `${host}/agents`, onError);
 
     return {
