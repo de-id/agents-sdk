@@ -440,10 +440,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
                 newMessage.context = response.context;
+                newMessage.matches = response.matches;
 
                 if (response.result) {
                     newMessage.content = response.result;
-                    newMessage.matches = response.matches;
 
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
@@ -466,7 +466,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         rate(messageId: string, score: 1 | -1, rateId?: string) {
             const message = items.messages.find(message => message.id === messageId);
-
+            console.log('message:', message);
             if (!items.chat) {
                 throw new Error('Chat is not initialized');
             } else if (!message) {
