@@ -54,6 +54,7 @@ export enum ChatMode {
     TextOnly = 'TextOnly',
     Maintenance = 'Maintenance',
     Playground = 'Playground',
+    DirectPlayback = 'DirectPlayback',
 }
 
 export interface ChatResponse {
@@ -73,5 +74,5 @@ export interface Chat {
     messages: Message[];
     agent_id__created_at: string;
     agent_id__modified_at: string;
-    chatMode?: ChatMode;
+    chat_mode?: ChatMode;
 }
