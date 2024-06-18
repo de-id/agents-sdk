@@ -26,11 +26,11 @@ export enum StreamEvents {
 }
 
 export enum ConnectionState {
-    New,
-    Fail,
-    Connected,
-    Connecting,
-    Terminating,
+    New = 'new',
+    Fail = 'fail',
+    Connected = 'connected',
+    Connecting = 'connecting',
+    Terminating = 'terminating',
 }
 
 export interface ManagerCallbacks {
@@ -38,7 +38,7 @@ export interface ManagerCallbacks {
     onConnectionStateChange?: (state: ConnectionState) => void;
     onVideoStateChange?: (state: StreamingState) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
-    onError?: (error: Error, errorData: object) => void
+    onError?: (error: Error, errorData: object) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;

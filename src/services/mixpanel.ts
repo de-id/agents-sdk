@@ -56,6 +56,8 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
             if (!this.isEnabled) {
                 return Promise.reject('MixPanel analytics is disabled on creation');
             }
+            // Ignore audioPath event from agent-video
+            const { audioPath, ...sendProps } = props || {};
 
             const options = {
                 method: 'POST',
@@ -67,7 +69,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                         {
                             event,
                             properties: {
-                                ...props,
+                                ...sendProps,
                                 ...analyticProps,
                                 source,
                                 time: Date.now(),

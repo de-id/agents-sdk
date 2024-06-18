@@ -1,6 +1,12 @@
 import { SupportedStreamScipt } from '$/types/StreamScript';
-import { Auth } from '../../auth';
-import { ConnectionState, SendStreamPayloadResponse, StreamEvents, StreamingState } from '../../stream';
+import { Auth } from '$/types/auth';
+import {
+    CompatibilityMode,
+    ConnectionState,
+    SendStreamPayloadResponse,
+    StreamEvents,
+    StreamingState,
+} from '$/types/stream';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
 
@@ -58,7 +64,7 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered each time new message is received
      * @param messages - array of messages
      */
-    onNewMessage?(messages: Message[]): void;
+    onNewMessage?(messages: Message[], type: 'answer' | 'partial' | 'user'): void;
     /**
      * Optional callback function that will be triggered each time new chat is created
      * @param chatId - id of the new chat
@@ -75,6 +81,33 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered on fetch request errors
      */
     onError?: (error: Error, errorData: object) => void;
+}
+
+interface StreamOptions {
+    /**
+     * Defines the video codec to be used in the stream.
+     * When set to on: VP8 will be used.
+     * When set to off: H264 will be used
+     * When set to auto the codec will be selected according to the browser.
+     * @default auto
+     */
+    compatibility_mode?: CompatibilityMode;
+
+    /**
+     * Whether to stream wamrup video on the connection.
+     * If set to true, will stream a warmup video when connection is established.
+     * At the end of the warmup video, a message containing "stream/ready" will be sent on the data channel.
+     * @default false
+     */
+    stream_warmup?: boolean;
+
+    /**
+     * Maximum duration (in seconds) between messages before session times out.
+     * Can only be used with proper permissions
+     * @maximum 300
+     * @example 180
+     */
+    session_timeout?: number;
 }
 
 export interface AgentManagerOptions {
@@ -96,6 +129,7 @@ export interface AgentManagerOptions {
      * @maximum 1080
      */
     outputResolution?: number;
+    streamOptions?: StreamOptions;
 }
 
 export interface AgentManager {
@@ -142,7 +176,6 @@ export interface AgentManager {
      * @param payload
      */
     speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
-
     /**
      * Method to change the mode of the chat
      * @param mode - ChatMode
