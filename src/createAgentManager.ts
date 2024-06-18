@@ -27,14 +27,20 @@ import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo } from './utils/analytics';
 
 const stitchDefaultResolution = 1080;
+
 let messageSentTimestamp = 0;
 
-interface AgentManagrItems {
+interface AgentManagerItems {
     chat?: Chat;
     streamingManager?: StreamingManager<CreateStreamOptions>;
     socketManager?: SocketManager;
     messages: Message[];
     chatMode: ChatMode;
+}
+
+interface ChatEventQueue {
+    [sequence: number]: string,
+    'answer'?: string
 }
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
@@ -163,6 +169,56 @@ function getInitialMessages(agent: Agent): Message[] {
     ];
 }
 
+function getMessageContent(chatEventQueue: ChatEventQueue) {
+    if (chatEventQueue["answer"] !== undefined) {
+        return chatEventQueue['answer']
+    }
+
+    let currentSequence = 0;
+    let content = '';
+
+    while (currentSequence in chatEventQueue) {
+        content += chatEventQueue[currentSequence];
+        currentSequence++;
+    }
+
+    return content;
+}
+
+function processChatEvent(
+    event: ChatProgress,
+    data: any,
+    chatEventQueue: ChatEventQueue,
+    items: AgentManagerItems,
+    onNewMessage: AgentManagerOptions['callbacks']['onNewMessage']
+) {
+    if (!(event === ChatProgress.Partial || event === ChatProgress.Answer)) {
+        return;
+    }
+
+    const lastMessage = items.messages[items.messages.length - 1];
+
+    if (lastMessage?.role !== 'assistant') {
+        return;
+    }
+
+    const { content, sequence } = data;
+
+    if (event === ChatProgress.Partial) {
+        chatEventQueue[sequence] = content;
+    } else {
+        chatEventQueue['answer'] = content;
+    }
+
+    const messageContent = getMessageContent(chatEventQueue);
+
+    if (lastMessage.content !== messageContent) {
+        lastMessage.content = messageContent;
+
+        onNewMessage?.(items.messages, event);
+    }
+}
+
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
@@ -176,12 +232,13 @@ function getInitialMessages(agent: Agent): Message[] {
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
-    const items: AgentManagrItems = {
+    let chatEventQueue: ChatEventQueue = {};
+
+    const items: AgentManagerItems = {
         messages: [],
         chatMode: options.mode || ChatMode.Functional,
     };
 
-    let lastMessageAnswerIdx = -1;
 
     const baseURL = options.baseURL || didApiUrl;
     const wsURL = options.wsURL || didSocketApiUrl;
@@ -200,21 +257,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         onMessage: (event, data): void => {
             if ('content' in data) {
                 // Chat event
-                const { content } = data;
-                const lastMessage = items.messages[items.messages.length - 1];
+                processChatEvent(event as ChatProgress, data, chatEventQueue, items, options.callbacks.onNewMessage);
 
-                if (lastMessage?.role === 'assistant') {
-                    if (lastMessageAnswerIdx < items.messages.length) {
-                        lastMessage.content = event === ChatProgress.Partial ? lastMessage.content + content : content;
-                    }
-
-                    if (event === ChatProgress.Answer) {
-                        lastMessageAnswerIdx = items.messages.length;
-                        analytics.track('agent-message-received', { messages: items.messages.length });
-                    }
+                if (event === ChatProgress.Answer) {
+                    analytics.track('agent-message-received', { messages: items.messages.length });
                 }
-
-                options.callbacks.onNewMessage?.(items.messages, event === ChatProgress.Answer ? 'answer' : 'partial');
             } else {
                 const SEvent = StreamEvents;
                 const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
@@ -250,7 +297,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     async function connect(newChat: boolean) {
         messageSentTimestamp = 0;
-        lastMessageAnswerIdx = -1;
 
         if (newChat) {
             delete items.chat;
@@ -342,6 +388,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async chat(userMessage: string) {
             const id = getRandom();
+
+            chatEventQueue = {};
 
             try {
                 messageSentTimestamp = Date.now();
