@@ -24,7 +24,7 @@ import { PLAYGROUND_HEADER } from './consts';
 import { StreamingManager, createStreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
-import { getAnaliticsInfo } from './utils/analytics';
+import { getAnaliticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 
 const stitchDefaultResolution = 1080;
 
@@ -77,6 +77,7 @@ async function newChat(agentId: string, agentsApi: AgentsAPI, analytics: Analyti
             event: 'created',
             chat_id: newChat.id,
             agent_id: agentId,
+            mode: chatMode,
         });
 
         return newChat;
@@ -260,27 +261,21 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 processChatEvent(event as ChatProgress, data, chatEventQueue, items, options.callbacks.onNewMessage);
 
                 if (event === ChatProgress.Answer) {
-                    analytics.track('agent-message-received', { messages: items.messages.length });
+                    analytics.track('agent-message-received', { messages: items.messages.length, mode: items.chatMode });
                 }
             } else {
                 const SEvent = StreamEvents;
                 const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
                 const failedEvents = [SEvent.StreamFailed, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
+                const props = getStreamAnalyticsProps(data, agentInstance, { mode: items.chatMode });
 
                 event = event as StreamEvents;
-                const template = (agentInstance.llm as any)?.template;
 
                 if (event === SEvent.StreamVideoCreated) {
-                    const { event, ...props } = data;
-
-                    props.llm = { ...props.llm, template };
-                    analytics.linkTrack('agent-video', { ...props }, SEvent.StreamVideoCreated, ['start']);
+                    analytics.linkTrack('agent-video', props, SEvent.StreamVideoCreated, ['start']);
                 } else if (completedEvents.includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
-                    const props = { ...data, event: streamEvent };
-
-                    props.llm = { ...props.llm, template };
                     analytics.track('agent-video', { ...props, event: streamEvent });
                 }
 
@@ -460,7 +455,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     return sendChat(items.chat!.id);
                 });
 
-                analytics.track('agent-message-send', { event: 'success', messages: items.messages.length + 1 });
+                analytics.track('agent-message-send', { event: 'success', mode: items.chatMode, messages: items.messages.length + 1 });
 
                 if (response.result) {
                     newMessage.content = response.result;
@@ -469,6 +464,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
+                        mode: items.chatMode,
                         messages: items.messages.length,
                     });
 
@@ -481,7 +477,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     items.messages.pop();
                 }
 
-                analytics.track('agent-message-send', { event: 'error', messages: items.messages.length });
+                analytics.track('agent-message-send', { event: 'error', mode: items.chatMode, messages: items.messages.length });
 
                 throw e;
             }
@@ -501,6 +497,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 event: rateId ? 'update' : 'create',
                 thumb: score === 1 ? 'up' : 'down',
                 knowledge_id: agentInstance.knowledge?.id ?? '',
+                mode: items.chatMode,
                 matches,
                 score,
             });
@@ -526,7 +523,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw new Error('Chat is not initialized');
             }
 
-            analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id });
+            analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id, mode: items.chatMode });
 
             return agentsApi.deleteRating(agentInstance.id, items.chat.id, id);
         },
