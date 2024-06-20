@@ -456,11 +456,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 });
 
                 analytics.track('agent-message-send', { event: 'success', mode: items.chatMode, messages: items.messages.length + 1 });
+                newMessage.context = response.context;
+                newMessage.matches = response.matches;
 
                 if (response.result) {
                     newMessage.content = response.result;
-                    newMessage.matches = response.matches;
-                    newMessage.context = response.context;
 
                     analytics.track('agent-message-received', {
                         latency: Date.now() - messageSentTimestamp,
