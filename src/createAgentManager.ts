@@ -65,8 +65,8 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
     };
 }
 
-function getRequestHeaders(chatMode?: ChatMode): Record<string, string> {
-    return chatMode === ChatMode.Playground ? { [PLAYGROUND_HEADER]: 'true' } : {};
+function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {
+    return chatMode === ChatMode.Playground ? { headers: {[PLAYGROUND_HEADER]: 'true' }} : {};
 }
 
 async function newChat(agentId: string, agentsApi: AgentsAPI, analytics: Analytics, chatMode?: ChatMode) {
