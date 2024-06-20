@@ -31,3 +31,21 @@ export function getAnaliticsInfo(agent: Agent) {
         },
     };
 }
+
+export function getStreamAnalyticsProps(data: any, agent: any, additionalProps: Record<string, any>) {
+    const { event, ...baseProps } = data;
+
+    const { template } = agent?.llm || {};
+    const { language } = agent?.presenter?.voice || {};
+    const { stitch } = agent?.presenter || {};
+
+    const props = {
+        ...baseProps,
+        llm: { ...baseProps.llm, template },
+        script: { ...baseProps.script, provider: { ...baseProps?.script?.provider, language } },
+        stitch,
+        ...additionalProps
+    };
+
+    return props;
+}
