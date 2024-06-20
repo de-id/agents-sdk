@@ -440,6 +440,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         rate(messageId: string, score: 1 | -1, rateId?: string) {
             const message = items.messages.find(message => message.id === messageId);
+
             if (!items.chat) {
                 throw new Error('Chat is not initialized');
             } else if (!message) {
