@@ -213,7 +213,7 @@ function processChatEvent(
 
     const messageContent = getMessageContent(chatEventQueue);
 
-    if (lastMessage.content !== messageContent) {
+    if (lastMessage.content !== messageContent || event === ChatProgress.Answer) {
         lastMessage.content = messageContent;
 
         onNewMessage?.(items.messages, event);
