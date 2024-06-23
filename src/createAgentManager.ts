@@ -39,8 +39,8 @@ interface AgentManagerItems {
 }
 
 interface ChatEventQueue {
-    [sequence: number]: string,
-    'answer'?: string
+    [sequence: number]: string;
+    answer?: string;
 }
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
@@ -66,7 +66,7 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
 }
 
 function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {
-    return chatMode === ChatMode.Playground ? { headers: {[PLAYGROUND_HEADER]: 'true' }} : {};
+    return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};
 }
 
 async function newChat(agentId: string, agentsApi: AgentsAPI, analytics: Analytics, chatMode?: ChatMode) {
@@ -171,8 +171,8 @@ function getInitialMessages(agent: Agent): Message[] {
 }
 
 function getMessageContent(chatEventQueue: ChatEventQueue) {
-    if (chatEventQueue["answer"] !== undefined) {
-        return chatEventQueue['answer']
+    if (chatEventQueue['answer'] !== undefined) {
+        return chatEventQueue['answer'];
     }
 
     let currentSequence = 0;
@@ -234,12 +234,12 @@ function processChatEvent(
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
     let chatEventQueue: ChatEventQueue = {};
+    let firstConnection = true;
 
     const items: AgentManagerItems = {
         messages: [],
         chatMode: options.mode || ChatMode.Functional,
     };
-
 
     const baseURL = options.baseURL || didApiUrl;
     const wsURL = options.wsURL || didSocketApiUrl;
@@ -261,7 +261,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 processChatEvent(event as ChatProgress, data, chatEventQueue, items, options.callbacks.onNewMessage);
 
                 if (event === ChatProgress.Answer) {
-                    analytics.track('agent-message-received', { messages: items.messages.length, mode: items.chatMode });
+                    analytics.track('agent-message-received', {
+                        messages: items.messages.length,
+                        mode: items.chatMode,
+                    });
                 }
             } else {
                 const SEvent = StreamEvents;
@@ -293,7 +296,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     async function connect(newChat: boolean) {
         messageSentTimestamp = 0;
 
-        if (newChat) {
+        if (newChat && !firstConnection) {
             delete items.chat;
 
             items.messages = getInitialMessages(agentInstance);
@@ -321,6 +324,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.streamingManager = streamingManager;
         items.socketManager = socketManager;
         items.chat = chat;
+
+        firstConnection = false;
 
         changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
     }
@@ -455,7 +460,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     return sendChat(items.chat!.id);
                 });
 
-                analytics.track('agent-message-send', { event: 'success', mode: items.chatMode, messages: items.messages.length + 1 });
+                analytics.track('agent-message-send', {
+                    event: 'success',
+                    mode: items.chatMode,
+                    messages: items.messages.length + 1,
+                });
                 newMessage.context = response.context;
                 newMessage.matches = response.matches;
 
@@ -477,7 +486,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     items.messages.pop();
                 }
 
-                analytics.track('agent-message-send', { event: 'error', mode: items.chatMode, messages: items.messages.length });
+                analytics.track('agent-message-send', {
+                    event: 'error',
+                    mode: items.chatMode,
+                    messages: items.messages.length,
+                });
 
                 throw e;
             }

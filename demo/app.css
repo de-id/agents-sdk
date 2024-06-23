@@ -1,27 +1,26 @@
 #app {
     display: flex;
-    flex-direction: column;
+    gap: 16px;
     justify-content: center;
     align-items: center;
-    gap: 16px;
+    padding-top: 48px;
 }
 
 #main-input {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
     gap: 16px;
+    flex-direction: column;
 }
 
 .input-options {
     display: flex;
     gap: 8px;
-    justify-content: center;
     flex-direction: column;
 }
 
 #main-video {
-    width: 400px;
+    min-width: 300px;
+    max-width: 300px;
     aspect-ratio: 1;
     border-radius: 100vmax;
     background-color: #e6e6e6;
@@ -29,6 +28,10 @@
     background-size: 500% 100%;
     background-position-x: 50%;
     border: 1px solid darkgrey;
+}
+
+pre {
+    white-space: pre-wrap;
 }
 
 .animated {
