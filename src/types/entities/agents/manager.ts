@@ -91,7 +91,7 @@ interface StreamOptions {
      * When set to auto the codec will be selected according to the browser.
      * @default auto
      */
-    compatibility_mode?: CompatibilityMode;
+    compatibilityMode?: CompatibilityMode;
 
     /**
      * Whether to stream wamrup video on the connection.
@@ -99,7 +99,7 @@ interface StreamOptions {
      * At the end of the warmup video, a message containing "stream/ready" will be sent on the data channel.
      * @default false
      */
-    stream_warmup?: boolean;
+    streamWarmup?: boolean;
 
     /**
      * Maximum duration (in seconds) between messages before session times out.
@@ -107,7 +107,7 @@ interface StreamOptions {
      * @maximum 300
      * @example 180
      */
-    session_timeout?: number;
+    sessionTimeout?: number;
     /**
      * Desired stream resolution for the session
      * @minimum 150

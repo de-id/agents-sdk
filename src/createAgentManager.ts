@@ -49,18 +49,18 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
             videoType: VideoType.Clip,
             driver_id: agent.presenter.driver_id,
             presenter_id: agent.presenter.presenter_id,
-            session_timeout: options?.streamOptions?.session_timeout,
-            stream_warmup: options?.streamOptions?.stream_warmup ?? true,
-            compatibility_mode: options?.streamOptions?.compatibility_mode,
+            session_timeout: options?.streamOptions?.sessionTimeout,
+            stream_warmup: options?.streamOptions?.streamWarmup ?? true,
+            compatibility_mode: options?.streamOptions?.compatibilityMode,
         };
     }
 
     return {
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
-        session_timeout: options?.streamOptions?.session_timeout,
-        stream_warmup: options?.streamOptions?.stream_warmup ?? true,
-        compatibility_mode: options?.streamOptions?.compatibility_mode,
+        session_timeout: options?.streamOptions?.sessionTimeout,
+        stream_warmup: options?.streamOptions?.streamWarmup ?? true,
+        compatibility_mode: options?.streamOptions?.compatibilityMode,
         output_resolution: options?.streamOptions?.outputResolution,
     };
 }
@@ -111,7 +111,7 @@ function initializeStreamAndChat(
             const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options), {
                 ...options,
                 analytics,
-                warmup: options.streamOptions?.stream_warmup,
+                warmup: options.streamOptions?.streamWarmup,
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {

@@ -51,9 +51,9 @@ export function App() {
                 wsURL: didSocketApiUrl,
                 distinctId: 'testDistinctIdToSDKTest',
                 streamOptions: {
-                    stream_warmup: warmup,
-                    session_timeout: sessionTimeout,
-                    compatibility_mode: compatibilityMode,
+                    streamWarmup: warmup,
+                    sessionTimeout: sessionTimeout,
+                    compatibilityMode: compatibilityMode,
                 },
             });
 
