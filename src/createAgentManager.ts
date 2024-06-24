@@ -26,8 +26,6 @@ import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 
-const stitchDefaultResolution = 1080;
-
 let messageSentTimestamp = 0;
 
 interface AgentManagerItems {
@@ -63,8 +61,7 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
         session_timeout: options?.streamOptions?.session_timeout,
         stream_warmup: options?.streamOptions?.stream_warmup ?? true,
         compatibility_mode: options?.streamOptions?.compatibility_mode,
-        output_resolution:
-            options?.streamOptions?.outputResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined),
+        output_resolution: options?.streamOptions?.outputResolution,
     };
 }
 
