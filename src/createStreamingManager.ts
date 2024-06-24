@@ -194,14 +194,16 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     srcObject = null;
                 }
 
+                const state = mapConnectionState(peerConnection.iceConnectionState);
+
                 if (peerConnection) {
-                    const state = mapConnectionState(peerConnection.iceConnectionState);
                     if (state === ConnectionState.New) {
                         // Connection already closed
                         callbacks.onVideoStateChange?.(StreamingState.Stop);
                         clearInterval(videoStatsInterval);
                         return;
                     }
+
                     peerConnection.close();
                     peerConnection.oniceconnectionstatechange = null;
                     peerConnection.onnegotiationneeded = null;
@@ -210,11 +212,13 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 }
 
                 try {
-                    await close(streamIdFromServer, session_id).catch(_ => {});
+                    if (state === ConnectionState.Connected) {
+                        await close(streamIdFromServer, session_id).catch(_ => {});
+                    }
                 } catch (e) {
                     log('Error on close stream connection', e);
                 }
-                callbacks.onConnectionStateChange?.(ConnectionState.New);
+
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
                 clearInterval(videoStatsInterval);
             }
