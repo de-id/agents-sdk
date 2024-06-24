@@ -108,6 +108,12 @@ interface StreamOptions {
      * @example 180
      */
     session_timeout?: number;
+    /**
+     * Desired stream resolution for the session
+     * @minimum 150
+     * @maximum 1080
+     */
+    outputResolution?: number;
 }
 
 export interface AgentManagerOptions {
@@ -123,12 +129,6 @@ export interface AgentManagerOptions {
      */
     distinctId?: string;
     mode?: ChatMode;
-    /**
-     * Desired stream resolution for the session
-     * @minimum 150
-     * @maximum 1080
-     */
-    outputResolution?: number;
     streamOptions?: StreamOptions;
 }
 
