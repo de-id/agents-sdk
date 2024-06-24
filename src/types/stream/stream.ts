@@ -30,7 +30,9 @@ export enum ConnectionState {
     Fail = 'fail',
     Connected = 'connected',
     Connecting = 'connecting',
-    Terminating = 'terminating',
+    Closed = 'closed',
+    Completed = 'completed',
+    Disconnected = 'disconnected',
 }
 
 export interface ManagerCallbacks {
@@ -74,6 +76,7 @@ export interface StreamingManagerOptions {
     callbacks: ManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
+    warmup?: boolean;
     auth: Auth;
     analytics: Analytics;
 }
