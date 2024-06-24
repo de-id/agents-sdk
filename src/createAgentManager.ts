@@ -549,8 +549,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
-                    if (!agentInstance.presenter) {
-                        throw new Error('Presenter is not initialized');
+                    if (!agentInstance.presenter.voice) {
+                        throw new Error('Presenter voice is not initialized');
                     }
 
                     return {
@@ -558,6 +558,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         provider: agentInstance.presenter.voice,
                         input: payload,
                         ssml: false,
+                    };
+                }
+
+                if (payload.type === 'text' && !payload.provider) {
+                    if (!agentInstance.presenter.voice) {
+                        throw new Error('Presenter voice is not initialized');
+                    }
+
+                    return {
+                        type: 'text',
+                        provider: agentInstance.presenter.voice,
+                        input: payload.input,
+                        ssml: payload.ssml,
                     };
                 }
 

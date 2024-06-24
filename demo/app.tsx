@@ -25,18 +25,10 @@ export function App() {
             const agentAPI: AgentManager = await createAgentManager(agentId, {
                 callbacks: {
                     onConnectionStateChange(state: ConnectionState) {
-                        if (state === ConnectionState.Connected) {
-                            setStreamState(ConnectionState.Connected);
-                        } else {
-                            setAgentManager(undefined);
+                        setStreamState(state);
 
-                            if (state === ConnectionState.New) {
-                                setStreamState(ConnectionState.New);
-                            } else if (state === ConnectionState.Connecting) {
-                                setStreamState(ConnectionState.Connecting);
-                            } else if (state === ConnectionState.Fail) {
-                                setStreamState(ConnectionState.Fail);
-                            }
+                        if (state !== ConnectionState.Connected) {
+                            setAgentManager(undefined);
                         }
                     },
                     onVideoStateChange(state) {
@@ -78,11 +70,7 @@ export function App() {
             }
 
             try {
-                agentManager.speak({
-                    type: 'text',
-                    provider: agentManager.agent.presenter.voice as any,
-                    input: text,
-                });
+                agentManager.speak({ type: 'text', input: text });
             } catch (e) {
                 setStreamState(ConnectionState.Fail);
                 throw e;

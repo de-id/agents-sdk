@@ -175,7 +175,7 @@ export interface AgentManager {
      * Method to make your agent read the text you provide or reproduce sound
      * @param payload
      */
-    speak: (payload: SupportedStreamScipt) => Promise<SendStreamPayloadResponse>;
+    speak: (payload: SupportedStreamScipt | string) => Promise<SendStreamPayloadResponse>;
     /**
      * Method to change the mode of the chat
      * @param mode - ChatMode
