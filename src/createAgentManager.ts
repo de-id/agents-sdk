@@ -107,9 +107,11 @@ function initializeStreamAndChat(
     return new Promise<{ chat?: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
         async (resolve, reject) => {
             messageSentTimestamp = 0;
+
             const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options), {
                 ...options,
                 analytics,
+                warmup: options.streamOptions?.stream_warmup,
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {

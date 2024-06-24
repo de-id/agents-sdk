@@ -28,8 +28,13 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
         case 'failed':
             return ConnectionState.Fail;
         case 'new':
+            return ConnectionState.New;
         case 'closed':
+            return ConnectionState.Closed;
         case 'disconnected':
+            return ConnectionState.Disconnected;
+        case 'completed':
+            return ConnectionState.Completed;
         default:
             return ConnectionState.New;
     }
@@ -90,7 +95,7 @@ function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange) {
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
-    { debug = false, callbacks, auth, analytics, baseURL = didApiUrl }: StreamingManagerOptions
+    { debug = false, callbacks, auth, baseURL = didApiUrl, warmup }: StreamingManagerOptions
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
@@ -130,11 +135,14 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     peerConnection.oniceconnectionstatechange = () => {
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
+
         const newState = mapConnectionState(peerConnection.iceConnectionState);
+
         if (newState === ConnectionState.Connected) {
-            timeoutId = setTimeout(() => {
-                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
-            }, 5000);
+            timeoutId = setTimeout(
+                () => callbacks.onConnectionStateChange?.(ConnectionState.Connected),
+                warmup ? 0 : 5000
+            );
         } else {
             clearTimeout(timeoutId);
             callbacks.onConnectionStateChange?.(newState);
