@@ -125,7 +125,7 @@ export interface AgentManagerOptions {
     mode?: ChatMode;
     /**
      * Desired stream resolution for the session
-     * @minimum 0
+     * @minimum 150
      * @maximum 1080
      */
     outputResolution?: number;
