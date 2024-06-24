@@ -51,7 +51,9 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
             videoType: VideoType.Clip,
             driver_id: agent.presenter.driver_id,
             presenter_id: agent.presenter.presenter_id,
-            stream_warmup: true,
+            session_timeout: options?.streamOptions?.session_timeout,
+            stream_warmup: options?.streamOptions?.stream_warmup ?? true,
+            compatibility_mode: options?.streamOptions?.compatibility_mode,
         };
     }
 
@@ -61,7 +63,8 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
         session_timeout: options?.streamOptions?.session_timeout,
         stream_warmup: options?.streamOptions?.stream_warmup ?? true,
         compatibility_mode: options?.streamOptions?.compatibility_mode,
-        output_resolution: options?.outputResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined),
+        output_resolution:
+            options?.streamOptions?.outputResolution || (agent.presenter.stitch ? stitchDefaultResolution : undefined),
     };
 }
 
@@ -218,7 +221,7 @@ function processChatEvent(
     if (lastMessage.content !== messageContent || event === ChatProgress.Answer) {
         lastMessage.content = messageContent;
 
-        onNewMessage?.(items.messages, event);
+        onNewMessage?.([...items.messages], event);
     }
 }
 
@@ -251,7 +254,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentInstance = await agentsApi.getById(agent);
 
     items.messages = getInitialMessages(agentInstance);
-    options.callbacks.onNewMessage?.(items.messages, 'answer');
+    options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
     const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
@@ -302,7 +305,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             delete items.chat;
 
             items.messages = getInitialMessages(agentInstance);
-            options.callbacks.onNewMessage?.(items.messages, 'answer');
+            options.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
         const websocketPromise =
@@ -412,12 +415,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     }
                 }
 
-                if (!items.chat) {
-                    items.chat = await newChat(agentInstance.id, agentsApi, analytics, items.chatMode);
-
-                    options.callbacks.onNewChat?.(items.chat.id);
-                }
-
                 items.messages.push({
                     id: getRandom(),
                     role: 'user',
@@ -425,7 +422,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date(messageSentTimestamp).toISOString(),
                 });
 
-                options.callbacks.onNewMessage?.(items.messages, 'user');
+                options.callbacks.onNewMessage?.([...items.messages], 'user');
+
+                if (!items.chat) {
+                    items.chat = await newChat(agentInstance.id, agentsApi, analytics, items.chatMode);
+
+                    options.callbacks.onNewChat?.(items.chat.id);
+                }
 
                 const newMessage: Message = {
                     id,
@@ -467,6 +470,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     mode: items.chatMode,
                     messages: items.messages.length + 1,
                 });
+
                 newMessage.context = response.context;
                 newMessage.matches = response.matches;
 
@@ -479,7 +483,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         messages: items.messages.length,
                     });
 
-                    options.callbacks.onNewMessage?.(items.messages, 'answer');
+                    options.callbacks.onNewMessage?.([...items.messages], 'answer');
                 }
 
                 return response;
