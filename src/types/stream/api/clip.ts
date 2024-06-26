@@ -30,17 +30,6 @@ interface ClipConfig {
 
 export interface CreateClipStreamRequest {
     /**
-     * ID of the selected presenter.
-     * @example "rian-lZC6MmWfC1"
-     */
-    presenter_id: string;
-    /**
-     * ID of the selected driver.
-     * If not provided a driver video will be selected for you from the predefined drivers bank.
-     * @example "mXra4jY38i"
-     */
-    driver_id?: string;
-    /**
      * Defines the video codec to be used in the stream.
      * When set to on: VP8 will be used.
      * When set to off: H264 will be used
