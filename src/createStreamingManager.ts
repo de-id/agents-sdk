@@ -141,7 +141,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         if (newState === ConnectionState.Connected) {
             timeoutId = setTimeout(
                 () => callbacks.onConnectionStateChange?.(ConnectionState.Connected),
-                warmup ? 0 : 5000
+                warmup ? 5000 : 0
             );
         } else {
             clearTimeout(timeoutId);

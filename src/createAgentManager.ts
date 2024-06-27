@@ -50,7 +50,7 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
             driver_id: agent.presenter.driver_id,
             presenter_id: agent.presenter.presenter_id,
             session_timeout: options?.streamOptions?.sessionTimeout,
-            stream_warmup: options?.streamOptions?.streamWarmup ?? true,
+            stream_warmup: options?.streamOptions?.streamWarmup,
             compatibility_mode: options?.streamOptions?.compatibilityMode,
         };
     }
@@ -59,7 +59,7 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
         videoType: VideoType.Talk,
         source_url: agent.presenter.source_url,
         session_timeout: options?.streamOptions?.sessionTimeout,
-        stream_warmup: options?.streamOptions?.streamWarmup ?? true,
+        stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
         output_resolution: options?.streamOptions?.outputResolution,
     };
@@ -289,7 +289,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 }
 
                 if (data.event === SEvent.StreamDone) {
-                    options.callbacks.onConnectionStateChange?.(ConnectionState.New);
+                    disconnect();
                 }
             }
         },
@@ -338,6 +338,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         delete items.streamingManager;
         delete items.socketManager;
+
+        options.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
     }
 
     async function changeMode(mode: ChatMode) {
