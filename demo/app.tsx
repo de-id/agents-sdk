@@ -73,7 +73,7 @@ export function App() {
                 setConnectionState(ConnectionState.Fail);
                 throw e;
             });
-        }else {
+        } else {
             agentManager.disconnect();
             setAgentManager(undefined);
         }
