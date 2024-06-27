@@ -10,7 +10,7 @@ export function App() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [text, setText] = useState('tell me a story');
     const [messages, setMessages] = useState<Message[]>([]);
-    const [streamState, setStreamState] = useState<ConnectionState>(ConnectionState.New);
+    const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
     const [agentManager, setAgentManager] = useState<AgentManager>();
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [warmup, setWarmup] = useState(true);
@@ -20,12 +20,12 @@ export function App() {
 
     async function onClick() {
         if (!agentManager) {
-            setStreamState(ConnectionState.Connecting);
+            setConnectionState(ConnectionState.Connecting);
 
             const agentAPI: AgentManager = await createAgentManager(agentId, {
                 callbacks: {
                     onConnectionStateChange(state: ConnectionState) {
-                        setStreamState(state);
+                        setConnectionState(state);
 
                         if (state !== ConnectionState.Connected) {
                             setAgentManager(undefined);
@@ -59,28 +59,28 @@ export function App() {
 
             await agentAPI.connect().catch(e => {
                 console.error(e);
-                setStreamState(ConnectionState.Fail);
+                setConnectionState(ConnectionState.Fail);
                 alert(`Failed to connect: ${e.message}`);
             });
 
             setAgentManager(agentAPI);
-        } else if (text && streamState === ConnectionState.Connected) {
+        } else if (text && connectionState === ConnectionState.Connected) {
             if (!agentManager.agent.presenter) {
                 throw new Error('No presenter');
             }
 
-            try {
-                agentManager.speak({ type: 'text', input: text });
-            } catch (e) {
-                setStreamState(ConnectionState.Fail);
+            agentManager.speak({ type: 'text', input: text }).catch(e => {
+                setConnectionState(ConnectionState.Fail);
                 throw e;
-            }
+            });
+        } else {
+            agentManager.disconnect();
+            setAgentManager(undefined);
         }
     }
 
     function disconnect() {
         agentManager?.disconnect();
-        setStreamState(ConnectionState.New);
         setAgentManager(undefined);
 
         if (videoRef.current) {
@@ -88,10 +88,18 @@ export function App() {
         }
     }
 
+    function sendChat() {
+        agentManager?.chat(text.trim()).catch(e => {
+            alert(`Failed to send chat: ${e.message}`);
+            setConnectionState(ConnectionState.Fail);
+            throw e;
+        });
+    }
+
     return (
         <>
             <div id="app">
-                <fieldset id="main-input" disabled={isSpeaking || streamState === ConnectionState.Connecting}>
+                <fieldset id="main-input" disabled={isSpeaking || connectionState === ConnectionState.Connecting}>
                     <textarea
                         type="text"
                         placeholder="Enter text to stream"
@@ -101,24 +109,21 @@ export function App() {
                     <button
                         onClick={onClick}
                         disabled={
-                            isSpeaking || (!text && ![ConnectionState.New, ConnectionState.Fail].includes(streamState))
+                            isSpeaking ||
+                            (!text && ![ConnectionState.New, ConnectionState.Fail].includes(connectionState))
                         }>
-                        {ConnectionState.Connected === streamState || isSpeaking
+                        {ConnectionState.Connected === connectionState || isSpeaking
                             ? 'Send'
-                            : streamState === ConnectionState.Connecting
+                            : connectionState === ConnectionState.Connecting
                               ? 'connecting'
-                              : streamState === ConnectionState.Fail
+                              : connectionState === ConnectionState.Fail
                                 ? 'Failed, try again'
                                 : 'Connect'}
                     </button>
-                    <button
-                        onClick={() =>
-                            agentManager?.chat(text.trim()).catch(e => alert(`Failed to send chat: ${e.message}`))
-                        }
-                        disabled={streamState !== ConnectionState.Connected}>
+                    <button onClick={sendChat} disabled={connectionState !== ConnectionState.Connected}>
                         Send to chat text
                     </button>
-                    <button onClick={disconnect} disabled={streamState !== ConnectionState.Connected}>
+                    <button onClick={disconnect} disabled={connectionState !== ConnectionState.Connected}>
                         Close connection
                     </button>
                     <div className="input-options">
@@ -164,7 +169,7 @@ export function App() {
                     id="main-video"
                     autoPlay
                     playsInline
-                    className={ConnectionState.Connecting === streamState ? 'animated' : ''}
+                    className={ConnectionState.Connecting === connectionState ? 'animated' : ''}
                 />
             </div>
             {messages.length > 0 && (
