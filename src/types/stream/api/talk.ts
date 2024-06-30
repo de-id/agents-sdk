@@ -2,7 +2,6 @@ import { StreamScript } from '../..';
 import { CompatibilityMode } from '../stream';
 
 export interface CreateTalkStreamRequest {
-    source_url: string;
     driver_url?: string;
     face?: {
         size: number;

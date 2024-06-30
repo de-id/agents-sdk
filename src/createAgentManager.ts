@@ -42,13 +42,9 @@ interface ChatEventQueue {
 }
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
-    if (!agent.presenter) {
-        throw new Error('Presenter is not initialized');
-    } else if (agent.presenter.type === VideoType.Clip) {
+    if (agent.presenter.type === VideoType.Clip) {
         return {
             videoType: VideoType.Clip,
-            driver_id: agent.presenter.driver_id,
-            presenter_id: agent.presenter.presenter_id,
             session_timeout: options?.streamOptions?.sessionTimeout,
             stream_warmup: options?.streamOptions?.streamWarmup,
             compatibility_mode: options?.streamOptions?.compatibilityMode,
@@ -57,7 +53,6 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
 
     return {
         videoType: VideoType.Talk,
-        source_url: agent.presenter.source_url,
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,

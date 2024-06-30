@@ -7,7 +7,6 @@ import {
     SendTalkStreamPayload,
     Status,
     TalkStreamOptions,
-    VideoType,
 } from '$/types/index';
 import { createClient } from './getClient';
 
@@ -24,7 +23,6 @@ export function createApi(
             return client.post<ICreateStreamRequestResponse>(
                 '/streams',
                 {
-                    source_url: streamOptions.source_url,
                     driver_url: streamOptions.driver_url,
                     face: streamOptions.face,
                     config: streamOptions.config,
@@ -32,7 +30,6 @@ export function createApi(
                     stream_warmup: streamOptions.stream_warmup,
                     output_resolution: streamOptions.output_resolution,
                     session_timeout: streamOptions.session_timeout,
-                    type: VideoType.Talk,
                 },
                 options
             );
@@ -45,14 +42,14 @@ export function createApi(
         ) {
             return client.post<Status>(
                 `/streams/${streamId}/sdp`,
-                { session_id: sessionId, answer, type: VideoType.Talk },
+                { session_id: sessionId, answer },
                 options
             );
         },
         addIceCandidate(streamId: string, candidate: IceCandidate, sessionId: string, options?: RequestInit) {
             return client.post<Status>(
                 `/streams/${streamId}/ice`,
-                { session_id: sessionId, ...candidate, type: VideoType.Talk },
+                { session_id: sessionId, ...candidate },
                 options
             );
         },
@@ -62,7 +59,6 @@ export function createApi(
                 {
                     session_id: sessionId,
                     ...payload,
-                    type: VideoType.Talk,
                 },
                 options
             );
@@ -70,7 +66,7 @@ export function createApi(
         close(streamId: string, sessionId: string, options?: RequestInit) {
             return client.delete<Status>(
                 `/streams/${streamId}`,
-                { session_id: sessionId, type: VideoType.Talk },
+                { session_id: sessionId },
                 options
             );
         },
