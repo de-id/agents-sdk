@@ -3,6 +3,7 @@ export type KnowledgeProvider = 'pinecone' | 'redis';
 export interface KnowledgeEmbedder {
     provider: string;
     model: string;
+    is_limited_language?: boolean;
 }
 
 export interface Knowledge {

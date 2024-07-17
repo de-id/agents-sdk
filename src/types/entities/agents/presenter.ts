@@ -7,7 +7,7 @@ export type Presenter = TalkPresenter | ClipPresenter;
 
 export interface BasePresenter {
     type: videoType;
-    voice?: ExtendedTextToSpeechProviders;
+    voice?: ExtendedTextToSpeechProviders & { language?: string };
     idle_video?: string;
     thumbnail?: string;
 }
