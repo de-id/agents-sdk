@@ -23,6 +23,15 @@ export enum PlanGroup {
     SCALE = 'deid-api-scale',
 }
 
+export enum AgentStatus {
+    Created = 'created',
+    Started = 'started',
+    Done = 'done',
+    Error = 'error',
+    Rejected = 'rejected',
+    Ready = 'ready',
+}
+
 export interface Agent {
     id: string;
     username?: string;
@@ -42,6 +51,7 @@ export interface Agent {
     logo?: string;
     preview_url?: string;
     owner_id?: string;
+    status?: AgentStatus;
 }
 
 export type AgentPayload = Omit<
