@@ -443,7 +443,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                             sessionId: items.streamingManager?.sessionId,
                             streamId: items.streamingManager?.streamId,
                             chatMode: items.chatMode,
-                            messages,
+                            messages: messages.map(({ matches, ...message }) => message),
                         },
                         getRequestHeaders(items.chatMode)
                     );
