@@ -291,6 +291,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     };
 
     async function connect(newChat: boolean) {
+        options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+
         messageSentTimestamp = 0;
 
         if (newChat && !firstConnection) {
