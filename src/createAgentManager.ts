@@ -310,6 +310,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         const initPromise = initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat).catch(
             e => {
                 changeMode(ChatMode.Maintenance);
+                options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
                 throw e;
             }
         );
