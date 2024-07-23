@@ -4,7 +4,6 @@ import {
     ConnectionState,
     CreateStreamOptions,
     PayloadType,
-    StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     VideoType,
@@ -108,7 +107,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
-    const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
     if (!session_id) {
         throw new Error('Could not create session_id');
@@ -152,16 +150,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     peerConnection.ontrack = (event: RTCTrackEvent) => {
         log('peerConnection.ontrack', event);
         callbacks.onSrcObjectReady?.(event.streams[0]);
-    };
-
-    pcDataChannel.onmessage = (message: MessageEvent) => {
-        if (pcDataChannel.readyState === 'open') {
-            const [event, _] = message.data.split(':');
-            if (event === StreamEvents.StreamReady) {
-                clearTimeout(timeoutId);
-                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
-            }
-        }
     };
 
     await peerConnection.setRemoteDescription(offer);

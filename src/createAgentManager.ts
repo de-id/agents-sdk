@@ -291,6 +291,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     };
 
     async function connect(newChat: boolean) {
+        options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+
         messageSentTimestamp = 0;
 
         if (newChat && !firstConnection) {
@@ -308,6 +310,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         const initPromise = initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat).catch(
             e => {
                 changeMode(ChatMode.Maintenance);
+                options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
                 throw e;
             }
         );
