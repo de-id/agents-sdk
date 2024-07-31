@@ -25,4 +25,5 @@ export interface ClipPresenter extends BasePresenter {
     driver_id: string;
     background?: string;
     presenter_id: string;
+    is_greenscreen?: boolean;
 }
