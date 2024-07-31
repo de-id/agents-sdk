@@ -30,6 +30,15 @@ interface ClipConfig {
 
 export interface CreateClipStreamRequest {
     /**
+     * The output resolution sets the maximum height or width of the streamed video.
+     * The aspect ratio is preserved from the source video.
+     * When resolution is not configured, it defaults to the agent output resolution.
+     * @minimum 150
+     * @maximum 1080
+     * @example 512
+     */
+    output_resolution?: number;
+    /**
      * Defines the video codec to be used in the stream.
      * When set to on: VP8 will be used.
      * When set to off: H264 will be used

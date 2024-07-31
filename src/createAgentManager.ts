@@ -9,19 +9,19 @@ import {
     ChatProgressCallback,
     ConnectionState,
     CreateStreamOptions,
+    mapVideoType,
     Message,
     StreamEvents,
     StreamingState,
     SupportedStreamScipt,
-    VideoType,
 } from './types/index';
 
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
 import { getRandom } from './auth/getAuthHeader';
-import { SocketManager, createSocketManager } from './connectToSocket';
+import { createSocketManager, SocketManager } from './connectToSocket';
 import { PLAYGROUND_HEADER } from './consts';
-import { StreamingManager, createStreamingManager } from './createStreamingManager';
+import { createStreamingManager, StreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo, getStreamAnalyticsProps } from './utils/analytics';
@@ -42,21 +42,12 @@ interface ChatEventQueue {
 }
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
-    if (agent.presenter.type === VideoType.Clip) {
-        return {
-            videoType: VideoType.Clip,
-            session_timeout: options?.streamOptions?.sessionTimeout,
-            stream_warmup: options?.streamOptions?.streamWarmup,
-            compatibility_mode: options?.streamOptions?.compatibilityMode,
-        };
-    }
-
     return {
-        videoType: VideoType.Talk,
+        videoType: mapVideoType(agent.presenter.type),
+        output_resolution: options?.streamOptions?.outputResolution,
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
-        output_resolution: options?.streamOptions?.outputResolution,
     };
 }
 
