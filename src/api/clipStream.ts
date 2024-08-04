@@ -21,6 +21,7 @@ export function createApi(
     return {
         createStream(options: ClipStreamOptions) {
             return client.post<ICreateStreamRequestResponse>('/streams', {
+                output_resolution: options.output_resolution,
                 compatibility_mode: options.compatibility_mode,
                 stream_warmup: options.stream_warmup,
                 session_timeout: options.session_timeout,

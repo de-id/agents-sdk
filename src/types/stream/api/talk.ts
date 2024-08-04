@@ -22,7 +22,6 @@ export interface CreateTalkStreamRequest {
         stitch?: boolean;
     };
     /**
-     * Supported only with Talk presenters (photo-based).
      * The output resolution sets the maximum height or width of the streamed video.
      * The aspect ratio is preserved from the source image.
      * When resolution is not configured, it defaults to the agent output resolution.
