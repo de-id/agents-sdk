@@ -1,20 +1,22 @@
 import { Auth } from '$/types/auth';
 
 export const getRandom = () => Math.random().toString(16).slice(2);
-const externalIdTtl = 60000 * 60 * 24 * 3;
+const externalIdTtl = 60000 * 60 * 24 * 3; //3 days
+const EXTERNAL_ID = "did_external_key_id"
 
 export function getExternalId() {
-    let key : any = window.localStorage.getItem('did_external_key_id');
-
-    if (!key || new Date().getTime() > JSON.parse(key)?.expiry) {
+    let stringyKey : any = window.localStorage.getItem(EXTERNAL_ID);
+    let key = !!stringyKey && JSON.parse(stringyKey)
+    
+    if (!key || new Date().getTime() > key.expiry) {
         key = {
             value: getRandom(),
             expiry: new Date().getTime() + externalIdTtl,
         }
-        window.localStorage.setItem('did_external_key_id', JSON.stringify(key));
+        window.localStorage.setItem(EXTERNAL_ID, JSON.stringify(key));
     }
 
-    return JSON.parse(key).value;
+    return key.value;
 }
 
 let sessionKey = getRandom();
