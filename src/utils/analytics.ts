@@ -24,7 +24,7 @@ export function getAnaliticsInfo(agent: Agent) {
         isMobile: `${mobileOrDesktop() == 'Mobile'}`,
         browser: navigator.userAgent,
         origin: window.location.origin,
-        agentType: agent.presenter?.type,
+        agentType: agent.presenter?.type === 'talk' ?? (agent.presenter?.type === 'clip' && agent.presenter?.presenter_id?.startsWith('v2_')) ? 'clip' : 'clip_v2',
         agentVoice: {
             voiceId: agent.presenter?.voice?.voice_id,
             provider: agent.presenter?.voice?.type,

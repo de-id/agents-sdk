@@ -44,7 +44,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         token: config.token || 'testKey',
         distinct_id: config.distinctId || getExternalId(),
         agentId: config.agent.id,
-        agentType: config.agent.presenter.type,
+        agentType: config.agent.presenter?.type === 'talk' ?? (config.agent.presenter?.type === 'clip' && config.agent.presenter?.presenter_id?.startsWith('v2_')) ? 'clip' : 'clip_v2',
         owner_id: config.agent.owner_id ?? '',
     };
 
