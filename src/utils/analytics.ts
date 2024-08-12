@@ -19,12 +19,14 @@ export function getAnaliticsInfo(agent: Agent) {
             return 'Unknown'; // Unable to determine the OS
         }
     };
+    const presenter = agent.presenter;
+
     return {
         $os: `${getUserOS()}`,
         isMobile: `${mobileOrDesktop() == 'Mobile'}`,
         browser: navigator.userAgent,
         origin: window.location.origin,
-        agentType: agent.presenter?.type,
+        agentType: presenter.type === 'clip' && presenter.presenter_id.startsWith('v2_') ? 'clip_v2' : presenter.type,
         agentVoice: {
             voiceId: agent.presenter?.voice?.voice_id,
             provider: agent.presenter?.voice?.type,
