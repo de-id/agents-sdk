@@ -66,7 +66,7 @@ function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, s
 
 async function newChat(agentId: string, agentsApi: AgentsAPI, analytics: Analytics, chatMode?: ChatMode) {
     try {
-        const newChat = await agentsApi.newChat(agentId, getRequestHeaders(chatMode));
+        const newChat = await agentsApi.newChat(agentId, { persist: true }, getRequestHeaders(chatMode));
 
         analytics.track('agent-chat', {
             event: 'created',

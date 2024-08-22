@@ -25,8 +25,8 @@ export function createAgentsApi(
         update(id: string, payload: AgentPayload, options?: RequestInit) {
             return client.patch<Agent>(`/${id}`, payload, options);
         },
-        newChat(agentId: string, options?: RequestInit) {
-            return client.post<Chat>(`/${agentId}/chat`, undefined, options);
+        newChat(agentId: string, payload: { persist: boolean }, options?: RequestInit) {
+            return client.post<Chat>(`/${agentId}/chat`, payload, options);
         },
         chat(agentId: string, chatId: string, payload: ChatPayload, options?: RequestInit) {
             return client.post<ChatResponse>(`/${agentId}/chat/${chatId}`, payload, options);
