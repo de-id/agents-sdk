@@ -245,7 +245,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
     const agentInstance = await agentsApi.getById(agent);
 
-    items.messages = getInitialMessages(agentInstance);
+    if (options.initialMessages) {
+        items.messages = options.initialMessages;
+    }
+    else {
+        items.messages = getInitialMessages(agentInstance);
+    }
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
     const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
