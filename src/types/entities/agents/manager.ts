@@ -130,6 +130,7 @@ export interface AgentManagerOptions {
     distinctId?: string;
     mode?: ChatMode;
     streamOptions?: StreamOptions;
+    initialMessages?: Message[];
 }
 
 export interface AgentManager {
