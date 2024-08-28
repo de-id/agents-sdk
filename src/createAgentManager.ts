@@ -146,7 +146,10 @@ function initializeStreamAndChat(
     );
 }
 
-function getInitialMessages(agent: Agent): Message[] {
+function getInitialMessages(agent: Agent, initialMessages?: Message[]): Message[] {
+    if (initialMessages && initialMessages.length > 0) {
+        return initialMessages;
+    }
     let content: string = '';
 
     if (agent.greetings && agent.greetings.length > 0) {
@@ -245,7 +248,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
     const agentInstance = await agentsApi.getById(agent);
 
-    items.messages = getInitialMessages(agentInstance);
+    items.messages = getInitialMessages(agentInstance, options.initialMessages)
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
     const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
