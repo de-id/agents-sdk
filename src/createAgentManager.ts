@@ -9,19 +9,19 @@ import {
     ChatProgressCallback,
     ConnectionState,
     CreateStreamOptions,
+    mapVideoType,
     Message,
     StreamEvents,
     StreamingState,
     SupportedStreamScipt,
-    VideoType,
 } from './types/index';
 
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
 import { getRandom } from './auth/getAuthHeader';
-import { SocketManager, createSocketManager } from './connectToSocket';
+import { createSocketManager, SocketManager } from './connectToSocket';
 import { PLAYGROUND_HEADER } from './consts';
-import { StreamingManager, createStreamingManager } from './createStreamingManager';
+import { createStreamingManager, StreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo, getStreamAnalyticsProps } from './utils/analytics';
@@ -42,21 +42,12 @@ interface ChatEventQueue {
 }
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
-    if (agent.presenter.type === VideoType.Clip) {
-        return {
-            videoType: VideoType.Clip,
-            session_timeout: options?.streamOptions?.sessionTimeout,
-            stream_warmup: options?.streamOptions?.streamWarmup,
-            compatibility_mode: options?.streamOptions?.compatibilityMode,
-        };
-    }
-
     return {
-        videoType: VideoType.Talk,
+        videoType: mapVideoType(agent.presenter.type),
+        output_resolution: options?.streamOptions?.outputResolution,
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
-        output_resolution: options?.streamOptions?.outputResolution,
     };
 }
 
@@ -146,7 +137,10 @@ function initializeStreamAndChat(
     );
 }
 
-function getInitialMessages(agent: Agent): Message[] {
+function getInitialMessages(agent: Agent, initialMessages?: Message[]): Message[] {
+    if (initialMessages && initialMessages.length > 0) {
+        return initialMessages;
+    }
     let content: string = '';
 
     if (agent.greetings && agent.greetings.length > 0) {
@@ -245,7 +239,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
     const agentInstance = await agentsApi.getById(agent);
 
-    items.messages = getInitialMessages(agentInstance);
+    items.messages = getInitialMessages(agentInstance, options.initialMessages)
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
     const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
