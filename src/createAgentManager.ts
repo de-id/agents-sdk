@@ -55,9 +55,9 @@ function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, s
     return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};
 }
 
-async function newChat(agentId: string, agentsApi: AgentsAPI, analytics: Analytics, chatMode?: ChatMode) {
+async function newChat(agentId: string, agentsApi: AgentsAPI, analytics: Analytics, chatMode?: ChatMode, persist?: boolean) {
     try {
-        const newChat = await agentsApi.newChat(agentId, { persist: true }, getRequestHeaders(chatMode));
+        const newChat = await agentsApi.newChat(agentId, { persist: persist ?? false }, getRequestHeaders(chatMode));
 
         analytics.track('agent-chat', {
             event: 'created',
@@ -103,7 +103,7 @@ function initializeStreamAndChat(
                     onConnectionStateChange: async state => {
                         if (state === ConnectionState.Connected) {
                             if (!chat && options.mode !== ChatMode.DirectPlayback) {
-                                chat = await newChat(agent.id, agentsApi, analytics, options.mode).catch(e => {
+                                chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
                                     reject(e);
 
                                     return undefined;
@@ -416,7 +416,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 options.callbacks.onNewMessage?.([...items.messages], 'user');
 
                 if (!items.chat) {
-                    items.chat = await newChat(agentInstance.id, agentsApi, analytics, items.chatMode);
+                    items.chat = await newChat(agentInstance.id, agentsApi, analytics, items.chatMode, options.persistentChat);
 
                     options.callbacks.onNewChat?.(items.chat.id);
                 }
