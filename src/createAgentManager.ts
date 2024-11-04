@@ -27,7 +27,7 @@ import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 
 let messageSentTimestamp = 0;
-const connectionRetryTimeoutInMs = 20 * 1000; // 20 seconds
+const connectionRetryTimeoutInMs = 40 * 1000;
 
 interface AgentManagerItems {
     chat?: Chat;
