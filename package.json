@@ -1,7 +1,7 @@
 {
     "name": "@d-id/client-sdk",
     "private": false,
-    "version": "1.0.19-beta.126",
+    "version": "1.0.19-beta.127",
     "type": "module",
     "description": "d-id client sdk",
     "repository": {

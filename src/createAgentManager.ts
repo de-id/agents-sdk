@@ -27,6 +27,7 @@ import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 
 let messageSentTimestamp = 0;
+const connectionRetryTimeoutInMs = 20 * 1000; // 20 seconds
 
 interface AgentManagerItems {
     chat?: Chat;
@@ -91,8 +92,22 @@ function initializeStreamAndChat(
     chat?: Chat
 ) {
     return new Promise<{ chat?: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
-        async (resolve, reject) => {
+        async (outerResolve, outerReject) => {
             messageSentTimestamp = 0;
+
+            const timeoutId = setTimeout(() => {
+                reject(new Error('Could not connect'));
+            }, connectionRetryTimeoutInMs);
+
+            const resolve = (value) => {
+                clearTimeout(timeoutId);
+                outerResolve(value);
+            };
+
+            const reject = (error) => {
+                clearTimeout(timeoutId);
+                outerReject(error);
+            };
 
             const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options), {
                 ...options,
@@ -288,6 +303,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         messageSentTimestamp = 0;
+        const maxRetries = 3;
 
         if (newChat && !firstConnection) {
             delete items.chat;
@@ -301,7 +317,21 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 ? Promise.resolve(undefined)
                 : createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
-        const initPromise = initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat).catch(
+        async function connectWithRetry() {
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    return await initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat);
+                } catch (e: any) {
+                    if (!(e?.message === 'Could not connect')) {
+                        throw e;
+                    }
+                }
+            }
+
+            throw new Error('Could not connect');
+        }
+
+        const initPromise = connectWithRetry().catch(
             e => {
                 changeMode(ChatMode.Maintenance);
                 options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
