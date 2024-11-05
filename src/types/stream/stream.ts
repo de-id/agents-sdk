@@ -46,10 +46,12 @@ export interface ManagerCallbacks {
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
     videoType: VideoType.Talk;
+    send_greeting?: boolean;
 }
 
 export interface ClipStreamOptions extends CreateClipStreamRequest {
     videoType: VideoType.Clip;
+    send_greeting?: boolean;
 }
 
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;

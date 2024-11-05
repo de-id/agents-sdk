@@ -132,6 +132,7 @@ export interface AgentManagerOptions {
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
     persistentChat?: boolean;
+    streamGreating?: boolean;
 }
 
 export interface AgentManager {

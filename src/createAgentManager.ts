@@ -49,6 +49,7 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
+        send_greeting: options?.streamGreating,
     };
 }
 
