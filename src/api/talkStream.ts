@@ -30,7 +30,7 @@ export function createApi(
                     compatibility_mode: streamOptions.compatibility_mode,
                     stream_warmup: streamOptions.stream_warmup,
                     session_timeout: streamOptions.session_timeout,
-                    send_greeting: streamOptions.send_greeting,
+                    greeting: streamOptions.greeting,
                 },
                 options
             );
