@@ -49,7 +49,7 @@ function getAgentStreamArgs(agent: Agent, chat?: Chat, options?: AgentManagerOpt
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
-        greeting: (options?.streamOptions?.streamGreeting && !chat) ? greeting : undefined,
+        stream_greeting: (options?.streamOptions?.streamGreeting && !chat) ? greeting : undefined,
     };
 }
 
