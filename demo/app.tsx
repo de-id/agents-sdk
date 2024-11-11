@@ -52,6 +52,7 @@ export function App() {
                 distinctId: 'testDistinctIdToSDKTest',
                 streamOptions: {
                     streamWarmup: warmup,
+                    streamGreeting: true,
                     sessionTimeout: sessionTimeout,
                     compatibilityMode: compatibilityMode,
                 },

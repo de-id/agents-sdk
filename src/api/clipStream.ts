@@ -25,6 +25,7 @@ export function createApi(
                 compatibility_mode: options.compatibility_mode,
                 stream_warmup: options.stream_warmup,
                 session_timeout: options.session_timeout,
+                stream_greeting: options.stream_greeting,
             });
         },
         startConnection(streamId: string, answer: RTCSessionDescriptionInit, sessionId?: string) {
