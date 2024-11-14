@@ -42,13 +42,14 @@ interface ChatEventQueue {
     answer?: string;
 }
 
-function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
+function getAgentStreamArgs(agent: Agent, chat?: Chat, options?: AgentManagerOptions, greeting?: string): CreateStreamOptions {
     return {
         videoType: mapVideoType(agent.presenter.type),
         output_resolution: options?.streamOptions?.outputResolution,
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
+        stream_greeting: (options?.streamOptions?.streamGreeting && !chat) ? greeting : undefined,
     };
 }
 
@@ -89,7 +90,8 @@ function initializeStreamAndChat(
     options: AgentManagerOptions,
     agentsApi: AgentsAPI,
     analytics: Analytics,
-    chat?: Chat
+    chat?: Chat,
+    greeting?: string
 ) {
     return new Promise<{ chat?: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
         async (outerResolve, outerReject) => {
@@ -109,7 +111,7 @@ function initializeStreamAndChat(
                 outerReject(error);
             };
 
-            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options), {
+            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, chat, options, greeting), {
                 ...options,
                 analytics,
                 warmup: options.streamOptions?.streamWarmup,
@@ -152,23 +154,25 @@ function initializeStreamAndChat(
     );
 }
 
-function getInitialMessages(agent: Agent, initialMessages?: Message[]): Message[] {
+function getGreetings(agent: Agent) {
+    const greetings = agent.greetings?.filter(greeting => greeting.length > 0);
+    if (greetings && greetings.length > 0) {
+        const randomIndex = Math.floor(Math.random() * greetings.length);
+
+        return greetings[randomIndex];
+    } else {
+        return `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
+    }
+}
+
+function getInitialMessages(greeting, initialMessages?: Message[]): Message[] {
     if (initialMessages && initialMessages.length > 0) {
         return initialMessages;
-    }
-    let content: string = '';
-
-    if (agent.greetings && agent.greetings.length > 0) {
-        const randomIndex = Math.floor(Math.random() * agent.greetings.length);
-
-        content = agent.greetings[randomIndex];
-    } else {
-        content = `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
     }
 
     return [
         {
-            content,
+            content: greeting,
             id: getRandom(),
             role: 'assistant',
             created_at: new Date().toISOString(),
@@ -254,7 +258,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
     const agentInstance = await agentsApi.getById(agent);
 
-    items.messages = getInitialMessages(agentInstance, options.initialMessages)
+    const greeting = getGreetings(agentInstance);
+
+    items.messages = getInitialMessages(greeting, options.initialMessages)
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
     const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
@@ -308,7 +314,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         if (newChat && !firstConnection) {
             delete items.chat;
 
-            items.messages = getInitialMessages(agentInstance);
+            items.messages = getInitialMessages(greeting);
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
@@ -320,7 +326,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         async function connectWithRetry() {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    return await initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat);
+                    return await initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat, greeting);
                 } catch (e: any) {
                     if (!(e?.message === 'Could not connect')) {
                         throw e;
