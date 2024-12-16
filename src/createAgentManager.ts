@@ -118,6 +118,7 @@ function initializeStreamAndChat(
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
+                        options.callbacks.onConnectionStateChange?.(state);
                         if (state === ConnectionState.Connected) {
                             if (!chat && options.mode !== ChatMode.DirectPlayback) {
                                 chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
@@ -126,15 +127,12 @@ function initializeStreamAndChat(
                                     return undefined;
                                 });
                             }
-
                             if (streamingManager) {
                                 resolve({ chat, streamingManager });
                             } else if (chat) {
                                 reject(new Error('Something went wrong while initializing the manager'));
                             }
                         }
-
-                        options.callbacks.onConnectionStateChange?.(state);
                     },
                     onVideoStateChange(state) {
                         options.callbacks.onVideoStateChange?.(state);
