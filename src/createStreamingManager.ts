@@ -86,7 +86,6 @@ function pollStats(
             if (!isStreaming) {
                 onVideoStateChange?.(StreamingState.Start);
                 if (streamsCount >= streamsBeforeReady && !getIsConnected()) {
-                    console.log('connecting from video stream')
                     connect();
                 }
                 streamsCount++;
@@ -129,7 +128,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     const getIsConnected = () => isConnected;
     const connect = () => {
         isConnected = true;
-        console.log('connect called');
         callbacks.onConnectionStateChange?.(ConnectionState.Connected);
     }
 
@@ -164,7 +162,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
             if (event === StreamEvents.StreamReady && !isConnected) {
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
                 isConnected = true;
-                console.log('StreamReady, connection changed');
             }
         }
     };
