@@ -332,7 +332,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         async function connectWithRetry() {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    return await initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat, ...(newChat ? [greeting] : []));
+                    return await initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat, newChat ? greeting : undefined);
                 } catch (e: any) {
                     if (!(e?.message === 'Could not connect')) {
                         throw e;
