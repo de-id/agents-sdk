@@ -111,6 +111,16 @@ function initializeStreamAndChat(
                 outerReject(error);
             };
 
+            let chatPromise;
+
+            if (!chat && options.mode !== ChatMode.DirectPlayback) {
+                chatPromise = newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
+                    reject(e);
+
+                    return undefined;
+                });
+            }
+
             const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, chat, options, greeting), {
                 ...options,
                 analytics,
@@ -118,16 +128,12 @@ function initializeStreamAndChat(
                 callbacks: {
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
-                        options.callbacks.onConnectionStateChange?.(state);
                         if (state === ConnectionState.Connected) {
-                            if (!chat && options.mode !== ChatMode.DirectPlayback) {
-                                chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
-                                    reject(e);
-
-                                    return undefined;
-                                });
+                            if (chatPromise) {
+                                chat = await chatPromise;
                             }
                             if (streamingManager) {
+                                options.callbacks.onConnectionStateChange?.(state);
                                 resolve({ chat, streamingManager });
                             } else if (chat) {
                                 reject(new Error('Something went wrong while initializing the manager'));
