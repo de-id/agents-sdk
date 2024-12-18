@@ -64,7 +64,7 @@ function pollStats(
     onVideoStateChange,
     warmup: boolean = false,
     getIsConnected: () => boolean,
-    connect: () => void) {
+    onConnected: () => void) {
     const interval = 100;
     const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
 
@@ -86,7 +86,7 @@ function pollStats(
             if (!isStreaming) {
                 onVideoStateChange?.(StreamingState.Start);
                 if (streamsCount >= streamsBeforeReady && !getIsConnected()) {
-                    connect();
+                    onConnected();
                 }
                 streamsCount++;
                 isStreaming = true;
@@ -126,7 +126,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     let isConnected = false;
     const getIsConnected = () => isConnected;
-    const connect = () => {
+    const onConnected = () => {
         isConnected = true;
         callbacks.onConnectionStateChange?.(ConnectionState.Connected);
     }
@@ -136,7 +136,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         callbacks.onVideoStateChange,
         warmup,
         getIsConnected,
-        connect
+        onConnected
     );
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -160,8 +160,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         if (pcDataChannel.readyState === 'open') {
             const [event, _] = message.data.split(':');
             if (event === StreamEvents.StreamReady && !isConnected) {
-                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
-                isConnected = true;
+                onConnected();
             }
         }
     };
