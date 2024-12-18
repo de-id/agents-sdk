@@ -138,6 +138,8 @@ function initializeStreamAndChat(
                             } else if (chat) {
                                 reject(new Error('Something went wrong while initializing the manager'));
                             }
+                        } else {
+                            options.callbacks.onConnectionStateChange?.(state);
                         }
                     },
                     onVideoStateChange(state) {
