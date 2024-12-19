@@ -111,6 +111,14 @@ function initializeStreamAndChat(
                 outerReject(error);
             };
 
+            let chatPromise;
+
+            if (!chat && options.mode !== ChatMode.DirectPlayback) {
+                chatPromise = newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
+                    reject(e);
+                });
+            }
+
             const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, chat, options, greeting), {
                 ...options,
                 analytics,
@@ -119,22 +127,18 @@ function initializeStreamAndChat(
                     ...options.callbacks,
                     onConnectionStateChange: async state => {
                         if (state === ConnectionState.Connected) {
-                            if (!chat && options.mode !== ChatMode.DirectPlayback) {
-                                chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
-                                    reject(e);
-
-                                    return undefined;
-                                });
+                            if (chatPromise) {
+                                chat = await chatPromise;
                             }
-
                             if (streamingManager) {
+                                options.callbacks.onConnectionStateChange?.(state);
                                 resolve({ chat, streamingManager });
                             } else if (chat) {
                                 reject(new Error('Something went wrong while initializing the manager'));
                             }
+                        } else {
+                            options.callbacks.onConnectionStateChange?.(state);
                         }
-
-                        options.callbacks.onConnectionStateChange?.(state);
                     },
                     onVideoStateChange(state) {
                         options.callbacks.onVideoStateChange?.(state);
@@ -326,7 +330,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         async function connectWithRetry() {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    return await initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat, greeting);
+                    return await initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat, newChat ? greeting : undefined);
                 } catch (e: any) {
                     if (!(e?.message === 'Could not connect')) {
                         throw e;

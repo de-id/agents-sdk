@@ -4,6 +4,7 @@ import {
     ConnectionState,
     CreateStreamOptions,
     PayloadType,
+    StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     VideoType,
@@ -58,12 +59,20 @@ function createVideoStatsAnalyzer() {
     };
 }
 
-function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange) {
+function pollStats(
+    peerConnection: RTCPeerConnection,
+    onVideoStateChange,
+    warmup: boolean = false,
+    getIsConnected: () => boolean,
+    onConnected: () => void) {
     const interval = 100;
     const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
 
     let notReceivingNumIntervals = 0;
     let isStreaming = false;
+
+    const streamsBeforeReady = warmup ? 1 : 0;
+    let streamsCount = 0;
 
     const isReceivingVideoBytes = createVideoStatsAnalyzer();
 
@@ -76,7 +85,10 @@ function pollStats(peerConnection: RTCPeerConnection, onVideoStateChange) {
 
             if (!isStreaming) {
                 onVideoStateChange?.(StreamingState.Start);
-
+                if (streamsCount >= streamsBeforeReady && !getIsConnected()) {
+                    onConnected();
+                }
+                streamsCount++;
                 isStreaming = true;
             }
         } else if (isStreaming) {
@@ -98,21 +110,34 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
-    let timeoutId: NodeJS.Timeout;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
-        agent.videoType === VideoType.Clip
-            ? createClipApi(auth, baseURL, agentId, callbacks.onError)
-            : createTalkApi(auth, baseURL, agentId, callbacks.onError);
+    agent.videoType === VideoType.Clip
+    ? createClipApi(auth, baseURL, agentId, callbacks.onError)
+    : createTalkApi(auth, baseURL, agentId, callbacks.onError);
 
     const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
+    const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
     if (!session_id) {
         throw new Error('Could not create session_id');
     }
 
-    const videoStatsInterval = pollStats(peerConnection, callbacks.onVideoStateChange);
+    let isConnected = false;
+    const getIsConnected = () => isConnected;
+    const onConnected = () => {
+        isConnected = true;
+        callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+    }
+
+    const videoStatsInterval = pollStats(
+        peerConnection,
+        callbacks.onVideoStateChange,
+        warmup,
+        getIsConnected,
+        onConnected
+    );
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         log('peerConnection.onicecandidate', event);
@@ -131,18 +156,22 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         }
     };
 
+    pcDataChannel.onmessage = (message: MessageEvent) => {
+        if (pcDataChannel.readyState === 'open') {
+            const [event, _] = message.data.split(':');
+            if (event === StreamEvents.StreamReady && !isConnected) {
+                onConnected();
+            }
+        }
+    };
+
+
     peerConnection.oniceconnectionstatechange = () => {
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
 
         const newState = mapConnectionState(peerConnection.iceConnectionState);
 
-        if (newState === ConnectionState.Connected) {
-            timeoutId = setTimeout(
-                () => callbacks.onConnectionStateChange?.(ConnectionState.Connected),
-                warmup ? 5000 : 0
-            );
-        } else {
-            clearTimeout(timeoutId);
+        if (newState !== ConnectionState.Connected) {
             callbacks.onConnectionStateChange?.(newState);
         }
     };
