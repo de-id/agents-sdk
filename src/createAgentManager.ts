@@ -116,8 +116,6 @@ function initializeStreamAndChat(
             if (!chat && options.mode !== ChatMode.DirectPlayback) {
                 chatPromise = newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
                     reject(e);
-
-                    return undefined;
                 });
             }
 
