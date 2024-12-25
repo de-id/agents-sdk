@@ -141,18 +141,22 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         log('peerConnection.onicecandidate', event);
-        if (event.candidate && event.candidate.sdpMid && event.candidate.sdpMLineIndex !== null) {
-            addIceCandidate(
-                streamIdFromServer,
-                {
-                    candidate: event.candidate.candidate,
-                    sdpMid: event.candidate.sdpMid,
-                    sdpMLineIndex: event.candidate.sdpMLineIndex,
-                },
-                session_id
-            );
-        } else {
-            addIceCandidate(streamIdFromServer, { candidate: null }, session_id);
+        try{
+            if (event.candidate && event.candidate.sdpMid && event.candidate.sdpMLineIndex !== null) {
+                addIceCandidate(
+                    streamIdFromServer,
+                    {
+                        candidate: event.candidate.candidate,
+                        sdpMid: event.candidate.sdpMid,
+                        sdpMLineIndex: event.candidate.sdpMLineIndex,
+                    },
+                    session_id
+                );
+            } else {
+                addIceCandidate(streamIdFromServer, { candidate: null }, session_id);
+            }
+        } catch (e: any) {
+            callbacks.onError?.(e, { streamId: streamIdFromServer });
         }
     };
 
