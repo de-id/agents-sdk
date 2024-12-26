@@ -162,11 +162,12 @@ function getGreetings(agent: Agent) {
     const greetings = agent.greetings?.filter(greeting => greeting.length > 0);
     if (greetings && greetings.length > 0) {
         const randomIndex = Math.floor(Math.random() * greetings.length);
-
-        return greetings[randomIndex];
-    } else {
-        return `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
+        const greeting = greetings[randomIndex];
+        if (greeting && greeting.length > 0) {
+            return greeting;
+        }
     }
+    return `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
 }
 
 function getInitialMessages(greeting, initialMessages?: Message[]): Message[] {
