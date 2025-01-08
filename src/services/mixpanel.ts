@@ -17,19 +17,14 @@ export interface Analytics {
     owner_id: string;
     getRandom(): string;
     track(event: string, props?: Record<string, any>): Promise<any>;
-    linkTrack(
-        mixpanelEvent: string,
-        props: Record<string, any>,
-        event: string,
-        dependencies: string[],
-    ): any
+    linkTrack(mixpanelEvent: string, props: Record<string, any>, event: string, dependencies: string[]): any;
 }
 
 interface MixpanelEvent {
     resolvedDependencies: string[];
     events: {
         [event: string]: { props: Record<string, any> };
-    }
+    };
 }
 
 interface MixpanelEvents {
@@ -56,7 +51,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         getRandom: () => Math.random().toString(16).slice(2),
         track(event: string, props?: Record<string, any>) {
             if (!this.isEnabled) {
-                return Promise.reject('MixPanel analytics is disabled on creation');
+                return Promise.resolve();
             }
             // Ignore audioPath event from agent-video
             const { audioPath, ...sendProps } = props || {};
@@ -90,12 +85,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                 .then(response => response.json())
                 .catch(err => console.error(err));
         },
-        linkTrack(
-            mixpanelEvent: string,
-            props: Record<string, any>,
-            event: string,
-            dependencies: string[],
-        ) {
+        linkTrack(mixpanelEvent: string, props: Record<string, any>, event: string, dependencies: string[]) {
             if (!mixpanelEvents[mixpanelEvent]) {
                 mixpanelEvents[mixpanelEvent] = { events: {}, resolvedDependencies: [] };
             }
@@ -109,7 +99,9 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
             linkedEvent.events[event] = { props };
             linkedEvent.resolvedDependencies.push(event);
 
-            const allDependenciesResolved = dependencies.every(value => linkedEvent.resolvedDependencies.includes(value));
+            const allDependenciesResolved = dependencies.every(value =>
+                linkedEvent.resolvedDependencies.includes(value)
+            );
 
             if (allDependenciesResolved) {
                 const aggregatedProps = dependencies.reduce((acc, curr) => {
@@ -121,12 +113,13 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
 
                 this.track(mixpanelEvent, aggregatedProps);
 
-                linkedEvent.resolvedDependencies = linkedEvent.resolvedDependencies.filter(event => !dependencies.includes(event));
+                linkedEvent.resolvedDependencies = linkedEvent.resolvedDependencies.filter(
+                    event => !dependencies.includes(event)
+                );
                 dependencies.forEach(event => {
                     delete linkedEvent.events[event];
                 });
             }
-        }
-    }
-};
-
+        },
+    };
+}

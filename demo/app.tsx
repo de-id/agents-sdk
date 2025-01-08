@@ -49,6 +49,7 @@ export function App() {
                 mode,
                 auth,
                 wsURL: didSocketApiUrl,
+                enableAnalitics: false,
                 distinctId: 'testDistinctIdToSDKTest',
                 streamOptions: {
                     streamWarmup: warmup,

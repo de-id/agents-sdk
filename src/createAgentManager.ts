@@ -42,14 +42,19 @@ interface ChatEventQueue {
     answer?: string;
 }
 
-function getAgentStreamArgs(agent: Agent, chat?: Chat, options?: AgentManagerOptions, greeting?: string): CreateStreamOptions {
+function getAgentStreamArgs(
+    agent: Agent,
+    chat?: Chat,
+    options?: AgentManagerOptions,
+    greeting?: string
+): CreateStreamOptions {
     return {
         videoType: mapVideoType(agent.presenter.type),
         output_resolution: options?.streamOptions?.outputResolution,
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
-        stream_greeting: (options?.streamOptions?.streamGreeting && !chat) ? greeting : undefined,
+        stream_greeting: options?.streamOptions?.streamGreeting && !chat ? greeting : undefined,
     };
 }
 
@@ -57,7 +62,13 @@ function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, s
     return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};
 }
 
-async function newChat(agentId: string, agentsApi: AgentsAPI, analytics: Analytics, chatMode?: ChatMode, persist?: boolean) {
+async function newChat(
+    agentId: string,
+    agentsApi: AgentsAPI,
+    analytics: Analytics,
+    chatMode?: ChatMode,
+    persist?: boolean
+) {
     try {
         const newChat = await agentsApi.newChat(agentId, { persist: persist ?? false }, getRequestHeaders(chatMode));
 
@@ -101,12 +112,12 @@ function initializeStreamAndChat(
                 reject(new Error('Could not connect'));
             }, connectionRetryTimeoutInMs);
 
-            const resolve = (value) => {
+            const resolve = value => {
                 clearTimeout(timeoutId);
                 outerResolve(value);
             };
 
-            const reject = (error) => {
+            const reject = error => {
                 clearTimeout(timeoutId);
                 outerReject(error);
             };
@@ -119,41 +130,45 @@ function initializeStreamAndChat(
                 });
             }
 
-            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, chat, options, greeting), {
-                ...options,
-                analytics,
-                warmup: options.streamOptions?.streamWarmup,
-                callbacks: {
-                    ...options.callbacks,
-                    onConnectionStateChange: async state => {
-                        if (state === ConnectionState.Connected) {
-                            if (chatPromise) {
-                                chat = await chatPromise;
-                            }
-                            if (streamingManager) {
+            const streamingManager = await createStreamingManager(
+                agent.id,
+                getAgentStreamArgs(agent, chat, options, greeting),
+                {
+                    ...options,
+                    analytics,
+                    warmup: options.streamOptions?.streamWarmup,
+                    callbacks: {
+                        ...options.callbacks,
+                        onConnectionStateChange: async state => {
+                            if (state === ConnectionState.Connected) {
+                                if (chatPromise) {
+                                    chat = await chatPromise;
+                                }
+                                if (streamingManager) {
+                                    options.callbacks.onConnectionStateChange?.(state);
+                                    resolve({ chat, streamingManager });
+                                } else if (chat) {
+                                    reject(new Error('Something went wrong while initializing the manager'));
+                                }
+                            } else {
                                 options.callbacks.onConnectionStateChange?.(state);
-                                resolve({ chat, streamingManager });
-                            } else if (chat) {
-                                reject(new Error('Something went wrong while initializing the manager'));
                             }
-                        } else {
-                            options.callbacks.onConnectionStateChange?.(state);
-                        }
-                    },
-                    onVideoStateChange(state) {
-                        options.callbacks.onVideoStateChange?.(state);
+                        },
+                        onVideoStateChange(state) {
+                            options.callbacks.onVideoStateChange?.(state);
 
-                        if (messageSentTimestamp > 0 && state === StreamingState.Start) {
-                            analytics.linkTrack(
-                                'agent-video',
-                                { event: 'start', latency: Date.now() - messageSentTimestamp },
-                                'start',
-                                [StreamEvents.StreamVideoCreated]
-                            );
-                        }
+                            if (messageSentTimestamp > 0 && state === StreamingState.Start) {
+                                analytics.linkTrack(
+                                    'agent-video',
+                                    { event: 'start', latency: Date.now() - messageSentTimestamp },
+                                    'start',
+                                    [StreamEvents.StreamVideoCreated]
+                                );
+                            }
+                        },
                     },
-                },
-            }).catch(reject);
+                }
+            ).catch(reject);
         }
     );
 }
@@ -264,10 +279,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const greeting = getGreetings(agentInstance);
 
-    items.messages = getInitialMessages(greeting, options.initialMessages)
+    items.messages = getInitialMessages(greeting, options.initialMessages);
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
-    const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
+    const analytics = initializeAnalytics({
+        token: mxKey,
+        agent: agentInstance,
+        isEnabled: options.enableAnalitics,
+        distinctId: options.distinctId,
+    });
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
 
     const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
@@ -330,7 +350,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         async function connectWithRetry() {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    return await initializeStreamAndChat(agentInstance, options, agentsApi, analytics, items.chat, newChat ? greeting : undefined);
+                    return await initializeStreamAndChat(
+                        agentInstance,
+                        options,
+                        agentsApi,
+                        analytics,
+                        items.chat,
+                        newChat ? greeting : undefined
+                    );
                 } catch (e: any) {
                     if (!(e?.message === 'Could not connect')) {
                         throw e;
@@ -341,13 +368,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             throw new Error('Could not connect');
         }
 
-        const initPromise = connectWithRetry().catch(
-            e => {
-                changeMode(ChatMode.Maintenance);
-                options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
-                throw e;
-            }
-        );
+        const initPromise = connectWithRetry().catch(e => {
+            changeMode(ChatMode.Maintenance);
+            options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+            throw e;
+        });
 
         const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
 
@@ -456,7 +481,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 options.callbacks.onNewMessage?.([...items.messages], 'user');
 
                 if (!items.chat) {
-                    items.chat = await newChat(agentInstance.id, agentsApi, analytics, items.chatMode, options.persistentChat);
+                    items.chat = await newChat(
+                        agentInstance.id,
+                        agentsApi,
+                        analytics,
+                        items.chatMode,
+                        options.persistentChat
+                    );
 
                     options.callbacks.onNewChat?.(items.chat.id);
                 }
