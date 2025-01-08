@@ -49,7 +49,7 @@ function getAgentStreamArgs(agent: Agent, chat?: Chat, options?: AgentManagerOpt
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
-        stream_greeting: (options?.streamOptions?.streamGreeting && !chat) ? greeting : undefined,
+        stream_greeting: options?.streamOptions?.streamGreeting && !chat ? greeting : undefined,
     };
 }
 
@@ -93,65 +93,60 @@ function initializeStreamAndChat(
     chat?: Chat,
     greeting?: string
 ) {
-    return new Promise<{ chat?: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
-        async (outerResolve, outerReject) => {
-            messageSentTimestamp = 0;
+    return new Promise<{ chat?: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(async (outerResolve, outerReject) => {
+        messageSentTimestamp = 0;
 
-            const timeoutId = setTimeout(() => {
-                reject(new Error('Could not connect'));
-            }, connectionRetryTimeoutInMs);
+        const timeoutId = setTimeout(() => {
+            reject(new Error('Could not connect'));
+        }, connectionRetryTimeoutInMs);
 
-            const resolve = (value) => {
-                clearTimeout(timeoutId);
-                outerResolve(value);
-            };
+        const resolve = value => {
+            clearTimeout(timeoutId);
+            outerResolve(value);
+        };
 
-            const reject = (error) => {
-                clearTimeout(timeoutId);
-                outerReject(error);
-            };
+        const reject = error => {
+            clearTimeout(timeoutId);
+            outerReject(error);
+        };
 
-            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, chat, options, greeting), {
-                ...options,
-                analytics,
-                warmup: options.streamOptions?.streamWarmup,
-                callbacks: {
-                    ...options.callbacks,
-                    onConnectionStateChange: async state => {
-                        if (state === ConnectionState.Connected) {
-                            if (!chat && options.mode !== ChatMode.DirectPlayback) {
-                                chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
-                                    reject(e);
+        const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, chat, options, greeting), {
+            ...options,
+            analytics,
+            warmup: options.streamOptions?.streamWarmup,
+            callbacks: {
+                ...options.callbacks,
+                onConnectionStateChange: async state => {
+                    if (state === ConnectionState.Connected) {
+                        if (!chat && options.mode !== ChatMode.DirectPlayback) {
+                            chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
+                                reject(e);
 
-                                    return undefined;
-                                });
-                            }
-
-                            if (streamingManager) {
-                                resolve({ chat, streamingManager });
-                            } else if (chat) {
-                                reject(new Error('Something went wrong while initializing the manager'));
-                            }
+                                return undefined;
+                            });
                         }
 
-                        options.callbacks.onConnectionStateChange?.(state);
-                    },
-                    onVideoStateChange(state) {
-                        options.callbacks.onVideoStateChange?.(state);
-
-                        if (messageSentTimestamp > 0 && state === StreamingState.Start) {
-                            analytics.linkTrack(
-                                'agent-video',
-                                { event: 'start', latency: Date.now() - messageSentTimestamp },
-                                'start',
-                                [StreamEvents.StreamVideoCreated]
-                            );
+                        if (streamingManager) {
+                            resolve({ chat, streamingManager });
+                        } else if (chat) {
+                            reject(new Error('Something went wrong while initializing the manager'));
                         }
-                    },
+                    }
+
+                    options.callbacks.onConnectionStateChange?.(state);
                 },
-            }).catch(reject);
-        }
-    );
+                onVideoStateChange(state) {
+                    options.callbacks.onVideoStateChange?.(state);
+
+                    if (messageSentTimestamp > 0 && state === StreamingState.Start) {
+                        analytics.linkTrack('agent-video', { event: 'start', latency: Date.now() - messageSentTimestamp }, 'start', [
+                            StreamEvents.StreamVideoCreated,
+                        ]);
+                    }
+                },
+            },
+        }).catch(reject);
+    });
 }
 
 function getGreetings(agent: Agent) {
@@ -260,10 +255,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const greeting = getGreetings(agentInstance);
 
-    items.messages = getInitialMessages(greeting, options.initialMessages)
+    items.messages = getInitialMessages(greeting, options.initialMessages);
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
-    const analytics = initializeAnalytics({ token: mxKey, agent: agentInstance, ...options });
+    const analytics = initializeAnalytics({
+        token: mxKey,
+        agent: agentInstance,
+        isEnabled: options.enableAnalitics,
+        distinctId: options.distinctId,
+    });
     analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
 
     const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
@@ -337,13 +337,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             throw new Error('Could not connect');
         }
 
-        const initPromise = connectWithRetry().catch(
-            e => {
-                changeMode(ChatMode.Maintenance);
-                options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
-                throw e;
-            }
-        );
+        const initPromise = connectWithRetry().catch(e => {
+            changeMode(ChatMode.Maintenance);
+            options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+            throw e;
+        });
 
         const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
 
