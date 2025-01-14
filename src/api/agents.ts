@@ -1,4 +1,14 @@
-import { Agent, AgentPayload, Auth, Chat, ChatPayload, ChatResponse, RatingEntity, RatingPayload } from '$/types/index';
+import {
+    Agent,
+    AgentPayload,
+    Auth,
+    Chat,
+    ChatPayload,
+    ChatResponse,
+    RatingEntity,
+    RatingPayload,
+    STTTokenResponse,
+} from '$/types/index';
 import { didApiUrl } from '../environment';
 import { createClient } from './getClient';
 
@@ -45,6 +55,9 @@ export function createAgentsApi(
         },
         deleteRating(agentId: string, chatId: string, ratingId: string, options?: RequestInit) {
             return client.delete<RatingEntity>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, options);
+        },
+        getSTTToken(agentId: string, chatId: string, options?: RequestInit) {
+            return client.get<STTTokenResponse>(`/${agentId}/chat/${chatId}/stt-token`, options);
         },
     };
 }

@@ -656,3 +656,11 @@ export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise
 
     return getById(agentId);
 }
+
+export function getSTTToken(
+    params: Parameters<ReturnType<typeof createAgentsApi>['getSTTToken']>,
+    auth: Auth,
+    baseURL?: string
+) {
+    return createAgentsApi(auth, baseURL || didApiUrl).getSTTToken(...params);
+}
