@@ -415,6 +415,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     return {
         agent: agentInstance,
         starterMessages: agentInstance.knowledge?.starter_message || [],
+        currentChat: items.chat,
         changeMode,
         async connect() {
             await connect(true);

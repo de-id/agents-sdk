@@ -8,7 +8,7 @@ import {
     StreamingState,
 } from '$/types/stream';
 import { Agent } from './agent';
-import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
+import { Chat, ChatMode, ChatResponse, Message, RatingEntity } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -150,6 +150,10 @@ export interface AgentManager {
      * Array of starter messages that will be sent to the agent when the chat starts
      */
     starterMessages: string[];
+    /**
+     * Object that represents the current chat between the user and the agent
+     */
+    currentChat?: Chat;
     /**
      * Method to connect to stream and chat
      */
