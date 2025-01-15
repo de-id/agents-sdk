@@ -153,7 +153,7 @@ export interface AgentManager {
     /**
      * Object that represents the current chat between the user and the agent
      */
-    currentChat?: Chat;
+    currentChat: Partial<Chat>;
     /**
      * Method to connect to stream and chat
      */

@@ -350,7 +350,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         async function connectWithRetry() {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    return await initializeStreamAndChat(
+                    const initializationResult = await initializeStreamAndChat(
                         agentInstance,
                         options,
                         agentsApi,
@@ -358,6 +358,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         items.chat,
                         newChat ? greeting : undefined
                     );
+
+                    if (initializationResult.chat && initializationResult.chat.id !== items.chat?.id) {
+                        items.chat = initializationResult.chat;
+                        options.callbacks.onNewChat?.(initializationResult.chat.id);
+                    }
+
+                    return initializationResult;
                 } catch (e: any) {
                     if (!(e?.message === 'Could not connect')) {
                         throw e;
@@ -415,7 +422,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     return {
         agent: agentInstance,
         starterMessages: agentInstance.knowledge?.starter_message || [],
-        currentChat: items.chat,
+        currentChat: new Proxy<Partial<Chat>>(
+            {},
+            {
+                get: (_target, prop) => {
+                    return items?.chat?.[prop as keyof Chat];
+                },
+            }
+        ),
         changeMode,
         async connect() {
             await connect(true);
