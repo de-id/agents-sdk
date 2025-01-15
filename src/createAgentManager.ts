@@ -422,14 +422,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     return {
         agent: agentInstance,
         starterMessages: agentInstance.knowledge?.starter_message || [],
-        currentChat: new Proxy<Partial<Chat>>(
-            {},
-            {
-                get: (_target, prop) => {
-                    return items?.chat?.[prop as keyof Chat];
-                },
-            }
-        ),
         getSTTToken: (options?: RequestInit) => {
             return items.chat?.id
                 ? agentsApi.getSTTToken(agentInstance.id, items.chat.id, options)
