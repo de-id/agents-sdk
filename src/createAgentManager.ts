@@ -430,6 +430,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 },
             }
         ),
+        getSTTToken: (options?: RequestInit) => {
+            return items.chat?.id
+                ? agentsApi.getSTTToken(agentInstance.id, items.chat.id, options)
+                : Promise.resolve(undefined);
+        },
         changeMode,
         async connect() {
             await connect(true);
@@ -670,12 +675,4 @@ export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise
     const { getById } = createAgentsApi(auth, baseURL || didApiUrl);
 
     return getById(agentId);
-}
-
-export function getSTTToken(
-    params: Parameters<ReturnType<typeof createAgentsApi>['getSTTToken']>,
-    auth: Auth,
-    baseURL?: string
-) {
-    return createAgentsApi(auth, baseURL || didApiUrl).getSTTToken(...params);
 }

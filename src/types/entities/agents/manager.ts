@@ -1,3 +1,4 @@
+import { STTTokenResponse } from '$/types';
 import { SupportedStreamScipt } from '$/types/StreamScript';
 import { Auth } from '$/types/auth';
 import {
@@ -154,6 +155,11 @@ export interface AgentManager {
      * Object that represents the current chat between the user and the agent
      */
     currentChat: Partial<Chat>;
+    /**
+     * Get a token for the Speech to Text service
+     * Only available after a chat has started and the agent has been connected
+     */
+    getSTTToken: (options?: RequestInit) => Promise<STTTokenResponse | undefined>;
     /**
      * Method to connect to stream and chat
      */
