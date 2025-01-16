@@ -155,7 +155,7 @@ export interface AgentManager {
      * Get a token for the Speech to Text service
      * Only available after a chat has started and the agent has been connected
      */
-    getSTTToken: (options?: RequestInit) => Promise<STTTokenResponse | undefined>;
+    getSTTToken: () => Promise<STTTokenResponse | undefined>;
     /**
      * Method to connect to stream and chat
      */
