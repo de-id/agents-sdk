@@ -18,6 +18,8 @@ export interface Analytics {
     getRandom(): string;
     track(event: string, props?: Record<string, any>): Promise<any>;
     linkTrack(mixpanelEvent: string, props: Record<string, any>, event: string, dependencies: string[]): any;
+    enrich(props: Record<string, any>): void;
+    additionalProperies: Record<string, any>;
 }
 
 interface MixpanelEvent {
@@ -47,8 +49,26 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
 
     return {
         ...analyticProps,
+        additionalProperies: {},
         isEnabled: config.isEnabled ?? true,
         getRandom: () => Math.random().toString(16).slice(2),
+        enrich(properties: Record<string, any>) {
+            if (properties && typeof properties !== 'object') {
+                throw new Error('properties must be a flat json object');
+            }
+
+            for (let prop in properties) {
+                if (typeof prop !== 'string') {
+                    throw new Error('properties keys must be string');
+                }
+
+                if (typeof properties[prop] !== 'string' && typeof properties[prop] !== 'number') {
+                    throw new Error('properties values must be string or number');
+                }
+            }
+
+            this.additionalProperies = { ...this.additionalProperies, ...properties };
+        },
         track(event: string, props?: Record<string, any>) {
             if (!this.isEnabled) {
                 return Promise.resolve();
@@ -66,6 +86,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                         {
                             event,
                             properties: {
+                                ...this.additionalProperies,
                                 ...sendProps,
                                 ...analyticProps,
                                 source,
