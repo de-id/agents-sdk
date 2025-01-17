@@ -424,7 +424,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         starterMessages: agentInstance.knowledge?.starter_message || [],
         getSTTToken: async () => (items.chat?.id ? agentsApi.getSTTToken(agentInstance.id, items.chat.id) : undefined),
         changeMode,
-        enrichAnalytics: (properties: AnalyticsProperties) => analytics.track
         async connect() {
             await connect(true);
 
