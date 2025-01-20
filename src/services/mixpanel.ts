@@ -53,21 +53,19 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         isEnabled: config.isEnabled ?? true,
         getRandom: () => Math.random().toString(16).slice(2),
         enrich(properties: Record<string, any>) {
+            const props = {};
+
             if (properties && typeof properties !== 'object') {
                 throw new Error('properties must be a flat json object');
             }
 
             for (let prop in properties) {
-                if (typeof prop !== 'string') {
-                    throw new Error('properties keys must be string');
-                }
-
-                if (typeof properties[prop] !== 'string' && typeof properties[prop] !== 'number') {
-                    throw new Error('properties values must be string or number');
+                if (typeof properties[prop] === 'string' || typeof properties[prop] === 'number') {
+                    props[prop] = properties[prop];
                 }
             }
 
-            this.additionalProperies = { ...this.additionalProperies, ...properties };
+            this.additionalProperies = { ...this.additionalProperies, ...props };
         },
         track(event: string, props?: Record<string, any>) {
             if (!this.isEnabled) {
