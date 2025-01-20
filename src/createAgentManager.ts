@@ -390,7 +390,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.streamingManager = streamingManager;
         items.socketManager = socketManager;
         items.chat = chat;
-
+        
         firstConnection = false;
 
         changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
@@ -424,6 +424,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         starterMessages: agentInstance.knowledge?.starter_message || [],
         getSTTToken: async () => (items.chat?.id ? agentsApi.getSTTToken(agentInstance.id, items.chat.id) : undefined),
         changeMode,
+        enrichAnalytics: analytics.enrich,
         async connect() {
             await connect(true);
 
