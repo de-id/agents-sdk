@@ -56,8 +56,8 @@ export function createAgentsApi(
         deleteRating(agentId: string, chatId: string, ratingId: string, options?: RequestInit) {
             return client.delete<RatingEntity>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, options);
         },
-        getSTTToken(agentId: string, chatId: string, options?: RequestInit) {
-            return client.get<STTTokenResponse>(`/${agentId}/chat/${chatId}/stt-token`, options);
+        getSTTToken(agentId: string, options?: RequestInit) {
+            return client.get<STTTokenResponse>(`/${agentId}/stt-token`, options);
         },
     };
 }

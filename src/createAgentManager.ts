@@ -422,7 +422,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     return {
         agent: agentInstance,
         starterMessages: agentInstance.knowledge?.starter_message || [],
-        getSTTToken: async () => (items.chat?.id ? agentsApi.getSTTToken(agentInstance.id, items.chat.id) : undefined),
+        getSTTToken: () => agentsApi.getSTTToken(agentInstance.id),
         changeMode,
         async connect() {
             await connect(true);
