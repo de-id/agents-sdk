@@ -27,7 +27,7 @@ import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 
 let messageSentTimestamp = 0;
-const connectionRetryTimeoutInMs = 20 * 1000; // 20 seconds
+const connectionRetryTimeoutInMs = 30 * 1000; // 30 seconds
 
 interface AgentManagerItems {
     chat?: Chat;
@@ -107,8 +107,11 @@ function initializeStreamAndChat(
     return new Promise<{ chat?: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
         async (outerResolve, outerReject) => {
             messageSentTimestamp = 0;
+            let streamingManager: StreamingManager<CreateStreamOptions> | null = null;
 
-            const timeoutId = setTimeout(() => {
+            const timeoutId = setTimeout(async () => {
+                await streamingManager?.disconnect().catch(e => console.error('Error during disconnect:', e));
+
                 reject(new Error('Could not connect'));
             }, connectionRetryTimeoutInMs);
 
@@ -130,7 +133,7 @@ function initializeStreamAndChat(
                 });
             }
 
-            const streamingManager = await createStreamingManager(
+            streamingManager = await createStreamingManager(
                 agent.id,
                 getAgentStreamArgs(agent, chat, options, greeting),
                 {
@@ -168,7 +171,7 @@ function initializeStreamAndChat(
                         },
                     },
                 }
-            ).catch(reject);
+            );
         }
     );
 }

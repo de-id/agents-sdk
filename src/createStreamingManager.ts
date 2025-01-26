@@ -112,9 +112,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     let srcObject: MediaStream | null = null;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
-    agent.videoType === VideoType.Clip
-    ? createClipApi(auth, baseURL, agentId, callbacks.onError)
-    : createTalkApi(auth, baseURL, agentId, callbacks.onError);
+        agent.videoType === VideoType.Clip
+            ? createClipApi(auth, baseURL, agentId, callbacks.onError)
+            : createTalkApi(auth, baseURL, agentId, callbacks.onError);
 
     const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
@@ -139,63 +139,71 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         onConnected
     );
 
-    peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
-        log('peerConnection.onicecandidate', event);
-        try{
-            if (event.candidate && event.candidate.sdpMid && event.candidate.sdpMLineIndex !== null) {
-                addIceCandidate(
-                    streamIdFromServer,
-                    {
-                        candidate: event.candidate.candidate,
-                        sdpMid: event.candidate.sdpMid,
-                        sdpMLineIndex: event.candidate.sdpMLineIndex,
-                    },
-                    session_id
-                );
-            } else {
-                addIceCandidate(streamIdFromServer, { candidate: null }, session_id);
+    const establishWebRtcConnection = async () => {
+        peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
+            log('peerConnection.onicecandidate', event);
+            try {
+                if (event.candidate && event.candidate.sdpMid && event.candidate.sdpMLineIndex !== null) {
+                    addIceCandidate(
+                        streamIdFromServer,
+                        {
+                            candidate: event.candidate.candidate,
+                            sdpMid: event.candidate.sdpMid,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex,
+                        },
+                        session_id
+                    );
+                } else {
+                    addIceCandidate(streamIdFromServer, { candidate: null }, session_id);
+                }
+            } catch (e: any) {
+                callbacks.onError?.(e, { streamId: streamIdFromServer });
             }
-        } catch (e: any) {
-            callbacks.onError?.(e, { streamId: streamIdFromServer });
-        }
-    };
+        };
 
-    pcDataChannel.onmessage = (message: MessageEvent) => {
-        if (pcDataChannel.readyState === 'open') {
-            const [event, _] = message.data.split(':');
-            if (event === StreamEvents.StreamReady && !isConnected) {
-                onConnected();
+        pcDataChannel.onmessage = (message: MessageEvent) => {
+            if (pcDataChannel.readyState === 'open') {
+                const [event, _] = message.data.split(':');
+                if (event === StreamEvents.StreamReady && !isConnected) {
+                    onConnected();
+                }
             }
-        }
-    };
+        };
 
 
-    peerConnection.oniceconnectionstatechange = () => {
-        log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
+        peerConnection.oniceconnectionstatechange = () => {
+            log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
 
-        const newState = mapConnectionState(peerConnection.iceConnectionState);
+            const newState = mapConnectionState(peerConnection.iceConnectionState);
 
-        if (newState !== ConnectionState.Connected) {
-            callbacks.onConnectionStateChange?.(newState);
-        }
-    };
+            if (newState !== ConnectionState.Connected) {
+                callbacks.onConnectionStateChange?.(newState);
+            }
+        };
 
-    peerConnection.ontrack = (event: RTCTrackEvent) => {
-        log('peerConnection.ontrack', event);
-        callbacks.onSrcObjectReady?.(event.streams[0]);
-    };
+        peerConnection.ontrack = (event: RTCTrackEvent) => {
+            log('peerConnection.ontrack', event);
+            callbacks.onSrcObjectReady?.(event.streams[0]);
+        };
 
-    await peerConnection.setRemoteDescription(offer);
-    log('set remote description OK');
+        await peerConnection.setRemoteDescription(offer);
+        log('set remote description OK');
 
-    const sessionClientAnswer = await peerConnection.createAnswer();
-    log('create answer OK');
+        const sessionClientAnswer = await peerConnection.createAnswer();
+        log('create answer OK');
 
-    await peerConnection.setLocalDescription(sessionClientAnswer);
-    log('set local description OK');
+        await peerConnection.setLocalDescription(sessionClientAnswer);
+        log('set local description OK');
 
-    await startConnection(streamIdFromServer, sessionClientAnswer, session_id);
-    log('start connection OK');
+        await startConnection(streamIdFromServer, sessionClientAnswer, session_id);
+        log('start connection OK');
+    }
+
+    try {
+        await establishWebRtcConnection();
+    } catch {
+        await close(streamIdFromServer, session_id).catch(_ => { });
+    }
 
     return {
         /**
@@ -233,9 +241,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 }
 
                 try {
-                    if (state === ConnectionState.Connected) {
-                        await close(streamIdFromServer, session_id).catch(_ => {});
-                    }
+                    await close(streamIdFromServer, session_id);
                 } catch (e) {
                     log('Error on close stream connection', e);
                 }
