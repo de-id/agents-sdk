@@ -122,12 +122,8 @@ function initializeStreamAndChat(
                 outerReject(error);
             };
 
-            let chatPromise;
-
             if (!chat && options.mode !== ChatMode.DirectPlayback) {
-                chatPromise = newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
-                    reject(e);
-                });
+                chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat);
             }
 
             const streamingManager = await createStreamingManager(
@@ -141,9 +137,6 @@ function initializeStreamAndChat(
                         ...options.callbacks,
                         onConnectionStateChange: async state => {
                             if (state === ConnectionState.Connected) {
-                                if (chatPromise) {
-                                    chat = await chatPromise;
-                                }
                                 if (streamingManager) {
                                     options.callbacks.onConnectionStateChange?.(state);
                                     resolve({ chat, streamingManager });
@@ -390,7 +383,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.streamingManager = streamingManager;
         items.socketManager = socketManager;
         items.chat = chat;
-        
+
         firstConnection = false;
 
         changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
