@@ -81,15 +81,16 @@ async function newChat(
 
         return newChat;
     } catch (error: any) {
-        try {
-            console.error(error);
-            const parsedError = JSON.parse(error.message);
+        let parsedError;
 
-            if (parsedError?.kind === 'InsufficientCreditsError') {
-                throw new Error('InsufficientCreditsError');
-            }
+        try {
+            parsedError = JSON.parse(error.message);
         } catch (jsonError) {
             console.error('Error parsing the error message:', jsonError);
+        }
+
+        if (parsedError?.kind === 'InsufficientCreditsError') {
+            throw new Error('InsufficientCreditsError');
         }
 
         throw new Error('Cannot create new chat');
@@ -123,7 +124,11 @@ function initializeStreamAndChat(
             };
 
             if (!chat && options.mode !== ChatMode.DirectPlayback) {
-                chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat);
+                try {
+                    chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat);
+                } catch (error) {
+                    return reject(error);
+                }
             }
 
             const streamingManager = await createStreamingManager(
