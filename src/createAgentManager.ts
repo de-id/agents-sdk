@@ -81,15 +81,16 @@ async function newChat(
 
         return newChat;
     } catch (error: any) {
-        try {
-            console.error(error);
-            const parsedError = JSON.parse(error.message);
+        let parsedError;
 
-            if (parsedError?.kind === 'InsufficientCreditsError') {
-                throw new Error('InsufficientCreditsError');
-            }
+        try {
+            parsedError = JSON.parse(error.message);
         } catch (jsonError) {
             console.error('Error parsing the error message:', jsonError);
+        }
+
+        if (parsedError?.kind === 'InsufficientCreditsError') {
+            throw new Error('InsufficientCreditsError');
         }
 
         throw new Error('Cannot create new chat');
@@ -122,12 +123,12 @@ function initializeStreamAndChat(
                 outerReject(error);
             };
 
-            let chatPromise;
-
             if (!chat && options.mode !== ChatMode.DirectPlayback) {
-                chatPromise = newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat).catch(e => {
-                    reject(e);
-                });
+                try {
+                    chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat);
+                } catch (error) {
+                    return reject(error);
+                }
             }
 
             const streamingManager = await createStreamingManager(
@@ -141,9 +142,6 @@ function initializeStreamAndChat(
                         ...options.callbacks,
                         onConnectionStateChange: async state => {
                             if (state === ConnectionState.Connected) {
-                                if (chatPromise) {
-                                    chat = await chatPromise;
-                                }
                                 if (streamingManager) {
                                     options.callbacks.onConnectionStateChange?.(state);
                                     resolve({ chat, streamingManager });
@@ -424,6 +422,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         starterMessages: agentInstance.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentInstance.id),
         changeMode,
+        enrichAnalytics: analytics.enrich,
         async connect() {
             await connect(true);
 

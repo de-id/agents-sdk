@@ -195,4 +195,10 @@ export interface AgentManager {
      * @param mode - ChatMode
      */
     changeMode(mode: ChatMode): void;
+
+    /**
+     * Method to enrich analytics properties
+     * @param properties flat json object with properties that will be added to analytics events fired from the sdk
+     */
+    enrichAnalytics: (properties: Record<string, any>) => void;
 }
