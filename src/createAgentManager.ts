@@ -44,7 +44,6 @@ interface ChatEventQueue {
 
 function getAgentStreamArgs(
     agent: Agent,
-    chat?: Chat,
     options?: AgentManagerOptions,
     greeting?: string
 ): CreateStreamOptions {
@@ -54,7 +53,7 @@ function getAgentStreamArgs(
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
-        stream_greeting: options?.streamOptions?.streamGreeting && !chat ? greeting : undefined,
+        stream_greeting: options?.streamOptions?.streamGreeting ? greeting : undefined,
     };
 }
 
@@ -133,7 +132,7 @@ function initializeStreamAndChat(
 
             const streamingManager = await createStreamingManager(
                 agent.id,
-                getAgentStreamArgs(agent, chat, options, greeting),
+                getAgentStreamArgs(agent, options, greeting),
                 {
                     ...options,
                     analytics,
