@@ -38,6 +38,7 @@ let mixpanelEvents: MixpanelEvents = {};
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
     const presenter = config.agent.presenter;
+    const promptCustomization = config.agent.llm?.prompt_customization;
 
     const analyticProps = {
         token: config.token || 'testKey',
@@ -45,6 +46,16 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         agentId: config.agent.id,
         agentType: presenter.type === 'clip' && presenter.presenter_id.startsWith('v2_') ? 'clip_v2' : presenter.type,
         owner_id: config.agent.owner_id ?? '',
+        behavior: {
+            role: promptCustomization?.role,
+            personality: promptCustomization?.personality,
+            instructions: config.agent.llm?.instructions,
+        },
+        temperature: config.agent.llm?.temperature,
+        knowledgeSource: promptCustomization?.knowledge_source,
+        starterQuestionsCount: config.agent.knowledge?.starter_message?.length,
+        topicsToAvoid: promptCustomization?.topics_to_avoid,
+        maxResponseLength: promptCustomization?.max_response_length,
     };
 
     return {

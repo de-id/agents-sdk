@@ -1,23 +1,25 @@
-export type LLMType = 'knowledge' | 'custom';
+export type LLMProvider = 'openai' | 'custom';
 
-export type LLM = KnowledgeLLM | CustomLLM;
+export type AgentTemplate = 'rag-grounded' | 'rag-ungrounded' | 'assistant';
 
-export interface BaseLLM {
-    type: LLMType;
+export interface PromptCustomization {
+    role?: string;
+    personality?: string;
+    topics_to_avoid?: string[];
+    max_response_length?: number;
+    knowledge_source?: 'base_knowledge' | 'documents' | null;
+}
+
+export interface LLM {
+    provider: LLMProvider;
+    prompt_version?: 'v1' | 'v2' | null;
     instructions?: string;
-}
-
-export interface KnowledgeLLM extends BaseLLM {
-    type: 'knowledge';
-    knowledge_id: string;
-    store?: string;
-}
-
-export interface CustomLLM extends BaseLLM {
-    type: 'custom';
-    api_key?: string;
-    model?: string;
-    provider?: string;
-    version?: string;
-    config?: string;
+    template?: AgentTemplate;
+    prompt_customization?: PromptCustomization;
+    temperature?: number;
+    custom?: {
+        api_key?: string;
+        url?: string;
+        streaming?: boolean;
+    };
 }
