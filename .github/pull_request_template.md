@@ -5,6 +5,7 @@
 ⚒️ Refactor
 🔥 HotFix
 🚀 Release
+🧑🏻‍💻 Chore
 <leave only relevant line>
 
 ### Description
