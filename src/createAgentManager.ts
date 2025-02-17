@@ -25,6 +25,7 @@ import { createStreamingManager, StreamingManager } from './createStreamingManag
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnaliticsInfo, getStreamAnalyticsProps } from './utils/analytics';
+import retryOperation from './utils/retryOperation';
 
 let messageSentTimestamp = 0;
 const connectionRetryTimeoutInMs = 20 * 1000; // 20 seconds
@@ -42,11 +43,7 @@ interface ChatEventQueue {
     answer?: string;
 }
 
-function getAgentStreamArgs(
-    agent: Agent,
-    options?: AgentManagerOptions,
-    greeting?: string
-): CreateStreamOptions {
+function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greeting?: string): CreateStreamOptions {
     return {
         videoType: mapVideoType(agent.presenter.type),
         output_resolution: options?.streamOptions?.outputResolution,
@@ -104,23 +101,9 @@ function initializeStreamAndChat(
     chat?: Chat,
     greeting?: string
 ) {
-    return new Promise<{ chat?: Chat; streamingManager: StreamingManager<CreateStreamOptions> }>(
-        async (outerResolve, outerReject) => {
+    return new Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions> }>(
+        async (resolve, reject) => {
             messageSentTimestamp = 0;
-
-            const timeoutId = setTimeout(() => {
-                reject(new Error('Could not connect'));
-            }, connectionRetryTimeoutInMs);
-
-            const resolve = value => {
-                clearTimeout(timeoutId);
-                outerResolve(value);
-            };
-
-            const reject = error => {
-                clearTimeout(timeoutId);
-                outerReject(error);
-            };
 
             if (!chat && options.mode !== ChatMode.DirectPlayback) {
                 try {
@@ -128,6 +111,13 @@ function initializeStreamAndChat(
                 } catch (error) {
                     return reject(error);
                 }
+            }
+
+            if (chat?.chat_mode === ChatMode.TextOnly) {
+                options.callbacks?.onError?.(new Error(JSON.stringify({ kind: 'InsufficientCreditsError' })), {
+                    fromSdk: true,
+                });
+                return resolve({ chat });
             }
 
             const streamingManager = await createStreamingManager(
@@ -330,7 +320,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         messageSentTimestamp = 0;
-        const maxRetries = 3;
 
         if (newChat && !firstConnection) {
             delete items.chat;
@@ -344,35 +333,25 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 ? Promise.resolve(undefined)
                 : createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
-        async function connectWithRetry() {
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    const initializationResult = await initializeStreamAndChat(
-                        agentInstance,
-                        options,
-                        agentsApi,
-                        analytics,
-                        items.chat,
-                        newChat ? greeting : undefined
-                    );
-
-                    if (initializationResult.chat && initializationResult.chat.id !== items.chat?.id) {
-                        items.chat = initializationResult.chat;
-                        options.callbacks.onNewChat?.(initializationResult.chat.id);
-                    }
-
-                    return initializationResult;
-                } catch (e: any) {
-                    if (!(e?.message === 'Could not connect')) {
-                        throw e;
-                    }
-                }
+        const initPromise = retryOperation(
+            () =>
+                initializeStreamAndChat(
+                    agentInstance,
+                    options,
+                    agentsApi,
+                    analytics,
+                    items.chat,
+                    newChat ? greeting : undefined
+                ),
+            {
+                limit: 3,
+                timeout: connectionRetryTimeoutInMs,
+                timeoutErrorMessage: 'Could not connect',
+                // Retry on all errors except for connection errors and rate limit errors, these are already handled in client level.
+                shouldRetryFn: (error: any) => error?.message !== 'Could not connect' && error.status !== 429,
+                delayMs: 1000,
             }
-
-            throw new Error('Could not connect');
-        }
-
-        const initPromise = connectWithRetry().catch(e => {
+        ).catch(e => {
             changeMode(ChatMode.Maintenance);
             options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
