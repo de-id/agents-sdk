@@ -143,7 +143,7 @@ function initializeStreamAndChat(
                         },
                         onVideoStateChange(state) {
                             options.callbacks.onVideoStateChange?.(state);
-
+                            console.log('onVideoStateChange', messageSentTimestamp);
                             if (messageSentTimestamp > 0 && state === StreamingState.Start) {
                                 analytics.linkTrack(
                                     'agent-video',
@@ -597,6 +597,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             if (!items.streamingManager) {
                 throw new Error('Please connect to the agent first');
             }
+
+            messageSentTimestamp = Date.now();
 
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {

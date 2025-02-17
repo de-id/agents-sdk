@@ -5,7 +5,10 @@ import { AgentManager, Auth, ChatMode, ConnectionState, Message, StreamingState 
 import './app.css';
 import { agentId, didApiUrl, didSocketApiUrl } from './environment';
 
-const auth: Auth = { type: 'key', clientKey: import.meta.env.VITE_CLIENT_KEY };
+const auth: Auth = {
+    type: 'key',
+    clientKey: 'Z29vZ2xlLW9hdXRoMnwxMTA1Njc1MTkyMzkwMzEwMjE1MTk6LVBzbnQtSXN6cWtpb3NkMVdFSjlW',
+};
 export function App() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [text, setText] = useState('tell me a story');
@@ -49,11 +52,11 @@ export function App() {
                 mode,
                 auth,
                 wsURL: didSocketApiUrl,
-                enableAnalitics: false,
+                enableAnalitics: true,
                 distinctId: 'testDistinctIdToSDKTest',
                 streamOptions: {
                     streamWarmup: warmup,
-                    streamGreeting: true,
+                    streamGreeting: false,
                     sessionTimeout: sessionTimeout,
                     compatibilityMode: compatibilityMode,
                 },
