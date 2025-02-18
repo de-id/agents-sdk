@@ -10,10 +10,8 @@ import {
     StreamingState,
     VideoType,
 } from '$/types/index';
-import { timeStamp } from 'console';
 import { didApiUrl } from './environment';
 import { formatStats, createVideoStatsReport } from './utils/webrtc';
-import { get } from 'http';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
