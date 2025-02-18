@@ -4,12 +4,16 @@ import {
     ConnectionState,
     CreateStreamOptions,
     PayloadType,
+    SlimRTCStatsReport,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     VideoType,
 } from '$/types/index';
+import { timeStamp } from 'console';
 import { didApiUrl } from './environment';
+import { formatStats, createVideoStatsReport } from './utils/webrtc';
+import { get } from 'http';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
@@ -59,6 +63,7 @@ function createVideoStatsAnalyzer() {
     };
 }
 
+
 function pollStats(
     peerConnection: RTCPeerConnection,
     onVideoStateChange,
@@ -67,6 +72,8 @@ function pollStats(
     onConnected: () => void) {
     const interval = 100;
     const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
+    let allStats: SlimRTCStatsReport[] = [];
+    let previousStats: SlimRTCStatsReport;
 
     let notReceivingNumIntervals = 0;
     let isStreaming = false;
@@ -79,6 +86,7 @@ function pollStats(
     return setInterval(async () => {
         const stats = await peerConnection.getStats();
         const isReceiving = isReceivingVideoBytes(stats);
+        const slimStats = formatStats(stats);
 
         if (isReceiving) {
             notReceivingNumIntervals = 0;
@@ -88,14 +96,18 @@ function pollStats(
                 if (streamsCount >= streamsBeforeReady && !getIsConnected()) {
                     onConnected();
                 }
+                previousStats = allStats[allStats.length - 1];
+                allStats = [];
                 streamsCount++;
                 isStreaming = true;
             }
+            allStats.push(slimStats);
         } else if (isStreaming) {
             notReceivingNumIntervals++;
 
             if (notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
-                onVideoStateChange?.(StreamingState.Stop);
+                const statsReport = createVideoStatsReport(allStats, interval, previousStats)
+                onVideoStateChange?.(StreamingState.Stop, statsReport);
 
                 isStreaming = false;
             }

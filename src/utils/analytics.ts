@@ -2,7 +2,7 @@ import {
     Agent,
 } from '$/types/index';
 
-export function getAnaliticsInfo(agent: Agent) {
+export function getAnalyticsInfo(agent: Agent) {
     const mobileOrDesktop = () => {
         return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
     };

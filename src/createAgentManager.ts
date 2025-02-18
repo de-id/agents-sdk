@@ -24,8 +24,8 @@ import { PLAYGROUND_HEADER } from './consts';
 import { createStreamingManager, StreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
-import { getAnaliticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 import retryOperation from './utils/retryOperation';
+import { getAnalyticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 
 let messageSentTimestamp = 0;
 const connectionRetryTimeoutInMs = 20 * 1000; // 20 seconds
@@ -141,17 +141,32 @@ function initializeStreamAndChat(
                                 options.callbacks.onConnectionStateChange?.(state);
                             }
                         },
-                        onVideoStateChange(state) {
+                        onVideoStateChange(state, statsReport?) {
                             options.callbacks.onVideoStateChange?.(state);
 
-                            if (messageSentTimestamp > 0 && state === StreamingState.Start) {
-                                analytics.linkTrack(
-                                    'agent-video',
-                                    { event: 'start', latency: Date.now() - messageSentTimestamp },
-                                    'start',
-                                    [StreamEvents.StreamVideoCreated]
-                                );
-                            }
+                            if (messageSentTimestamp > 0) {
+                                if(state === StreamingState.Start) {
+                                    analytics.linkTrack(
+                                        'agent-video',
+                                        { event: 'start', latency: Date.now() - messageSentTimestamp },
+                                        'start',
+                                        [StreamEvents.StreamVideoCreated]
+                                    );
+                                }
+                                else if (state === StreamingState.Stop) {
+                                    analytics.linkTrack(
+                                        'agent-video',
+                                        {
+                                            event: 'stop',
+                                            is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
+                                            background: agent.presenter.type === 'clip' && agent.presenter.background,
+                                            ...statsReport
+                                        },
+                                        'done',
+                                        [StreamEvents.StreamVideoDone]
+                                    );
+                                }
+                        }
                         },
                     },
                 }
@@ -275,7 +290,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
     });
-    analytics.track('agent-sdk', { event: 'loaded', ...getAnaliticsInfo(agentInstance) });
+    analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentInstance) });
 
     const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
         onMessage: (event, data): void => {
@@ -302,7 +317,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 } else if (completedEvents.includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
-                    analytics.track('agent-video', { ...props, event: streamEvent });
+                    if (failedEvents.includes(event)) {
+                        // Dont depend on video state change if stream failed
+                        analytics.track('agent-video', { ...props, event: streamEvent });
+                    }
+                    else{
+                        analytics.linkTrack('agent-video', { ...props, event: streamEvent }, event, ['done']);
+                    }
                 }
 
                 if (failedEvents.includes(event)) {
