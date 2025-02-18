@@ -9,7 +9,7 @@ interface VideoRTCStatsReport {
     resolution: string;
 }
 
-function createAggregateReport(start: SlimRTCStatsReport, end: SlimRTCStatsReport): AnalyticsRTCStatsReport {
+function createAggregateReport(start: SlimRTCStatsReport, end: SlimRTCStatsReport, lowFpsCount: number): AnalyticsRTCStatsReport {
     return {
         duration: (end.timestamp - start.timestamp) / 1000,
         bytesReceived: end.bytesReceived - start.bytesReceived,
@@ -22,6 +22,7 @@ function createAggregateReport(start: SlimRTCStatsReport, end: SlimRTCStatsRepor
         framesPerSecond: end.framesPerSecond,
         freezeCount: end.freezeCount - start.freezeCount,
         freezeDuration: end.freezeDuration - start.freezeDuration,
+        lowFpsCount,
     };
 }
 function extractAnomalies(stats: AnalyticsRTCStatsReport[]): AnalyticsRTCStatsReport[] {
@@ -132,10 +133,12 @@ export function createVideoStatsReport(
             freezeDuration: report.freezeDuration - stats[index - 1].freezeDuration,
         };
     })
+    const anomalies = extractAnomalies(differentialReport);
+    const lowFpsCount = anomalies.reduce((acc, report) => acc + (report.causes!.includes('low fps') ? 1 : 0), 0);
     return {
         webRTCStats:{
-            anomalies: extractAnomalies(differentialReport),
-            aggregateReport: createAggregateReport(stats[0], stats[stats.length - 1]),
+            anomalies: anomalies,
+            aggregateReport: createAggregateReport(stats[0], stats[stats.length - 1], lowFpsCount),
         },
         codec: stats[0].codec,
         resolution: `${stats[0].frameWidth}x${stats[0].frameHeight}`,

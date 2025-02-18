@@ -115,4 +115,6 @@ export interface AnalyticsRTCStatsReport {
     framesPerSecond: number;
     freezeCount: number;
     freezeDuration: number;
+    lowFpsCount?: number;
+    causes?: string[];
 }
