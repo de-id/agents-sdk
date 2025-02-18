@@ -39,7 +39,7 @@ function extractAnomalies(stats: AnalyticsRTCStatsReport[]): AnalyticsRTCStatsRe
                 causes.push('frames dropped');
             }
             if (report.packetsLost > 0) {
-                causes.push('packets lost');
+                causes.push('packet loss');
             }
             return {
                 ...updatedReport,
