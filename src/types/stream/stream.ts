@@ -85,12 +85,36 @@ export interface StreamingManagerOptions {
 
 export interface SlimRTCStatsReport {
     index: number;
+    codec: string;
+    duration?: number;
+    bitrate?: number;
     timestamp: any;
     bytesReceived: any;
     packetsReceived: any;
     packetsLost: any;
+    framesDropped: any;
+    framesDecoded: any;
     jitter: any;
     frameWidth: any;
     frameHeight: any;
     framesPerSecond: any;
+    freezeCount: number;
+    freezeDuration: number;
+}
+
+export interface AnalyticsRTCStatsReport {
+    timestamp?: number;
+    duration: number;
+    bytesReceived: number;
+    bitrate: number;
+    packetsReceived: number;
+    packetsLost: number;
+    framesDropped: number;
+    framesDecoded: number;
+    jitter: number;
+    framesPerSecond: number;
+    freezeCount: number;
+    freezeDuration: number;
+    lowFpsCount?: number;
+    causes?: string[];
 }
