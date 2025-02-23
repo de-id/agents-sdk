@@ -145,7 +145,7 @@ function initializeStreamAndChat(
                             options.callbacks.onVideoStateChange?.(state);
 
                             if (messageSentTimestamp > 0) {
-                                if(state === StreamingState.Start) {
+                                if (state === StreamingState.Start) {
                                     analytics.linkTrack(
                                         'agent-video',
                                         { event: 'start', latency: Date.now() - messageSentTimestamp },
@@ -166,7 +166,7 @@ function initializeStreamAndChat(
                                         [StreamEvents.StreamVideoDone]
                                     );
                                 }
-                        }
+                            }
                         },
                     },
                 }
@@ -321,7 +321,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         // Dont depend on video state change if stream failed
                         analytics.track('agent-video', { ...props, event: streamEvent });
                     }
-                    else{
+                    else {
                         analytics.linkTrack('agent-video', { ...props, event: streamEvent }, event, ['done']);
                     }
                 }
@@ -618,6 +618,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             if (!items.streamingManager) {
                 throw new Error('Please connect to the agent first');
             }
+
+            messageSentTimestamp = Date.now();
 
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
