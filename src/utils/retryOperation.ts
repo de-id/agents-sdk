@@ -55,17 +55,22 @@ async function retryOperation<T>(operation: () => Promise<T>, userOptions?: Retr
             }
 
             let timer: ReturnType<typeof setTimeout>;
+            const operationPromise = new Promise<T>((resolve, reject) => {
+                operation()
+                    .then(result => {
+                        clearTimeout(timer);
+                        resolve(result);
+                    })
+                    .catch(error => {
+                        clearTimeout(timer);
+                        reject(error);
+                    });
+            });
             const timeoutPromise = new Promise<T>((_, reject) => {
                 timer = setTimeout(() => reject(new Error(options.timeoutErrorMessage)), options.timeout);
             });
 
-            const result = await Promise.race([
-                operation().then(res => {
-                    clearTimeout(timer);
-                    return res;
-                }),
-                timeoutPromise,
-            ]);
+            const result = await Promise.race([operationPromise, timeoutPromise]);
             return result;
         } catch (error) {
             lastError = error;
