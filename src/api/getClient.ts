@@ -3,6 +3,10 @@ import retryOperation from '$/utils/retryOperation';
 import { getAuthHeader } from '../auth/getAuthHeader';
 import { didApiUrl } from '../environment';
 
+export type RequestOptions = RequestInit & {
+    skipErrorHandler?: boolean;
+};
+
 const retryHttpTooManyRequests = <T>(operation: () => Promise<T>): Promise<T> =>
     retryOperation(operation, {
         limit: 3,
@@ -12,12 +16,13 @@ const retryHttpTooManyRequests = <T>(operation: () => Promise<T>): Promise<T> =>
     });
 
 export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Error, errorData: object) => void) {
-    const client = async <T>(url: string, options?: RequestInit) => {
+    const client = async <T>(url: string, options?: RequestOptions) => {
+        const { skipErrorHandler, ...fetchOptions } = options || {};
         const request = await retryHttpTooManyRequests(() =>
             fetch(host + (url?.startsWith('/') ? url : `/${url}`), {
-                ...options,
+                ...fetchOptions,
                 headers: {
-                    ...options?.headers,
+                    ...fetchOptions.headers,
                     Authorization: getAuthHeader(auth),
                     'Content-Type': 'application/json',
                 },
@@ -26,8 +31,8 @@ export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Err
 
         if (!request.ok) {
             let error: any = await request.text().catch(() => 'Failed to fetch');
-            if (onError) {
-                onError(new Error(error), { url, options, headers: request.headers });
+            if (onError && !skipErrorHandler) {
+                onError(new Error(error), { url, options: fetchOptions, headers: request.headers });
             }
             throw new Error(error);
         }
@@ -36,16 +41,16 @@ export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Err
     };
 
     return {
-        get<T = any>(url: string, options?: RequestInit) {
+        get<T = any>(url: string, options?: RequestOptions) {
             return client<T>(url, { ...options, method: 'GET' });
         },
-        post<T = any>(url: string, body?: any, options?: RequestInit) {
+        post<T = any>(url: string, body?: any, options?: RequestOptions) {
             return client<T>(url, { ...options, body: JSON.stringify(body), method: 'POST' });
         },
-        delete<T = any>(url: string, body?: any, options?: RequestInit) {
+        delete<T = any>(url: string, body?: any, options?: RequestOptions) {
             return client<T>(url, { ...options, body: JSON.stringify(body), method: 'DELETE' });
         },
-        patch<T = any>(url: string, body?: any, options?: RequestInit) {
+        patch<T = any>(url: string, body?: any, options?: RequestOptions) {
             return client<T>(url, { ...options, body: JSON.stringify(body), method: 'PATCH' });
         },
     };
