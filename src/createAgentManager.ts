@@ -24,11 +24,11 @@ import { PLAYGROUND_HEADER } from './consts';
 import { createStreamingManager, StreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
-import retryOperation from './utils/retryOperation';
 import { getAnalyticsInfo, getStreamAnalyticsProps } from './utils/analytics';
+import retryOperation from './utils/retryOperation';
 
 let messageSentTimestamp = 0;
-const connectionRetryTimeoutInMs = 20 * 1000; // 20 seconds
+const connectionRetryTimeoutInMs = 45 * 1000; // 45 seconds
 
 interface AgentManagerItems {
     chat?: Chat;
@@ -152,15 +152,15 @@ function initializeStreamAndChat(
                                         'start',
                                         [StreamEvents.StreamVideoCreated]
                                     );
-                                }
-                                else if (state === StreamingState.Stop) {
+                                } else if (state === StreamingState.Stop) {
                                     analytics.linkTrack(
                                         'agent-video',
                                         {
                                             event: 'stop',
-                                            is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
+                                            is_greenscreen:
+                                                agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
                                             background: agent.presenter.type === 'clip' && agent.presenter.background,
-                                            ...statsReport
+                                            ...statsReport,
                                         },
                                         'done',
                                         [StreamEvents.StreamVideoDone]
@@ -320,8 +320,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     if (failedEvents.includes(event)) {
                         // Dont depend on video state change if stream failed
                         analytics.track('agent-video', { ...props, event: streamEvent });
-                    }
-                    else {
+                    } else {
                         analytics.linkTrack('agent-video', { ...props, event: streamEvent }, event, ['done']);
                     }
                 }
@@ -367,7 +366,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             {
                 limit: 3,
                 timeout: connectionRetryTimeoutInMs,
-                timeoutErrorMessage: 'Could not connect',
+                timeoutErrorMessage: 'Timeout initializing the stream',
                 // Retry on all errors except for connection errors and rate limit errors, these are already handled in client level.
                 shouldRetryFn: (error: any) => error?.message !== 'Could not connect' && error.status !== 429,
                 delayMs: 1000,
@@ -519,11 +518,18 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                             chatMode: items.chatMode,
                             messages: messages.map(({ matches, ...message }) => message),
                         },
-                        getRequestHeaders(items.chatMode)
+                        {
+                            ...getRequestHeaders(items.chatMode),
+                            skipErrorHandler: true,
+                        }
                     );
 
                 const response = await sendChat(items.chat.id).catch(async error => {
-                    if (!error?.message?.includes('missing or invalid session_id')) {
+                    const isInvalidSessionId = error?.message?.includes('missing or invalid session_id');
+                    const isStreamError = error?.message?.includes('Stream Error');
+
+                    if (!isStreamError && !isInvalidSessionId) {
+                        options.callbacks.onError?.(error, {});
                         throw error;
                     }
 
