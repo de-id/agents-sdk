@@ -10,15 +10,17 @@ interface VideoRTCStatsReport {
 }
 
 function createAggregateReport(start: SlimRTCStatsReport, end: SlimRTCStatsReport, lowFpsCount: number): AnalyticsRTCStatsReport {
+    const duration = (end.timestamp - start.timestamp) / 1000;
     return {
-        duration: (end.timestamp - start.timestamp) / 1000,
+        duration,
         bytesReceived: end.bytesReceived - start.bytesReceived,
-        bitrate: Math.round((end.bytesReceived - start.bytesReceived) * 8 / ((end.timestamp - start.timestamp) / 1000)),
+        bitrate: Math.round((end.bytesReceived - start.bytesReceived) * 8 / duration),
         packetsReceived: end.packetsReceived - start.packetsReceived,
         packetsLost: end.packetsLost - start.packetsLost,
         framesDropped: end.framesDropped - start.framesDropped,
         framesDecoded: end.framesDecoded - start.framesDecoded,
         jitter: end.jitter,
+        jitterBufferDelay: (end.jitterBufferDelay - start.jitterBufferDelay) / duration,
         framesPerSecond: end.framesPerSecond,
         freezeCount: end.freezeCount - start.freezeCount,
         freezeDuration: end.freezeDuration - start.freezeDuration,
@@ -67,6 +69,7 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
                 framesDropped: report.framesDropped,
                 framesDecoded: report.framesDecoded,
                 jitter: report.jitter,
+                jitterBufferDelay: report.jitterBufferDelay,
                 frameWidth: report.frameWidth,
                 frameHeight: report.frameHeight,
                 framesPerSecond: report.framesPerSecond,
@@ -96,6 +99,7 @@ export function createVideoStatsReport(
                     framesDropped: report.framesDropped,
                     framesDecoded: report.framesDecoded,
                     jitter: report.jitter,
+                    jitterBufferDelay: report.jitterBufferDelay,
                     framesPerSecond: report.framesPerSecond,
                     freezeCount: report.freezeCount,
                     freezeDuration: report.freezeDuration,
@@ -112,6 +116,7 @@ export function createVideoStatsReport(
                 framesDropped: report.framesDropped - previousStats.framesDropped,
                 framesDecoded: report.framesDecoded - previousStats.framesDecoded,
                 jitter: report.jitter,
+                jitterBufferDelay: report.jitterBufferDelay - previousStats.jitterBufferDelay,
                 framesPerSecond: report.framesPerSecond,
                 freezeCount: report.freezeCount - previousStats.freezeCount,
                 freezeDuration: report.freezeDuration - previousStats.freezeDuration,
@@ -128,6 +133,7 @@ export function createVideoStatsReport(
             framesDropped: report.framesDropped - stats[index - 1].framesDropped,
             framesDecoded: report.framesDecoded - stats[index - 1].framesDecoded,
             jitter: report.jitter,
+            jitterBufferDelay: report.jitterBufferDelay - stats[index - 1].jitterBufferDelay,
             framesPerSecond: report.framesPerSecond,
             freezeCount: report.freezeCount - stats[index - 1].freezeCount,
             freezeDuration: report.freezeDuration - stats[index - 1].freezeDuration,
