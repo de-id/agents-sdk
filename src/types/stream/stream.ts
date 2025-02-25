@@ -95,6 +95,7 @@ export interface SlimRTCStatsReport {
     framesDropped: any;
     framesDecoded: any;
     jitter: any;
+    jitterBufferDelay: number;
     frameWidth: any;
     frameHeight: any;
     framesPerSecond: any;
@@ -112,6 +113,7 @@ export interface AnalyticsRTCStatsReport {
     framesDropped: number;
     framesDecoded: number;
     jitter: number;
+    jitterBufferDelay: number;
     framesPerSecond: number;
     freezeCount: number;
     freezeDuration: number;
