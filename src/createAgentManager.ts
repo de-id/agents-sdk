@@ -93,6 +93,13 @@ async function newChat(
     }
 }
 
+class SdkError extends Error {
+    constructor({ kind, description }: { kind: string; description?: string }) {
+        const message = JSON.stringify({ kind, description });
+        super(message);
+    }
+}
+
 function initializeStreamAndChat(
     agent: Agent,
     options: AgentManagerOptions,
@@ -104,6 +111,7 @@ function initializeStreamAndChat(
     return new Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions> }>(
         async (resolve, reject) => {
             messageSentTimestamp = 0;
+            const initialChatMode = String(options.mode) as ChatMode;
 
             if (!chat && options.mode !== ChatMode.DirectPlayback) {
                 try {
@@ -113,10 +121,24 @@ function initializeStreamAndChat(
                 }
             }
 
-            if (chat?.chat_mode === ChatMode.TextOnly) {
-                options.callbacks?.onError?.(new Error(JSON.stringify({ kind: 'InsufficientCreditsError' })), {
-                    fromSdk: true,
-                });
+            const returnedChatMode: ChatMode = chat?.chat_mode || initialChatMode;
+
+            if (returnedChatMode !== initialChatMode) {
+                options.mode = returnedChatMode;
+                options.callbacks.onModeChange?.(returnedChatMode);
+
+                if (returnedChatMode === ChatMode.TextOnly) {
+                    options.callbacks?.onError?.(
+                        new SdkError({
+                            kind: 'ModeUnavailable',
+                            description: `Chat mode changed from ${initialChatMode} to ${returnedChatMode} when creating the chat`,
+                        }),
+                        {}
+                    );
+                }
+            }
+
+            if (returnedChatMode === ChatMode.TextOnly) {
                 return resolve({ chat });
             }
 
