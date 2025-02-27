@@ -26,6 +26,7 @@ import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
 import { getAnalyticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 import retryOperation from './utils/retryOperation';
+import { SdkError } from './utils/SdkError';
 
 let messageSentTimestamp = 0;
 const connectionRetryTimeoutInMs = 45 * 1000; // 45 seconds
@@ -93,13 +94,6 @@ async function newChat(
     }
 }
 
-class SdkError extends Error {
-    constructor({ kind, description }: { kind: string; description?: string }) {
-        const message = JSON.stringify({ kind, description });
-        super(message);
-    }
-}
-
 function initializeStreamAndChat(
     agent: Agent,
     options: AgentManagerOptions,
@@ -130,7 +124,7 @@ function initializeStreamAndChat(
                 if (returnedChatMode === ChatMode.TextOnly) {
                     options.callbacks?.onError?.(
                         new SdkError({
-                            kind: 'ModeUnavailable',
+                            kind: 'ChatModeDowngraded',
                             description: `Chat mode changed from ${initialChatMode} to ${returnedChatMode} when creating the chat`,
                         }),
                         {}
