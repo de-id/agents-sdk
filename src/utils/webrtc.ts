@@ -5,6 +5,7 @@ interface VideoRTCStatsReport {
         anomalies: AnalyticsRTCStatsReport[];
         aggregateReport: AnalyticsRTCStatsReport;
     };
+    connectivity: any;
     codec: string;
     resolution: string;
 }
@@ -146,6 +147,7 @@ export function createVideoStatsReport(
             anomalies: anomalies,
             aggregateReport: createAggregateReport(stats[0], stats[stats.length - 1], lowFpsCount),
         },
+        connectivity: (navigator as any).connection,
         codec: stats[0].codec,
         resolution: `${stats[0].frameWidth}x${stats[0].frameHeight}`,
     }
