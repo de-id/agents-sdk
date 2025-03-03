@@ -1,5 +1,5 @@
 import { getExternalId } from '$/auth/getAuthHeader';
-import { Agent } from '..';
+import { Agent } from '$/types';
 
 export interface AnalyticsOptions {
     token: string;

@@ -1,4 +1,4 @@
-import { SlimRTCStatsReport, AnalyticsRTCStatsReport } from '../types';
+import { SlimRTCStatsReport, AnalyticsRTCStatsReport } from '../../types';
 
 interface VideoRTCStatsReport {
     webRTCStats: {

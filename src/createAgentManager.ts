@@ -2,269 +2,39 @@ import {
     Agent,
     AgentManager,
     AgentManagerOptions,
-    AgentsAPI,
     Chat,
     ChatMode,
     ChatProgress,
     ChatProgressCallback,
     ConnectionState,
     CreateStreamOptions,
-    mapVideoType,
     Message,
     StreamEvents,
-    StreamingState,
     SupportedStreamScipt,
 } from './types/index';
 
 import { Auth, StreamScript } from '.';
 import { createAgentsApi } from './api/agents';
 import { getRandom } from './auth/getAuthHeader';
-import { createSocketManager, SocketManager } from './connectToSocket';
-import { PLAYGROUND_HEADER } from './consts';
-import { createStreamingManager, StreamingManager } from './createStreamingManager';
+import { SocketManager, createSocketManager } from './connectToSocket';
+import { StreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
-import { Analytics, initializeAnalytics } from './services/mixpanel';
+import { getInitialMessages } from './services/messages/intialMessages';
+import { ChatEventQueue, processChatEvent } from './services/messages/messageQueue';
+import { initializeAnalytics } from './services/mixpanel';
+import { getRequestHeaders, initializeStreamAndChat, newChat } from './services/streams/init';
 import { getAnalyticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 import retryOperation from './utils/retryOperation';
-import { SdkError } from './utils/SdkError';
 
 let messageSentTimestamp = 0;
 const connectionRetryTimeoutInMs = 45 * 1000; // 45 seconds
 
-interface AgentManagerItems {
+export interface AgentManagerItems {
     chat?: Chat;
     streamingManager?: StreamingManager<CreateStreamOptions>;
     socketManager?: SocketManager;
     messages: Message[];
     chatMode: ChatMode;
-}
-
-interface ChatEventQueue {
-    [sequence: number]: string;
-    answer?: string;
-}
-
-function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greeting?: string): CreateStreamOptions {
-    return {
-        videoType: mapVideoType(agent.presenter.type),
-        output_resolution: options?.streamOptions?.outputResolution,
-        session_timeout: options?.streamOptions?.sessionTimeout,
-        stream_warmup: options?.streamOptions?.streamWarmup,
-        compatibility_mode: options?.streamOptions?.compatibilityMode,
-        stream_greeting: options?.streamOptions?.streamGreeting ? greeting : undefined,
-    };
-}
-
-function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {
-    return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};
-}
-
-async function newChat(
-    agentId: string,
-    agentsApi: AgentsAPI,
-    analytics: Analytics,
-    chatMode?: ChatMode,
-    persist?: boolean
-) {
-    try {
-        const newChat = await agentsApi.newChat(agentId, { persist: persist ?? false }, getRequestHeaders(chatMode));
-
-        analytics.track('agent-chat', {
-            event: 'created',
-            chat_id: newChat.id,
-            agent_id: agentId,
-            mode: chatMode,
-        });
-
-        return newChat;
-    } catch (error: any) {
-        let parsedError;
-
-        try {
-            parsedError = JSON.parse(error.message);
-        } catch (jsonError) {
-            console.error('Error parsing the error message:', jsonError);
-        }
-
-        if (parsedError?.kind === 'InsufficientCreditsError') {
-            throw new Error('InsufficientCreditsError');
-        }
-
-        throw new Error('Cannot create new chat');
-    }
-}
-
-function initializeStreamAndChat(
-    agent: Agent,
-    options: AgentManagerOptions,
-    agentsApi: AgentsAPI,
-    analytics: Analytics,
-    chat?: Chat,
-    greeting?: string
-) {
-    return new Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions> }>(
-        async (resolve, reject) => {
-            messageSentTimestamp = 0;
-            const initialChatMode = String(options.mode) as ChatMode;
-
-            if (!chat && options.mode !== ChatMode.DirectPlayback) {
-                try {
-                    chat = await newChat(agent.id, agentsApi, analytics, options.mode, options.persistentChat);
-                } catch (error) {
-                    return reject(error);
-                }
-            }
-
-            const returnedChatMode: ChatMode = chat?.chat_mode || initialChatMode;
-
-            if (returnedChatMode !== initialChatMode) {
-                options.mode = returnedChatMode;
-                options.callbacks.onModeChange?.(returnedChatMode);
-
-                if (returnedChatMode === ChatMode.TextOnly) {
-                    options.callbacks?.onError?.(
-                        new SdkError({
-                            kind: 'ChatModeDowngraded',
-                            description: `Chat mode changed from ${initialChatMode} to ${returnedChatMode} when creating the chat`,
-                        }),
-                        {}
-                    );
-                }
-            }
-
-            if (returnedChatMode === ChatMode.TextOnly) {
-                return resolve({ chat });
-            }
-
-            const streamingManager = await createStreamingManager(
-                agent.id,
-                getAgentStreamArgs(agent, options, greeting),
-                {
-                    ...options,
-                    analytics,
-                    warmup: options.streamOptions?.streamWarmup,
-                    callbacks: {
-                        ...options.callbacks,
-                        onConnectionStateChange: async state => {
-                            if (state === ConnectionState.Connected) {
-                                if (streamingManager) {
-                                    options.callbacks.onConnectionStateChange?.(state);
-                                    resolve({ chat, streamingManager });
-                                } else if (chat) {
-                                    reject(new Error('Something went wrong while initializing the manager'));
-                                }
-                            } else {
-                                options.callbacks.onConnectionStateChange?.(state);
-                            }
-                        },
-                        onVideoStateChange(state, statsReport?) {
-                            options.callbacks.onVideoStateChange?.(state);
-
-                            if (messageSentTimestamp > 0) {
-                                if (state === StreamingState.Start) {
-                                    analytics.linkTrack(
-                                        'agent-video',
-                                        { event: 'start', latency: Date.now() - messageSentTimestamp },
-                                        'start',
-                                        [StreamEvents.StreamVideoCreated]
-                                    );
-                                } else if (state === StreamingState.Stop) {
-                                    analytics.linkTrack(
-                                        'agent-video',
-                                        {
-                                            event: 'stop',
-                                            is_greenscreen:
-                                                agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-                                            background: agent.presenter.type === 'clip' && agent.presenter.background,
-                                            ...statsReport,
-                                        },
-                                        'done',
-                                        [StreamEvents.StreamVideoDone]
-                                    );
-                                }
-                            }
-                        },
-                    },
-                }
-            ).catch(reject);
-        }
-    );
-}
-
-function getGreetings(agent: Agent) {
-    const greetings = agent.greetings?.filter(greeting => greeting.length > 0);
-    if (greetings && greetings.length > 0) {
-        const randomIndex = Math.floor(Math.random() * greetings.length);
-
-        return greetings[randomIndex];
-    } else {
-        return `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
-    }
-}
-
-function getInitialMessages(greeting, initialMessages?: Message[]): Message[] {
-    if (initialMessages && initialMessages.length > 0) {
-        return initialMessages;
-    }
-
-    return [
-        {
-            content: greeting,
-            id: getRandom(),
-            role: 'assistant',
-            created_at: new Date().toISOString(),
-        },
-    ];
-}
-
-function getMessageContent(chatEventQueue: ChatEventQueue) {
-    if (chatEventQueue['answer'] !== undefined) {
-        return chatEventQueue['answer'];
-    }
-
-    let currentSequence = 0;
-    let content = '';
-
-    while (currentSequence in chatEventQueue) {
-        content += chatEventQueue[currentSequence];
-        currentSequence++;
-    }
-
-    return content;
-}
-
-function processChatEvent(
-    event: ChatProgress,
-    data: any,
-    chatEventQueue: ChatEventQueue,
-    items: AgentManagerItems,
-    onNewMessage: AgentManagerOptions['callbacks']['onNewMessage']
-) {
-    if (!(event === ChatProgress.Partial || event === ChatProgress.Answer)) {
-        return;
-    }
-
-    const lastMessage = items.messages[items.messages.length - 1];
-
-    if (lastMessage?.role !== 'assistant') {
-        return;
-    }
-
-    const { content, sequence } = data;
-
-    if (event === ChatProgress.Partial) {
-        chatEventQueue[sequence] = content;
-    } else {
-        chatEventQueue['answer'] = content;
-    }
-
-    const messageContent = getMessageContent(chatEventQueue);
-
-    if (lastMessage.content !== messageContent || event === ChatProgress.Answer) {
-        lastMessage.content = messageContent;
-
-        onNewMessage?.([...items.messages], event);
-    }
 }
 
 /**
@@ -293,25 +63,23 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const mxKey = options.mixpanelKey || mixpanelKey;
 
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
-    const agentInstance = await agentsApi.getById(agent);
+    const agentEntity = await agentsApi.getById(agent);
 
-    const greeting = getGreetings(agentInstance);
+    items.messages = getInitialMessages(agentEntity, options.initialMessages);
 
-    items.messages = getInitialMessages(greeting, options.initialMessages);
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
     const analytics = initializeAnalytics({
         token: mxKey,
-        agent: agentInstance,
+        agent: agentEntity,
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
     });
-    analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentInstance) });
+    analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) });
 
     const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
         onMessage: (event, data): void => {
             if ('content' in data) {
-                // Chat event
                 processChatEvent(event as ChatProgress, data, chatEventQueue, items, options.callbacks.onNewMessage);
 
                 if (event === ChatProgress.Answer) {
@@ -324,7 +92,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 const SEvent = StreamEvents;
                 const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
                 const failedEvents = [SEvent.StreamFailed, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
-                const props = getStreamAnalyticsProps(data, agentInstance, { mode: items.chatMode });
+                const props = getStreamAnalyticsProps(data, agentEntity, { mode: items.chatMode });
 
                 event = event as StreamEvents;
 
@@ -360,7 +128,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         if (newChat && !firstConnection) {
             delete items.chat;
 
-            items.messages = getInitialMessages(greeting);
+            items.messages = getInitialMessages(agentEntity);
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
@@ -370,15 +138,18 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 : createSocketManager(options.auth, wsURL, socketManagerCallbacks);
 
         const initPromise = retryOperation(
-            () =>
-                initializeStreamAndChat(
-                    agentInstance,
+            () => {
+                console.log('chat', items.chat);
+
+                return initializeStreamAndChat(
+                    agentEntity,
                     options,
                     agentsApi,
                     analytics,
-                    items.chat,
-                    newChat ? greeting : undefined
-                ),
+                    items.chat
+                    // newChat ? greeting : undefined
+                );
+            },
             {
                 limit: 3,
                 timeout: connectionRetryTimeoutInMs,
@@ -432,9 +203,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     }
 
     return {
-        agent: agentInstance,
-        starterMessages: agentInstance.knowledge?.starter_message || [],
-        getSTTToken: () => agentsApi.getSTTToken(agentInstance.id),
+        agent: agentEntity,
+        starterMessages: agentEntity.knowledge?.starter_message || [],
+        getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,
         enrichAnalytics: analytics.enrich,
         async connect() {
@@ -443,7 +214,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'connect',
                 chatId: items.chat?.id,
-                agentId: agentInstance.id,
+                agentId: agentEntity.id,
                 mode: items.chatMode,
             });
         },
@@ -454,7 +225,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'reconnect',
                 chatId: items.chat?.id,
-                agentId: agentInstance.id,
+                agentId: agentEntity.id,
                 mode: items.chatMode,
             });
         },
@@ -464,7 +235,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'disconnect',
                 chatId: items.chat?.id,
-                agentId: agentInstance.id,
+                agentId: agentEntity.id,
                 mode: items.chatMode,
             });
         },
@@ -503,7 +274,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 if (!items.chat) {
                     items.chat = await newChat(
-                        agentInstance.id,
+                        agentEntity.id,
                         agentsApi,
                         analytics,
                         items.chatMode,
@@ -526,7 +297,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 const sendChat = (chatId: string) =>
                     agentsApi.chat(
-                        agentInstance.id,
+                        agentEntity.id,
                         chatId,
                         {
                             sessionId: items.streamingManager?.sessionId,
@@ -605,23 +376,23 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-rate', {
                 event: rateId ? 'update' : 'create',
                 thumb: score === 1 ? 'up' : 'down',
-                knowledge_id: agentInstance.knowledge?.id ?? '',
+                knowledge_id: agentEntity.knowledge?.id ?? '',
                 mode: items.chatMode,
                 matches,
                 score,
             });
 
             if (rateId) {
-                return agentsApi.updateRating(agentInstance.id, items.chat.id, rateId, {
-                    knowledge_id: agentInstance.knowledge?.id ?? '',
+                return agentsApi.updateRating(agentEntity.id, items.chat.id, rateId, {
+                    knowledge_id: agentEntity.knowledge?.id ?? '',
                     message_id: messageId,
                     matches,
                     score,
                 });
             }
 
-            return agentsApi.createRating(agentInstance.id, items.chat.id, {
-                knowledge_id: agentInstance.knowledge?.id ?? '',
+            return agentsApi.createRating(agentEntity.id, items.chat.id, {
+                knowledge_id: agentEntity.knowledge?.id ?? '',
                 message_id: messageId,
                 matches,
                 score,
@@ -634,7 +405,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id, mode: items.chatMode });
 
-            return agentsApi.deleteRating(agentInstance.id, items.chat.id, id);
+            return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
         speak(payload: string | SupportedStreamScipt) {
             if (!items.streamingManager) {
@@ -645,26 +416,26 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
-                    if (!agentInstance.presenter.voice) {
+                    if (!agentEntity.presenter.voice) {
                         throw new Error('Presenter voice is not initialized');
                     }
 
                     return {
                         type: 'text',
-                        provider: agentInstance.presenter.voice,
+                        provider: agentEntity.presenter.voice,
                         input: payload,
                         ssml: false,
                     };
                 }
 
                 if (payload.type === 'text' && !payload.provider) {
-                    if (!agentInstance.presenter.voice) {
+                    if (!agentEntity.presenter.voice) {
                         throw new Error('Presenter voice is not initialized');
                     }
 
                     return {
                         type: 'text',
-                        provider: agentInstance.presenter.voice,
+                        provider: agentEntity.presenter.voice,
                         input: payload.input,
                         ssml: payload.ssml,
                     };

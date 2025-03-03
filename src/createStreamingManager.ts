@@ -4,14 +4,13 @@ import {
     ConnectionState,
     CreateStreamOptions,
     PayloadType,
-    SlimRTCStatsReport,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     VideoType,
 } from '$/types/index';
 import { didApiUrl } from './environment';
-import { formatStats, createVideoStatsReport } from './utils/webrtc';
+import { pollStats } from './services/stats';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
@@ -42,77 +41,6 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function createVideoStatsAnalyzer() {
-    let lastBytesReceived = 0;
-
-    return (stats: RTCStatsReport) => {
-        for (const report of stats.values()) {
-            if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
-                const currBytesReceived = report.bytesReceived;
-                const isReceiving = currBytesReceived - lastBytesReceived > 0;
-
-                lastBytesReceived = currBytesReceived;
-
-                return isReceiving;
-            }
-        }
-
-        return false;
-    };
-}
-
-
-function pollStats(
-    peerConnection: RTCPeerConnection,
-    onVideoStateChange,
-    warmup: boolean = false,
-    getIsConnected: () => boolean,
-    onConnected: () => void) {
-    const interval = 100;
-    const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
-    let allStats: SlimRTCStatsReport[] = [];
-    let previousStats: SlimRTCStatsReport;
-
-    let notReceivingNumIntervals = 0;
-    let isStreaming = false;
-
-    const streamsBeforeReady = warmup ? 1 : 0;
-    let streamsCount = 0;
-
-    const isReceivingVideoBytes = createVideoStatsAnalyzer();
-
-    return setInterval(async () => {
-        const stats = await peerConnection.getStats();
-        const isReceiving = isReceivingVideoBytes(stats);
-        const slimStats = formatStats(stats);
-
-        if (isReceiving) {
-            notReceivingNumIntervals = 0;
-
-            if (!isStreaming) {
-                onVideoStateChange?.(StreamingState.Start);
-                if (streamsCount >= streamsBeforeReady && !getIsConnected()) {
-                    onConnected();
-                }
-                previousStats = allStats[allStats.length - 1];
-                allStats = [];
-                streamsCount++;
-                isStreaming = true;
-            }
-            allStats.push(slimStats);
-        } else if (isStreaming) {
-            notReceivingNumIntervals++;
-
-            if (notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
-                const statsReport = createVideoStatsReport(allStats, interval, previousStats)
-                onVideoStateChange?.(StreamingState.Stop, statsReport);
-
-                isStreaming = false;
-            }
-        }
-    }, interval);
-}
-
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
@@ -122,9 +50,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     let srcObject: MediaStream | null = null;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
-    agent.videoType === VideoType.Clip
-    ? createClipApi(auth, baseURL, agentId, callbacks.onError)
-    : createTalkApi(auth, baseURL, agentId, callbacks.onError);
+        agent.videoType === VideoType.Clip
+            ? createClipApi(auth, baseURL, agentId, callbacks.onError)
+            : createTalkApi(auth, baseURL, agentId, callbacks.onError);
 
     const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
@@ -139,7 +67,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     const onConnected = () => {
         isConnected = true;
         callbacks.onConnectionStateChange?.(ConnectionState.Connected);
-    }
+    };
 
     const videoStatsInterval = pollStats(
         peerConnection,
@@ -151,7 +79,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         log('peerConnection.onicecandidate', event);
-        try{
+
+        try {
             if (event.candidate && event.candidate.sdpMid && event.candidate.sdpMLineIndex !== null) {
                 addIceCandidate(
                     streamIdFromServer,
@@ -173,12 +102,12 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     pcDataChannel.onmessage = (message: MessageEvent) => {
         if (pcDataChannel.readyState === 'open') {
             const [event, _] = message.data.split(':');
+
             if (event === StreamEvents.StreamReady && !isConnected) {
                 onConnected();
             }
         }
     };
-
 
     peerConnection.oniceconnectionstatechange = () => {
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
