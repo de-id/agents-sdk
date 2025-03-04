@@ -4,32 +4,28 @@ import {
     AgentManagerOptions,
     Chat,
     ChatMode,
-    ChatProgress,
-    ChatProgressCallback,
     ConnectionState,
     CreateStreamOptions,
     Message,
-    StreamEvents,
     SupportedStreamScipt,
 } from '../../types/index';
 
+import { connectionRetryTimeoutInMs } from '$/consts';
 import { Auth, StreamScript } from '../..';
 import { createAgentsApi } from '../../api/agents';
 import { getRandom } from '../../auth/get-auth-header';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '../../environment';
 import { ChatCreationFailed } from '../../errors/chat-creation-failed';
-import { getAnalyticsInfo, getStreamAnalyticsProps } from '../../utils/analytics';
-import retryOperation from '../../utils/retry-operation';
+import { getAnalyticsInfo } from '../../utils/analytics';
+import { retryOperation } from '../../utils/retry-operation';
 import { timestampTracker } from '../analytics/message-sent-timestamp';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
 import { getInitialMessages } from '../messages/intial-messages';
-import { ChatEventQueue, processChatEvent } from '../messages/message-queue';
 import { SocketManager, createSocketManager } from '../scoket-manager';
+import { createChatEventQueue } from '../scoket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
 import { getRequestHeaders, initializeStreamAndChat } from './init';
-
-const connectionRetryTimeoutInMs = 45 * 1000; // 45 seconds
 
 export interface AgentManagerItems {
     chat?: Chat;
@@ -52,76 +48,30 @@ export interface AgentManagerItems {
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
-    let chatEventQueue: ChatEventQueue = {};
     let firstConnection = true;
 
-    const items: AgentManagerItems = {
-        messages: [],
-        chatMode: options.mode || ChatMode.Functional,
-    };
-
-    const baseURL = options.baseURL || didApiUrl;
-    const wsURL = options.wsURL || didSocketApiUrl;
     const mxKey = options.mixpanelKey || mixpanelKey;
+    const wsURL = options.wsURL || didSocketApiUrl;
+    const baseURL = options.baseURL || didApiUrl;
 
+    const items: AgentManagerItems = { messages: [], chatMode: options.mode || ChatMode.Functional };
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
     const agentEntity = await agentsApi.getById(agent);
-
-    items.messages = getInitialMessages(agentEntity, options.initialMessages);
-
-    options.callbacks.onNewMessage?.([...items.messages], 'answer');
-
     const analytics = initializeAnalytics({
         token: mxKey,
         agent: agentEntity,
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
     });
+    const { onMessage, clearQueue } = createChatEventQueue(analytics, items, options, agentEntity, () =>
+        items.socketManager?.disconnect()
+    );
+
+    items.messages = getInitialMessages(agentEntity, options.initialMessages);
+
+    options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
     analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) });
-
-    const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
-        onMessage: (event, data): void => {
-            if ('content' in data) {
-                processChatEvent(event as ChatProgress, data, chatEventQueue, items, options.callbacks.onNewMessage);
-
-                if (event === ChatProgress.Answer) {
-                    analytics.track('agent-message-received', {
-                        messages: items.messages.length,
-                        mode: items.chatMode,
-                    });
-                }
-            } else {
-                const SEvent = StreamEvents;
-                const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
-                const failedEvents = [SEvent.StreamFailed, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
-                const props = getStreamAnalyticsProps(data, agentEntity, { mode: items.chatMode });
-
-                event = event as StreamEvents;
-
-                if (event === SEvent.StreamVideoCreated) {
-                    analytics.linkTrack('agent-video', props, SEvent.StreamVideoCreated, ['start']);
-                } else if (completedEvents.includes(event)) {
-                    // Stream video event
-                    const streamEvent = event.split('/')[1];
-                    if (failedEvents.includes(event)) {
-                        // Dont depend on video state change if stream failed
-                        analytics.track('agent-video', { ...props, event: streamEvent });
-                    } else {
-                        analytics.linkTrack('agent-video', { ...props, event: streamEvent }, event, ['done']);
-                    }
-                }
-
-                if (failedEvents.includes(event)) {
-                    options.callbacks.onError?.(new Error(`Stream failed with event ${event}`), { data });
-                }
-
-                if (data.event === SEvent.StreamDone) {
-                    disconnect();
-                }
-            }
-        },
-    };
 
     async function connect(newChat: boolean) {
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
@@ -138,12 +88,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         const websocketPromise =
             options.mode === ChatMode.DirectPlayback
                 ? Promise.resolve(undefined)
-                : createSocketManager(options.auth, wsURL, socketManagerCallbacks);
+                : createSocketManager(options.auth, wsURL, { onMessage, onError: options.callbacks.onError });
 
         const initPromise = retryOperation(
             () => {
-                console.log('chat', items.chat);
-
                 return initializeStreamAndChat(
                     agentEntity,
                     options,
@@ -245,9 +193,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         async chat(userMessage: string) {
             const id = getRandom();
 
-            chatEventQueue = {};
-
             try {
+                clearQueue();
                 timestampTracker.update();
 
                 if (options.mode === ChatMode.DirectPlayback) {

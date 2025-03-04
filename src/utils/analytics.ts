@@ -34,7 +34,7 @@ export function getAnalyticsInfo(agent: Agent) {
     };
 }
 
-export function getStreamAnalyticsProps(data: any, agent: any, additionalProps: Record<string, any>) {
+export function getStreamAnalyticsProps(data: any, agent: Agent, additionalProps: Record<string, any>) {
     const { event, ...baseProps } = data;
 
     const { template } = agent?.llm || {};

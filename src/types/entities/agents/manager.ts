@@ -126,6 +126,7 @@ interface StreamOptions {
 export interface AgentManagerOptions {
     auth: Auth;
     callbacks: ManagerCallbacks;
+    mode: ChatMode;
     baseURL?: string;
     wsURL?: string;
     debug?: boolean;
@@ -135,7 +136,6 @@ export interface AgentManagerOptions {
      * Unique ID of agent user used in analytics. Pass it to override the default way to get distinctId
      */
     distinctId?: string;
-    mode?: ChatMode;
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
     persistentChat?: boolean;

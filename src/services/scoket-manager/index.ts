@@ -1,6 +1,8 @@
 import { getAuthHeader } from '$/auth/get-auth-header';
+import { WSError } from '$/errors';
 import { ChatProgressCallback } from '$/types';
 import { Auth } from '$/types/auth';
+import { sleep } from '$/utils';
 
 interface Options {
     auth: Auth;
@@ -19,8 +21,6 @@ export interface SocketManager {
     disconnect: () => void;
     subscribeToEvents: (data: any) => void;
 }
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
@@ -66,9 +66,9 @@ async function connectWithRetries(options: Options): Promise<WebSocket> {
 export async function createSocketManager(
     auth: Auth,
     host: string,
-    callback?: {
-        onMessage?: ChatProgressCallback;
-        onError?: (error: string, event: Event) => void;
+    callback: {
+        onMessage: ChatProgressCallback;
+        onError?: (error: Error) => void;
     }
 ): Promise<SocketManager> {
     const messageCallbacks: ChatProgressCallback[] = callback?.onMessage ? [callback.onMessage] : [];
@@ -76,8 +76,8 @@ export async function createSocketManager(
         auth,
         host,
         callbacks: {
-            onError: callback?.onError,
-            onMessage: (event: MessageEvent) => {
+            onError: error => callback.onError?.(new WSError(error)),
+            onMessage(event: MessageEvent) {
                 const parsedData = JSON.parse(event.data);
                 messageCallbacks.forEach(callback => callback(parsedData.event, parsedData));
             },

@@ -1,5 +1,5 @@
 import { Auth } from '$/types/auth';
-import retryOperation from '$/utils/retry-operation';
+import { retryOperation } from '$/utils/retry-operation';
 import { getAuthHeader } from '../auth/get-auth-header';
 import { didApiUrl } from '../environment';
 
@@ -18,6 +18,7 @@ const retryHttpTooManyRequests = <T>(operation: () => Promise<T>): Promise<T> =>
 export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Error, errorData: object) => void) {
     const client = async <T>(url: string, options?: RequestOptions) => {
         const { skipErrorHandler, ...fetchOptions } = options || {};
+
         const request = await retryHttpTooManyRequests(() =>
             fetch(host + (url?.startsWith('/') ? url : `/${url}`), {
                 ...fetchOptions,
@@ -31,9 +32,11 @@ export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Err
 
         if (!request.ok) {
             let error: any = await request.text().catch(() => 'Failed to fetch');
+
             if (onError && !skipErrorHandler) {
                 onError(new Error(error), { url, options: fetchOptions, headers: request.headers });
             }
+
             throw new Error(error);
         }
 
