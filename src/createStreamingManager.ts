@@ -180,7 +180,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     };
 
     pcDataChannel.onopen = () => {
-        if (!agent.stream_warmup && !agent.stream_warmup) {
+        if (!agent.stream_warmup && !agent.stream_greeting) {
             onConnected();
         }
     }
