@@ -1,6 +1,6 @@
 import { useRef, useState } from 'preact/hooks';
 
-import { createAgentManager } from '$/createAgentManager';
+import { createAgentManager } from '$/services/agent-manager';
 import { AgentManager, Auth, ChatMode, ConnectionState, Message, StreamingState } from '$/types';
 import './app.css';
 import { agentId, didApiUrl, didSocketApiUrl } from './environment';

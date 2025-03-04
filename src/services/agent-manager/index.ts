@@ -11,20 +11,22 @@ import {
     Message,
     StreamEvents,
     SupportedStreamScipt,
-} from './types/index';
+} from '../../types/index';
 
-import { Auth, StreamScript } from '.';
-import { createAgentsApi } from './api/agents';
-import { getRandom } from './auth/getAuthHeader';
-import { SocketManager, createSocketManager } from './connectToSocket';
-import { StreamingManager } from './createStreamingManager';
-import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
-import { getInitialMessages } from './services/messages/intialMessages';
-import { ChatEventQueue, processChatEvent } from './services/messages/messageQueue';
-import { initializeAnalytics } from './services/mixpanel';
-import { getRequestHeaders, initializeStreamAndChat, newChat } from './services/streams/init';
-import { getAnalyticsInfo, getStreamAnalyticsProps } from './utils/analytics';
-import retryOperation from './utils/retryOperation';
+import { Auth, StreamScript } from '../..';
+import { createAgentsApi } from '../../api/agents';
+import { getRandom } from '../../auth/getAuthHeader';
+import { SocketManager, createSocketManager } from '../../connectToSocket';
+import { StreamingManager } from '../../createStreamingManager';
+import { didApiUrl, didSocketApiUrl, mixpanelKey } from '../../environment';
+import { ChatCreationFailed } from '../../errors/ChatCreationFailed';
+import { getRequestHeaders, initializeStreamAndChat } from './init';
+import { createChat } from '../chat';
+import { getInitialMessages } from '../messages/intialMessages';
+import { ChatEventQueue, processChatEvent } from '../messages/messageQueue';
+import { initializeAnalytics } from '../mixpanel';
+import { getAnalyticsInfo, getStreamAnalyticsProps } from '../../utils/analytics';
+import retryOperation from '../../utils/retryOperation';
 
 let messageSentTimestamp = 0;
 const connectionRetryTimeoutInMs = 45 * 1000; // 45 seconds
@@ -273,14 +275,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 options.callbacks.onNewMessage?.([...items.messages], 'user');
 
                 if (!items.chat) {
-                    items.chat = await newChat(
-                        agentEntity.id,
+                    const newChat = await createChat(
+                        agentEntity,
                         agentsApi,
                         analytics,
                         items.chatMode,
                         options.persistentChat
                     );
 
+                    if (!newChat.chat) {
+                        throw new ChatCreationFailed(items.chatMode, !!options.persistentChat);
+                    }
+
+                    items.chat = newChat.chat;
                     options.callbacks.onNewChat?.(items.chat.id);
                 }
 
@@ -295,8 +302,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 const messages = [...items.messages];
                 items.messages.push(newMessage);
 
-                const sendChat = (chatId: string) =>
-                    agentsApi.chat(
+                const sendChat = (chatId: string) => {
+                    return agentsApi.chat(
                         agentEntity.id,
                         chatId,
                         {
@@ -310,13 +317,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                             skipErrorHandler: true,
                         }
                     );
+                };
 
                 const response = await sendChat(items.chat.id).catch(async error => {
                     const isInvalidSessionId = error?.message?.includes('missing or invalid session_id');
                     const isStreamError = error?.message?.includes('Stream Error');
 
                     if (!isStreamError && !isInvalidSessionId) {
-                        options.callbacks.onError?.(error, {});
+                        options.callbacks.onError?.(error);
                         throw error;
                     }
 

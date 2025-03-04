@@ -81,7 +81,7 @@ interface ManagerCallbacks {
     /**
      * Optional callback function that will be triggered on fetch request errors
      */
-    onError?: (error: Error, errorData: object) => void;
+    onError?: (error: Error, errorData?: object) => void;
 }
 
 interface StreamOptions {
