@@ -9,8 +9,8 @@ import {
     StreamingState,
     VideoType,
 } from '$/types/index';
-import { didApiUrl } from './environment';
-import { pollStats } from './services/stats';
+import { didApiUrl } from '../../environment';
+import { pollStats } from '../stats';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);

@@ -1,4 +1,4 @@
-import { getExternalId } from '$/auth/getAuthHeader';
+import { getExternalId } from '$/auth/get-auth-header';
 import { Agent } from '$/types';
 
 export interface AnalyticsOptions {

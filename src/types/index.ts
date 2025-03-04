@@ -1,4 +1,4 @@
-export * from './StreamScript';
+export * from './stream-script';
 export * from './auth';
 export * from './entities';
 export * from './stream';

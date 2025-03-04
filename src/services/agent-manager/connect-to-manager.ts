@@ -1,4 +1,4 @@
-import { StreamingManager, createStreamingManager } from '$/createStreamingManager';
+import { StreamingManager, createStreamingManager } from '$/services/streaming-manager';
 import {
     Agent,
     AgentManagerOptions,

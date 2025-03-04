@@ -1,2 +1,2 @@
-export * from './ChatCreationFailed';
-export * from './ChatModeDowngraded';
+export * from './chat-creation-failed';
+export * from './chat-mode-downgraded';

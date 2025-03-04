@@ -1,6 +1,6 @@
+import { getAuthHeader } from '$/auth/get-auth-header';
+import { ChatProgressCallback } from '$/types';
 import { Auth } from '$/types/auth';
-import { ChatProgressCallback } from '.';
-import { getAuthHeader } from './auth/getAuthHeader';
 
 interface Options {
     auth: Auth;

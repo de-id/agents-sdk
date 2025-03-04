@@ -1,10 +1,10 @@
 import { PLAYGROUND_HEADER } from '$/consts';
-import { StreamingManager } from '$/createStreamingManager';
-import { ChatModeDowngraded } from '$/errors/ChatModeDowngraded';
+import { StreamingManager } from '$/services/streaming-manager';
+import { ChatModeDowngraded } from '$/errors/chat-mode-downgraded';
 import { Agent, AgentManagerOptions, AgentsAPI, Chat, ChatMode, CreateStreamOptions } from '$/types';
 import { createChat } from '../chat';
 import { Analytics } from '../mixpanel';
-import { connectToManager } from './connectToManager';
+import { connectToManager } from './connect-to-manager';
 
 export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {
     return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};

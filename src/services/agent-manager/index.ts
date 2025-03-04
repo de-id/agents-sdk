@@ -15,18 +15,18 @@ import {
 
 import { Auth, StreamScript } from '../..';
 import { createAgentsApi } from '../../api/agents';
-import { getRandom } from '../../auth/getAuthHeader';
-import { SocketManager, createSocketManager } from '../../connectToSocket';
-import { StreamingManager } from '../../createStreamingManager';
+import { getRandom } from '../../auth/get-auth-header';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '../../environment';
-import { ChatCreationFailed } from '../../errors/ChatCreationFailed';
-import { getRequestHeaders, initializeStreamAndChat } from './init';
-import { createChat } from '../chat';
-import { getInitialMessages } from '../messages/intialMessages';
-import { ChatEventQueue, processChatEvent } from '../messages/messageQueue';
-import { initializeAnalytics } from '../mixpanel';
+import { ChatCreationFailed } from '../../errors/chat-creation-failed';
 import { getAnalyticsInfo, getStreamAnalyticsProps } from '../../utils/analytics';
-import retryOperation from '../../utils/retryOperation';
+import retryOperation from '../../utils/retry-operation';
+import { createChat } from '../chat';
+import { getInitialMessages } from '../messages/intial-messages';
+import { ChatEventQueue, processChatEvent } from '../messages/message-queue';
+import { initializeAnalytics } from '../mixpanel';
+import { SocketManager, createSocketManager } from '../scoket-manager';
+import { StreamingManager } from '../streaming-manager';
+import { getRequestHeaders, initializeStreamAndChat } from './init';
 
 let messageSentTimestamp = 0;
 const connectionRetryTimeoutInMs = 45 * 1000; // 45 seconds

@@ -1,5 +1,5 @@
 import { ChatMode } from '$/types';
-import { BaseError } from './baseError';
+import { BaseError } from './base-error';
 
 export class ChatModeDowngraded extends BaseError {
     constructor(mode: ChatMode) {

@@ -1,6 +1,6 @@
 import { Auth } from '$/types/auth';
-import retryOperation from '$/utils/retryOperation';
-import { getAuthHeader } from '../auth/getAuthHeader';
+import retryOperation from '$/utils/retry-operation';
+import { getAuthHeader } from '../auth/get-auth-header';
 import { didApiUrl } from '../environment';
 
 export type RequestOptions = RequestInit & {

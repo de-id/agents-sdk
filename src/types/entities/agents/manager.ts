@@ -1,5 +1,5 @@
 import { STTTokenResponse } from '$/types';
-import { SupportedStreamScipt } from '$/types/StreamScript';
+import { SupportedStreamScipt } from '$/types/stream-script';
 import { Auth } from '$/types/auth';
 import {
     CompatibilityMode,

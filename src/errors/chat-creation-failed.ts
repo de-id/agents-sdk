@@ -1,5 +1,5 @@
 import { ChatMode } from '$/types';
-import { BaseError } from './baseError';
+import { BaseError } from './base-error';
 
 export class ChatCreationFailed extends BaseError {
     constructor(mode: ChatMode, persistent: boolean) {

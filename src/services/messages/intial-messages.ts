@@ -1,4 +1,4 @@
-import { getRandom } from "$/auth/getAuthHeader";
+import { getRandom } from "$/auth/get-auth-header";
 import { Agent, Message } from "$/types";
 
 function getGreetings(agent: Agent) {
