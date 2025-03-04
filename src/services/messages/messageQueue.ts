@@ -1,5 +1,5 @@
-import { AgentManagerItems } from '$/createAgentManager';
 import { AgentManagerOptions, ChatProgress } from '$/types';
+import { AgentManagerItems } from '../agent-manager';
 
 export interface ChatEventQueue {
     [sequence: number]: string;
