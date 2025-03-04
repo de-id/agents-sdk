@@ -179,6 +179,12 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         }
     };
 
+    pcDataChannel.onopen = () => {
+        if (!agent.stream_warmup && !agent.stream_warmup) {
+            onConnected();
+        }
+    }
+
 
     peerConnection.oniceconnectionstatechange = () => {
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
