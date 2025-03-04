@@ -8,12 +8,12 @@ import {
     StreamingState,
     mapVideoType,
 } from '$/types';
-import { Analytics } from '../mixpanel';
-
-let messageSentTimestamp = 0;
+import { timestampTracker } from '../analytics/message-sent-timestamp';
+import { Analytics } from '../analytics/mixpanel';
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greeting?: string): CreateStreamOptions {
     const { streamOptions } = options ?? {};
+
     return {
         videoType: mapVideoType(agent.presenter.type),
         output_resolution: streamOptions?.outputResolution,
@@ -25,14 +25,11 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greetin
 }
 
 function handleStateChange(state: StreamingState, agent: Agent, statsReport: any, analytics: Analytics) {
-    if (messageSentTimestamp > 0) {
+    if (timestampTracker.get() > 0) {
         if (state === StreamingState.Start) {
-            analytics.linkTrack(
-                'agent-video',
-                { event: 'start', latency: Date.now() - messageSentTimestamp },
-                'start',
-                [StreamEvents.StreamVideoCreated]
-            );
+            analytics.linkTrack('agent-video', { event: 'start', latency: timestampTracker.get(true) }, 'start', [
+                StreamEvents.StreamVideoCreated,
+            ]);
         } else if (state === StreamingState.Stop) {
             analytics.linkTrack(
                 'agent-video',
@@ -55,7 +52,7 @@ export function connectToManager(
     analytics: Analytics,
     greeting?: string
 ): Promise<StreamingManager<CreateStreamOptions>> {
-    messageSentTimestamp = 0;
+    timestampTracker.reset();
 
     return new Promise(async (resolve, reject) => {
         try {
@@ -75,7 +72,7 @@ export function connectToManager(
                                 resolve(streamingManager);
                             }
                         },
-                        onVideoStateChange: (state, statsReport?) => {
+                        onVideoStateChange: (state: StreamingState, statsReport?: any) => {
                             options.callbacks.onVideoStateChange?.(state);
                             handleStateChange(state, agent, statsReport, analytics);
                         },

@@ -20,15 +20,15 @@ import { didApiUrl, didSocketApiUrl, mixpanelKey } from '../../environment';
 import { ChatCreationFailed } from '../../errors/chat-creation-failed';
 import { getAnalyticsInfo, getStreamAnalyticsProps } from '../../utils/analytics';
 import retryOperation from '../../utils/retry-operation';
+import { timestampTracker } from '../analytics/message-sent-timestamp';
+import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
 import { getInitialMessages } from '../messages/intial-messages';
 import { ChatEventQueue, processChatEvent } from '../messages/message-queue';
-import { initializeAnalytics } from '../mixpanel';
 import { SocketManager, createSocketManager } from '../scoket-manager';
 import { StreamingManager } from '../streaming-manager';
 import { getRequestHeaders, initializeStreamAndChat } from './init';
 
-let messageSentTimestamp = 0;
 const connectionRetryTimeoutInMs = 45 * 1000; // 45 seconds
 
 export interface AgentManagerItems {
@@ -77,6 +77,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
     });
+
     analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) });
 
     const socketManagerCallbacks: { onMessage: ChatProgressCallback } = {
@@ -125,7 +126,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     async function connect(newChat: boolean) {
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
-        messageSentTimestamp = 0;
+        timestampTracker.reset();
 
         if (newChat && !firstConnection) {
             delete items.chat;
@@ -247,7 +248,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             chatEventQueue = {};
 
             try {
-                messageSentTimestamp = Date.now();
+                timestampTracker.update();
 
                 if (options.mode === ChatMode.DirectPlayback) {
                     throw new Error('Direct playback is enabled, chat is disabled');
@@ -269,7 +270,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'user',
                     content: userMessage,
-                    created_at: new Date(messageSentTimestamp).toISOString(),
+                    created_at: new Date(timestampTracker.get()).toISOString(),
                 });
 
                 options.callbacks.onNewMessage?.([...items.messages], 'user');
@@ -347,7 +348,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     newMessage.content = response.result;
 
                     analytics.track('agent-message-received', {
-                        latency: Date.now() - messageSentTimestamp,
+                        latency: timestampTracker.get(true),
                         mode: items.chatMode,
                         messages: items.messages.length,
                     });
@@ -420,8 +421,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw new Error('Please connect to the agent first');
             }
 
-            messageSentTimestamp = Date.now();
-
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
                     if (!agentEntity.presenter.voice) {
@@ -454,6 +453,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             const script = getScript();
             analytics.track('agent-speak', script);
+            timestampTracker.update();
 
             return items.streamingManager.speak({ script });
         },

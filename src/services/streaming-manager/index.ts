@@ -10,7 +10,7 @@ import {
     VideoType,
 } from '$/types/index';
 import { didApiUrl } from '../../environment';
-import { pollStats } from '../stats';
+import { pollStats } from './stats/poll';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
@@ -71,10 +71,10 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     const videoStatsInterval = pollStats(
         peerConnection,
-        callbacks.onVideoStateChange,
-        warmup,
         getIsConnected,
-        onConnected
+        onConnected,
+        callbacks.onVideoStateChange,
+        warmup
     );
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {

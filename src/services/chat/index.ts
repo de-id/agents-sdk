@@ -1,6 +1,6 @@
 import { PLAYGROUND_HEADER } from '$/consts';
 import { Agent, AgentsAPI, Chat, ChatMode } from '$/types';
-import { Analytics } from '../mixpanel';
+import { Analytics } from '../analytics/mixpanel';
 
 export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {
     return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};

@@ -3,7 +3,7 @@ import { StreamingManager } from '$/services/streaming-manager';
 import { ChatModeDowngraded } from '$/errors/chat-mode-downgraded';
 import { Agent, AgentManagerOptions, AgentsAPI, Chat, ChatMode, CreateStreamOptions } from '$/types';
 import { createChat } from '../chat';
-import { Analytics } from '../mixpanel';
+import { Analytics } from '../analytics/mixpanel';
 import { connectToManager } from './connect-to-manager';
 
 export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {

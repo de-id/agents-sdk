@@ -1,6 +1,6 @@
-import { SlimRTCStatsReport, AnalyticsRTCStatsReport } from '../../types';
+import { SlimRTCStatsReport, AnalyticsRTCStatsReport } from '../../../types';
 
-interface VideoRTCStatsReport {
+export interface VideoRTCStatsReport {
     webRTCStats: {
         anomalies: AnalyticsRTCStatsReport[];
         aggregateReport: AnalyticsRTCStatsReport;
@@ -27,6 +27,7 @@ function createAggregateReport(start: SlimRTCStatsReport, end: SlimRTCStatsRepor
         lowFpsCount,
     };
 }
+
 function extractAnomalies(stats: AnalyticsRTCStatsReport[]): AnalyticsRTCStatsReport[] {
     return stats.filter(report =>
         report.freezeCount > 0 || report.framesPerSecond < 21 || report.framesDropped > 0 || report.packetsLost > 0)

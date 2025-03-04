@@ -1,5 +1,5 @@
 import { SlimRTCStatsReport, StreamingState } from '$/types';
-import { createVideoStatsReport, formatStats } from './webrtc';
+import { VideoRTCStatsReport, createVideoStatsReport, formatStats } from './report';
 
 const interval = 100;
 const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
@@ -25,10 +25,10 @@ export function createVideoStatsAnalyzer() {
 
 export function pollStats(
     peerConnection: RTCPeerConnection,
-    onVideoStateChange,
-    warmup: boolean = false,
     getIsConnected: () => boolean,
-    onConnected: () => void
+    onConnected: () => void,
+    onVideoStateChange?: (state: StreamingState, statsReport?: VideoRTCStatsReport) => void,
+    warmup: boolean = false,
 ) {
     const streamsBeforeReady = warmup ? 1 : 0;
 
