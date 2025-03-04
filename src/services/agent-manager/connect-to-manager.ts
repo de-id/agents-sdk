@@ -8,7 +8,7 @@ import {
     StreamingState,
     mapVideoType,
 } from '$/types';
-import { timestampTracker } from '../analytics/message-sent-timestamp';
+import { timestampTracker } from '../analytics/timestamp-tracker';
 import { Analytics } from '../analytics/mixpanel';
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greeting?: string): CreateStreamOptions {

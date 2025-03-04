@@ -6,10 +6,6 @@ import { createChat } from '../chat';
 import { Analytics } from '../analytics/mixpanel';
 import { connectToManager } from './connect-to-manager';
 
-export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {
-    return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};
-}
-
 export async function initializeStreamAndChat(
     agent: Agent,
     options: AgentManagerOptions,

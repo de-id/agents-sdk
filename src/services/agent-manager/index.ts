@@ -18,14 +18,14 @@ import { didApiUrl, didSocketApiUrl, mixpanelKey } from '../../environment';
 import { ChatCreationFailed } from '../../errors/chat-creation-failed';
 import { getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
-import { timestampTracker } from '../analytics/message-sent-timestamp';
 import { initializeAnalytics } from '../analytics/mixpanel';
-import { createChat } from '../chat';
-import { getInitialMessages } from '../messages/intial-messages';
+import { timestampTracker } from '../analytics/timestamp-tracker';
+import { createChat, getRequestHeaders } from '../chat';
 import { SocketManager, createSocketManager } from '../scoket-manager';
-import { createChatEventQueue } from '../scoket-manager/message-queue';
+import { createMessageEventQueue } from '../scoket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
-import { getRequestHeaders, initializeStreamAndChat } from './init';
+import { initializeStreamAndChat } from './init';
+import { getInitialMessages } from './intial-messages';
 
 export interface AgentManagerItems {
     chat?: Chat;
@@ -63,7 +63,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
     });
-    const { onMessage, clearQueue } = createChatEventQueue(analytics, items, options, agentEntity, () =>
+    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () =>
         items.socketManager?.disconnect()
     );
 

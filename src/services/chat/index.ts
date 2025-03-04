@@ -6,20 +6,6 @@ export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<st
     return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};
 }
 
-export function handleError(error: any): never {
-    try {
-        const parsedError = JSON.parse(error.message);
-
-        if (parsedError?.kind === 'InsufficientCreditsError') {
-            throw new Error('InsufficientCreditsError');
-        }
-    } catch (e) {
-        console.error('Error parsing the error message:', e);
-    }
-
-    throw new Error('Cannot create new chat');
-}
-
 export async function createChat(
     agent: Agent,
     agentsApi: AgentsAPI,
@@ -42,6 +28,16 @@ export async function createChat(
 
         return { chat, chatMode: chat?.chat_mode ?? chatMode };
     } catch (error: any) {
-        handleError(error);
+        try {
+            const parsedError = JSON.parse(error.message);
+
+            if (parsedError?.kind === 'InsufficientCreditsError') {
+                throw new Error('InsufficientCreditsError');
+            }
+        } catch (e) {
+            console.error('Error parsing the error message:', e);
+        }
+
+        throw new Error('Cannot create new chat');
     }
 }

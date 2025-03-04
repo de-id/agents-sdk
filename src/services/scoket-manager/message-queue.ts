@@ -53,7 +53,7 @@ function processChatEvent(
     }
 }
 
-export function createChatEventQueue(
+export function createMessageEventQueue(
     analytics: Analytics,
     items: AgentManagerItems,
     options: AgentManagerOptions,
