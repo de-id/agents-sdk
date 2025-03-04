@@ -51,7 +51,7 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greetin
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
-        stream_greeting: options?.streamOptions?.streamGreeting ? greeting : undefined,
+        stream_greeting: options?.streamOptions?.streamGreeting ? 'This is the first sentence. This is the second sentence. This is the third sentence, This is the fourth sentence' : undefined,
     };
 }
 
@@ -158,6 +158,7 @@ function initializeStreamAndChat(
                             }
                         },
                         onVideoStateChange(state, statsReport?) {
+                            console.log('statsReport', statsReport);
                             options.callbacks.onVideoStateChange?.(state);
 
                             if (messageSentTimestamp > 0) {

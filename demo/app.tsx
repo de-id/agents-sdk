@@ -8,16 +8,61 @@ import { agentId, didApiUrl, didSocketApiUrl } from './environment';
 const auth: Auth = { type: 'key', clientKey: import.meta.env.VITE_CLIENT_KEY };
 export function App() {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [text, setText] = useState('tell me a story');
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const recordedChunksRef = useRef<Blob[]>([]);
+    const [text, setText] = useState(
+        'This is the first sentence. This is the second sentence. This is the third sentence'
+    );
     const [messages, setMessages] = useState<Message[]>([]);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
+    const [isRecording, setIsRecording] = useState(false);
     const [agentManager, setAgentManager] = useState<AgentManager>();
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [warmup, setWarmup] = useState(true);
-    const [greeting, setGreeting] = useState(true);
+    const [warmup, setWarmup] = useState(false);
+    const [greeting, setGreeting] = useState(false);
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
     const [compatibilityMode, setCompatibilityMode] = useState<'on' | 'off' | 'auto'>();
     const [mode, setMode] = useState<ChatMode>(ChatMode.Functional);
+
+    function startRecording(stream: MediaStream) {
+        if (!MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) {
+            alert('Your browser does not support VP9 WebM recording.');
+            return;
+        }
+
+        const options = { mimeType: 'video/webm; codecs=vp9' };
+        const mediaRecorder = new MediaRecorder(stream, options);
+
+        mediaRecorder.ondataavailable = event => {
+            if (event.data.size > 0) recordedChunksRef.current.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => saveRecording();
+        mediaRecorder.start();
+        mediaRecorderRef.current = mediaRecorder;
+        setIsRecording(true);
+    }
+
+    function stopRecording() {
+        if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+        }
+    }
+
+    function saveRecording() {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        recordedChunksRef.current = [];
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'recorded-video.webm';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
 
     async function onClick() {
         if (!agentManager) {
@@ -44,13 +89,14 @@ export function App() {
                         }
 
                         videoRef.current.srcObject = value;
+                        startRecording(value as MediaStream);
                     },
                 },
                 baseURL: didApiUrl,
                 mode,
                 auth,
                 wsURL: didSocketApiUrl,
-                enableAnalitics: false,
+                enableAnalitics: true,
                 distinctId: 'testDistinctIdToSDKTest',
                 streamOptions: {
                     streamWarmup: warmup,
@@ -83,6 +129,7 @@ export function App() {
     }
 
     function disconnect() {
+        stopRecording();
         agentManager?.disconnect();
         setAgentManager(undefined);
 
@@ -128,6 +175,9 @@ export function App() {
                     </button>
                     <button onClick={disconnect} disabled={connectionState !== ConnectionState.Connected}>
                         Close connection
+                    </button>
+                    <button onClick={stopRecording} disabled={!isRecording}>
+                        Stop Recording
                     </button>
                     <div className="input-options">
                         <select onChange={e => setMode(e.currentTarget.value as ChatMode)}>
