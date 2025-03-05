@@ -67,7 +67,8 @@ function pollStats(
     onVideoStateChange,
     warmup: boolean = false,
     getIsConnected: () => boolean,
-    onConnected: () => void) {
+    onConnected: () => void,
+    shouldWaitForGreeting: boolean = false) {
     const interval = 100;
     const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
     let allStats: SlimRTCStatsReport[] = [];
@@ -91,7 +92,7 @@ function pollStats(
 
             if (!isStreaming) {
                 onVideoStateChange?.(StreamingState.Start);
-                if (streamsCount >= streamsBeforeReady && !getIsConnected()) {
+                if (shouldWaitForGreeting && streamsCount >= streamsBeforeReady && !getIsConnected()) {
                     onConnected();
                 }
                 previousStats = allStats[allStats.length - 1];
@@ -106,6 +107,9 @@ function pollStats(
             if (notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
                 const statsReport = createVideoStatsReport(allStats, interval, previousStats)
                 onVideoStateChange?.(StreamingState.Stop, statsReport);
+                if (!shouldWaitForGreeting && !getIsConnected()) {
+                    onConnected();
+                }
 
                 isStreaming = false;
             }
@@ -146,7 +150,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         callbacks.onVideoStateChange,
         warmup,
         getIsConnected,
-        onConnected
+        onConnected,
+        !!agent.stream_greeting
     );
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -167,15 +172,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
             }
         } catch (e: any) {
             callbacks.onError?.(e, { streamId: streamIdFromServer });
-        }
-    };
-
-    pcDataChannel.onmessage = (message: MessageEvent) => {
-        if (pcDataChannel.readyState === 'open') {
-            const [event, _] = message.data.split(':');
-            if (event === StreamEvents.StreamReady && !isConnected) {
-                onConnected();
-            }
         }
     };
 
