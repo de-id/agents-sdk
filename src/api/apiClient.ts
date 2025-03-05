@@ -1,7 +1,7 @@
 import { Auth } from '$/types/auth';
 import { retryOperation } from '$/utils/retry-operation';
 import { getAuthHeader } from '../auth/get-auth-header';
-import { didApiUrl } from '../environment';
+import { didApiUrl } from '../config/environment';
 
 export type RequestOptions = RequestInit & {
     skipErrorHandler?: boolean;

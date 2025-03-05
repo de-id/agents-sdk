@@ -8,7 +8,7 @@ import {
     Status,
     TalkStreamOptions,
 } from '$/types/index';
-import { createClient } from './getClient';
+import { createClient } from '../apiClient';
 
 export function createApi(
     auth: Auth,
