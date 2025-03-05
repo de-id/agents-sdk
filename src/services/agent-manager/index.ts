@@ -2,27 +2,28 @@ import {
     Agent,
     AgentManager,
     AgentManagerOptions,
+    Auth,
     Chat,
     ChatMode,
     ConnectionState,
     CreateStreamOptions,
     Message,
+    StreamScript,
     SupportedStreamScipt,
-} from '../../types/index';
+} from '../../types';
 
-import { connectionRetryTimeoutInMs } from '$/consts';
-import { Auth, StreamScript } from '../..';
+import { connectionRetryTimeoutInMs } from '$/config/consts';
+import { didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
+import { ChatCreationFailed, ValidationError } from '$/errors';
 import { createAgentsApi } from '../../api/agents';
 import { getRandom } from '../../auth/get-auth-header';
-import { didApiUrl, didSocketApiUrl, mixpanelKey } from '../../environment';
-import { ChatCreationFailed } from '../../errors/chat-creation-failed';
 import { getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { timestampTracker } from '../analytics/timestamp-tracker';
 import { createChat, getRequestHeaders } from '../chat';
-import { SocketManager, createSocketManager } from '../scoket-manager';
-import { createMessageEventQueue } from '../scoket-manager/message-queue';
+import { SocketManager, createSocketManager } from '../socket-manager';
+import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
 import { initializeStreamAndChat } from './init';
 import { getInitialMessages } from './intial-messages';
@@ -191,37 +192,26 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
         },
         async chat(userMessage: string) {
-            const id = getRandom();
-
-            try {
-                clearQueue();
-                timestampTracker.update();
-
+            const validateChatRequest = () => {
                 if (options.mode === ChatMode.DirectPlayback) {
-                    throw new Error('Direct playback is enabled, chat is disabled');
+                    throw new ValidationError('Direct playback is enabled, chat is disabled');
                 } else if (userMessage.length >= 800) {
-                    throw new Error('Message cannot be more than 800 characters');
+                    throw new ValidationError('Message cannot be more than 800 characters');
                 } else if (userMessage.length === 0) {
-                    throw new Error('Message cannot be empty');
+                    throw new ValidationError('Message cannot be empty');
                 } else if (items.chatMode === ChatMode.Maintenance) {
-                    throw new Error('Chat is in maintenance mode');
+                    throw new ValidationError('Chat is in maintenance mode');
                 } else if (![ChatMode.TextOnly, ChatMode.Playground].includes(items.chatMode)) {
                     if (!items.streamingManager) {
-                        throw new Error('Streaming manager is not initialized');
-                    } else if (!items.chat) {
-                        throw new Error('Chat is not initialized');
+                        throw new ValidationError('Streaming manager is not initialized');
+                    }
+                    if (!items.chat) {
+                        throw new ValidationError('Chat is not initialized');
                     }
                 }
+            };
 
-                items.messages.push({
-                    id: getRandom(),
-                    role: 'user',
-                    content: userMessage,
-                    created_at: new Date(timestampTracker.get()).toISOString(),
-                });
-
-                options.callbacks.onNewMessage?.([...items.messages], 'user');
-
+            const initializeChat = async () => {
                 if (!items.chat) {
                     const newChat = await createChat(
                         agentEntity,
@@ -239,47 +229,70 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     options.callbacks.onNewChat?.(items.chat.id);
                 }
 
-                const newMessage: Message = {
-                    id,
-                    role: 'assistant',
-                    content: '',
-                    created_at: new Date().toISOString(),
-                    matches: [],
-                };
+                return items.chat.id;
+            };
 
-                const messages = [...items.messages];
-                items.messages.push(newMessage);
+            const sendChatRequest = async (messages: Message[], chatId: string) => {
+                return retryOperation(
+                    () => {
+                        return agentsApi.chat(
+                            agentEntity.id,
+                            chatId,
+                            {
+                                chatMode: items.chatMode,
+                                streamId: items.streamingManager?.streamId,
+                                sessionId: items.streamingManager?.sessionId,
+                                messages: messages.map(({ matches, ...message }) => message),
+                            },
+                            {
+                                ...getRequestHeaders(items.chatMode),
+                                skipErrorHandler: true,
+                            }
+                        );
+                    },
+                    {
+                        limit: 2,
+                        shouldRetryFn: error => {
+                            const isInvalidSessionId = error?.message?.includes('missing or invalid session_id');
+                            const isStreamError = error?.message?.includes('Stream Error');
 
-                const sendChat = (chatId: string) => {
-                    return agentsApi.chat(
-                        agentEntity.id,
-                        chatId,
-                        {
-                            sessionId: items.streamingManager?.sessionId,
-                            streamId: items.streamingManager?.streamId,
-                            chatMode: items.chatMode,
-                            messages: messages.map(({ matches, ...message }) => message),
+                            if (!isStreamError && !isInvalidSessionId) {
+                                options.callbacks.onError?.(error);
+                                return false;
+                            }
+                            return true;
                         },
-                        {
-                            ...getRequestHeaders(items.chatMode),
-                            skipErrorHandler: true,
-                        }
-                    );
-                };
-
-                const response = await sendChat(items.chat.id).catch(async error => {
-                    const isInvalidSessionId = error?.message?.includes('missing or invalid session_id');
-                    const isStreamError = error?.message?.includes('Stream Error');
-
-                    if (!isStreamError && !isInvalidSessionId) {
-                        options.callbacks.onError?.(error);
-                        throw error;
+                        onRetry: async () => {
+                            await disconnect();
+                            await connect(false);
+                        },
                     }
+                );
+            };
 
-                    await disconnect();
-                    await connect(false);
+            try {
+                clearQueue();
+                validateChatRequest();
 
-                    return sendChat(items.chat!.id);
+                items.messages.push({
+                    id: getRandom(),
+                    role: 'user',
+                    content: userMessage,
+                    created_at: new Date(timestampTracker.update()).toISOString(),
+                });
+
+                options.callbacks.onNewMessage?.([...items.messages], 'user');
+
+                const chatId = await initializeChat();
+                const response = await sendChatRequest([...items.messages], chatId);
+               
+                items.messages.push({
+                    id: getRandom(),
+                    role: 'assistant',
+                    content: response.result || '',
+                    created_at: new Date().toISOString(),
+                    context: response.context,
+                    matches: response.matches,
                 });
 
                 analytics.track('agent-message-send', {
@@ -288,24 +301,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     messages: items.messages.length + 1,
                 });
 
-                newMessage.context = response.context;
-                newMessage.matches = response.matches;
-
                 if (response.result) {
-                    newMessage.content = response.result;
+                    options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
                     analytics.track('agent-message-received', {
                         latency: timestampTracker.get(true),
                         mode: items.chatMode,
                         messages: items.messages.length,
                     });
-
-                    options.callbacks.onNewMessage?.([...items.messages], 'answer');
                 }
 
                 return response;
             } catch (e) {
-                if (items.messages[items.messages.length - 1].id === id) {
+                if (items.messages[items.messages.length - 1]?.role === 'assistant') {
                     items.messages.pop();
                 }
 

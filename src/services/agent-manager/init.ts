@@ -1,10 +1,9 @@
-import { PLAYGROUND_HEADER } from '$/consts';
 import { StreamingManager } from '$/services/streaming-manager';
-import { ChatModeDowngraded } from '$/errors/chat-mode-downgraded';
 import { Agent, AgentManagerOptions, AgentsAPI, Chat, ChatMode, CreateStreamOptions } from '$/types';
 import { createChat } from '../chat';
 import { Analytics } from '../analytics/mixpanel';
 import { connectToManager } from './connect-to-manager';
+import { ChatModeDowngraded } from '$/errors/chat/chat-mode-downgraded';
 
 export async function initializeStreamAndChat(
     agent: Agent,

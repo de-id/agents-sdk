@@ -1,4 +1,4 @@
-import { PLAYGROUND_HEADER } from '$/consts';
+import { PLAYGROUND_HEADER } from '$/config/consts';
 import { Agent, AgentsAPI, Chat, ChatMode } from '$/types';
 import { Analytics } from '../analytics/mixpanel';
 

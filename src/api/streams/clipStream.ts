@@ -10,7 +10,7 @@ import {
 } from '$/types/index';
 import { createClient } from '../apiClient';
 
-export function createApi(
+export function createClipApi(
     auth: Auth,
     host: string,
     agentId: string,

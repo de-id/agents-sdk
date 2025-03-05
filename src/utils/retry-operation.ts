@@ -6,6 +6,7 @@ interface RetryOptions {
     timeout?: number;
     timeoutErrorMessage?: string;
     shouldRetryFn?: (error: any) => boolean;
+    onRetry?: (error: any) => void;
 }
 
 function createRacePromise(timeout: number, timeoutErrorMessage: string) {
@@ -56,6 +57,7 @@ export async function retryOperation<T>(operation: () => Promise<T>, userOptions
         timeout: userOptions?.timeout ?? 30000,
         timeoutErrorMessage: userOptions?.timeoutErrorMessage || 'Timeout error',
         shouldRetryFn: userOptions?.shouldRetryFn ?? (() => true),
+        onRetry: userOptions?.onRetry ?? (() => {}),
     };
 
     let lastError: any;
@@ -77,6 +79,8 @@ export async function retryOperation<T>(operation: () => Promise<T>, userOptions
             }
 
             await sleep(options.delayMs);
+
+            options.onRetry(error);
         }
     }
 

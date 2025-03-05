@@ -31,13 +31,14 @@ export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Err
         );
 
         if (!request.ok) {
-            let error: any = await request.text().catch(() => 'Failed to fetch');
+            let errorText: any = await request.text().catch(() => 'Failed to fetch');
+            const error = new Error(`Failed to fetch with status ${request.status}, ${errorText}`);
 
             if (onError && !skipErrorHandler) {
-                onError(new Error(error), { url, options: fetchOptions, headers: request.headers });
+                onError(error, { url, options: fetchOptions, headers: request.headers });
             }
 
-            throw new Error(error);
+            throw error;
         }
 
         return request.json() as Promise<T>;

@@ -1,5 +1,6 @@
-import { createApi as createClipApi } from '$/api/clipStream';
-import { createApi as createTalkApi } from '$/api/talkStream';
+import { createClipApi } from '$/api/streams/clipStream';
+import { createTalkApi } from '$/api/streams/talkStream';
+import { didApiUrl } from '$/config/environment';
 import {
     ConnectionState,
     CreateStreamOptions,
@@ -9,7 +10,6 @@ import {
     StreamingState,
     VideoType,
 } from '$/types/index';
-import { didApiUrl } from '../../environment';
 import { pollStats } from './stats/poll';
 
 let _debug = false;
