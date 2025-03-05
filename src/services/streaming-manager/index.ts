@@ -10,7 +10,9 @@ import {
     VideoType,
 } from '$/types/index';
 import { pollStats } from './stats/poll';
+import { VideoRTCStatsReport } from './stats/report';
 
+type InternalOnVideoStateChange = (state: StreamingState, report?: VideoRTCStatsReport) => void;
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
 const actualRTCPC = (
@@ -40,6 +42,19 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
+function handleStreamState(
+    statsSignal: StreamingState,
+    dataChannelSignal: StreamingState,
+    onVideoStateChange: InternalOnVideoStateChange,
+    report?: VideoRTCStatsReport
+) {
+    if (statsSignal === StreamingState.Start && dataChannelSignal === StreamingState.Start) {
+        onVideoStateChange?.(StreamingState.Start);
+    } else if (statsSignal === StreamingState.Stop && dataChannelSignal === StreamingState.Stop) {
+        onVideoStateChange?.(StreamingState.Stop, report);
+    }
+}
+
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
@@ -47,6 +62,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
+    let statsSignal = StreamingState.Stop;
+    let dataChannelSignal = StreamingState.Stop;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip
@@ -72,7 +89,13 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         peerConnection,
         getIsConnected,
         onConnected,
-        callbacks.onVideoStateChange,
+        (state, report) =>
+            handleStreamState(
+                (statsSignal = state),
+                dataChannelSignal,
+                callbacks.onVideoStateChange as InternalOnVideoStateChange,
+                report
+            ),
         warmup,
         !!agent.stream_greeting
     );
@@ -97,6 +120,16 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         } catch (e: any) {
             callbacks.onError?.(e, { streamId: streamIdFromServer });
         }
+    };
+
+    pcDataChannel.onmessage = (event: MessageEvent) => {
+        if (event.data === 'stream/started') {
+            dataChannelSignal = StreamingState.Start;
+        } else if (event.data === 'stream/done') {
+            dataChannelSignal = StreamingState.Stop;
+        }
+
+        handleStreamState(statsSignal, dataChannelSignal, callbacks.onVideoStateChange as InternalOnVideoStateChange);
     };
 
     pcDataChannel.onopen = () => {

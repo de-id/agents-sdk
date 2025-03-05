@@ -2,7 +2,7 @@ import { SlimRTCStatsReport, StreamingState } from '$/types';
 import { VideoRTCStatsReport, createVideoStatsReport, formatStats } from './report';
 
 const interval = 100;
-const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
+const notReceivingIntervalsThreshold = Math.max(Math.ceil(300 / interval), 1);
 
 export function createVideoStatsAnalyzer() {
     let lastBytesReceived = 0;
@@ -52,14 +52,14 @@ export function pollStats(
             if (!isStreaming) {
                 onVideoStateChange?.(StreamingState.Start);
 
-                if (shouldWaitForGreeting && streamsCount >= streamsBeforeReady && !getIsConnected()) {
-                    onConnected();
-                }
-
                 previousStats = allStats[allStats.length - 1];
                 allStats = [];
                 streamsCount++;
                 isStreaming = true;
+
+                if (shouldWaitForGreeting && streamsCount >= streamsBeforeReady && !getIsConnected()) {
+                    onConnected();
+                }
             }
 
             allStats.push(slimStats);
