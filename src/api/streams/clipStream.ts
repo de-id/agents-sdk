@@ -8,9 +8,9 @@ import {
     SendStreamPayloadResponse,
     Status,
 } from '$/types/index';
-import { createClient } from './getClient';
+import { createClient } from '../apiClient';
 
-export function createApi(
+export function createClipApi(
     auth: Auth,
     host: string,
     agentId: string,

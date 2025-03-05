@@ -9,8 +9,8 @@ import {
     RatingPayload,
     STTTokenResponse,
 } from '$/types/index';
-import { didApiUrl } from '../environment';
-import { RequestOptions, createClient } from './getClient';
+import { didApiUrl } from '../config/environment';
+import { RequestOptions, createClient } from './apiClient';
 
 export function createAgentsApi(
     auth: Auth,

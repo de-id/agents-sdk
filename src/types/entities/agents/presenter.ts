@@ -1,5 +1,5 @@
+import { ExtendedTextToSpeechProviders } from '$/types/voice/tts';
 import { Rect } from '../../face-rect';
-import { ExtendedTextToSpeechProviders } from '../../tts';
 
 export type videoType = 'talk' | 'clip';
 
@@ -10,6 +10,7 @@ export interface BasePresenter {
     voice?: ExtendedTextToSpeechProviders & { language?: string };
     idle_video?: string;
     thumbnail?: string;
+    stitch?: boolean;
 }
 
 export interface TalkPresenter extends BasePresenter {
