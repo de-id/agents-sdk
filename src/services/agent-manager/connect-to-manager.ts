@@ -1,15 +1,20 @@
+import { ChatModeDowngraded } from '$/errors';
 import { StreamingManager, createStreamingManager } from '$/services/streaming-manager';
 import {
     Agent,
     AgentManagerOptions,
+    AgentsAPI,
+    Chat,
+    ChatMode,
     ConnectionState,
     CreateStreamOptions,
     StreamEvents,
     StreamingState,
     mapVideoType,
 } from '$/types';
-import { timestampTracker } from '../analytics/timestamp-tracker';
 import { Analytics } from '../analytics/mixpanel';
+import { timestampTracker } from '../analytics/timestamp-tracker';
+import { createChat } from '../chat';
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greeting?: string): CreateStreamOptions {
     const { streamOptions } = options ?? {};
@@ -46,7 +51,7 @@ function handleStateChange(state: StreamingState, agent: Agent, statsReport: any
     }
 }
 
-export function connectToManager(
+function connectToManager(
     agent: Agent,
     options: AgentManagerOptions,
     analytics: Analytics,
@@ -83,4 +88,37 @@ export function connectToManager(
             reject(error);
         }
     });
+}
+
+export async function initializeStreamAndChat(
+    agent: Agent,
+    options: AgentManagerOptions,
+    agentsApi: AgentsAPI,
+    analytics: Analytics,
+    chat?: Chat,
+    greeting?: string
+): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions> }> {
+    const { chat: newChat, chatMode } = await createChat(
+        agent,
+        agentsApi,
+        analytics,
+        options.mode,
+        options.persistentChat,
+        chat
+    );
+
+    if (chatMode && chatMode !== options.mode) {
+        options.mode = chatMode;
+        options.callbacks.onModeChange?.(chatMode);
+
+        if (chatMode === ChatMode.TextOnly) {
+            options.callbacks.onError?.(new ChatModeDowngraded(chatMode));
+
+            return { chat: newChat };
+        }
+    }
+
+    const streamingManager = await connectToManager(agent, options, analytics, greeting);
+
+    return { chat: newChat, streamingManager };
 }

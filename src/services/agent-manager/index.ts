@@ -25,8 +25,8 @@ import { createChat, getRequestHeaders } from '../chat';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
-import { initializeStreamAndChat } from './init';
-import { getInitialMessages } from './intial-messages';
+import { initializeStreamAndChat } from './connect-to-manager';
+import { getGreetings, getInitialMessages } from './intial-messages';
 
 export interface AgentManagerItems {
     chat?: Chat;
@@ -58,6 +58,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const items: AgentManagerItems = { messages: [], chatMode: options.mode || ChatMode.Functional };
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
     const agentEntity = await agentsApi.getById(agent);
+    const greeting = getGreetings(agentEntity);
     const analytics = initializeAnalytics({
         token: mxKey,
         agent: agentEntity,
@@ -68,7 +69,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.socketManager?.disconnect()
     );
 
-    items.messages = getInitialMessages(agentEntity, options.initialMessages);
+    items.messages = getInitialMessages(greeting, options.initialMessages);
 
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
@@ -82,7 +83,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         if (newChat && !firstConnection) {
             delete items.chat;
 
-            items.messages = getInitialMessages(agentEntity);
+            items.messages = getInitialMessages(greeting);
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
@@ -98,8 +99,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     options,
                     agentsApi,
                     analytics,
-                    items.chat
-                    // newChat ? greeting : undefined
+                    items.chat,
+                    newChat ? greeting : undefined
                 );
             },
             {
@@ -285,7 +286,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 const chatId = await initializeChat();
                 const response = await sendChatRequest([...items.messages], chatId);
-               
+
                 items.messages.push({
                     id: getRandom(),
                     role: 'assistant',

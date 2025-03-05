@@ -1,7 +1,7 @@
-import { getRandom } from "$/auth/get-auth-header";
-import { Agent, Message } from "$/types";
+import { getRandom } from '$/auth/get-auth-header';
+import { Agent, Message } from '$/types';
 
-function getGreetings(agent: Agent) {
+export function getGreetings(agent: Agent) {
     const greetings = agent.greetings?.filter(greeting => greeting.length > 0) ?? [];
 
     if (greetings.length > 0) {
@@ -11,14 +11,14 @@ function getGreetings(agent: Agent) {
     }
 }
 
-export function getInitialMessages(agent: Agent, initialMessages?: Message[]): Message[] {
+export function getInitialMessages(content: string, initialMessages?: Message[]): Message[] {
     if (initialMessages && initialMessages.length > 0) {
         return initialMessages;
     }
 
     return [
         {
-            content: getGreetings(agent),
+            content: content,
             id: getRandom(),
             role: 'assistant',
             created_at: new Date().toISOString(),
