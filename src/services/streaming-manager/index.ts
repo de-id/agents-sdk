@@ -5,7 +5,6 @@ import {
     ConnectionState,
     CreateStreamOptions,
     PayloadType,
-    StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     VideoType,
@@ -74,7 +73,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         getIsConnected,
         onConnected,
         callbacks.onVideoStateChange,
-        warmup
+        warmup,
+        !!agent.stream_greeting
     );
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -99,13 +99,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         }
     };
 
-    pcDataChannel.onmessage = (message: MessageEvent) => {
-        if (pcDataChannel.readyState === 'open') {
-            const [event, _] = message.data.split(':');
-
-            if (event === StreamEvents.StreamReady && !isConnected) {
-                onConnected();
-            }
+    pcDataChannel.onopen = () => {
+        if (!agent.stream_warmup && !agent.stream_greeting) {
+            onConnected();
         }
     };
 

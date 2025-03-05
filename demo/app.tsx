@@ -14,6 +14,7 @@ export function App() {
     const [agentManager, setAgentManager] = useState<AgentManager>();
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [warmup, setWarmup] = useState(true);
+    const [greeting, setGreeting] = useState(true);
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
     const [compatibilityMode, setCompatibilityMode] = useState<'on' | 'off' | 'auto'>();
     const [mode, setMode] = useState<ChatMode>(ChatMode.Functional);
@@ -53,7 +54,7 @@ export function App() {
                 distinctId: 'testDistinctIdToSDKTest',
                 streamOptions: {
                     streamWarmup: warmup,
-                    streamGreeting: true,
+                    streamGreeting: greeting,
                     sessionTimeout: sessionTimeout,
                     compatibilityMode: compatibilityMode,
                 },
@@ -151,6 +152,15 @@ export function App() {
                                 onChange={e => setWarmup(e.currentTarget.checked)}
                             />
                             warmup
+                        </label>
+                        <label>
+                            <input
+                                type="checkbox"
+                                name="greeting"
+                                checked={greeting}
+                                onChange={e => setGreeting(e.currentTarget.checked)}
+                            />
+                            greeting
                         </label>
                         <input
                             type="text"

@@ -29,6 +29,7 @@ export function pollStats(
     onConnected: () => void,
     onVideoStateChange?: (state: StreamingState, statsReport?: VideoRTCStatsReport) => void,
     warmup: boolean = false,
+    shouldWaitForGreeting: boolean = false
 ) {
     const streamsBeforeReady = warmup ? 1 : 0;
 
@@ -51,7 +52,7 @@ export function pollStats(
             if (!isStreaming) {
                 onVideoStateChange?.(StreamingState.Start);
 
-                if (streamsCount >= streamsBeforeReady && !getIsConnected()) {
+                if (shouldWaitForGreeting && streamsCount >= streamsBeforeReady && !getIsConnected()) {
                     onConnected();
                 }
 
@@ -69,6 +70,10 @@ export function pollStats(
                 const statsReport = createVideoStatsReport(allStats, interval, previousStats);
 
                 onVideoStateChange?.(StreamingState.Stop, statsReport);
+
+                if (!shouldWaitForGreeting && !getIsConnected()) {
+                    onConnected();
+                }
 
                 isStreaming = false;
             }
