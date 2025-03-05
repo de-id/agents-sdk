@@ -26,7 +26,7 @@ import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
-import { getGreetings, getInitialMessages } from './intial-messages';
+import { getGreetings, getInitialMessages } from '../chat/intial-messages';
 
 export interface AgentManagerItems {
     chat?: Chat;

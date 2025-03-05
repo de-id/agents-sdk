@@ -6,9 +6,9 @@ export function getGreetings(agent: Agent) {
 
     if (greetings.length > 0) {
         return greetings[Math.floor(Math.random() * greetings.length)];
-    } else {
-        return `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
     }
+
+    return `Hi! I'm ${agent.preview_name || 'My Agent'}. How can I help you?`;
 }
 
 export function getInitialMessages(content: string, initialMessages?: Message[]): Message[] {
