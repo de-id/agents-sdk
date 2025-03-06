@@ -1,6 +1,6 @@
 import { SlimRTCStatsReport, AnalyticsRTCStatsReport } from '../types';
 
-interface VideoRTCStatsReport {
+export interface VideoRTCStatsReport {
     webRTCStats: {
         anomalies: AnalyticsRTCStatsReport[];
         aggregateReport: AnalyticsRTCStatsReport;

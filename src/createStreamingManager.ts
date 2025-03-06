@@ -5,16 +5,16 @@ import {
     CreateStreamOptions,
     PayloadType,
     SlimRTCStatsReport,
-    StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     VideoType,
 } from '$/types/index';
 import { didApiUrl } from './environment';
-import { formatStats, createVideoStatsReport } from './utils/webrtc';
+import { VideoRTCStatsReport, createVideoStatsReport, formatStats } from './utils/webrtc';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
+type InternalOnVideoStateChange = (state: StreamingState, report?: VideoRTCStatsReport) => void;
 const actualRTCPC = (
     window.RTCPeerConnection ||
     (window as any).webkitRTCPeerConnection ||
@@ -42,6 +42,21 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
+function handleStreamState(
+    statsSignal: StreamingState,
+    dataChannelSignal: StreamingState,
+    onVideoStateChange: InternalOnVideoStateChange,
+    report?: VideoRTCStatsReport
+) {
+    console.log({ statsSignal, dataChannelSignal });
+
+    if (statsSignal === StreamingState.Start && dataChannelSignal === StreamingState.Start) {
+        onVideoStateChange?.(StreamingState.Start);
+    } else if (statsSignal === StreamingState.Stop && dataChannelSignal === StreamingState.Stop) {
+        onVideoStateChange?.(StreamingState.Stop, report);
+    }
+}
+
 function createVideoStatsAnalyzer() {
     let lastBytesReceived = 0;
 
@@ -61,16 +76,17 @@ function createVideoStatsAnalyzer() {
     };
 }
 
-
 function pollStats(
     peerConnection: RTCPeerConnection,
     onVideoStateChange,
     warmup: boolean = false,
     getIsConnected: () => boolean,
     onConnected: () => void,
-    shouldWaitForGreeting: boolean = false) {
+    shouldWaitForGreeting: boolean = false
+) {
     const interval = 100;
-    const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
+    const samples = 3;
+    const notReceivingIntervalsThreshold = Math.max(Math.ceil((samples * interval) / interval), 1);
     let allStats: SlimRTCStatsReport[] = [];
     let previousStats: SlimRTCStatsReport;
 
@@ -105,7 +121,7 @@ function pollStats(
             notReceivingNumIntervals++;
 
             if (notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
-                const statsReport = createVideoStatsReport(allStats, interval, previousStats)
+                const statsReport = createVideoStatsReport(allStats, interval, previousStats);
                 onVideoStateChange?.(StreamingState.Stop, statsReport);
                 if (!shouldWaitForGreeting && !getIsConnected()) {
                     onConnected();
@@ -124,11 +140,13 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
+    let statsSignal = StreamingState.Stop;
+    let dataChannelSignal = StreamingState.Stop;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
-    agent.videoType === VideoType.Clip
-    ? createClipApi(auth, baseURL, agentId, callbacks.onError)
-    : createTalkApi(auth, baseURL, agentId, callbacks.onError);
+        agent.videoType === VideoType.Clip
+            ? createClipApi(auth, baseURL, agentId, callbacks.onError)
+            : createTalkApi(auth, baseURL, agentId, callbacks.onError);
 
     const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
@@ -143,11 +161,17 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     const onConnected = () => {
         isConnected = true;
         callbacks.onConnectionStateChange?.(ConnectionState.Connected);
-    }
+    };
 
     const videoStatsInterval = pollStats(
         peerConnection,
-        callbacks.onVideoStateChange,
+        (state, report) =>
+            handleStreamState(
+                (statsSignal = state),
+                dataChannelSignal,
+                callbacks.onVideoStateChange as InternalOnVideoStateChange,
+                report
+            ),
         warmup,
         getIsConnected,
         onConnected,
@@ -156,7 +180,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         log('peerConnection.onicecandidate', event);
-        try{
+        try {
             if (event.candidate && event.candidate.sdpMid && event.candidate.sdpMLineIndex !== null) {
                 addIceCandidate(
                     streamIdFromServer,
@@ -175,12 +199,21 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         }
     };
 
+    pcDataChannel.onmessage = (event: MessageEvent) => {
+        if (event.data === 'stream/started') {
+            dataChannelSignal = StreamingState.Start;
+        } else if (event.data === 'stream/done') {
+            dataChannelSignal = StreamingState.Stop;
+        }
+
+        handleStreamState(statsSignal, dataChannelSignal, callbacks.onVideoStateChange as InternalOnVideoStateChange);
+    };
+
     pcDataChannel.onopen = () => {
         if (!agent.stream_warmup && !agent.stream_greeting) {
             onConnected();
         }
-    }
-
+    };
 
     peerConnection.oniceconnectionstatechange = () => {
         log('peerConnection.oniceconnectionstatechange => ' + peerConnection.iceConnectionState);
