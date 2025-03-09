@@ -1,108 +1,54 @@
-import { useRef, useState } from 'preact/hooks';
+import { ChatMode, ConnectionState } from '$/types';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
-import { createAgentManager } from '$/services/agent-manager';
-import { AgentManager, Auth, ChatMode, ConnectionState, Message, StreamingState } from '$/types';
 import './app.css';
 import { agentId, didApiUrl, didSocketApiUrl } from './environment';
+import { useAgentManager } from './hooks/useAgentManager';
 
-const auth: Auth = { type: 'key', clientKey: import.meta.env.VITE_CLIENT_KEY };
 export function App() {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [text, setText] = useState('tell me a story');
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
-    const [agentManager, setAgentManager] = useState<AgentManager>();
-    const [isSpeaking, setIsSpeaking] = useState(false);
     const [warmup, setWarmup] = useState(true);
     const [greeting, setGreeting] = useState(true);
+    const [text, setText] = useState('tell me a story');
+    const [mode, setMode] = useState<ChatMode>(ChatMode.Functional);
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
     const [compatibilityMode, setCompatibilityMode] = useState<'on' | 'off' | 'auto'>();
-    const [mode, setMode] = useState<ChatMode>(ChatMode.Functional);
+
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    const { srcObject, connectionState, messages, isSpeaking, connect, disconnect, speak, chat } = useAgentManager({
+        agentId,
+        baseURL: didApiUrl,
+        wsURL: didSocketApiUrl,
+        mode,
+        auth: { type: 'key', clientKey: import.meta.env.VITE_CLIENT_KEY },
+        streamOptions: {
+            streamWarmup: warmup,
+            streamGreeting: greeting,
+            sessionTimeout,
+            compatibilityMode,
+        },
+        enableAnalytics: false,
+        distinctId: 'testDistinctIdToSDKTest',
+    });
 
     async function onClick() {
-        if (!agentManager) {
-            setConnectionState(ConnectionState.Connecting);
-
-            const agentAPI: AgentManager = await createAgentManager(agentId, {
-                callbacks: {
-                    onConnectionStateChange(state: ConnectionState) {
-                        setConnectionState(state);
-
-                        if (state !== ConnectionState.Connected) {
-                            setAgentManager(undefined);
-                        }
-                    },
-                    onVideoStateChange(state) {
-                        setIsSpeaking(state === StreamingState.Start);
-                    },
-                    onNewMessage(messages, _type) {
-                        setMessages([...messages]);
-                    },
-                    onSrcObjectReady(value) {
-                        if (!videoRef.current) {
-                            throw new Error("Couldn't find video ref");
-                        }
-
-                        videoRef.current.srcObject = value;
-                    },
-                },
-                baseURL: didApiUrl,
-                mode,
-                auth,
-                wsURL: didSocketApiUrl,
-                enableAnalitics: false,
-                distinctId: 'testDistinctIdToSDKTest',
-                streamOptions: {
-                    streamWarmup: warmup,
-                    streamGreeting: greeting,
-                    sessionTimeout: sessionTimeout,
-                    compatibilityMode: compatibilityMode,
-                },
-            });
-
-            await agentAPI.connect().catch(e => {
-                console.error(e);
-                setConnectionState(ConnectionState.Fail);
-                alert(`Failed to connect: ${e.message}`);
-            });
-
-            setAgentManager(agentAPI);
-        } else if (text && connectionState === ConnectionState.Connected) {
-            if (!agentManager.agent.presenter) {
-                throw new Error('No presenter');
-            }
-
-            agentManager.speak({ type: 'text', input: text }).catch(e => {
-                setConnectionState(ConnectionState.Fail);
-                throw e;
-            });
-        } else {
-            agentManager.disconnect();
-            setAgentManager(undefined);
+        if (connectionState === ConnectionState.New || connectionState === ConnectionState.Fail) {
+            await connect();
+        } else if (connectionState === ConnectionState.Connected && text) {
+            await speak(text);
         }
     }
 
-    function disconnect() {
-        agentManager?.disconnect();
-        setAgentManager(undefined);
-
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
+    useEffect(() => {
+        if (srcObject && videoRef.current) {
+            videoRef.current.srcObject = srcObject;
         }
-    }
-
-    function sendChat() {
-        agentManager?.chat(text.trim()).catch(e => {
-            alert(`Failed to send chat: ${e.message}`);
-            setConnectionState(ConnectionState.Fail);
-            throw e;
-        });
-    }
+    }, [srcObject]);
 
     return (
         <>
             <div id="app">
-                <fieldset id="main-input" disabled={isSpeaking || connectionState === ConnectionState.Connecting}>
+                <fieldset id="main-input" disabled={connectionState === ConnectionState.Connecting}>
                     <textarea
                         type="text"
                         placeholder="Enter text to stream"
@@ -115,7 +61,7 @@ export function App() {
                             isSpeaking ||
                             (!text && ![ConnectionState.New, ConnectionState.Fail].includes(connectionState))
                         }>
-                        {ConnectionState.Connected === connectionState || isSpeaking
+                        {connectionState === ConnectionState.Connected
                             ? 'Send'
                             : connectionState === ConnectionState.Connecting
                               ? 'connecting'
@@ -123,12 +69,15 @@ export function App() {
                                 ? 'Failed, try again'
                                 : 'Connect'}
                     </button>
-                    <button onClick={sendChat} disabled={connectionState !== ConnectionState.Connected}>
+                    <button
+                        onClick={() => chat(text)}
+                        disabled={isSpeaking || connectionState !== ConnectionState.Connected}>
                         Send to chat text
                     </button>
                     <button onClick={disconnect} disabled={connectionState !== ConnectionState.Connected}>
                         Close connection
                     </button>
+
                     <div className="input-options">
                         <select onChange={e => setMode(e.currentTarget.value as ChatMode)}>
                             <option value={ChatMode.Functional} selected={mode === ChatMode.Functional}>
@@ -166,24 +115,26 @@ export function App() {
                             type="text"
                             placeholder="session timeout"
                             value={sessionTimeout}
-                            onChange={e => setSessionTimeout(parseInt(e.currentTarget.value))}
+                            onChange={e => setSessionTimeout(parseInt(e.currentTarget.value) || undefined)}
                         />
                         <input
                             type="text"
                             value={compatibilityMode}
                             placeholder="compatibility mode, on | off | auto"
-                            onChange={e => setCompatibilityMode(e.currentTarget.value as any)}
+                            onChange={e => setCompatibilityMode(e.currentTarget.value as 'on' | 'off' | 'auto')}
                         />
                     </div>
                 </fieldset>
+
                 <video
-                    ref={videoRef}
                     id="main-video"
+                    ref={videoRef}
                     autoPlay
                     playsInline
-                    className={ConnectionState.Connecting === connectionState ? 'animated' : ''}
+                    className={connectionState === ConnectionState.Connecting ? 'animated' : ''}
                 />
             </div>
+
             {messages.length > 0 && (
                 <pre>
                     {JSON.stringify(
