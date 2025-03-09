@@ -1,6 +1,6 @@
 import { createAgentManager } from '$/services/agent-manager';
 import { AgentManager, Auth, ChatMode, ConnectionState, Message, StreamingState } from '$/types';
-import { useCallback, useRef, useState } from 'preact/hooks';
+import { useCallback, useState } from 'preact/hooks';
 
 interface StreamOptions {
     streamWarmup?: boolean;
