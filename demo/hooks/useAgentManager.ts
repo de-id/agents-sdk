@@ -30,11 +30,11 @@ export function useAgentManager({
     distinctId,
     streamOptions,
 }: UseAgentManagerOptions) {
-    const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
-    const [messages, setMessages] = useState<Message[]>([]);
     const [isSpeaking, setIsSpeaking] = useState(false);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
     const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
+    const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
 
     const connect = useCallback(async () => {
         if (agentManager) return;
