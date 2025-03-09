@@ -103,6 +103,7 @@ export function useAgentManager({
             }
 
             try {
+                setIsSpeaking(true);
                 await agentManager.speak({ type: 'text', input: text });
             } catch (e) {
                 setConnectionState(ConnectionState.Fail);

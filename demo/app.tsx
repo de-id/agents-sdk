@@ -46,104 +46,109 @@ export function App() {
     }, [srcObject]);
 
     return (
-        <>
-            <div id="app">
-                <fieldset id="main-input" disabled={connectionState === ConnectionState.Connecting}>
-                    <textarea
-                        type="text"
-                        placeholder="Enter text to stream"
-                        value={text}
-                        onInput={e => setText(e.currentTarget.value)}
-                    />
-                    <button
-                        onClick={onClick}
-                        disabled={
-                            isSpeaking ||
-                            (!text && ![ConnectionState.New, ConnectionState.Fail].includes(connectionState))
-                        }>
-                        {connectionState === ConnectionState.Connected
-                            ? 'Send'
-                            : connectionState === ConnectionState.Connecting
-                              ? 'connecting'
-                              : connectionState === ConnectionState.Fail
-                                ? 'Failed, try again'
-                                : 'Connect'}
-                    </button>
-                    <button
-                        onClick={() => chat(text)}
-                        disabled={isSpeaking || connectionState !== ConnectionState.Connected}>
-                        Send to chat text
-                    </button>
-                    <button onClick={disconnect} disabled={connectionState !== ConnectionState.Connected}>
-                        Close connection
-                    </button>
+        <div id="app">
+            <section>
+                <div id="left">
+                    <fieldset id="main-input" disabled={connectionState === ConnectionState.Connecting}>
+                        <textarea
+                            type="text"
+                            placeholder="Enter text to stream"
+                            value={text}
+                            onInput={e => setText(e.currentTarget.value)}
+                        />
 
-                    <div className="input-options">
-                        <select onChange={e => setMode(e.currentTarget.value as ChatMode)}>
-                            <option value={ChatMode.Functional} selected={mode === ChatMode.Functional}>
-                                Functional
-                            </option>
-                            <option value={ChatMode.TextOnly} selected={mode === ChatMode.TextOnly}>
-                                Text only
-                            </option>
-                            <option value={ChatMode.DirectPlayback} selected={mode === ChatMode.DirectPlayback}>
-                                DirectPlayback
-                            </option>
-                            <option value={ChatMode.Playground} selected={mode === ChatMode.Playground}>
-                                Playground
-                            </option>
+                        <button
+                            onClick={onClick}
+                            disabled={
+                                isSpeaking ||
+                                (!text && ![ConnectionState.New, ConnectionState.Fail].includes(connectionState))
+                            }>
+                            {connectionState === ConnectionState.Connected
+                                ? 'Send'
+                                : connectionState === ConnectionState.Connecting
+                                  ? 'Connecting...'
+                                  : connectionState === ConnectionState.Fail
+                                    ? 'Failed, Try Again'
+                                    : 'Connect'}
+                        </button>
+
+                        <button
+                            onClick={() => chat(text)}
+                            disabled={isSpeaking || connectionState !== ConnectionState.Connected}>
+                            Send to Chat
+                        </button>
+
+                        <button onClick={disconnect} disabled={connectionState !== ConnectionState.Connected}>
+                            Close Connection
+                        </button>
+
+                        <select value={mode} onChange={e => setMode(e.currentTarget.value as ChatMode)}>
+                            <option value={ChatMode.Functional}>{ChatMode.Functional}</option>
+                            <option value={ChatMode.Playground}>{ChatMode.Playground}</option>
+                            <option value={ChatMode.TextOnly}>{ChatMode.TextOnly}</option>
+                            <option value={ChatMode.Maintenance}>{ChatMode.Maintenance}</option>
+                            <option value={ChatMode.DirectPlayback}>{ChatMode.DirectPlayback}</option>
                         </select>
-                        <label>
-                            <input
-                                type="checkbox"
-                                name="warmup"
-                                checked={warmup}
-                                onChange={e => setWarmup(e.currentTarget.checked)}
-                            />
-                            warmup
-                        </label>
-                        <label>
-                            <input
-                                type="checkbox"
-                                name="greeting"
-                                checked={greeting}
-                                onChange={e => setGreeting(e.currentTarget.checked)}
-                            />
-                            greeting
-                        </label>
+
                         <input
                             type="text"
-                            placeholder="session timeout"
+                            placeholder="Session Timeout"
                             value={sessionTimeout}
                             onChange={e => setSessionTimeout(parseInt(e.currentTarget.value) || undefined)}
                         />
+
                         <input
                             type="text"
                             value={compatibilityMode}
-                            placeholder="compatibility mode, on | off | auto"
+                            placeholder="Compatibility Mode (on | off | auto)"
                             onChange={e => setCompatibilityMode(e.currentTarget.value as 'on' | 'off' | 'auto')}
                         />
-                    </div>
-                </fieldset>
 
-                <video
-                    id="main-video"
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className={connectionState === ConnectionState.Connecting ? 'animated' : ''}
-                />
-            </div>
+                        <div className="input-options">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    name="warmup"
+                                    checked={warmup}
+                                    onChange={e => setWarmup(e.currentTarget.checked)}
+                                />
+                                Warmup
+                            </label>
 
-            {messages.length > 0 && (
-                <pre>
-                    {JSON.stringify(
-                        messages.map(m => [m.role, m.content].join(': ')),
-                        null,
-                        4
-                    )}
-                </pre>
-            )}
-        </>
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    name="greeting"
+                                    checked={greeting}
+                                    onChange={e => setGreeting(e.currentTarget.checked)}
+                                />
+                                Greeting
+                            </label>
+                        </div>
+                    </fieldset>
+                </div>
+
+                <div id="right">
+                    <video
+                        ref={videoRef}
+                        id="main-video"
+                        autoPlay
+                        playsInline
+                        className={connectionState === ConnectionState.Connecting ? 'animated' : ''}
+                    />
+                </div>
+            </section>
+            <footer>
+                {messages.length > 0 && (
+                    <pre>
+                        {JSON.stringify(
+                            messages.map(m => [m.role, m.content].join(': ')),
+                            null,
+                            4
+                        )}
+                    </pre>
+                )}
+            </footer>
+        </div>
     );
 }
