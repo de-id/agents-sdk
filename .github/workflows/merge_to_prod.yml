@@ -1,0 +1,29 @@
+name: Prod updated
+
+on:
+  pull_request:
+    branches: [prod]
+    types:
+      - closed
+
+jobs:
+  on_merge:
+    permissions: read-all
+    name: On Merge to prod
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update Asana tasks
+        uses: de-id/update-asana-tasks@main
+        with:
+          asana-pat: ${{ secrets.ASANA_PAT }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-bot-channel-id: ${{ secrets.SLACK_DEPLOYMENTS_CHANNEL_ID }}
+          should-update-tasks-status: true
+          is-review: false
