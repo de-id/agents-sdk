@@ -31,8 +31,8 @@ export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Err
         );
 
         if (!request.ok) {
-            let errorText: any = await request.text().catch(() => 'Failed to fetch');
-            const error = new Error(`Failed to fetch with status ${request.status}, ${errorText}`);
+            let errorText: any = await request.text().catch(() => `Failed to fetch with status ${request.status}`);
+            const error = new Error(errorText);
 
             if (onError && !skipErrorHandler) {
                 onError(error, { url, options: fetchOptions, headers: request.headers });
