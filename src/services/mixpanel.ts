@@ -46,6 +46,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         agentId: config.agent.id,
         agentType: presenter.type === 'clip' && presenter.presenter_id.startsWith('v2_') ? 'clip_v2' : presenter.type,
         owner_id: config.agent.owner_id ?? '',
+        promptVersion: config.agent.llm?.prompt_version,
         behavior: {
             role: promptCustomization?.role,
             personality: promptCustomization?.personality,
