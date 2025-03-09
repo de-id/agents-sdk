@@ -1,5 +1,5 @@
 import { getAuthHeader } from '$/auth/get-auth-header';
-import { WSError } from '$/errors';
+import { WsError } from '$/errors';
 import { ChatProgressCallback } from '$/types';
 import { Auth } from '$/types/auth';
 import { sleep } from '$/utils';
@@ -66,17 +66,17 @@ async function connectWithRetries(options: Options): Promise<WebSocket> {
 export async function createSocketManager(
     auth: Auth,
     host: string,
-    callback: {
+    callbacks: {
         onMessage: ChatProgressCallback;
         onError?: (error: Error) => void;
     }
 ): Promise<SocketManager> {
-    const messageCallbacks: ChatProgressCallback[] = callback?.onMessage ? [callback.onMessage] : [];
+    const messageCallbacks: ChatProgressCallback[] = callbacks?.onMessage ? [callbacks.onMessage] : [];
     const socket: WebSocket = await connectWithRetries({
         auth,
         host,
         callbacks: {
-            onError: error => callback.onError?.(new WSError(error)),
+            onError: error => callbacks.onError?.(new WsError(error)),
             onMessage(event: MessageEvent) {
                 const parsedData = JSON.parse(event.data);
                 messageCallbacks.forEach(callback => callback(parsedData.event, parsedData));

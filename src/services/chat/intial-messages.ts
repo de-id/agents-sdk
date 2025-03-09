@@ -1,5 +1,5 @@
-import { getRandom } from '$/auth/get-auth-header';
 import { Agent, Message } from '$/types';
+import { getRandom } from '$/utils';
 
 export function getGreetings(agent: Agent) {
     const greetings = agent.greetings?.filter(greeting => greeting.length > 0) ?? [];

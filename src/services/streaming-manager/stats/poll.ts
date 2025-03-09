@@ -4,7 +4,7 @@ import { VideoRTCStatsReport, createVideoStatsReport, formatStats } from './repo
 const interval = 100;
 const notReceivingIntervalsThreshold = Math.max(Math.ceil(1000 / interval), 1);
 
-export function createVideoStatsAnalyzer() {
+function createVideoStatsAnalyzer() {
     let lastBytesReceived = 0;
 
     return (stats: RTCStatsReport) => {

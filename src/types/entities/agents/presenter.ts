@@ -10,7 +10,6 @@ export interface BasePresenter {
     voice?: ExtendedTextToSpeechProviders & { language?: string };
     idle_video?: string;
     thumbnail?: string;
-    stitch?: boolean;
 }
 
 export interface TalkPresenter extends BasePresenter {

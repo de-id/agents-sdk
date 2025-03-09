@@ -1,5 +1,4 @@
-import { createClipApi } from '$/api/streams/clipStream';
-import { createTalkApi } from '$/api/streams/talkStream';
+import { createClipApi, createTalkApi } from '$/api/streams';
 import { didApiUrl } from '$/config/environment';
 import {
     ConnectionState,

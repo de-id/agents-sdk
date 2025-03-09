@@ -12,21 +12,21 @@ import {
     SupportedStreamScipt,
 } from '../../types';
 
-import { connectionRetryTimeoutInMs } from '$/config/consts';
+import { CONNECTION_RETRY_TIMEOUT_MS } from '$/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
 import { ChatCreationFailed, ValidationError } from '$/errors';
+import { getRandom } from '$/utils';
 import { createAgentsApi } from '../../api/agents';
-import { getRandom } from '../../auth/get-auth-header';
 import { getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { timestampTracker } from '../analytics/timestamp-tracker';
 import { createChat, getRequestHeaders } from '../chat';
+import { getGreetings, getInitialMessages } from '../chat/intial-messages';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
-import { getGreetings, getInitialMessages } from '../chat/intial-messages';
 
 export interface AgentManagerItems {
     chat?: Chat;
@@ -105,7 +105,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             },
             {
                 limit: 3,
-                timeout: connectionRetryTimeoutInMs,
+                timeout: CONNECTION_RETRY_TIMEOUT_MS,
                 timeoutErrorMessage: 'Timeout initializing the stream',
                 // Retry on all errors except for connection errors and rate limit errors, these are already handled in client level.
                 shouldRetryFn: (error: any) => error?.message !== 'Could not connect' && error.status !== 429,
