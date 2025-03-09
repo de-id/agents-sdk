@@ -2,7 +2,7 @@ import { ChatMode, ConnectionState } from '$/types';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import './app.css';
-import { agentId, didApiUrl, didSocketApiUrl } from './environment';
+import { agentId, clientKey, didApiUrl, didSocketApiUrl } from './environment';
 import { useAgentManager } from './hooks/useAgentManager';
 
 export function App() {
@@ -20,15 +20,14 @@ export function App() {
         baseURL: didApiUrl,
         wsURL: didSocketApiUrl,
         mode,
-        auth: { type: 'key', clientKey: import.meta.env.VITE_CLIENT_KEY },
+        enableAnalytics: false,
+        auth: { type: 'key', clientKey },
         streamOptions: {
             streamWarmup: warmup,
             streamGreeting: greeting,
             sessionTimeout,
             compatibilityMode,
         },
-        enableAnalytics: false,
-        distinctId: 'testDistinctIdToSDKTest',
     });
 
     async function onClick() {

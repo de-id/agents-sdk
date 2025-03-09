@@ -2,34 +2,25 @@ import { createAgentManager } from '$/services/agent-manager';
 import { AgentManager, Auth, ChatMode, ConnectionState, Message, StreamingState } from '$/types';
 import { useCallback, useState } from 'preact/hooks';
 
-interface StreamOptions {
-    streamWarmup?: boolean;
-    streamGreeting?: boolean;
-    sessionTimeout?: number;
-    compatibilityMode?: 'on' | 'off' | 'auto';
-}
-
 interface UseAgentManagerOptions {
     agentId: string;
     baseURL: string;
     wsURL: string;
-    mode?: ChatMode;
+    mode: ChatMode;
     auth: Auth;
-    enableAnalytics?: boolean;
     distinctId?: string;
-    streamOptions?: StreamOptions;
+    enableAnalytics?: boolean;
+    streamOptions?: {
+        streamWarmup?: boolean;
+        streamGreeting?: boolean;
+        sessionTimeout?: number;
+        compatibilityMode?: 'on' | 'off' | 'auto';
+    };
 }
 
-export function useAgentManager({
-    agentId,
-    baseURL,
-    wsURL,
-    mode = ChatMode.Functional,
-    auth,
-    enableAnalytics = false,
-    distinctId,
-    streamOptions,
-}: UseAgentManagerOptions) {
+export function useAgentManager(props: UseAgentManagerOptions) {
+    const { agentId, baseURL, wsURL, mode, auth, enableAnalytics, distinctId, streamOptions } = props;
+
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
