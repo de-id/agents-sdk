@@ -112,6 +112,7 @@ interface StreamOptions {
 
     /**
      * Desired stream resolution for the session
+     * @deprecated
      * @minimum 150
      * @maximum 1080
      */
