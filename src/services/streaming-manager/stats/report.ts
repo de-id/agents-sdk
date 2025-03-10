@@ -1,6 +1,6 @@
-import { SlimRTCStatsReport, AnalyticsRTCStatsReport } from '../types';
+import { AnalyticsRTCStatsReport, SlimRTCStatsReport } from '$/types';
 
-interface VideoRTCStatsReport {
+export interface VideoRTCStatsReport {
     webRTCStats: {
         anomalies: AnalyticsRTCStatsReport[];
         aggregateReport: AnalyticsRTCStatsReport;
@@ -9,12 +9,16 @@ interface VideoRTCStatsReport {
     resolution: string;
 }
 
-function createAggregateReport(start: SlimRTCStatsReport, end: SlimRTCStatsReport, lowFpsCount: number): AnalyticsRTCStatsReport {
+function createAggregateReport(
+    start: SlimRTCStatsReport,
+    end: SlimRTCStatsReport,
+    lowFpsCount: number
+): AnalyticsRTCStatsReport {
     const duration = (end.timestamp - start.timestamp) / 1000;
     return {
         duration,
         bytesReceived: end.bytesReceived - start.bytesReceived,
-        bitrate: Math.round((end.bytesReceived - start.bytesReceived) * 8 / duration),
+        bitrate: Math.round(((end.bytesReceived - start.bytesReceived) * 8) / duration),
         packetsReceived: end.packetsReceived - start.packetsReceived,
         packetsLost: end.packetsLost - start.packetsLost,
         framesDropped: end.framesDropped - start.framesDropped,
@@ -27,11 +31,18 @@ function createAggregateReport(start: SlimRTCStatsReport, end: SlimRTCStatsRepor
         lowFpsCount,
     };
 }
+
 function extractAnomalies(stats: AnalyticsRTCStatsReport[]): AnalyticsRTCStatsReport[] {
-    return stats.filter(report =>
-        report.freezeCount > 0 || report.framesPerSecond < 21 || report.framesDropped > 0 || report.packetsLost > 0)
+    return stats
+        .filter(
+            report =>
+                report.freezeCount > 0 ||
+                report.framesPerSecond < 21 ||
+                report.framesDropped > 0 ||
+                report.packetsLost > 0
+        )
         .map(report => {
-            const {timestamp, ...updatedReport} = report;
+            const { timestamp, ...updatedReport } = report;
             const causes: string[] = [];
             if (report.freezeCount > 0) {
                 causes.push('freeze');
@@ -52,11 +63,10 @@ function extractAnomalies(stats: AnalyticsRTCStatsReport[]): AnalyticsRTCStatsRe
         });
 }
 
-
 export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
     let codec = '';
     for (const report of stats.values()) {
-        if(report && report.type === 'codec' && report.mimeType.startsWith('video')) {
+        if (report && report.type === 'codec' && report.mimeType.startsWith('video')) {
             codec = report.mimeType.split('/')[1];
         }
         if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
@@ -84,7 +94,7 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
 export function createVideoStatsReport(
     stats: SlimRTCStatsReport[],
     interval: number,
-    previousStats?: SlimRTCStatsReport,
+    previousStats?: SlimRTCStatsReport
 ): VideoRTCStatsReport {
     const differentialReport = stats.map((report, index) => {
         if (index === 0) {
@@ -93,7 +103,7 @@ export function createVideoStatsReport(
                     timestamp: report.timestamp,
                     duration: 0,
                     bytesReceived: report.bytesReceived,
-                    bitrate: report.bytesReceived * 8 / (interval / 1000),
+                    bitrate: (report.bytesReceived * 8) / (interval / 1000),
                     packetsReceived: report.packetsReceived,
                     packetsLost: report.packetsLost,
                     framesDropped: report.framesDropped,
@@ -110,7 +120,7 @@ export function createVideoStatsReport(
                 timestamp: report.timestamp,
                 duration: 0,
                 bytesReceived: report.bytesReceived - previousStats.bytesReceived,
-                bitrate: (report.bytesReceived - previousStats.bytesReceived) * 8 / (interval / 1000),
+                bitrate: ((report.bytesReceived - previousStats.bytesReceived) * 8) / (interval / 1000),
                 packetsReceived: report.packetsReceived - previousStats.packetsReceived,
                 packetsLost: report.packetsLost - previousStats.packetsLost,
                 framesDropped: report.framesDropped - previousStats.framesDropped,
@@ -125,9 +135,9 @@ export function createVideoStatsReport(
 
         return {
             timestamp: report.timestamp,
-            duration: interval * index / 1000,
+            duration: (interval * index) / 1000,
             bytesReceived: report.bytesReceived - stats[index - 1].bytesReceived,
-            bitrate: (report.bytesReceived - stats[index - 1].bytesReceived) * 8 / (interval / 1000),
+            bitrate: ((report.bytesReceived - stats[index - 1].bytesReceived) * 8) / (interval / 1000),
             packetsReceived: report.packetsReceived - stats[index - 1].packetsReceived,
             packetsLost: report.packetsLost - stats[index - 1].packetsLost,
             framesDropped: report.framesDropped - stats[index - 1].framesDropped,
@@ -138,15 +148,15 @@ export function createVideoStatsReport(
             freezeCount: report.freezeCount - stats[index - 1].freezeCount,
             freezeDuration: report.freezeDuration - stats[index - 1].freezeDuration,
         };
-    })
+    });
     const anomalies = extractAnomalies(differentialReport);
     const lowFpsCount = anomalies.reduce((acc, report) => acc + (report.causes!.includes('low fps') ? 1 : 0), 0);
     return {
-        webRTCStats:{
+        webRTCStats: {
             anomalies: anomalies,
             aggregateReport: createAggregateReport(stats[0], stats[stats.length - 1], lowFpsCount),
         },
         codec: stats[0].codec,
         resolution: `${stats[0].frameWidth}x${stats[0].frameHeight}`,
-    }
+    };
 }

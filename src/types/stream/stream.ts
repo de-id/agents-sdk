@@ -1,4 +1,4 @@
-import { Analytics } from '$/services/mixpanel';
+import { Analytics } from '$/services/analytics/mixpanel';
 import { Auth } from '../auth';
 import { VideoType } from '../entities';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
