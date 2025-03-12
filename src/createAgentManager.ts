@@ -24,6 +24,7 @@ import { PLAYGROUND_HEADER } from './consts';
 import { createStreamingManager, StreamingManager } from './createStreamingManager';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from './environment';
 import { Analytics, initializeAnalytics } from './services/mixpanel';
+import { getAgentType } from './utils/agent';
 import { getAnalyticsInfo, getStreamAnalyticsProps } from './utils/analytics';
 import retryOperation from './utils/retryOperation';
 import { SdkError } from './utils/SdkError';
@@ -51,7 +52,8 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greetin
         session_timeout: options?.streamOptions?.sessionTimeout,
         stream_warmup: options?.streamOptions?.streamWarmup,
         compatibility_mode: options?.streamOptions?.compatibilityMode,
-        stream_greeting: options?.streamOptions?.streamGreeting ? greeting : undefined,
+        stream_greeting:
+            getAgentType(agent.presenter) !== 'clip' && options?.streamOptions?.streamGreeting ? greeting : undefined,
     };
 }
 

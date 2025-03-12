@@ -1,4 +1,5 @@
 import { getExternalId } from '$/auth/getAuthHeader';
+import { getAgentType } from '$/utils/agent';
 import { Agent } from '..';
 
 export interface AnalyticsOptions {
@@ -44,7 +45,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         token: config.token || 'testKey',
         distinct_id: config.distinctId || getExternalId(),
         agentId: config.agent.id,
-        agentType: presenter.type === 'clip' && presenter.presenter_id.startsWith('v2_') ? 'clip_v2' : presenter.type,
+        agentType: getAgentType(presenter),
         owner_id: config.agent.owner_id ?? '',
         promptVersion: config.agent.llm?.prompt_version,
         behavior: {
