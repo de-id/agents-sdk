@@ -1,6 +1,5 @@
-import {
-    Agent,
-} from '$/types/index';
+import { Agent } from '$/types/index';
+import { getAgentType } from './agent';
 
 export function getAnalyticsInfo(agent: Agent) {
     const mobileOrDesktop = () => {
@@ -26,7 +25,7 @@ export function getAnalyticsInfo(agent: Agent) {
         isMobile: `${mobileOrDesktop() == 'Mobile'}`,
         browser: navigator.userAgent,
         origin: window.location.origin,
-        agentType: presenter.type === 'clip' && presenter.presenter_id.startsWith('v2_') ? 'clip_v2' : presenter.type,
+        agentType: getAgentType(presenter),
         agentVoice: {
             voiceId: agent.presenter?.voice?.voice_id,
             provider: agent.presenter?.voice?.type,
@@ -46,7 +45,7 @@ export function getStreamAnalyticsProps(data: any, agent: any, additionalProps: 
         llm: { ...baseProps.llm, template },
         script: { ...baseProps.script, provider: { ...baseProps?.script?.provider, language } },
         stitch,
-        ...additionalProps
+        ...additionalProps,
     };
 
     return props;
