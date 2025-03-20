@@ -8,7 +8,9 @@ import { useAgentManager } from './hooks/useAgentManager';
 export function App() {
     const [warmup, setWarmup] = useState(true);
     const [greeting, setGreeting] = useState(true);
-    const [text, setText] = useState('tell me a story');
+    const [text, setText] = useState(
+        'oded bobobobo sagi mamamama . bla raga ode ovem. lol cha cha cha cha cha . bobobobo. cha cha cha cha. bobobobo cha cha cha cha bobobobo. ssssssss cha cha cha cha cha bobobobo . cha cha cha cha bobobobo . cha cha cha cha. bobobobo ssssssss'
+    );
     const [mode, setMode] = useState<ChatMode>(ChatMode.Functional);
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
     const [compatibilityMode, setCompatibilityMode] = useState<'on' | 'off' | 'auto'>();
@@ -48,14 +50,16 @@ export function App() {
         <div id="app">
             <section>
                 <div id="left">
-                    <fieldset id="main-input" disabled={connectionState === ConnectionState.Connecting}>
-                        <textarea
-                            type="text"
-                            placeholder="Enter text to stream"
-                            value={text}
-                            onInput={e => setText(e.currentTarget.value)}
-                        />
+                    <textarea
+                        type="text"
+                        placeholder="Enter text to stream"
+                        value={text}
+                        onInput={e => setText(e.currentTarget.value)}
+                    />
+                </div>
 
+                <div id="right">
+                    <fieldset id="main-input" disabled={connectionState === ConnectionState.Connecting}>
                         <button
                             onClick={onClick}
                             disabled={
@@ -81,28 +85,6 @@ export function App() {
                             Close Connection
                         </button>
 
-                        <select value={mode} onChange={e => setMode(e.currentTarget.value as ChatMode)}>
-                            <option value={ChatMode.Functional}>{ChatMode.Functional}</option>
-                            <option value={ChatMode.Playground}>{ChatMode.Playground}</option>
-                            <option value={ChatMode.TextOnly}>{ChatMode.TextOnly}</option>
-                            <option value={ChatMode.Maintenance}>{ChatMode.Maintenance}</option>
-                            <option value={ChatMode.DirectPlayback}>{ChatMode.DirectPlayback}</option>
-                        </select>
-
-                        <input
-                            type="text"
-                            placeholder="Session Timeout"
-                            value={sessionTimeout}
-                            onChange={e => setSessionTimeout(parseInt(e.currentTarget.value) || undefined)}
-                        />
-
-                        <input
-                            type="text"
-                            value={compatibilityMode}
-                            placeholder="Compatibility Mode (on | off | auto)"
-                            onChange={e => setCompatibilityMode(e.currentTarget.value as 'on' | 'off' | 'auto')}
-                        />
-
                         <div className="input-options">
                             <label>
                                 <input
@@ -126,18 +108,36 @@ export function App() {
                         </div>
                     </fieldset>
                 </div>
-
-                <div id="right">
-                    <video
-                        ref={videoRef}
-                        id="main-video"
-                        autoPlay
-                        playsInline
-                        className={connectionState === ConnectionState.Connecting ? 'animated' : ''}
-                    />
-                </div>
             </section>
             <footer>
+                <video
+                    ref={videoRef}
+                    id="main-video"
+                    autoPlay
+                    playsInline
+                    className={connectionState === ConnectionState.Connecting ? 'animated' : ''}
+                />
+                <div id="options">
+                    <input
+                        type="text"
+                        placeholder="Session Timeout"
+                        value={sessionTimeout}
+                        onChange={e => setSessionTimeout(parseInt(e.currentTarget.value) || undefined)}
+                    />
+                    <input
+                        type="text"
+                        value={compatibilityMode}
+                        placeholder="Compatibility Mode (on | off | auto)"
+                        onChange={e => setCompatibilityMode(e.currentTarget.value as 'on' | 'off' | 'auto')}
+                    />
+                    <select value={mode} onChange={e => setMode(e.currentTarget.value as ChatMode)}>
+                        <option value={ChatMode.Functional}>{ChatMode.Functional}</option>
+                        <option value={ChatMode.Playground}>{ChatMode.Playground}</option>
+                        <option value={ChatMode.TextOnly}>{ChatMode.TextOnly}</option>
+                        <option value={ChatMode.Maintenance}>{ChatMode.Maintenance}</option>
+                        <option value={ChatMode.DirectPlayback}>{ChatMode.DirectPlayback}</option>
+                    </select>
+                </div>
                 {messages.length > 0 && (
                     <pre>
                         {JSON.stringify(

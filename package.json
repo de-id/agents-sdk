@@ -25,6 +25,7 @@
         "dev": "vite",
         "build": "node ./infra/build.js -m production",
         "build:dev": "node ./infra/build.js -m development",
+        "dev:prod": "export NODE_ENV=production && vite --mode production",
         "deploy:prod": "node ./infra/deploy.js --version beta",
         "preview": "vite preview",
         "test-build": "node .infra/build.js -m development",
