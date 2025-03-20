@@ -12,6 +12,7 @@ import {
     StreamingState,
     mapVideoType,
 } from '$/types';
+import { getAgentType } from '$/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
 import { timestampTracker } from '../analytics/timestamp-tracker';
 import { createChat } from '../chat';
@@ -25,7 +26,8 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greetin
         session_timeout: streamOptions?.sessionTimeout,
         stream_warmup: streamOptions?.streamWarmup,
         compatibility_mode: streamOptions?.compatibilityMode,
-        stream_greeting: streamOptions?.streamGreeting ? greeting : undefined,
+        stream_greeting:
+            getAgentType(agent.presenter) !== 'clip' && options?.streamOptions?.streamGreeting ? greeting : undefined,
     };
 }
 
