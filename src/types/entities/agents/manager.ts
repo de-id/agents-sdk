@@ -119,6 +119,7 @@ interface StreamOptions {
 
     /**
      * Whether to stream greeting video on the connection.
+     * Not supported for premium presenters.
      */
     streamGreeting?: boolean;
 }
