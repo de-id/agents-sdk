@@ -1,6 +1,6 @@
-import { getExternalId } from '$/auth/getAuthHeader';
+import { getExternalId } from '$/auth/get-auth-header';
+import { Agent } from '$/types';
 import { getAgentType } from '$/utils/agent';
-import { Agent } from '..';
 
 export interface AnalyticsOptions {
     token: string;
@@ -35,6 +35,7 @@ interface MixpanelEvents {
 }
 
 let mixpanelEvents: MixpanelEvents = {};
+const mixpanelUrl = 'https://api-js.mixpanel.com/track/?verbose=1&ip=1';
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
@@ -80,10 +81,11 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
 
             this.additionalProperties = { ...this.additionalProperties, ...props };
         },
-        track(event: string, props?: Record<string, any>) {
+        async track(event: string, props?: Record<string, any>) {
             if (!this.isEnabled) {
                 return Promise.resolve();
             }
+
             // Ignore audioPath event from agent-video
             const { audioPath, ...sendProps } = props || {};
 
@@ -113,9 +115,11 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                 }),
             };
 
-            return fetch('https://api-js.mixpanel.com/track/?verbose=1&ip=1', options)
-                .then(response => response.json())
-                .catch(err => console.error(err));
+            try {
+                return await fetch(mixpanelUrl, options).then(res => res.json());
+            } catch (err) {
+                return console.error(err);
+            }
         },
         linkTrack(mixpanelEvent: string, props: Record<string, any>, event: string, dependencies: string[]) {
             if (!mixpanelEvents[mixpanelEvent]) {

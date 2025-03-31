@@ -1,7 +1,7 @@
 {
     "name": "@d-id/client-sdk",
     "private": false,
-    "version": "1.0.19-beta.156",
+    "version": "1.1.0",
     "type": "module",
     "description": "d-id client sdk",
     "repository": {
@@ -25,6 +25,7 @@
         "dev": "vite",
         "build": "node ./infra/build.js -m production",
         "build:dev": "node ./infra/build.js -m development",
+        "dev:prod": "export NODE_ENV=production && vite --mode production",
         "deploy:prod": "node ./infra/deploy.js --version beta",
         "preview": "vite preview",
         "test-build": "node .infra/build.js -m development",

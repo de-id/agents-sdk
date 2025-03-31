@@ -1,5 +1,5 @@
 import { STTTokenResponse } from '$/types';
-import { SupportedStreamScipt } from '$/types/StreamScript';
+import { SupportedStreamScipt } from '$/types/stream-script';
 import { Auth } from '$/types/auth';
 import {
     CompatibilityMode,
@@ -81,7 +81,7 @@ interface ManagerCallbacks {
     /**
      * Optional callback function that will be triggered on fetch request errors
      */
-    onError?: (error: Error, errorData: object) => void;
+    onError?: (error: Error, errorData?: object) => void;
 }
 
 interface StreamOptions {
@@ -127,6 +127,7 @@ interface StreamOptions {
 export interface AgentManagerOptions {
     auth: Auth;
     callbacks: ManagerCallbacks;
+    mode: ChatMode;
     baseURL?: string;
     wsURL?: string;
     debug?: boolean;
@@ -136,7 +137,6 @@ export interface AgentManagerOptions {
      * Unique ID of agent user used in analytics. Pass it to override the default way to get distinctId
      */
     distinctId?: string;
-    mode?: ChatMode;
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
     persistentChat?: boolean;

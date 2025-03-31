@@ -1,9 +1,25 @@
+import { sleep } from '.';
+
 interface RetryOptions {
     limit?: number;
     delayMs?: number;
     timeout?: number;
     timeoutErrorMessage?: string;
     shouldRetryFn?: (error: any) => boolean;
+    onRetry?: (error: any) => void;
+}
+
+function createRacePromise(timeout: number, timeoutErrorMessage: string) {
+    let timeId: ReturnType<typeof setTimeout> | undefined;
+
+    const promise = new Promise<never>((_, reject) => {
+        timeId = setTimeout(() => reject(new Error(timeoutErrorMessage)), timeout);
+    });
+
+    return {
+        promise,
+        clear: () => clearTimeout(timeId),
+    };
 }
 
 /**
@@ -34,17 +50,14 @@ interface RetryOptions {
  *   }
  * );
  */
-async function retryOperation<T>(operation: () => Promise<T>, userOptions?: RetryOptions): Promise<T> {
+export async function retryOperation<T>(operation: () => Promise<T>, userOptions?: RetryOptions): Promise<T> {
     const options: Required<RetryOptions> = {
         limit: userOptions?.limit ?? 3,
         delayMs: userOptions?.delayMs ?? 0,
         timeout: userOptions?.timeout ?? 30000,
         timeoutErrorMessage: userOptions?.timeoutErrorMessage || 'Timeout error',
-        shouldRetryFn:
-            userOptions?.shouldRetryFn ??
-            function () {
-                return true;
-            },
+        shouldRetryFn: userOptions?.shouldRetryFn ?? (() => true),
+        onRetry: userOptions?.onRetry ?? (() => {}),
     };
 
     let lastError: any;
@@ -54,35 +67,22 @@ async function retryOperation<T>(operation: () => Promise<T>, userOptions?: Retr
                 return await operation();
             }
 
-            let timer: ReturnType<typeof setTimeout>;
-            const operationPromise = new Promise<T>((resolve, reject) => {
-                operation()
-                    .then(result => {
-                        clearTimeout(timer);
-                        resolve(result);
-                    })
-                    .catch(error => {
-                        clearTimeout(timer);
-                        reject(error);
-                    });
-            });
-            const timeoutPromise = new Promise<T>((_, reject) => {
-                timer = setTimeout(() => reject(new Error(options.timeoutErrorMessage)), options.timeout);
-            });
+            const { promise, clear } = createRacePromise(options.timeout, options.timeoutErrorMessage);
+            const operationPromise = operation().finally(clear);
 
-            const result = await Promise.race([operationPromise, timeoutPromise]);
-            return result;
+            return await Promise.race([operationPromise, promise]);
         } catch (error) {
             lastError = error;
+
             if (!options.shouldRetryFn(error) || attempt >= options.limit) {
                 throw error;
             }
-            if (options.delayMs > 0) {
-                await new Promise(resolve => setTimeout(resolve, options.delayMs));
-            }
+
+            await sleep(options.delayMs);
+
+            options.onRetry(error);
         }
     }
+
     throw lastError;
 }
-
-export default retryOperation;

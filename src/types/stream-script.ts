@@ -1,5 +1,5 @@
 import { Message } from './entities';
-import { StreamTextToSpeechProviders } from './tts';
+import { StreamTextToSpeechProviders } from './voice/tts';
 
 export type StreamScriptType = 'text' | 'audio';
 export interface BaseStreamScript {
