@@ -1,4 +1,5 @@
 import { Analytics } from '$/services/analytics/mixpanel';
+import { VideoRTCStatsReport } from '$/services/streaming-manager/stats/report';
 import { Auth } from '../auth';
 import { VideoType } from '../entities';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
@@ -38,7 +39,7 @@ export enum ConnectionState {
 export interface ManagerCallbacks {
     onMessage?: (event: string, data: string) => void;
     onConnectionStateChange?: (state: ConnectionState) => void;
-    onVideoStateChange?: (state: StreamingState) => void;
+    onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
     onError?: (error: Error, errorData: object) => void;
 }

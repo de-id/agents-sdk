@@ -9,6 +9,7 @@ import {
     VideoType,
 } from '$/types/index';
 import { pollStats } from './stats/poll';
+import { VideoRTCStatsReport } from './stats/report';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
@@ -39,6 +40,19 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
+function handleStreamState(
+    statsSignal: StreamingState,
+    dataChannelSignal: StreamingState,
+    onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'],
+    report?: VideoRTCStatsReport
+) {
+    if (statsSignal === StreamingState.Start && dataChannelSignal === StreamingState.Start) {
+        onVideoStateChange?.(StreamingState.Start);
+    } else if (statsSignal === StreamingState.Stop && dataChannelSignal === StreamingState.Stop) {
+        onVideoStateChange?.(StreamingState.Stop, report);
+    }
+}
+
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
@@ -46,6 +60,10 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
+    let isConnected = false;
+    let isDatachannelOpen = false;
+    let dataChannelSignal: StreamingState = StreamingState.Stop;
+    let statsSignal: StreamingState = StreamingState.Stop;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip
@@ -60,18 +78,21 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         throw new Error('Could not create session_id');
     }
 
-    let isConnected = false;
     const getIsConnected = () => isConnected;
     const onConnected = () => {
         isConnected = true;
-        callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+
+        if (isDatachannelOpen) {
+            callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+        }
     };
 
     const videoStatsInterval = pollStats(
         peerConnection,
         getIsConnected,
         onConnected,
-        callbacks.onVideoStateChange,
+        (state, report) =>
+            handleStreamState((statsSignal = state), dataChannelSignal, callbacks.onVideoStateChange, report),
         warmup,
         !!agent.stream_greeting
     );
@@ -99,9 +120,21 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     };
 
     pcDataChannel.onopen = () => {
-        if (!agent.stream_warmup && !agent.stream_greeting) {
+        isDatachannelOpen = true;
+
+        if ((!agent.stream_warmup && !agent.stream_greeting) || isConnected) {
             onConnected();
         }
+    };
+
+    pcDataChannel.onmessage = (event: MessageEvent) => {
+        if (event.data === 'stream/started') {
+            dataChannelSignal = StreamingState.Start;
+        } else if (event.data === 'stream/done') {
+            dataChannelSignal = StreamingState.Stop;
+        }
+
+        handleStreamState(statsSignal, dataChannelSignal, callbacks.onVideoStateChange);
     };
 
     peerConnection.oniceconnectionstatechange = () => {
