@@ -56,7 +56,7 @@ function handleStreamState(
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
-    { debug = false, callbacks, auth, baseURL = didApiUrl, warmup }: StreamingManagerOptions
+    { debug = false, callbacks, auth, baseURL = didApiUrl, warmup, greeting }: StreamingManagerOptions
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
@@ -94,7 +94,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         (state, report) =>
             handleStreamState((statsSignal = state), dataChannelSignal, callbacks.onVideoStateChange, report),
         warmup,
-        !!agent.stream_greeting
+        !!greeting
     );
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -122,8 +122,17 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     pcDataChannel.onopen = () => {
         isDatachannelOpen = true;
 
-        if ((!agent.stream_warmup && !agent.stream_greeting) || isConnected) {
+        if ((!agent.stream_warmup && !greeting) || isConnected) {
             onConnected();
+        } else if (greeting) {
+            sendStreamRequest(streamIdFromServer, session_id, {
+                script: {
+                    type: 'text',
+                    provider: greeting.voice,
+                    input: greeting.text,
+                    ssml: false,
+                },
+            });
         }
     };
 

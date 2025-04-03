@@ -2,6 +2,7 @@ import { Analytics } from '$/services/analytics/mixpanel';
 import { VideoRTCStatsReport } from '$/services/streaming-manager/stats/report';
 import { Auth } from '../auth';
 import { VideoType } from '../entities';
+import { BasePresenter } from '../entities/agents/presenter';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
 import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
 
@@ -47,12 +48,10 @@ export interface ManagerCallbacks {
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
     videoType: VideoType.Talk;
-    stream_greeting?: string;
 }
 
 export interface ClipStreamOptions extends CreateClipStreamRequest {
     videoType: VideoType.Clip;
-    stream_greeting?: string;
 }
 
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;
@@ -75,6 +74,11 @@ export interface RtcApi {
     close(streamId: string, sessionId: string): Promise<Status>;
 }
 
+interface GreetingArgs {
+    text: string;
+    voice: BasePresenter['voice'];
+}
+
 export interface StreamingManagerOptions {
     callbacks: ManagerCallbacks;
     baseURL?: string;
@@ -82,6 +86,7 @@ export interface StreamingManagerOptions {
     warmup?: boolean;
     auth: Auth;
     analytics: Analytics;
+    greeting?: GreetingArgs;
 }
 
 export interface SlimRTCStatsReport {

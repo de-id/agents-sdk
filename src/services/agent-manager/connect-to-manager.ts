@@ -12,7 +12,6 @@ import {
     StreamingState,
     mapVideoType,
 } from '$/types';
-import { getAgentType } from '$/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
 import { timestampTracker } from '../analytics/timestamp-tracker';
 import { createChat } from '../chat';
@@ -26,8 +25,6 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greetin
         session_timeout: streamOptions?.sessionTimeout,
         stream_warmup: streamOptions?.streamWarmup,
         compatibility_mode: streamOptions?.compatibilityMode,
-        stream_greeting:
-            getAgentType(agent.presenter) !== 'clip' && options?.streamOptions?.streamGreeting ? greeting : undefined,
     };
 }
 
@@ -63,29 +60,26 @@ function connectToManager(
 
     return new Promise(async (resolve, reject) => {
         try {
-            const streamingManager = await createStreamingManager(
-                agent.id,
-                getAgentStreamArgs(agent, options, greeting),
-                {
-                    ...options,
-                    analytics,
-                    warmup: options.streamOptions?.streamWarmup,
-                    callbacks: {
-                        ...options.callbacks,
-                        onConnectionStateChange: state => {
-                            options.callbacks.onConnectionStateChange?.(state);
+            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options), {
+                ...options,
+                analytics,
+                warmup: options.streamOptions?.streamWarmup,
+                greeting: !!greeting ? { text: greeting, voice: agent.presenter.voice } : undefined,
+                callbacks: {
+                    ...options.callbacks,
+                    onConnectionStateChange: state => {
+                        options.callbacks.onConnectionStateChange?.(state);
 
-                            if (state === ConnectionState.Connected) {
-                                resolve(streamingManager);
-                            }
-                        },
-                        onVideoStateChange: (state: StreamingState, statsReport?: any) => {
-                            options.callbacks.onVideoStateChange?.(state);
-                            handleStateChange(state, agent, statsReport, analytics);
-                        },
+                        if (state === ConnectionState.Connected) {
+                            resolve(streamingManager);
+                        }
                     },
-                }
-            );
+                    onVideoStateChange: (state: StreamingState, statsReport?: any) => {
+                        options.callbacks.onVideoStateChange?.(state);
+                        handleStateChange(state, agent, statsReport, analytics);
+                    },
+                },
+            });
         } catch (error) {
             reject(error);
         }

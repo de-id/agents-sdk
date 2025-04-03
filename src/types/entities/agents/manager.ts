@@ -1,5 +1,4 @@
 import { STTTokenResponse } from '$/types';
-import { SupportedStreamScipt } from '$/types/stream-script';
 import { Auth } from '$/types/auth';
 import {
     CompatibilityMode,
@@ -8,6 +7,7 @@ import {
     StreamEvents,
     StreamingState,
 } from '$/types/stream';
+import { SupportedStreamScipt } from '$/types/stream-script';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
 
