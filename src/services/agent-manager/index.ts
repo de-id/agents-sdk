@@ -58,7 +58,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const items: AgentManagerItems = { messages: [], chatMode: options.mode || ChatMode.Functional };
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
     const agentEntity = await agentsApi.getById(agent);
-    const greeting = getGreetings(agentEntity);
+    const greeting = getGreetings(agentEntity, options);
     const analytics = initializeAnalytics({
         token: mxKey,
         agent: agentEntity,
