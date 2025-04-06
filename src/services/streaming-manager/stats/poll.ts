@@ -1,7 +1,7 @@
 import { SlimRTCStatsReport, StreamingState } from '$/types';
 import { VideoRTCStatsReport, createVideoStatsReport, formatStats } from './report';
 
-const interval = 200;
+const interval = 100;
 const notReceivingIntervalsThreshold = Math.max(Math.ceil(400 / interval), 1);
 
 function createVideoStatsAnalyzer() {
