@@ -411,10 +411,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-speak', script);
             timestampTracker.update();
 
-            return items.streamingManager.speak({
-                script,
-                metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
-            });
+            return items.streamingManager.speak({ script });
         },
     };
 }
