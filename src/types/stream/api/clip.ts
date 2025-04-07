@@ -132,4 +132,6 @@ export interface SendClipStreamPayload extends StickyRequest {
      * @example "https://path.to.directory/"
      */
     raw_result_url?: string;
+
+    metadata: Record<string, any>;
 }
