@@ -53,7 +53,6 @@ export function pollStats(
                 onVideoStateChange?.(StreamingState.Start);
 
                 if (shouldWaitForGreeting && streamsCount >= streamsBeforeReady && !getIsConnected()) {
-                    console.log('warmup done, first condition');
                     onConnected();
                 }
 
@@ -73,7 +72,6 @@ export function pollStats(
                 onVideoStateChange?.(StreamingState.Stop, statsReport);
 
                 if (!shouldWaitForGreeting && !getIsConnected()) {
-                    console.log('warmup done, second condition');
                     onConnected();
                 }
 
