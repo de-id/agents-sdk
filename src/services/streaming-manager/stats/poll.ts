@@ -5,15 +5,15 @@ const interval = 100;
 const notReceivingIntervalsThreshold = Math.max(Math.ceil(400 / interval), 1);
 
 function createVideoStatsAnalyzer() {
-    let lastBytesReceived = 0;
+    let lastFramesReceived = 0;
 
     return (stats: RTCStatsReport) => {
         for (const report of stats.values()) {
             if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
-                const currBytesReceived = report.bytesReceived;
-                const isReceiving = currBytesReceived - lastBytesReceived > 0;
+                const currFramesReceived = report.framesDecoded;
+                const isReceiving = currFramesReceived - lastFramesReceived > 0;
 
-                lastBytesReceived = currBytesReceived;
+                lastFramesReceived = currFramesReceived;
 
                 return isReceiving;
             }
