@@ -5,15 +5,15 @@ const interval = 100;
 const notReceivingIntervalsThreshold = Math.max(Math.ceil(400 / interval), 1);
 
 function createVideoStatsAnalyzer() {
-    let lastBytesReceived = 0;
+    let lastFramesReceived = 0;
 
     return (stats: RTCStatsReport) => {
         for (const report of stats.values()) {
             if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
-                const currBytesReceived = report.bytesReceived;
-                const isReceiving = currBytesReceived - lastBytesReceived > 0;
+                const currFramesReceived = report.framesDecoded;
+                const isReceiving = currFramesReceived - lastFramesReceived > 0;
 
-                lastBytesReceived = currBytesReceived;
+                lastFramesReceived = currFramesReceived;
 
                 return isReceiving;
             }
@@ -53,6 +53,7 @@ export function pollStats(
                 onVideoStateChange?.(StreamingState.Start);
 
                 if (shouldWaitForGreeting && streamsCount >= streamsBeforeReady && !getIsConnected()) {
+                    console.log('warmup done, first condition');
                     onConnected();
                 }
 
@@ -72,6 +73,7 @@ export function pollStats(
                 onVideoStateChange?.(StreamingState.Stop, statsReport);
 
                 if (!shouldWaitForGreeting && !getIsConnected()) {
+                    console.log('warmup done, second condition');
                     onConnected();
                 }
 
