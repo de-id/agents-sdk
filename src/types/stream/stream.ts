@@ -12,6 +12,12 @@ export enum StreamingState {
     Stop = 'STOP',
 }
 
+export enum ConnectivityState {
+    Strong = 'STRONG',
+    Weak = 'WEAK',
+    Unknown = 'UNKNOWN'
+}
+
 export enum StreamEvents {
     ChatAnswer = 'chat/answer',
     ChatPartial = 'chat/partial',
@@ -42,6 +48,7 @@ export interface ManagerCallbacks {
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
     onError?: (error: Error, errorData: object) => void;
+    onLowConnectivityStateChange?: (state: ConnectivityState)=> void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
@@ -97,6 +104,8 @@ export interface SlimRTCStatsReport {
     framesDecoded: any;
     jitter: any;
     jitterBufferDelay: number;
+    jitterBufferEmittedCount: number;
+    avgJitterDelayInInterval: number;
     frameWidth: any;
     frameHeight: any;
     framesPerSecond: any;
@@ -115,6 +124,8 @@ export interface AnalyticsRTCStatsReport {
     framesDecoded: number;
     jitter: number;
     jitterBufferDelay: number;
+    jitterBufferEmittedCount: number;
+    avgJitterDelayInInterval: number;
     framesPerSecond: number;
     freezeCount: number;
     freezeDuration: number;

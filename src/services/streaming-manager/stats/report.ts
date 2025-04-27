@@ -4,10 +4,16 @@ export interface VideoRTCStatsReport {
     webRTCStats: {
         anomalies: AnalyticsRTCStatsReport[];
         aggregateReport: AnalyticsRTCStatsReport;
+        minJitterDelayInInterval: number
+        maxJitterDelayInInterval: number,
+        avgJitterDelayInInterval: number,
     };
     codec: string;
     resolution: string;
 }
+
+const sumF = (numbers: number[]) => numbers.reduce((total, aNumber) => total + aNumber, 0);
+const average = (numbers: number[]) => sumF(numbers) / numbers.length;
 
 function createAggregateReport(
     start: SlimRTCStatsReport,
@@ -80,6 +86,8 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
                 framesDecoded: report.framesDecoded,
                 jitter: report.jitter,
                 jitterBufferDelay: report.jitterBufferDelay,
+                jitterBufferEmittedCount: report.jitterBufferEmittedCount,
+                avgJitterDelayInInterval: report.jitterBufferDelay / report.jitterBufferEmittedCount,
                 frameWidth: report.frameWidth,
                 frameHeight: report.frameHeight,
                 framesPerSecond: report.framesPerSecond,
@@ -110,6 +118,8 @@ export function createVideoStatsReport(
                     framesDecoded: report.framesDecoded,
                     jitter: report.jitter,
                     jitterBufferDelay: report.jitterBufferDelay,
+                    jitterBufferEmittedCount: report.jitterBufferEmittedCount,
+                    avgJitterDelayInInterval: report.jitterBufferDelay / report.jitterBufferEmittedCount,
                     framesPerSecond: report.framesPerSecond,
                     freezeCount: report.freezeCount,
                     freezeDuration: report.freezeDuration,
@@ -127,6 +137,8 @@ export function createVideoStatsReport(
                 framesDecoded: report.framesDecoded - previousStats.framesDecoded,
                 jitter: report.jitter,
                 jitterBufferDelay: report.jitterBufferDelay - previousStats.jitterBufferDelay,
+                jitterBufferEmittedCount: report.jitterBufferEmittedCount - previousStats.jitterBufferEmittedCount,
+                avgJitterDelayInInterval: (report.jitterBufferDelay - previousStats.jitterBufferDelay)/(report.jitterBufferEmittedCount - previousStats.jitterBufferEmittedCount),
                 framesPerSecond: report.framesPerSecond,
                 freezeCount: report.freezeCount - previousStats.freezeCount,
                 freezeDuration: report.freezeDuration - previousStats.freezeDuration,
@@ -144,6 +156,8 @@ export function createVideoStatsReport(
             framesDecoded: report.framesDecoded - stats[index - 1].framesDecoded,
             jitter: report.jitter,
             jitterBufferDelay: report.jitterBufferDelay - stats[index - 1].jitterBufferDelay,
+            jitterBufferEmittedCount: report.jitterBufferEmittedCount - stats[index - 1].jitterBufferEmittedCount,
+            avgJitterDelayInInterval: (report.jitterBufferDelay - stats[index - 1].jitterBufferDelay)/(report.jitterBufferEmittedCount - stats[index - 1].jitterBufferEmittedCount),
             framesPerSecond: report.framesPerSecond,
             freezeCount: report.freezeCount - stats[index - 1].freezeCount,
             freezeDuration: report.freezeDuration - stats[index - 1].freezeDuration,
@@ -151,10 +165,15 @@ export function createVideoStatsReport(
     });
     const anomalies = extractAnomalies(differentialReport);
     const lowFpsCount = anomalies.reduce((acc, report) => acc + (report.causes!.includes('low fps') ? 1 : 0), 0);
+    const avgJittersSamples = differentialReport.map((stat) => stat.avgJitterDelayInInterval);
+    
     return {
         webRTCStats: {
             anomalies: anomalies,
             aggregateReport: createAggregateReport(stats[0], stats[stats.length - 1], lowFpsCount),
+            minJitterDelayInInterval: Math.min(...avgJittersSamples),
+            maxJitterDelayInInterval: Math.max(...avgJittersSamples),
+            avgJitterDelayInInterval: average(avgJittersSamples)
         },
         codec: stats[0].codec,
         resolution: `${stats[0].frameWidth}x${stats[0].frameHeight}`,
