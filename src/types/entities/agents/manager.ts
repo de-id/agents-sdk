@@ -83,7 +83,7 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered each time the user internet connectivity state change by realtime estimated bitrate
      * @param state - ConnectivityState
      */
-    onLowConnectivityStateChange?(state: ConnectivityState): void;
+    onConnectivityStateChange?(state: ConnectivityState): void;
     /**
      * Optional callback function that will be triggered on fetch request errors
      */

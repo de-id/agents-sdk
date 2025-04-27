@@ -41,7 +41,7 @@ export function pollStats(
     getIsConnected: () => boolean,
     onConnected: () => void,
     onVideoStateChange?: (state: StreamingState, statsReport?: VideoRTCStatsReport) => void,
-    onLowConnectivityStateChange?: (state: ConnectivityState) => void,
+    onConnectivityStateChange?: (state: ConnectivityState) => void,
     warmup: boolean = false,
     shouldWaitForGreeting: boolean = false
 ) {
@@ -73,7 +73,7 @@ export function pollStats(
                 (avgJitterDelayInInterval > 0.28 && currFreezeCount > 1) ? ConnectivityState.Weak : prevLowConnState
             
             if(currLowConnState !== prevLowConnState) {
-                onLowConnectivityStateChange?.(currLowConnState)
+                onConnectivityStateChange?.(currLowConnState)
                 prevLowConnState = currLowConnState
                 prevFreezeCount += currFreezeCount
                 currFreezeCount = 0
