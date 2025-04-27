@@ -93,6 +93,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         onConnected,
         (state, report) =>
             handleStreamState((statsSignal = state), dataChannelSignal, callbacks.onVideoStateChange, report),
+        (state) =>
+            callbacks.onConnectivityStateChange?.((statsSignal = state)),
         warmup,
         !!agent.stream_greeting
     );

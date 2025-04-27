@@ -33,6 +33,9 @@ export function getAnalyticsInfo(agent: Agent) {
     };
 }
 
+export const sumFunc = (numbers: number[]) => numbers.reduce((total, aNumber) => total + aNumber, 0);
+export const average = (numbers: number[]) => sumFunc(numbers) / numbers.length;
+
 export function getStreamAnalyticsProps(data: any, agent: Agent, additionalProps: Record<string, any>) {
     const { event, ...baseProps } = data;
 

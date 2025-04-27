@@ -45,6 +45,9 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                     onVideoStateChange(state) {
                         setIsSpeaking(state === StreamingState.Start);
                     },
+                    onConnectivityStateChange(state) {
+                        console.log("onConnectivityStateChange: ", state);
+                    },
                     onNewMessage(newMessages, _type) {
                         setMessages([...newMessages]);
                     },
