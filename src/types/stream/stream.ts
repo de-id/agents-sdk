@@ -18,9 +18,9 @@ export enum ConnectivityState {
     Unknown = 'UNKNOWN',
 }
 
-export enum AgentState {
+export enum AgentActivityState {
     Idle = 'IDLE',
-    Speaking = 'SPEAKING',
+    Talking = 'TALKING',
 }
 
 export const DataChannelSignalMap: Record<string, StreamingState> = {
@@ -64,7 +64,7 @@ export interface ManagerCallbacks {
     onSrcObjectReady?: (value: MediaStream) => void;
     onError?: (error: Error, errorData: object) => void;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
-    onAgentStateChange?: (state: AgentState) => void;
+    onAgentActivityStateChange?: (state: AgentActivityState) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;

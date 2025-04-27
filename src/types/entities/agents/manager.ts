@@ -1,7 +1,7 @@
 import { STTTokenResponse } from '$/types';
 import { Auth } from '$/types/auth';
 import {
-    AgentState,
+    AgentActivityState,
     CompatibilityMode,
     ConnectionState,
     ConnectivityState,
@@ -92,10 +92,10 @@ interface ManagerCallbacks {
     onError?: (error: Error, errorData?: object) => void;
 
     /**
-     * Optional callback function that will be triggered each time the agent state changes
-     * @param state - AgentState
+     * Optional callback function that will be triggered each time the agent activity state changes
+     * @param state - AgentActivityState
      */
-    onAgentStateChange?(state: AgentState): void;
+    onAgentActivityStateChange?(state: AgentActivityState): void;
 }
 
 interface StreamOptions {

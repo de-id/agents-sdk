@@ -1,7 +1,7 @@
 import { createClipApi, createTalkApi } from '$/api/streams';
 import { didApiUrl } from '$/config/environment';
 import {
-    AgentState,
+    AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
     DataChannelSignalMap,
@@ -57,9 +57,7 @@ function handleLegacyStreamState({
 }) {
     if (statsSignal === StreamingState.Start && dataChannelSignal === StreamingState.Start) {
         onVideoStateChange?.(StreamingState.Start);
-        return;
-    }
-    if (statsSignal === StreamingState.Stop && dataChannelSignal === StreamingState.Stop) {
+    } else if (statsSignal === StreamingState.Stop && dataChannelSignal === StreamingState.Stop) {
         onVideoStateChange?.(StreamingState.Stop, report);
     }
 }
@@ -68,13 +66,13 @@ function handleFluentStreamState({
     statsSignal,
     dataChannelSignal,
     onVideoStateChange,
-    onAgentStateChange,
+    onAgentActivityStateChange,
     report,
 }: {
     statsSignal?: StreamingState;
     dataChannelSignal?: StreamingState;
     onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'];
-    onAgentStateChange?: StreamingManagerOptions['callbacks']['onAgentStateChange'];
+    onAgentActivityStateChange?: StreamingManagerOptions['callbacks']['onAgentActivityStateChange'];
     report?: VideoRTCStatsReport;
 }) {
     if (statsSignal === StreamingState.Start) {
@@ -84,9 +82,9 @@ function handleFluentStreamState({
     }
 
     if (dataChannelSignal === StreamingState.Start) {
-        onAgentStateChange?.(AgentState.Speaking);
+        onAgentActivityStateChange?.(AgentActivityState.Talking);
     } else if (dataChannelSignal === StreamingState.Stop) {
-        onAgentStateChange?.(AgentState.Idle);
+        onAgentActivityStateChange?.(AgentActivityState.Idle);
     }
 }
 
@@ -94,21 +92,27 @@ function handleStreamState({
     statsSignal,
     dataChannelSignal,
     onVideoStateChange,
-    onAgentStateChange,
+    onAgentActivityStateChange,
     streamType,
     report,
 }: {
     statsSignal?: StreamingState;
     dataChannelSignal?: StreamingState;
     onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'];
-    onAgentStateChange?: StreamingManagerOptions['callbacks']['onAgentStateChange'];
+    onAgentActivityStateChange?: StreamingManagerOptions['callbacks']['onAgentActivityStateChange'];
     streamType: StreamType;
     report?: VideoRTCStatsReport;
 }) {
     if (streamType === StreamType.Legacy) {
         handleLegacyStreamState({ statsSignal, dataChannelSignal, onVideoStateChange, report });
     } else if (streamType === StreamType.Fluent) {
-        handleFluentStreamState({ statsSignal, dataChannelSignal, onVideoStateChange, onAgentStateChange, report });
+        handleFluentStreamState({
+            statsSignal,
+            dataChannelSignal,
+            onVideoStateChange,
+            onAgentActivityStateChange,
+            report,
+        });
     }
 }
 
@@ -159,7 +163,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 statsSignal: state,
                 dataChannelSignal: streamType === StreamType.Legacy ? dataChannelSignal : undefined,
                 onVideoStateChange: callbacks.onVideoStateChange,
-                onAgentStateChange: callbacks.onAgentStateChange,
+                onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
                 report,
                 streamType,
             }),
@@ -206,7 +210,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 statsSignal: streamType === StreamType.Legacy ? statsSignal : undefined,
                 dataChannelSignal,
                 onVideoStateChange: callbacks.onVideoStateChange,
-                onAgentStateChange: callbacks.onAgentStateChange,
+                onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
                 streamType,
             });
         }
@@ -283,7 +287,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 }
 
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
-                callbacks.onAgentStateChange?.(AgentState.Idle);
+                callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
                 clearInterval(videoStatsInterval);
             }
         },

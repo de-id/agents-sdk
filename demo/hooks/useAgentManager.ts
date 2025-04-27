@@ -1,13 +1,13 @@
 import { createAgentManager } from '$/services/agent-manager';
 import {
+    AgentActivityState,
     AgentManager,
-    AgentState,
     Auth,
     ChatMode,
     ConnectionState,
     Message,
-    StreamingState,
     StreamType,
+    StreamingState,
 } from '$/types';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 
@@ -33,7 +33,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [videoState, setVideoState] = useState(StreamingState.Stop);
-    const [agentState, setAgentState] = useState(AgentState.Idle);
+    const [agentActivityState, setAgentActivityState] = useState(AgentActivityState.Idle);
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
     const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
@@ -41,9 +41,9 @@ export function useAgentManager(props: UseAgentManagerOptions) {
 
     useEffect(() => {
         if (streamType === StreamType.Fluent) {
-            setIsSpeaking(agentState === AgentState.Speaking);
+            setIsSpeaking(agentActivityState === AgentActivityState.Talking);
         }
-    }, [agentState, streamType]);
+    }, [agentActivityState, streamType]);
 
     useEffect(() => {
         if (streamType === StreamType.Legacy) {
@@ -70,7 +70,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                         setVideoState(state);
                     },
                     onConnectivityStateChange(state) {
-                        console.log("onConnectivityStateChange: ", state);
+                        console.log('onConnectivityStateChange: ', state);
                     },
                     onNewMessage(newMessages, _type) {
                         setMessages([...newMessages]);
@@ -78,8 +78,8 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                     onSrcObjectReady(stream) {
                         setSrcObject(stream);
                     },
-                    onAgentStateChange(state) {
-                        setAgentState(state);
+                    onAgentActivityStateChange(state) {
+                        setAgentActivityState(state);
                     },
                 },
                 baseURL,
