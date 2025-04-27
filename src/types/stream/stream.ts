@@ -48,7 +48,7 @@ export interface ManagerCallbacks {
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
     onError?: (error: Error, errorData: object) => void;
-    onLowConnectivityStateChange?: (state: ConnectivityState)=> void;
+    onConnectivityStateChange?: (state: ConnectivityState)=> void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
