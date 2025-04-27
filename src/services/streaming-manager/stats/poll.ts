@@ -14,27 +14,27 @@ function createVideoStatsAnalyzer() {
     return (stats: RTCStatsReport) => {
         for (const report of stats.values()) {
             if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
-                const delay = report.jitterBufferDelay; 
+                const delay = report.jitterBufferDelay;
                 const count = report.jitterBufferEmittedCount;
-                               
+
                 if (prevCount && count > prevCount) {
                     const deltaDelay = delay - prevDelay;
                     const deltaCount = count - prevCount;
                     avgJitterDelayInInterval = deltaDelay / deltaCount;
-                  }
-            
+                }
+
                 prevDelay = delay;
                 prevCount = count;
 
                 const currFramesReceived = report.framesDecoded;
                 const isReceiving = currFramesReceived - lastFramesReceived > 0;
                 lastFramesReceived = currFramesReceived;
-    
-                return {isReceiving, avgJitterDelayInInterval, freezeCount: report.freezeCount};
+
+                return { isReceiving, avgJitterDelayInInterval, freezeCount: report.freezeCount };
             }
         }
-        
-        return {isReceiving: false, avgJitterDelayInInterval};
+
+        return { isReceiving: false, avgJitterDelayInInterval };
     };
 }
 
@@ -58,23 +58,23 @@ export function pollStats(
     let currLowConnState = ConnectivityState.Unknown;
     let currFreezeCount = 0;
     let prevFreezeCount = 0;
-    
+
     const isReceivingVideoBytes = createVideoStatsAnalyzer();
-    
+
     return setInterval(async () => {
         const stats = await peerConnection.getStats();
-        const {isReceiving, avgJitterDelayInInterval, freezeCount} = isReceivingVideoBytes(stats);
+        const { isReceiving, avgJitterDelayInInterval, freezeCount } = isReceivingVideoBytes(stats);
         const slimStats = formatStats(stats);
 
         if (isReceiving) {
             notReceivingNumIntervals = 0;
             currFreezeCount = freezeCount - prevFreezeCount;
-            
-            currLowConnState = 
-                avgJitterDelayInInterval < LOW_JITTER_TRESHOLD ? ConnectivityState.Strong : 
-                (avgJitterDelayInInterval > HIGH_JITTER_TRESHOLD && currFreezeCount > 1) ? ConnectivityState.Weak : prevLowConnState
-            
-            if(currLowConnState !== prevLowConnState) {
+
+            currLowConnState =
+                avgJitterDelayInInterval < LOW_JITTER_TRESHOLD ? ConnectivityState.Strong :
+                    (avgJitterDelayInInterval > HIGH_JITTER_TRESHOLD && currFreezeCount > 1) ? ConnectivityState.Weak : prevLowConnState
+
+            if (currLowConnState !== prevLowConnState) {
                 onConnectivityStateChange?.(currLowConnState)
                 prevLowConnState = currLowConnState
                 prevFreezeCount += currFreezeCount
@@ -100,7 +100,7 @@ export function pollStats(
 
             if (notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
                 const statsReport = createVideoStatsReport(allStats, interval, previousStats);
-                
+
                 onVideoStateChange?.(StreamingState.Stop, statsReport);
 
                 if (!shouldWaitForGreeting && !getIsConnected()) {

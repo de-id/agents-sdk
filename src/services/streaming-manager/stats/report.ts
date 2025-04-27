@@ -136,7 +136,7 @@ export function createVideoStatsReport(
                 jitter: report.jitter,
                 jitterBufferDelay: report.jitterBufferDelay - previousStats.jitterBufferDelay,
                 jitterBufferEmittedCount: report.jitterBufferEmittedCount - previousStats.jitterBufferEmittedCount,
-                avgJitterDelayInInterval: (report.jitterBufferDelay - previousStats.jitterBufferDelay)/(report.jitterBufferEmittedCount - previousStats.jitterBufferEmittedCount),
+                avgJitterDelayInInterval: (report.jitterBufferDelay - previousStats.jitterBufferDelay) / (report.jitterBufferEmittedCount - previousStats.jitterBufferEmittedCount),
                 framesPerSecond: report.framesPerSecond,
                 freezeCount: report.freezeCount - previousStats.freezeCount,
                 freezeDuration: report.freezeDuration - previousStats.freezeDuration,
@@ -155,7 +155,7 @@ export function createVideoStatsReport(
             jitter: report.jitter,
             jitterBufferDelay: report.jitterBufferDelay - stats[index - 1].jitterBufferDelay,
             jitterBufferEmittedCount: report.jitterBufferEmittedCount - stats[index - 1].jitterBufferEmittedCount,
-            avgJitterDelayInInterval: (report.jitterBufferDelay - stats[index - 1].jitterBufferDelay)/(report.jitterBufferEmittedCount - stats[index - 1].jitterBufferEmittedCount),
+            avgJitterDelayInInterval: (report.jitterBufferDelay - stats[index - 1].jitterBufferDelay) / (report.jitterBufferEmittedCount - stats[index - 1].jitterBufferEmittedCount),
             framesPerSecond: report.framesPerSecond,
             freezeCount: report.freezeCount - stats[index - 1].freezeCount,
             freezeDuration: report.freezeDuration - stats[index - 1].freezeDuration,
@@ -164,7 +164,7 @@ export function createVideoStatsReport(
     const anomalies = extractAnomalies(differentialReport);
     const lowFpsCount = anomalies.reduce((acc, report) => acc + (report.causes!.includes('low fps') ? 1 : 0), 0);
     const avgJittersSamples = differentialReport.map((stat) => stat.avgJitterDelayInInterval);
-    
+
     return {
         webRTCStats: {
             anomalies: anomalies,
