@@ -46,7 +46,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                         setIsSpeaking(state === StreamingState.Start);
                     },
                     onLowConnectivityStateChange(state) {
-                        console.log("Demo!! -> onLowConnectivityStateChange: ", state)
+                        console.log("onLowConnectivityStateChange: ", state);
                     },
                     onNewMessage(newMessages, _type) {
                         setMessages([...newMessages]);

@@ -7,10 +7,10 @@ import {
     SendStreamPayloadResponse,
     StreamEvents,
     StreamingState,
+    ConnectivityState
 } from '$/types/stream';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
-import { ConnectivityState } from '$/types/stream/stream';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -80,7 +80,7 @@ interface ManagerCallbacks {
     onModeChange?(mode: ChatMode): void;
 
     /**
-     * Optional callback function that will be triggered each time the user internet connectivity state change by querying the estmated bitrate in realtime interaction
+     * Optional callback function that will be triggered each time the user internet connectivity state change by realtime estimated bitrate
      * @param state - ConnectivityState
      */
     onLowConnectivityStateChange?(state: ConnectivityState): void;

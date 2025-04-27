@@ -59,7 +59,6 @@ export function pollStats(
     
     const isReceivingVideoBytes = createVideoStatsAnalyzer();
     
-
     return setInterval(async () => {
         const stats = await peerConnection.getStats();
         const {isReceiving, avgJitterDelayInInterval, freezeCount} = isReceivingVideoBytes(stats);
@@ -92,13 +91,14 @@ export function pollStats(
                 streamsCount++;
                 isStreaming = true;
             }
-            
+
             allStats.push(slimStats);
         } else if (isStreaming) {
             notReceivingNumIntervals++;
 
             if (notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
                 const statsReport = createVideoStatsReport(allStats, interval, previousStats);
+                
                 onVideoStateChange?.(StreamingState.Stop, statsReport);
 
                 if (!shouldWaitForGreeting && !getIsConnected()) {
@@ -110,4 +110,3 @@ export function pollStats(
         }
     }, interval);
 }
-

@@ -1,4 +1,5 @@
 import { AnalyticsRTCStatsReport, SlimRTCStatsReport } from '$/types';
+import { average } from '$/utils/analytics';
 
 export interface VideoRTCStatsReport {
     webRTCStats: {
@@ -11,9 +12,6 @@ export interface VideoRTCStatsReport {
     codec: string;
     resolution: string;
 }
-
-const sumF = (numbers: number[]) => numbers.reduce((total, aNumber) => total + aNumber, 0);
-const average = (numbers: number[]) => sumF(numbers) / numbers.length;
 
 function createAggregateReport(
     start: SlimRTCStatsReport,
