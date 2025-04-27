@@ -15,8 +15,18 @@ export enum StreamingState {
 export enum ConnectivityState {
     Strong = 'STRONG',
     Weak = 'WEAK',
-    Unknown = 'UNKNOWN'
+    Unknown = 'UNKNOWN',
 }
+
+export enum AgentState {
+    Idle = 'IDLE',
+    Speaking = 'SPEAKING',
+}
+
+export const DataChannelSignalMap: Record<string, StreamingState> = {
+    'stream/started': StreamingState.Start,
+    'stream/done': StreamingState.Stop,
+};
 
 export enum StreamEvents {
     ChatAnswer = 'chat/answer',
@@ -42,13 +52,19 @@ export enum ConnectionState {
     Disconnected = 'disconnected',
 }
 
+export enum StreamType {
+    Legacy = 'legacy',
+    Fluent = 'fluent',
+}
+
 export interface ManagerCallbacks {
     onMessage?: (event: string, data: string) => void;
     onConnectionStateChange?: (state: ConnectionState) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
     onError?: (error: Error, errorData: object) => void;
-    onConnectivityStateChange?: (state: ConnectivityState)=> void;
+    onConnectivityStateChange?: (state: ConnectivityState) => void;
+    onAgentStateChange?: (state: AgentState) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
@@ -86,7 +102,6 @@ export interface StreamingManagerOptions {
     callbacks: ManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
-    warmup?: boolean;
     auth: Auth;
     analytics: Analytics;
 }

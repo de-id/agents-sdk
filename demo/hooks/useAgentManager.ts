@@ -1,6 +1,15 @@
 import { createAgentManager } from '$/services/agent-manager';
-import { AgentManager, Auth, ChatMode, ConnectionState, Message, StreamingState } from '$/types';
-import { useCallback, useState } from 'preact/hooks';
+import {
+    AgentManager,
+    AgentState,
+    Auth,
+    ChatMode,
+    ConnectionState,
+    Message,
+    StreamingState,
+    StreamType,
+} from '$/types';
+import { useCallback, useEffect, useState } from 'preact/hooks';
 
 interface UseAgentManagerOptions {
     agentId: string;
@@ -23,9 +32,24 @@ export function useAgentManager(props: UseAgentManagerOptions) {
 
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
+    const [videoState, setVideoState] = useState(StreamingState.Stop);
+    const [agentState, setAgentState] = useState(AgentState.Idle);
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
     const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
+    const streamType = agentManager?.getStreamType();
+
+    useEffect(() => {
+        if (streamType === StreamType.Fluent) {
+            setIsSpeaking(agentState === AgentState.Speaking);
+        }
+    }, [agentState, streamType]);
+
+    useEffect(() => {
+        if (streamType === StreamType.Legacy) {
+            setIsSpeaking(videoState === StreamingState.Start);
+        }
+    }, [videoState, streamType]);
 
     const connect = useCallback(async () => {
         if (agentManager) return;
@@ -43,7 +67,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                         }
                     },
                     onVideoStateChange(state) {
-                        setIsSpeaking(state === StreamingState.Start);
+                        setVideoState(state);
                     },
                     onConnectivityStateChange(state) {
                         console.log("onConnectivityStateChange: ", state);
@@ -53,6 +77,9 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                     },
                     onSrcObjectReady(stream) {
                         setSrcObject(stream);
+                    },
+                    onAgentStateChange(state) {
+                        setAgentState(state);
                     },
                 },
                 baseURL,
