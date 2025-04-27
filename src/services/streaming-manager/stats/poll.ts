@@ -8,8 +8,8 @@ const HIGH_JITTER_TRESHOLD = 0.28
 
 function createVideoStatsAnalyzer() {
     let lastFramesReceived = 0;
-    let prevDelay;
-    let prevCount;
+    let prevDelay: any;
+    let prevCount: any;
     let avgJitterDelayInInterval = 0;
     return (stats: RTCStatsReport) => {
         for (const report of stats.values()) {
@@ -69,7 +69,6 @@ export function pollStats(
         if (isReceiving) {
             notReceivingNumIntervals = 0;
             currFreezeCount = freezeCount - prevFreezeCount;
-
             currLowConnState =
                 avgJitterDelayInInterval < LOW_JITTER_TRESHOLD ? ConnectivityState.Strong :
                     (avgJitterDelayInInterval > HIGH_JITTER_TRESHOLD && currFreezeCount > 1) ? ConnectivityState.Weak : prevLowConnState
