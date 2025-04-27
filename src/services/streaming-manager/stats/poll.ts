@@ -3,6 +3,8 @@ import { VideoRTCStatsReport, createVideoStatsReport, formatStats } from './repo
 
 const interval = 100;
 const notReceivingIntervalsThreshold = Math.max(Math.ceil(400 / interval), 1);
+const LOW_JITTER_TRESHOLD = 0.25
+const HIGH_JITTER_TRESHOLD = 0.28
 
 function createVideoStatsAnalyzer() {
     let lastFramesReceived = 0;
@@ -69,8 +71,8 @@ export function pollStats(
             currFreezeCount = freezeCount - prevFreezeCount;
             
             currLowConnState = 
-                avgJitterDelayInInterval < 0.25 ? ConnectivityState.Strong : 
-                (avgJitterDelayInInterval > 0.28 && currFreezeCount > 1) ? ConnectivityState.Weak : prevLowConnState
+                avgJitterDelayInInterval < LOW_JITTER_TRESHOLD ? ConnectivityState.Strong : 
+                (avgJitterDelayInInterval > HIGH_JITTER_TRESHOLD && currFreezeCount > 1) ? ConnectivityState.Weak : prevLowConnState
             
             if(currLowConnState !== prevLowConnState) {
                 onConnectivityStateChange?.(currLowConnState)
