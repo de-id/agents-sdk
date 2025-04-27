@@ -33,10 +33,6 @@ function createAggregateReport(
         freezeCount: end.freezeCount - start.freezeCount,
         freezeDuration: end.freezeDuration - start.freezeDuration,
         lowFpsCount,
-        jitterBufferEmittedCount: end.jitterBufferEmittedCount - start.jitterBufferEmittedCount,
-        avgJitterDelayInInterval:
-            (end.jitterBufferDelay - start.jitterBufferDelay) /
-            (end.jitterBufferEmittedCount - start.jitterBufferEmittedCount),
     };
 }
 
