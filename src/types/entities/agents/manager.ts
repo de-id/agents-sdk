@@ -1,14 +1,16 @@
 import { STTTokenResponse } from '$/types';
-import { SupportedStreamScipt } from '$/types/stream-script';
 import { Auth } from '$/types/auth';
 import {
+    AgentActivityState,
     CompatibilityMode,
     ConnectionState,
+    ConnectivityState,
     SendStreamPayloadResponse,
     StreamEvents,
+    StreamType,
     StreamingState,
-    ConnectivityState
 } from '$/types/stream';
+import { SupportedStreamScript } from '$/types/stream-script';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
 
@@ -88,6 +90,12 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered on fetch request errors
      */
     onError?: (error: Error, errorData?: object) => void;
+
+    /**
+     * Optional callback function that will be triggered each time the agent activity state changes
+     * @param state - AgentActivityState
+     */
+    onAgentActivityStateChange?(state: AgentActivityState): void;
 }
 
 interface StreamOptions {
@@ -155,6 +163,10 @@ export interface AgentManager {
      */
     agent: Agent;
     /**
+     * Get the current stream type of the agent
+     */
+    getStreamType: () => StreamType;
+    /**
      * Array of starter messages that will be sent to the agent when the chat starts
      */
     starterMessages: string[];
@@ -196,7 +208,7 @@ export interface AgentManager {
      * Method to make your agent read the text you provide or reproduce sound
      * @param payload
      */
-    speak: (payload: SupportedStreamScipt | string) => Promise<SendStreamPayloadResponse>;
+    speak: (payload: SupportedStreamScript | string) => Promise<SendStreamPayloadResponse>;
     /**
      * Method to change the mode of the chat
      * @param mode - ChatMode

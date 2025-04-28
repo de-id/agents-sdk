@@ -5,9 +5,9 @@ export interface VideoRTCStatsReport {
     webRTCStats: {
         anomalies: AnalyticsRTCStatsReport[];
         aggregateReport: AnalyticsRTCStatsReport;
-        minJitterDelayInInterval: number
-        maxJitterDelayInInterval: number,
-        avgJitterDelayInInterval: number,
+        minJitterDelayInInterval: number;
+        maxJitterDelayInInterval: number;
+        avgJitterDelayInInterval: number;
     };
     codec: string;
     resolution: string;
@@ -136,7 +136,9 @@ export function createVideoStatsReport(
                 jitter: report.jitter,
                 jitterBufferDelay: report.jitterBufferDelay - previousStats.jitterBufferDelay,
                 jitterBufferEmittedCount: report.jitterBufferEmittedCount - previousStats.jitterBufferEmittedCount,
-                avgJitterDelayInInterval: (report.jitterBufferDelay - previousStats.jitterBufferDelay) / (report.jitterBufferEmittedCount - previousStats.jitterBufferEmittedCount),
+                avgJitterDelayInInterval:
+                    (report.jitterBufferDelay - previousStats.jitterBufferDelay) /
+                    (report.jitterBufferEmittedCount - previousStats.jitterBufferEmittedCount),
                 framesPerSecond: report.framesPerSecond,
                 freezeCount: report.freezeCount - previousStats.freezeCount,
                 freezeDuration: report.freezeDuration - previousStats.freezeDuration,
@@ -155,7 +157,9 @@ export function createVideoStatsReport(
             jitter: report.jitter,
             jitterBufferDelay: report.jitterBufferDelay - stats[index - 1].jitterBufferDelay,
             jitterBufferEmittedCount: report.jitterBufferEmittedCount - stats[index - 1].jitterBufferEmittedCount,
-            avgJitterDelayInInterval: (report.jitterBufferDelay - stats[index - 1].jitterBufferDelay) / (report.jitterBufferEmittedCount - stats[index - 1].jitterBufferEmittedCount),
+            avgJitterDelayInInterval:
+                (report.jitterBufferDelay - stats[index - 1].jitterBufferDelay) /
+                (report.jitterBufferEmittedCount - stats[index - 1].jitterBufferEmittedCount),
             framesPerSecond: report.framesPerSecond,
             freezeCount: report.freezeCount - stats[index - 1].freezeCount,
             freezeDuration: report.freezeDuration - stats[index - 1].freezeDuration,
@@ -163,7 +167,7 @@ export function createVideoStatsReport(
     });
     const anomalies = extractAnomalies(differentialReport);
     const lowFpsCount = anomalies.reduce((acc, report) => acc + (report.causes!.includes('low fps') ? 1 : 0), 0);
-    const avgJittersSamples = differentialReport.map((stat) => stat.avgJitterDelayInInterval);
+    const avgJittersSamples = differentialReport.map(stat => stat.avgJitterDelayInInterval);
 
     return {
         webRTCStats: {
@@ -171,7 +175,7 @@ export function createVideoStatsReport(
             aggregateReport: createAggregateReport(stats[0], stats[stats.length - 1], lowFpsCount),
             minJitterDelayInInterval: Math.min(...avgJittersSamples),
             maxJitterDelayInInterval: Math.max(...avgJittersSamples),
-            avgJitterDelayInInterval: average(avgJittersSamples)
+            avgJitterDelayInInterval: average(avgJittersSamples),
         },
         codec: stats[0].codec,
         resolution: `${stats[0].frameWidth}x${stats[0].frameHeight}`,

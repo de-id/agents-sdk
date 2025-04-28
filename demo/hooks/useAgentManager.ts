@@ -1,6 +1,15 @@
 import { createAgentManager } from '$/services/agent-manager';
-import { AgentManager, Auth, ChatMode, ConnectionState, Message, StreamingState } from '$/types';
-import { useCallback, useState } from 'preact/hooks';
+import {
+    AgentActivityState,
+    AgentManager,
+    Auth,
+    ChatMode,
+    ConnectionState,
+    Message,
+    StreamType,
+    StreamingState,
+} from '$/types';
+import { useCallback, useEffect, useState } from 'preact/hooks';
 
 interface UseAgentManagerOptions {
     agentId: string;
@@ -23,9 +32,24 @@ export function useAgentManager(props: UseAgentManagerOptions) {
 
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
+    const [videoState, setVideoState] = useState(StreamingState.Stop);
+    const [agentActivityState, setAgentActivityState] = useState(AgentActivityState.Idle);
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
     const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
+    const streamType = agentManager?.getStreamType();
+
+    useEffect(() => {
+        if (streamType === StreamType.Fluent) {
+            setIsSpeaking(agentActivityState === AgentActivityState.Talking);
+        }
+    }, [agentActivityState, streamType]);
+
+    useEffect(() => {
+        if (streamType === StreamType.Legacy) {
+            setIsSpeaking(videoState === StreamingState.Start);
+        }
+    }, [videoState, streamType]);
 
     const connect = useCallback(async () => {
         if (agentManager) return;
@@ -43,16 +67,19 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                         }
                     },
                     onVideoStateChange(state) {
-                        setIsSpeaking(state === StreamingState.Start);
+                        setVideoState(state);
                     },
                     onConnectivityStateChange(state) {
-                        console.log("onConnectivityStateChange: ", state);
+                        console.log('onConnectivityStateChange: ', state);
                     },
                     onNewMessage(newMessages, _type) {
                         setMessages([...newMessages]);
                     },
                     onSrcObjectReady(stream) {
                         setSrcObject(stream);
+                    },
+                    onAgentActivityStateChange(state) {
+                        setAgentActivityState(state);
                     },
                 },
                 baseURL,

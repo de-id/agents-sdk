@@ -37,6 +37,7 @@ export interface ICreateStreamRequestResponse extends StickyRequest {
     jsep: Jsep;
     offer: any;
     ice_servers: IceServer[];
+    fluent?: boolean;
 }
 
 export interface IceCandidate {

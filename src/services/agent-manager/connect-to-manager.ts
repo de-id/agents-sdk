@@ -69,7 +69,6 @@ function connectToManager(
                 {
                     ...options,
                     analytics,
-                    warmup: options.streamOptions?.streamWarmup,
                     callbacks: {
                         ...options.callbacks,
                         onConnectionStateChange: state => {
