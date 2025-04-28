@@ -8,6 +8,7 @@ import {
     StreamingState,
     VideoType,
 } from '$/types/index';
+import { ConnectivityState } from '$/types/stream/stream';
 import { pollStats } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
@@ -64,6 +65,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     let isDatachannelOpen = false;
     let dataChannelSignal: StreamingState = StreamingState.Stop;
     let statsSignal: StreamingState = StreamingState.Stop;
+    let connectivityState: ConnectivityState = ConnectivityState.Unknown;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip
@@ -94,7 +96,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         (state, report) =>
             handleStreamState((statsSignal = state), dataChannelSignal, callbacks.onVideoStateChange, report),
         (state) =>
-            callbacks.onConnectivityStateChange?.((statsSignal = state)),
+            callbacks.onConnectivityStateChange?.(connectivityState),
         warmup,
         !!agent.stream_greeting
     );
