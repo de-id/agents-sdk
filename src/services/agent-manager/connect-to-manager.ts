@@ -2,6 +2,7 @@ import { ChatModeDowngraded } from '$/errors';
 import { StreamingManager, createStreamingManager } from '$/services/streaming-manager';
 import {
     Agent,
+    AgentActivityState,
     AgentManagerOptions,
     AgentsAPI,
     Chat,
@@ -9,6 +10,7 @@ import {
     ConnectionState,
     CreateStreamOptions,
     StreamEvents,
+    StreamType,
     StreamingState,
     mapVideoType,
 } from '$/types';
@@ -31,12 +33,21 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greetin
     };
 }
 
-function handleStateChange(state: StreamingState, agent: Agent, statsReport: any, analytics: Analytics) {
+function trackStreamingStateAnalytics(
+    state: StreamingState,
+    agent: Agent,
+    statsReport: any,
+    analytics: Analytics,
+    streamType: StreamType
+) {
     if (timestampTracker.get() > 0) {
         if (state === StreamingState.Start) {
-            analytics.linkTrack('agent-video', { event: 'start', latency: timestampTracker.get(true) }, 'start', [
-                StreamEvents.StreamVideoCreated,
-            ]);
+            analytics.linkTrack(
+                'agent-video',
+                { event: 'start', latency: timestampTracker.get(true), 'stream-type': streamType },
+                'start',
+                [StreamEvents.StreamVideoCreated]
+            );
         } else if (state === StreamingState.Stop) {
             analytics.linkTrack(
                 'agent-video',
@@ -44,6 +55,7 @@ function handleStateChange(state: StreamingState, agent: Agent, statsReport: any
                     event: 'stop',
                     is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
                     background: agent.presenter.type === 'clip' && agent.presenter.background,
+                    'stream-type': streamType,
                     ...statsReport,
                 },
                 'done',
@@ -80,7 +92,23 @@ function connectToManager(
                         },
                         onVideoStateChange: (state: StreamingState, statsReport?: any) => {
                             options.callbacks.onVideoStateChange?.(state);
-                            handleStateChange(state, agent, statsReport, analytics);
+                            trackStreamingStateAnalytics(
+                                state,
+                                agent,
+                                statsReport,
+                                analytics,
+                                streamingManager.streamType
+                            );
+                        },
+                        onAgentActivityStateChange: (state: AgentActivityState) => {
+                            options.callbacks.onAgentActivityStateChange?.(state);
+                            trackStreamingStateAnalytics(
+                                state === AgentActivityState.Talking ? StreamingState.Start : StreamingState.Stop,
+                                agent,
+                                undefined,
+                                analytics,
+                                streamingManager.streamType
+                            );
                         },
                     },
                 }
