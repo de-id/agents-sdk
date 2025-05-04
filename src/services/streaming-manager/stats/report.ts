@@ -28,6 +28,8 @@ function createAggregateReport(
         framesDropped: end.framesDropped - start.framesDropped,
         framesDecoded: end.framesDecoded - start.framesDecoded,
         jitter: end.jitter,
+        avgJitterDelayInInterval: (end.jitterBufferDelay - start.jitterBufferDelay) / (end.jitterBufferEmittedCount - start.jitterBufferEmittedCount),
+        jitterBufferEmittedCount: end.jitterBufferEmittedCount - start.jitterBufferEmittedCount,
         jitterBufferDelay: (end.jitterBufferDelay - start.jitterBufferDelay) / duration,
         framesPerSecond: end.framesPerSecond,
         freezeCount: end.freezeCount - start.freezeCount,
