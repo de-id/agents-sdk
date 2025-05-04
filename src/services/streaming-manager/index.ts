@@ -1,9 +1,12 @@
 import { createClipApi, createTalkApi } from '$/api/streams';
 import { didApiUrl } from '$/config/environment';
 import {
+    AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
+    DataChannelSignalMap,
     PayloadType,
+    StreamType,
     StreamingManagerOptions,
     StreamingState,
     VideoType,
@@ -41,12 +44,17 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function handleStreamState(
-    statsSignal: StreamingState,
-    dataChannelSignal: StreamingState,
-    onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'],
-    report?: VideoRTCStatsReport
-) {
+function handleLegacyStreamState({
+    statsSignal,
+    dataChannelSignal,
+    onVideoStateChange,
+    report,
+}: {
+    statsSignal?: StreamingState;
+    dataChannelSignal?: StreamingState;
+    onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'];
+    report?: VideoRTCStatsReport;
+}) {
     if (statsSignal === StreamingState.Start && dataChannelSignal === StreamingState.Start) {
         onVideoStateChange?.(StreamingState.Start);
     } else if (statsSignal === StreamingState.Stop && dataChannelSignal === StreamingState.Stop) {
@@ -54,10 +62,64 @@ function handleStreamState(
     }
 }
 
+function handleFluentStreamState({
+    statsSignal,
+    dataChannelSignal,
+    onVideoStateChange,
+    onAgentActivityStateChange,
+    report,
+}: {
+    statsSignal?: StreamingState;
+    dataChannelSignal?: StreamingState;
+    onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'];
+    onAgentActivityStateChange?: StreamingManagerOptions['callbacks']['onAgentActivityStateChange'];
+    report?: VideoRTCStatsReport;
+}) {
+    if (statsSignal === StreamingState.Start) {
+        onVideoStateChange?.(StreamingState.Start);
+    } else if (statsSignal === StreamingState.Stop) {
+        onVideoStateChange?.(StreamingState.Stop, report);
+    }
+
+    if (dataChannelSignal === StreamingState.Start) {
+        onAgentActivityStateChange?.(AgentActivityState.Talking);
+    } else if (dataChannelSignal === StreamingState.Stop) {
+        onAgentActivityStateChange?.(AgentActivityState.Idle);
+    }
+}
+
+function handleStreamState({
+    statsSignal,
+    dataChannelSignal,
+    onVideoStateChange,
+    onAgentActivityStateChange,
+    streamType,
+    report,
+}: {
+    statsSignal?: StreamingState;
+    dataChannelSignal?: StreamingState;
+    onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'];
+    onAgentActivityStateChange?: StreamingManagerOptions['callbacks']['onAgentActivityStateChange'];
+    streamType: StreamType;
+    report?: VideoRTCStatsReport;
+}) {
+    if (streamType === StreamType.Legacy) {
+        handleLegacyStreamState({ statsSignal, dataChannelSignal, onVideoStateChange, report });
+    } else if (streamType === StreamType.Fluent) {
+        handleFluentStreamState({
+            statsSignal,
+            dataChannelSignal,
+            onVideoStateChange,
+            onAgentActivityStateChange,
+            report,
+        });
+    }
+}
+
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
-    { debug = false, callbacks, auth, baseURL = didApiUrl, warmup }: StreamingManagerOptions
+    { debug = false, callbacks, auth, baseURL = didApiUrl }: StreamingManagerOptions
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
@@ -72,13 +134,16 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
             ? createClipApi(auth, baseURL, agentId, callbacks.onError)
             : createTalkApi(auth, baseURL, agentId, callbacks.onError);
 
-    const { id: streamIdFromServer, offer, ice_servers, session_id } = await createStream(agent);
+    const { id: streamIdFromServer, offer, ice_servers, session_id, fluent } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
     if (!session_id) {
         throw new Error('Could not create session_id');
     }
+
+    const streamType = fluent ? StreamType.Fluent : StreamType.Legacy;
+    const warmup = agent.stream_warmup && !fluent;
 
     const getIsConnected = () => isConnected;
     const onConnected = () => {
@@ -94,9 +159,15 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         getIsConnected,
         onConnected,
         (state, report) =>
-            handleStreamState((statsSignal = state), dataChannelSignal, callbacks.onVideoStateChange, report),
-        (state) =>
-            callbacks.onConnectivityStateChange?.(connectivityState),
+            handleStreamState({
+                statsSignal: state,
+                dataChannelSignal: streamType === StreamType.Legacy ? dataChannelSignal : undefined,
+                onVideoStateChange: callbacks.onVideoStateChange,
+                onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
+                report,
+                streamType,
+            }),
+        state => callbacks.onConnectivityStateChange?.(connectivityState),
         warmup,
         !!agent.stream_greeting
     );
@@ -126,19 +197,23 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     pcDataChannel.onopen = () => {
         isDatachannelOpen = true;
 
-        if ((!agent.stream_warmup && !agent.stream_greeting) || isConnected) {
+        if ((!warmup && !agent.stream_greeting) || isConnected) {
             onConnected();
         }
     };
 
     pcDataChannel.onmessage = (event: MessageEvent) => {
-        if (event.data === 'stream/started') {
-            dataChannelSignal = StreamingState.Start;
-        } else if (event.data === 'stream/done') {
-            dataChannelSignal = StreamingState.Stop;
-        }
+        if (event.data in DataChannelSignalMap) {
+            dataChannelSignal = DataChannelSignalMap[event.data];
 
-        handleStreamState(statsSignal, dataChannelSignal, callbacks.onVideoStateChange);
+            handleStreamState({
+                statsSignal: streamType === StreamType.Legacy ? statsSignal : undefined,
+                dataChannelSignal,
+                onVideoStateChange: callbacks.onVideoStateChange,
+                onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
+                streamType,
+            });
+        }
     };
 
     peerConnection.oniceconnectionstatechange = () => {
@@ -212,6 +287,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 }
 
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
+                callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
                 clearInterval(videoStatsInterval);
             }
         },
@@ -223,6 +299,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
          * Id of current RTC stream
          */
         streamId: streamIdFromServer,
+
+        streamType,
     };
 }
 

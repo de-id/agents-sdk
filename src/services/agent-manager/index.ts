@@ -9,7 +9,8 @@ import {
     CreateStreamOptions,
     Message,
     StreamScript,
-    SupportedStreamScipt,
+    StreamType,
+    SupportedStreamScript,
 } from '../../types';
 
 import { CONNECTION_RETRY_TIMEOUT_MS } from '$/config/consts';
@@ -157,6 +158,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     return {
         agent: agentEntity,
+        getStreamType: () => items.streamingManager?.streamType || StreamType.Legacy,
         starterMessages: agentEntity.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,
@@ -372,7 +374,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
-        speak(payload: string | SupportedStreamScipt) {
+        speak(payload: string | SupportedStreamScript) {
             if (!items.streamingManager) {
                 throw new Error('Please connect to the agent first');
             }
