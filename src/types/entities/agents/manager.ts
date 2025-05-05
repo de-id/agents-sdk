@@ -165,7 +165,7 @@ export interface AgentManager {
     /**
      * Get the current stream type of the agent
      */
-    getStreamType: () => StreamType;
+    getStreamType: () => StreamType | undefined;
     /**
      * Array of starter messages that will be sent to the agent when the chat starts
      */

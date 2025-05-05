@@ -9,7 +9,6 @@ import {
     CreateStreamOptions,
     Message,
     StreamScript,
-    StreamType,
     SupportedStreamScript,
 } from '../../types';
 
@@ -158,7 +157,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     return {
         agent: agentEntity,
-        getStreamType: () => items.streamingManager?.streamType || StreamType.Legacy,
+        getStreamType: () => items.streamingManager?.streamType,
         starterMessages: agentEntity.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,
