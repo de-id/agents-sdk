@@ -160,7 +160,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         onConnected,
         (state, report) =>
             handleStreamState({
-                statsSignal: state,
+                statsSignal: (statsSignal = state),
                 dataChannelSignal: streamType === StreamType.Legacy ? dataChannelSignal : undefined,
                 onVideoStateChange: callbacks.onVideoStateChange,
                 onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
