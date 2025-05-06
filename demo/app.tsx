@@ -7,7 +7,6 @@ import { useAgentManager } from './hooks/useAgentManager';
 
 export function App() {
     const [warmup, setWarmup] = useState(true);
-    const [greeting, setGreeting] = useState(true);
     const [text, setText] = useState(
         'oded bobobobo sagi mamamama . bla raga ode ovem. lol cha cha cha cha cha . bobobobo. cha cha cha cha. bobobobo cha cha cha cha bobobobo. ssssssss cha cha cha cha cha bobobobo . cha cha cha cha bobobobo . cha cha cha cha. bobobobo ssssssss'
     );
@@ -26,7 +25,6 @@ export function App() {
         auth: { type: 'key', clientKey },
         streamOptions: {
             streamWarmup: warmup,
-            streamGreeting: greeting,
             sessionTimeout,
             compatibilityMode,
         },
@@ -94,16 +92,6 @@ export function App() {
                                     onChange={e => setWarmup(e.currentTarget.checked)}
                                 />
                                 Warmup
-                            </label>
-
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    name="greeting"
-                                    checked={greeting}
-                                    onChange={e => setGreeting(e.currentTarget.checked)}
-                                />
-                                Greeting
                             </label>
                         </div>
                     </fieldset>

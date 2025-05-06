@@ -130,12 +130,6 @@ interface StreamOptions {
      * @maximum 1080
      */
     outputResolution?: number;
-
-    /**
-     * Whether to stream greeting video on the connection.
-     * Not supported for premium presenters.
-     */
-    streamGreeting?: boolean;
 }
 
 export interface AgentManagerOptions {

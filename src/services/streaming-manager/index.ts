@@ -168,8 +168,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 streamType,
             }),
         state => callbacks.onConnectivityStateChange?.(connectivityState),
-        warmup,
-        !!agent.stream_greeting
+        warmup
     );
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -197,7 +196,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     pcDataChannel.onopen = () => {
         isDatachannelOpen = true;
 
-        if ((!warmup && !agent.stream_greeting) || isConnected) {
+        if (!warmup || isConnected) {
             onConnected();
         }
     };

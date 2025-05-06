@@ -21,7 +21,6 @@ interface UseAgentManagerOptions {
     enableAnalytics?: boolean;
     streamOptions?: {
         streamWarmup?: boolean;
-        streamGreeting?: boolean;
         sessionTimeout?: number;
         compatibilityMode?: 'on' | 'off' | 'auto';
     };

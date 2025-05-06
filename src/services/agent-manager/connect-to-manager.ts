@@ -14,12 +14,11 @@ import {
     StreamingState,
     mapVideoType,
 } from '$/types';
-import { getAgentType } from '$/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
 import { timestampTracker } from '../analytics/timestamp-tracker';
 import { createChat } from '../chat';
 
-function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greeting?: string): CreateStreamOptions {
+function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
 
     return {
@@ -28,8 +27,6 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions, greetin
         session_timeout: streamOptions?.sessionTimeout,
         stream_warmup: streamOptions?.streamWarmup,
         compatibility_mode: streamOptions?.compatibilityMode,
-        stream_greeting:
-            getAgentType(agent.presenter) !== 'clip' && options?.streamOptions?.streamGreeting ? greeting : undefined,
     };
 }
 
@@ -68,51 +65,40 @@ function trackStreamingStateAnalytics(
 function connectToManager(
     agent: Agent,
     options: AgentManagerOptions,
-    analytics: Analytics,
-    greeting?: string
+    analytics: Analytics
 ): Promise<StreamingManager<CreateStreamOptions>> {
     timestampTracker.reset();
 
     return new Promise(async (resolve, reject) => {
         try {
-            const streamingManager = await createStreamingManager(
-                agent.id,
-                getAgentStreamArgs(agent, options, greeting),
-                {
-                    ...options,
-                    analytics,
-                    callbacks: {
-                        ...options.callbacks,
-                        onConnectionStateChange: state => {
-                            options.callbacks.onConnectionStateChange?.(state);
+            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(agent, options), {
+                ...options,
+                analytics,
+                callbacks: {
+                    ...options.callbacks,
+                    onConnectionStateChange: state => {
+                        options.callbacks.onConnectionStateChange?.(state);
 
-                            if (state === ConnectionState.Connected) {
-                                resolve(streamingManager);
-                            }
-                        },
-                        onVideoStateChange: (state: StreamingState, statsReport?: any) => {
-                            options.callbacks.onVideoStateChange?.(state);
-                            trackStreamingStateAnalytics(
-                                state,
-                                agent,
-                                statsReport,
-                                analytics,
-                                streamingManager.streamType
-                            );
-                        },
-                        onAgentActivityStateChange: (state: AgentActivityState) => {
-                            options.callbacks.onAgentActivityStateChange?.(state);
-                            trackStreamingStateAnalytics(
-                                state === AgentActivityState.Talking ? StreamingState.Start : StreamingState.Stop,
-                                agent,
-                                undefined,
-                                analytics,
-                                streamingManager.streamType
-                            );
-                        },
+                        if (state === ConnectionState.Connected) {
+                            resolve(streamingManager);
+                        }
                     },
-                }
-            );
+                    onVideoStateChange: (state: StreamingState, statsReport?: any) => {
+                        options.callbacks.onVideoStateChange?.(state);
+                        trackStreamingStateAnalytics(state, agent, statsReport, analytics, streamingManager.streamType);
+                    },
+                    onAgentActivityStateChange: (state: AgentActivityState) => {
+                        options.callbacks.onAgentActivityStateChange?.(state);
+                        trackStreamingStateAnalytics(
+                            state === AgentActivityState.Talking ? StreamingState.Start : StreamingState.Stop,
+                            agent,
+                            undefined,
+                            analytics,
+                            streamingManager.streamType
+                        );
+                    },
+                },
+            });
         } catch (error) {
             reject(error);
         }
@@ -124,8 +110,7 @@ export async function initializeStreamAndChat(
     options: AgentManagerOptions,
     agentsApi: AgentsAPI,
     analytics: Analytics,
-    chat?: Chat,
-    greeting?: string
+    chat?: Chat
 ): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions> }> {
     const { chat: newChat, chatMode } = await createChat(
         agent,
@@ -147,7 +132,7 @@ export async function initializeStreamAndChat(
         }
     }
 
-    const streamingManager = await connectToManager(agent, options, analytics, greeting);
+    const streamingManager = await connectToManager(agent, options, analytics);
 
     return { chat: newChat, streamingManager };
 }
