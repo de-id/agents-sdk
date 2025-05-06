@@ -23,6 +23,7 @@ interface UseAgentManagerOptions {
         streamWarmup?: boolean;
         sessionTimeout?: number;
         compatibilityMode?: 'on' | 'off' | 'auto';
+        fluent?: boolean;
     };
 }
 

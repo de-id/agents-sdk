@@ -13,6 +13,7 @@ export function App() {
     const [mode, setMode] = useState<ChatMode>(ChatMode.Functional);
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
     const [compatibilityMode, setCompatibilityMode] = useState<'on' | 'off' | 'auto'>();
+    const [fluent, setFluent] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -27,6 +28,7 @@ export function App() {
             streamWarmup: warmup,
             sessionTimeout,
             compatibilityMode,
+            fluent,
         },
     });
 
@@ -92,6 +94,16 @@ export function App() {
                                     onChange={e => setWarmup(e.currentTarget.checked)}
                                 />
                                 Warmup
+                            </label>
+
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    name="fluent"
+                                    checked={fluent}
+                                    onChange={e => setFluent(e.currentTarget.checked)}
+                                />
+                                Fluent
                             </label>
                         </div>
                     </fieldset>
