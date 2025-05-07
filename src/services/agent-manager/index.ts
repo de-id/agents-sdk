@@ -22,7 +22,7 @@ import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { timestampTracker } from '../analytics/timestamp-tracker';
 import { createChat, getRequestHeaders } from '../chat';
-import { getGreetings, getInitialMessages } from '../chat/intial-messages';
+import { getInitialMessages } from '../chat/intial-messages';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
@@ -58,7 +58,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const items: AgentManagerItems = { messages: [], chatMode: options.mode || ChatMode.Functional };
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
     const agentEntity = await agentsApi.getById(agent);
-    const greeting = getGreetings(agentEntity);
     const analytics = initializeAnalytics({
         token: mxKey,
         agent: agentEntity,
@@ -69,7 +68,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.socketManager?.disconnect()
     );
 
-    items.messages = getInitialMessages(greeting, options.initialMessages);
+    items.messages = getInitialMessages(options.initialMessages);
 
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
@@ -83,7 +82,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         if (newChat && !firstConnection) {
             delete items.chat;
 
-            items.messages = getInitialMessages(greeting);
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
@@ -94,14 +92,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         const initPromise = retryOperation(
             () => {
-                return initializeStreamAndChat(
-                    agentEntity,
-                    options,
-                    agentsApi,
-                    analytics,
-                    items.chat,
-                    newChat ? greeting : undefined
-                );
+                return initializeStreamAndChat(agentEntity, options, agentsApi, analytics, items.chat);
             },
             {
                 limit: 3,
@@ -411,6 +402,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const script = getScript();
             analytics.track('agent-speak', script);
             timestampTracker.update();
+
+            if (items.chat?.id && script.type === 'text') {
+                items.messages.push({
+                    id: getRandom(),
+                    role: 'assistant',
+                    content: script.input,
+                    created_at: new Date(timestampTracker.get(true)).toISOString(),
+                });
+                options.callbacks.onNewMessage?.([...items.messages], 'answer');
+            }
 
             return items.streamingManager.speak({
                 script,

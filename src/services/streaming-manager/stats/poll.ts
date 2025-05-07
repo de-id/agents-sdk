@@ -1,10 +1,10 @@
-import { SlimRTCStatsReport, StreamingState, ConnectivityState } from '$/types';
+import { ConnectivityState, SlimRTCStatsReport, StreamingState } from '$/types';
 import { VideoRTCStatsReport, createVideoStatsReport, formatStats } from './report';
 
 const interval = 100;
 const notReceivingIntervalsThreshold = Math.max(Math.ceil(400 / interval), 1);
-const LOW_JITTER_TRESHOLD = 0.25
-const HIGH_JITTER_TRESHOLD = 0.28
+const LOW_JITTER_TRESHOLD = 0.25;
+const HIGH_JITTER_TRESHOLD = 0.28;
 
 function createVideoStatsAnalyzer() {
     let lastFramesReceived = 0;
@@ -44,8 +44,7 @@ export function pollStats(
     onConnected: () => void,
     onVideoStateChange?: (state: StreamingState, statsReport?: VideoRTCStatsReport) => void,
     onConnectivityStateChange?: (state: ConnectivityState) => void,
-    warmup: boolean = false,
-    shouldWaitForGreeting: boolean = false
+    warmup: boolean = false
 ) {
     const streamsBeforeReady = warmup ? 1 : 0;
 
@@ -70,22 +69,21 @@ export function pollStats(
             notReceivingNumIntervals = 0;
             currFreezeCount = freezeCount - prevFreezeCount;
             currLowConnState =
-                avgJitterDelayInInterval < LOW_JITTER_TRESHOLD ? ConnectivityState.Strong :
-                    (avgJitterDelayInInterval > HIGH_JITTER_TRESHOLD && currFreezeCount > 1) ? ConnectivityState.Weak : prevLowConnState
+                avgJitterDelayInInterval < LOW_JITTER_TRESHOLD
+                    ? ConnectivityState.Strong
+                    : avgJitterDelayInInterval > HIGH_JITTER_TRESHOLD && currFreezeCount > 1
+                      ? ConnectivityState.Weak
+                      : prevLowConnState;
 
             if (currLowConnState !== prevLowConnState) {
-                onConnectivityStateChange?.(currLowConnState)
-                prevLowConnState = currLowConnState
-                prevFreezeCount += currFreezeCount
-                currFreezeCount = 0
+                onConnectivityStateChange?.(currLowConnState);
+                prevLowConnState = currLowConnState;
+                prevFreezeCount += currFreezeCount;
+                currFreezeCount = 0;
             }
 
             if (!isStreaming) {
                 onVideoStateChange?.(StreamingState.Start);
-
-                if (shouldWaitForGreeting && streamsCount >= streamsBeforeReady && !getIsConnected()) {
-                    onConnected();
-                }
 
                 previousStats = allStats[allStats.length - 1];
                 allStats = [];
@@ -102,7 +100,7 @@ export function pollStats(
 
                 onVideoStateChange?.(StreamingState.Stop, statsReport);
 
-                if (!shouldWaitForGreeting && !getIsConnected()) {
+                if (!getIsConnected()) {
                     onConnected();
                 }
 
