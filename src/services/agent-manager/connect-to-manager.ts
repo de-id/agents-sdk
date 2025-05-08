@@ -27,6 +27,7 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
         session_timeout: streamOptions?.sessionTimeout,
         stream_warmup: streamOptions?.streamWarmup,
         compatibility_mode: streamOptions?.compatibilityMode,
+        fluent: streamOptions?.fluent,
     };
 }
 

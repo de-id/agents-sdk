@@ -130,6 +130,12 @@ interface StreamOptions {
      * @maximum 1080
      */
     outputResolution?: number;
+
+    /**
+     * Whether to request fluent stream.
+     * @default false
+     */
+    fluent?: boolean;
 }
 
 export interface AgentManagerOptions {

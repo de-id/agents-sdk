@@ -70,10 +70,12 @@ export interface ManagerCallbacks {
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
     videoType: VideoType.Talk;
+    fluent?: boolean;
 }
 
 export interface ClipStreamOptions extends CreateClipStreamRequest {
     videoType: VideoType.Clip;
+    fluent?: boolean;
 }
 
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;
