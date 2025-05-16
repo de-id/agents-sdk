@@ -1,0 +1,31 @@
+name: Publish Production (agents-sdk)
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  publish-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set package name to agents-sdk
+        run: |
+          jq '.name = "agents-sdk"' package.json > package.tmp.json && mv package.tmp.json package.json
+
+      - name: Publish to NPM (prod)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
