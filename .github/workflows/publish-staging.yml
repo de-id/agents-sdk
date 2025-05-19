@@ -65,8 +65,8 @@ jobs:
       - name: Dispatch E2E tests to agents-ui
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.PAT_FOR_DISPATCH }} # Needs to be created in agents-sdk repo secrets
-          repository: de-id/agents-ui # Replace with your actual agents-ui repo path
+          token: ${{ secrets.PAT_FOR_DISPATCH }}
+          repository: de-id/agents-ui
           event-type: run-e2e-for-sdk-pr
           client-payload: |
             {
