@@ -1,4 +1,4 @@
-name: Publish Staging (agents-sdk-staging)
+name: Publish Staging (@d-id/client-sdk-staging)
 
 on:
   push:
@@ -43,10 +43,10 @@ jobs:
           git push origin main
         continue-on-error: false
 
-      - name: Swap package name to agents-sdk-staging (temp)
+      - name: Swap package name to @d-id/client-sdk-staging (temp)
         run: |
           cp package.json package.json.bak
-          jq '.name = "agents-sdk-staging"' package.json > package.tmp.json && mv package.tmp.json package.json
+          jq '.name = "@d-id/client-sdk-staging"' package.json > package.tmp.json && mv package.tmp.json package.json
 
       - name: Publish to NPM (staging)
         env:
