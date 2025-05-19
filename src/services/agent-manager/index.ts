@@ -413,6 +413,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 options.callbacks.onNewMessage?.([...items.messages], 'answer');
             }
 
+            const isTextual = [ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance].includes(items.chatMode);
+
+            // If the current chat is textual, we shouldn't activate the TTS.
+            if (items.chat && isTextual) {
+                return Promise.resolve({
+                    duration: 0,
+                    status: 'success',
+                });
+            }
+
             return items.streamingManager.speak({
                 script,
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
