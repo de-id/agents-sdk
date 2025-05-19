@@ -119,7 +119,7 @@ function handleStreamState({
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
-    { debug = false, callbacks, auth, baseURL = didApiUrl }: StreamingManagerOptions
+    { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
@@ -143,6 +143,11 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     }
 
     const streamType = fluent ? StreamType.Fluent : StreamType.Legacy;
+
+    analytics.enrich({
+        'stream-type': streamType,
+    });
+
     const warmup = agent.stream_warmup && !fluent;
 
     const getIsConnected = () => isConnected;
