@@ -66,7 +66,7 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.PAT_FOR_DISPATCH }} # Needs to be created in agents-sdk repo secrets
-          repository: your-github-organization/agents-ui # Replace with your actual agents-ui repo path
+          repository: de-id/agents-ui # Replace with your actual agents-ui repo path
           event-type: run-e2e-for-sdk-pr
           client-payload: |
             {
