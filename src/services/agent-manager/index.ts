@@ -418,10 +418,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             // If the current chat is textual, we shouldn't activate the TTS.
             if (items.chat && isTextual) {
-                return Promise.resolve({
+                return {
                     duration: 0,
                     status: 'success',
-                });
+                };
             }
 
             return items.streamingManager.speak({
