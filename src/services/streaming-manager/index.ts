@@ -169,8 +169,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 dataChannelSignal: streamType === StreamType.Legacy ? dataChannelSignal : undefined,
                 onVideoStateChange: callbacks.onVideoStateChange,
                 onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
-                report,
                 streamType,
+                report
             }),
         state => callbacks.onConnectivityStateChange?.(connectivityState),
         warmup
