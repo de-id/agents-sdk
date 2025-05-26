@@ -13,7 +13,7 @@ import {
 } from '../../types';
 
 import { CONNECTION_RETRY_TIMEOUT_MS } from '$/config/consts';
-import { didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
+import { agentId, didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
 import { ChatCreationFailed, ValidationError } from '$/errors';
 import { getRandom } from '$/utils';
 import { isTextualChat } from '$/utils/chat';
@@ -51,7 +51,7 @@ export interface AgentManagerItems {
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
     let firstConnection = true;
-
+    const { chatId, connId } = options;
     const mxKey = options.mixpanelKey || mixpanelKey;
     const wsURL = options.wsURL || didSocketApiUrl;
     const baseURL = options.baseURL || didApiUrl;
@@ -206,6 +206,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             };
 
             const initializeChat = async () => {
+                if (chatId) {
+                    const chat = await agentsApi.joinChat(agentId, chatId);
+                    items.chat = chat;
+                    return chatId;
+                }
                 if (!items.chat) {
                     const newChat = await createChat(
                         agentEntity,

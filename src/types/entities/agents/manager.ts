@@ -154,6 +154,8 @@ export interface AgentManagerOptions {
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
     persistentChat?: boolean;
+    chatId?: string;
+    connId?: string;
 }
 
 export interface AgentManager {
