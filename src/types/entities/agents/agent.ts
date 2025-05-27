@@ -67,4 +67,5 @@ export interface AgentsAPI {
     update(id: string, payload: AgentPayload, options?: RequestInit): Promise<Agent>;
     newChat(agentId: string, payload: { persist: boolean }, options?: RequestInit): Promise<Chat>;
     chat(agentId: string, chatId: string, payload: ChatPayload, options?: RequestInit): Promise<ChatResponse>;
+    joinChat(userId: string, externalId: string, chatId: string, options?: RequestInit): Promise<Chat>;
 }

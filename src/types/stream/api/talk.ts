@@ -51,6 +51,7 @@ export interface CreateTalkStreamRequest {
      * @example 180
      */
     session_timeout?: number;
+    conn_id?: string;
 }
 
 export interface SendTalkStreamPayload {

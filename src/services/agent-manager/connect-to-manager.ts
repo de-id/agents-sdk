@@ -20,6 +20,8 @@ import { createChat } from '../chat';
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
+    const urlParams = new URLSearchParams(window.location.search);
+    const connId = urlParams.get('conn_id') || undefined;
 
     return {
         videoType: mapVideoType(agent.presenter.type),
@@ -28,6 +30,7 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
         stream_warmup: streamOptions?.streamWarmup,
         compatibility_mode: streamOptions?.compatibilityMode,
         fluent: streamOptions?.fluent,
+        conn_id: connId,
     };
 }
 
@@ -113,27 +116,42 @@ export async function initializeStreamAndChat(
     analytics: Analytics,
     chat?: Chat
 ): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions> }> {
-    const { chat: newChat, chatMode } = await createChat(
-        agent,
-        agentsApi,
-        analytics,
-        options.mode,
-        options.persistentChat,
-        chat
-    );
+    const urlParams = new URLSearchParams(window.location.search);
 
-    if (chatMode && chatMode !== options.mode) {
-        options.mode = chatMode;
-        options.callbacks.onModeChange?.(chatMode);
+    const connId = urlParams.get('conn_id') || undefined;
+    const externalChatId = urlParams.get('external_chat_id') || undefined;
+    const userId = urlParams.get('external_owner_id') || undefined;
 
-        if (chatMode === ChatMode.TextOnly) {
-            options.callbacks.onError?.(new ChatModeDowngraded(chatMode));
+    if (externalChatId && userId && connId) {
+        console.log('join chat', { connId, externalChatId, userId });
 
-            return { chat: newChat };
+        const chat = await agentsApi.joinChat(userId, connId, externalChatId);
+        const streamingManager = await connectToManager(agent, options, analytics);
+
+        return { chat, streamingManager };
+    } else {
+        const { chat: newChat, chatMode } = await createChat(
+            agent,
+            agentsApi,
+            analytics,
+            options.mode,
+            options.persistentChat,
+            chat
+        );
+
+        if (chatMode && chatMode !== options.mode) {
+            options.mode = chatMode;
+            options.callbacks.onModeChange?.(chatMode);
+
+            if (chatMode === ChatMode.TextOnly) {
+                options.callbacks.onError?.(new ChatModeDowngraded(chatMode));
+
+                return { chat: newChat };
+            }
         }
+
+        const streamingManager = await connectToManager(agent, options, analytics);
+
+        return { chat: newChat, streamingManager };
     }
-
-    const streamingManager = await connectToManager(agent, options, analytics);
-
-    return { chat: newChat, streamingManager };
 }

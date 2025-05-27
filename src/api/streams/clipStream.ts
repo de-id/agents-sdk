@@ -17,15 +17,17 @@ export function createClipApi(
     onError?: (error: Error, errorData: object) => void
 ): RtcApi {
     const client = createClient(auth, `${host}/agents/${agentId}`, onError);
-
     return {
         createStream(options: ClipStreamOptions) {
+            console.log('createClipApi', { options });
+
             return client.post<ICreateStreamRequestResponse>('/streams', {
                 output_resolution: options.output_resolution,
                 compatibility_mode: options.compatibility_mode,
                 stream_warmup: options.stream_warmup,
                 session_timeout: options.session_timeout,
                 fluent: options.fluent,
+                conn_id: options.conn_id,
             });
         },
         startConnection(streamId: string, answer: RTCSessionDescriptionInit, sessionId?: string) {

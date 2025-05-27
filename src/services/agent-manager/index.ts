@@ -13,7 +13,7 @@ import {
 } from '../../types';
 
 import { CONNECTION_RETRY_TIMEOUT_MS } from '$/config/consts';
-import { agentId, didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
+import { didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
 import { ChatCreationFailed, ValidationError } from '$/errors';
 import { getRandom } from '$/utils';
 import { isTextualChat } from '$/utils/chat';
@@ -51,7 +51,6 @@ export interface AgentManagerItems {
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
     let firstConnection = true;
-    const { chatId, connId } = options;
     const mxKey = options.mixpanelKey || mixpanelKey;
     const wsURL = options.wsURL || didSocketApiUrl;
     const baseURL = options.baseURL || didApiUrl;
@@ -73,6 +72,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
+    function getInviteLink() {
+        const conn_id = items.streamingManager?.streamId;
+        const userId = items.chat?.owner_id;
+        const chatId = items.chat?.id;
+
+        const inviteLink =
+            window.location + `?conn_id=${conn_id}&external_chat_id=${chatId}&external_owner_id=${userId}`;
+        console.info(inviteLink);
+        return inviteLink;
+    }
     analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) });
 
     async function connect(newChat: boolean) {
@@ -147,8 +156,20 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
     }
 
+    function getRole() {
+        const urlParams = new URLSearchParams(window.location.search);
+
+        const connId = urlParams.get('conn_id') || undefined;
+        if (connId) {
+            return 'friend';
+        } else {
+            return 'user';
+        }
+    }
+
     return {
         agent: agentEntity,
+        getInviteLink,
         getStreamType: () => items.streamingManager?.streamType,
         starterMessages: agentEntity.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
@@ -206,12 +227,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             };
 
             const initializeChat = async () => {
-                if (chatId) {
-                    const chat = await agentsApi.joinChat(agentId, chatId);
-                    items.chat = chat;
-                    return chatId;
-                }
                 if (!items.chat) {
+                    console.info('create new chat');
                     const newChat = await createChat(
                         agentEntity,
                         agentsApi,

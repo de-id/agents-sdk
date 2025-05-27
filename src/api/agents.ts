@@ -20,8 +20,16 @@ export function createAgentsApi(
     const client = createClient(auth, `${host}/agents`, onError);
 
     return {
-        joinChat(agentId: string, chatId: string, options?: RequestOptions) {
-            return client.post<Chat>(`/${agentId}/chat/${chatId}/join`, undefined, options);
+        joinChat(userId: string, externalId: string, chatId: string, options?: RequestOptions) {
+            console.info('joinChat', { userId, externalId, chatId, options });
+            return client.put<Chat>(
+                `/chats/${chatId}`,
+                {
+                    user_id: userId,
+                    external_id: externalId,
+                },
+                options
+            );
         },
         create(payload: AgentPayload, options?: RequestOptions) {
             return client.post<Agent>(`/`, payload, options);

@@ -31,6 +31,7 @@ export function createTalkApi(
                     stream_warmup: streamOptions.stream_warmup,
                     session_timeout: streamOptions.session_timeout,
                     fluent: streamOptions.fluent,
+                    conn_id: streamOptions.conn_id,
                 },
                 options
             );

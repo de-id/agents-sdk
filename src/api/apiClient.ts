@@ -51,6 +51,9 @@ export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Err
         post<T = any>(url: string, body?: any, options?: RequestOptions) {
             return client<T>(url, { ...options, body: JSON.stringify(body), method: 'POST' });
         },
+        put<T = any>(url: string, body?: any, options?: RequestOptions) {
+            return client<T>(url, { ...options, body: JSON.stringify(body), method: 'PUT' });
+        },
         delete<T = any>(url: string, body?: any, options?: RequestOptions) {
             return client<T>(url, { ...options, body: JSON.stringify(body), method: 'DELETE' });
         },

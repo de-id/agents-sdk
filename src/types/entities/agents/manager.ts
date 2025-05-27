@@ -130,6 +130,7 @@ interface StreamOptions {
      * @maximum 1080
      */
     outputResolution?: number;
+    conn_id?: string;
 
     /**
      * Whether to request fluent stream.
@@ -155,7 +156,7 @@ export interface AgentManagerOptions {
     initialMessages?: Message[];
     persistentChat?: boolean;
     chatId?: string;
-    connId?: string;
+    conn_id?: string;
 }
 
 export interface AgentManager {
@@ -222,4 +223,5 @@ export interface AgentManager {
      * @param properties flat json object with properties that will be added to analytics events fired from the sdk
      */
     enrichAnalytics: (properties: Record<string, any>) => void;
+    getInviteLink: () => string;
 }

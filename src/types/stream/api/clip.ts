@@ -134,4 +134,5 @@ export interface SendClipStreamPayload extends StickyRequest {
     raw_result_url?: string;
 
     metadata: Record<string, any>;
+    conn_id?: string;
 }

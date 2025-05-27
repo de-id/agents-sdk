@@ -26,7 +26,7 @@ export type RatingPayload = Omit<
 
 export interface Message {
     id: string;
-    role?: 'system' | 'assistant' | 'user' | 'function' | 'tool';
+    role?: 'system' | 'assistant' | 'user' | 'function' | 'tool' | 'friend';
     content: string;
     created_at?: string;
     matches?: ChatResponse['matches'];

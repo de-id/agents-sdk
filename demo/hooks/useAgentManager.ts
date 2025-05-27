@@ -24,6 +24,7 @@ interface UseAgentManagerOptions {
         sessionTimeout?: number;
         compatibilityMode?: 'on' | 'off' | 'auto';
         fluent?: boolean;
+        conn_id?: string;
     };
 }
 

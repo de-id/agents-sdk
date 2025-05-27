@@ -78,6 +78,7 @@ export async function createSocketManager(
         callbacks: {
             onError: error => callbacks.onError?.(new WsError(error)),
             onMessage(event: MessageEvent) {
+                console.log('onMessage', event);
                 const parsedData = JSON.parse(event.data);
                 messageCallbacks.forEach(callback => callback(parsedData.event, parsedData));
             },

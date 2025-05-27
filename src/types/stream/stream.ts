@@ -76,6 +76,7 @@ export interface TalkStreamOptions extends CreateTalkStreamRequest {
 export interface ClipStreamOptions extends CreateClipStreamRequest {
     videoType: VideoType.Clip;
     fluent?: boolean;
+    conn_id?: string;
 }
 
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;
@@ -104,6 +105,7 @@ export interface StreamingManagerOptions {
     debug?: boolean;
     auth: Auth;
     analytics: Analytics;
+    conn_id?: string;
 }
 
 export interface SlimRTCStatsReport {
