@@ -121,6 +121,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     agent: T,
     { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions
 ) {
+    console.log("createStreamingManager::TEST");
     _debug = debug;
     let srcObject: MediaStream | null = null;
     let isConnected = false;
