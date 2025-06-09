@@ -109,6 +109,7 @@ export interface StreamingManagerOptions {
 export interface SlimRTCStatsReport {
     index: number;
     codec: string;
+    rtt: number;
     duration?: number;
     bitrate?: number;
     timestamp: any;
@@ -130,6 +131,7 @@ export interface SlimRTCStatsReport {
 
 export interface AnalyticsRTCStatsReport {
     timestamp?: number;
+    rtt: number;
     duration: number;
     bytesReceived: number;
     bitrate: number;

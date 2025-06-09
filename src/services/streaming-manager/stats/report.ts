@@ -1,10 +1,14 @@
 import { AnalyticsRTCStatsReport, SlimRTCStatsReport } from '$/types';
 import { average } from '$/utils/analytics';
+import { stat } from 'fs';
 
 export interface VideoRTCStatsReport {
     webRTCStats: {
         anomalies: AnalyticsRTCStatsReport[];
         aggregateReport: AnalyticsRTCStatsReport;
+        minRtt:number;
+        maxRtt:number;
+        avgRtt:number;
         minJitterDelayInInterval: number;
         maxJitterDelayInInterval: number;
         avgJitterDelayInInterval: number;
@@ -71,13 +75,18 @@ function extractAnomalies(stats: AnalyticsRTCStatsReport[]): AnalyticsRTCStatsRe
 
 export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
     let codec = '';
+    let currRtt: number = 0;
     for (const report of stats.values()) {
         if (report && report.type === 'codec' && report.mimeType.startsWith('video')) {
             codec = report.mimeType.split('/')[1];
         }
+        if(report && report.type === 'candidate-pair'){
+            currRtt = report.currentRoundTripTime;
+        }
         if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
             return {
                 codec,
+                rtt: currRtt,
                 timestamp: report.timestamp,
                 bytesReceived: report.bytesReceived,
                 packetsReceived: report.packetsReceived,
@@ -109,6 +118,7 @@ export function createVideoStatsReport(
             if (!previousStats) {
                 return {
                     timestamp: report.timestamp,
+                    rtt: report.rtt,
                     duration: 0,
                     bytesReceived: report.bytesReceived,
                     bitrate: (report.bytesReceived * 8) / (interval / 1000),
@@ -129,6 +139,7 @@ export function createVideoStatsReport(
             return {
                 timestamp: report.timestamp,
                 duration: 0,
+                rtt: report.rtt,
                 bytesReceived: report.bytesReceived - previousStats.bytesReceived,
                 bitrate: ((report.bytesReceived - previousStats.bytesReceived) * 8) / (interval / 1000),
                 packetsReceived: report.packetsReceived - previousStats.packetsReceived,
@@ -150,6 +161,7 @@ export function createVideoStatsReport(
         return {
             timestamp: report.timestamp,
             duration: (interval * index) / 1000,
+            rtt: report.rtt,
             bytesReceived: report.bytesReceived - stats[index - 1].bytesReceived,
             bitrate: ((report.bytesReceived - stats[index - 1].bytesReceived) * 8) / (interval / 1000),
             packetsReceived: report.packetsReceived - stats[index - 1].packetsReceived,
@@ -169,11 +181,15 @@ export function createVideoStatsReport(
     });
     const anomalies = extractAnomalies(differentialReport);
     const lowFpsCount = anomalies.reduce((acc, report) => acc + (report.causes!.includes('low fps') ? 1 : 0), 0);
-    const avgJittersSamples = differentialReport.map(stat => stat.avgJitterDelayInInterval);
+    const avgJittersSamples = differentialReport.filter(stat => !!stat.avgJitterDelayInInterval).map(stat => stat.avgJitterDelayInInterval);
+    const avgRttSamples = differentialReport.filter(stat => !!stat.rtt).map(stat => stat.rtt);
 
     return {
         webRTCStats: {
             anomalies: anomalies,
+            minRtt: Math.min(...avgRttSamples),
+            avgRtt: average(avgRttSamples),
+            maxRtt: Math.max(...avgRttSamples),
             aggregateReport: createAggregateReport(stats[0], stats[stats.length - 1], lowFpsCount),
             minJitterDelayInInterval: Math.min(...avgJittersSamples),
             maxJitterDelayInInterval: Math.max(...avgJittersSamples),

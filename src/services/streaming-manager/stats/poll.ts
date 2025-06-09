@@ -74,7 +74,7 @@ export function pollStats(
                     : avgJitterDelayInInterval > HIGH_JITTER_TRESHOLD && currFreezeCount > 1
                       ? ConnectivityState.Weak
                       : prevLowConnState;
-
+            console.log(currFreezeCount, currLowConnState, avgJitterDelayInInterval)            
             if (currLowConnState !== prevLowConnState) {
                 onConnectivityStateChange?.(currLowConnState);
                 prevLowConnState = currLowConnState;
@@ -103,7 +103,8 @@ export function pollStats(
                 if (!getIsConnected()) {
                     onConnected();
                 }
-
+                console.log("statsReport", statsReport)
+                prevFreezeCount = freezeCount
                 isStreaming = false;
             }
         }

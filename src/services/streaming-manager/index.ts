@@ -172,7 +172,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 report,
                 streamType,
             }),
-        state => callbacks.onConnectivityStateChange?.(connectivityState),
+        state => callbacks.onConnectivityStateChange?.(state),
         warmup
     );
 
