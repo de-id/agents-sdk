@@ -131,7 +131,6 @@ export interface SlimRTCStatsReport {
 
 export interface AnalyticsRTCStatsReport {
     timestamp?: number;
-    rtt: number;
     duration: number;
     bytesReceived: number;
     bitrate: number;
