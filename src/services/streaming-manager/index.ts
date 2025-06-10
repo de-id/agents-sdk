@@ -127,7 +127,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     let isDatachannelOpen = false;
     let dataChannelSignal: StreamingState = StreamingState.Stop;
     let statsSignal: StreamingState = StreamingState.Stop;
-    let connectivityState: ConnectivityState = ConnectivityState.Unknown;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip
