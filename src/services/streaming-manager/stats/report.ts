@@ -5,9 +5,9 @@ export interface VideoRTCStatsReport {
     webRTCStats: {
         anomalies: AnalyticsRTCStatsReport[];
         aggregateReport: AnalyticsRTCStatsReport;
-        minRtt:number;
-        maxRtt:number;
-        avgRtt:number;
+        minRtt: number;
+        maxRtt: number;
+        avgRtt: number;
         minJitterDelayInInterval: number;
         maxJitterDelayInInterval: number;
         avgJitterDelayInInterval: number;
@@ -79,7 +79,7 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
         if (report && report.type === 'codec' && report.mimeType.startsWith('video')) {
             codec = report.mimeType.split('/')[1];
         }
-        if(report && report.type === 'candidate-pair'){
+        if (report && report.type === 'candidate-pair') {
             currRtt = report.currentRoundTripTime;
         }
         if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
