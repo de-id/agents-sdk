@@ -270,7 +270,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 if (peerConnection) {
                     if (state === ConnectionState.New) {
                         // Connection already closed
-                        callbacks.onVideoStateChange?.(StreamingState.Stop);
                         clearInterval(videoStatsInterval);
                         return;
                     }
@@ -290,7 +289,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                     log('Error on close stream connection', e);
                 }
 
-                callbacks.onVideoStateChange?.(StreamingState.Stop);
                 callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
                 clearInterval(videoStatsInterval);
             }
