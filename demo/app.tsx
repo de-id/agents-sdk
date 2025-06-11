@@ -8,7 +8,7 @@ import { useAgentManager } from './hooks/useAgentManager';
 export function App() {
     const [warmup, setWarmup] = useState(true);
     const [text, setText] = useState(
-        'oded bobobobo sagi mamamama . bla raga ode ovem. lol cha cha cha cha cha . bobobobo. cha cha cha cha. bobobobo cha cha cha cha bobobobo. ssssssss cha cha cha cha cha bobobobo . cha cha cha cha bobobobo . cha cha cha cha. bobobobo ssssssss'
+        'Ben bobobobo sagi mamamama . bla raga ode ovem. lol cha cha cha cha cha . bobobobo. cha cha cha cha. bobobobo cha cha cha cha bobobobo. ssssssss cha cha cha cha cha bobobobo . cha cha cha cha bobobobo . cha cha cha cha. bobobobo ssssssss'
     );
     const [mode, setMode] = useState<ChatMode>(ChatMode.Functional);
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
