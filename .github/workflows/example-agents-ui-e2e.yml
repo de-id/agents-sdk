@@ -1,0 +1,64 @@
+name: E2E Tests for SDK Update
+
+on:
+  repository_dispatch:
+    types: [run-e2e-for-sdk-pr]
+
+jobs:
+  run-e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout agents-ui code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update SDK to staging version
+        run: |
+          echo "Updating to SDK version: ${{ github.event.client_payload.sdk_version }}"
+          npm install @d-id/client-sdk-staging@${{ github.event.client_payload.sdk_version }}
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          # Add any environment variables needed for E2E tests
+          CI: true
+
+      - name: Comment on SDK PR with test results
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_FOR_DISPATCH }}
+          script: |
+            const { sdk_pr_sha, sdk_repo_full, sdk_version } = context.payload.client_payload;
+            const testResult = '${{ job.status }}' === 'success' ? '✅ PASSED' : '❌ FAILED';
+            
+            const comment = `## E2E Test Results for SDK v${sdk_version}
+            
+            **Status:** ${testResult}
+            **SDK Version:** \`@d-id/client-sdk-staging@${sdk_version}\`
+            **Commit:** ${sdk_pr_sha}
+            
+            The E2E tests have been executed against the new staging SDK version.`;
+            
+            // Comment on the SDK repository commit
+            await github.rest.repos.createCommitComment({
+              owner: sdk_repo_full.split('/')[0],
+              repo: sdk_repo_full.split('/')[1],
+              commit_sha: sdk_pr_sha,
+              body: comment
+            });
