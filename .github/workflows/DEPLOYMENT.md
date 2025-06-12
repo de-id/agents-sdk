@@ -10,7 +10,15 @@ Simple setup for separate staging and production SDK packages.
 3. Triggers E2E tests in agents-ui repo
 4. E2E results get posted back as commit status
 
-### Production (manual)
+### Production (two options)
+
+**Option A: Automated (via branch)**
+1. Create PR from `main` → `prod` 
+2. E2E validation blocks merge if tests haven't passed
+3. Merge to `prod` → triggers `publish-prod-branch.yml`
+4. Builds and publishes `@d-id/client-sdk`
+
+**Option B: Manual**
 1. Go to GitHub Actions → run `publish-prod.yml`
 2. Choose version bump (patch/minor/major)
 3. Builds and publishes `@d-id/client-sdk`
