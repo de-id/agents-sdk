@@ -6,8 +6,9 @@ export function getExternalId() {
     let key = window.localStorage.getItem('did_external_key_id');
 
     if (!key) {
-        key = Math.random().toString(16).slice(2);
-        window.localStorage.setItem('did_external_key_id', key);
+        let newKey = getRandom()
+        window.localStorage.setItem('did_external_key_id', newKey);
+        key = newKey
     }
 
     return key;

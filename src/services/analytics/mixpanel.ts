@@ -1,6 +1,7 @@
 import { getExternalId } from '$/auth/get-auth-header';
 import { Agent } from '$/types';
 import { getAgentType } from '$/utils/agent';
+import { getRandom } from '$/utils';
 
 export interface AnalyticsOptions {
     token: string;
@@ -65,7 +66,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         ...analyticProps,
         additionalProperties: {},
         isEnabled: config.isEnabled ?? true,
-        getRandom: () => Math.random().toString(16).slice(2),
+        getRandom,
         enrich(properties: Record<string, any>) {
             const props = {};
 

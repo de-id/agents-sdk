@@ -31,35 +31,99 @@ function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): Create
     };
 }
 
-function trackStreamingStateAnalytics(
+function trackVideoStateChangeAnalytics(
     state: StreamingState,
     agent: Agent,
     statsReport: any,
     analytics: Analytics,
     streamType: StreamType
 ) {
-    if (timestampTracker.get() > 0) {
-        if (state === StreamingState.Start) {
-            analytics.linkTrack(
-                'agent-video',
-                { event: 'start', latency: timestampTracker.get(true), 'stream-type': streamType },
-                'start',
-                [StreamEvents.StreamVideoCreated]
-            );
-        } else if (state === StreamingState.Stop) {
-            analytics.linkTrack(
-                'agent-video',
-                {
-                    event: 'stop',
-                    is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-                    background: agent.presenter.type === 'clip' && agent.presenter.background,
-                    'stream-type': streamType,
-                    ...statsReport,
-                },
-                'done',
-                [StreamEvents.StreamVideoDone]
-            );
-        }
+    if (streamType === StreamType.Fluent) {
+        trackVideoStreamAnalytics(state, agent, statsReport, analytics, streamType);
+    } else {
+        trackLegacyVideoAnalytics(state, agent, statsReport, analytics, streamType);
+    }
+}
+
+function trackVideoStreamAnalytics(
+    state: StreamingState,
+    agent: Agent,
+    statsReport: any,
+    analytics: Analytics,
+    streamType: StreamType
+) {
+    if (state === StreamingState.Start) {
+        analytics.track('stream-session', { event: 'start', 'stream-type': streamType });
+    } else if (state === StreamingState.Stop) {
+        analytics.track('stream-session', {
+            event: 'stop',
+            is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
+            background: agent.presenter.type === 'clip' && agent.presenter.background,
+            'stream-type': streamType,
+            ...statsReport,
+        });
+    }
+}
+
+function trackAgentActivityAnalytics(
+    state: StreamingState,
+    agent: Agent,
+    analytics: Analytics,
+    streamType: StreamType
+) {
+    if (timestampTracker.get() <= 0) return;
+
+    if (state === StreamingState.Start) {
+        analytics.linkTrack(
+            'agent-video',
+            { event: 'start', latency: timestampTracker.get(true), 'stream-type': streamType },
+            'start',
+            [StreamEvents.StreamVideoCreated]
+        );
+    } else if (state === StreamingState.Stop) {
+        analytics.linkTrack(
+            'agent-video',
+            {
+                event: 'stop',
+                is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
+                background: agent.presenter.type === 'clip' && agent.presenter.background,
+                'stream-type': streamType,
+            },
+            'done',
+            [StreamEvents.StreamVideoDone]
+        );
+    }
+}
+
+function trackLegacyVideoAnalytics(
+    state: StreamingState,
+    agent: Agent,
+    statsReport: any,
+    analytics: Analytics,
+    streamType: StreamType
+) {
+    if (timestampTracker.get() <= 0) return;
+
+    if (state === StreamingState.Start) {
+        analytics.linkTrack(
+            'agent-video',
+            { event: 'start', latency: timestampTracker.get(true), 'stream-type': streamType },
+            'start',
+            [StreamEvents.StreamVideoCreated]
+        );
+    } else if (state === StreamingState.Stop) {
+        analytics.linkTrack(
+            'agent-video',
+            {
+                event: 'stop',
+                is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
+                background: agent.presenter.type === 'clip' && agent.presenter.background,
+                'stream-type': streamType,
+                ...statsReport,
+            },
+            'done',
+            [StreamEvents.StreamVideoDone]
+        );
     }
 }
 
@@ -86,14 +150,21 @@ function connectToManager(
                     },
                     onVideoStateChange: (state: StreamingState, statsReport?: any) => {
                         options.callbacks.onVideoStateChange?.(state);
-                        trackStreamingStateAnalytics(state, agent, statsReport, analytics, streamingManager.streamType);
+
+                        trackVideoStateChangeAnalytics(
+                            state,
+                            agent,
+                            statsReport,
+                            analytics,
+                            streamingManager.streamType
+                        );
                     },
                     onAgentActivityStateChange: (state: AgentActivityState) => {
                         options.callbacks.onAgentActivityStateChange?.(state);
-                        trackStreamingStateAnalytics(
+
+                        trackAgentActivityAnalytics(
                             state === AgentActivityState.Talking ? StreamingState.Start : StreamingState.Stop,
                             agent,
-                            undefined,
                             analytics,
                             streamingManager.streamType
                         );

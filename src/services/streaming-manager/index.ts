@@ -119,7 +119,7 @@ function handleStreamState({
 export async function createStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
-    { debug = false, callbacks, auth, baseURL = didApiUrl }: StreamingManagerOptions
+    { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions
 ) {
     _debug = debug;
     let srcObject: MediaStream | null = null;
@@ -127,7 +127,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     let isDatachannelOpen = false;
     let dataChannelSignal: StreamingState = StreamingState.Stop;
     let statsSignal: StreamingState = StreamingState.Stop;
-    let connectivityState: ConnectivityState = ConnectivityState.Unknown;
 
     const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
         agent.videoType === VideoType.Clip
@@ -143,6 +142,11 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     }
 
     const streamType = fluent ? StreamType.Fluent : StreamType.Legacy;
+
+    analytics.enrich({
+        'stream-type': streamType,
+    });
+
     const warmup = agent.stream_warmup && !fluent;
 
     const getIsConnected = () => isConnected;
@@ -167,7 +171,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 report,
                 streamType,
             }),
-        state => callbacks.onConnectivityStateChange?.(connectivityState),
+        state => callbacks.onConnectivityStateChange?.(state),
         warmup
     );
 
@@ -265,7 +269,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
                 if (peerConnection) {
                     if (state === ConnectionState.New) {
                         // Connection already closed
-                        callbacks.onVideoStateChange?.(StreamingState.Stop);
                         clearInterval(videoStatsInterval);
                         return;
                     }
@@ -279,13 +282,12 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
                 try {
                     if (state === ConnectionState.Connected) {
-                        await close(streamIdFromServer, session_id).catch(_ => {});
+                        await close(streamIdFromServer, session_id).catch(_ => { });
                     }
                 } catch (e) {
                     log('Error on close stream connection', e);
                 }
 
-                callbacks.onVideoStateChange?.(StreamingState.Stop);
                 callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
                 clearInterval(videoStatsInterval);
             }

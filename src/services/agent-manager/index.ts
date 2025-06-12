@@ -16,6 +16,7 @@ import { CONNECTION_RETRY_TIMEOUT_MS } from '$/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
 import { ChatCreationFailed, ValidationError } from '$/errors';
 import { getRandom } from '$/utils';
+import { isTextualChat } from '$/utils/chat';
 import { createAgentsApi } from '../../api/agents';
 import { getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
@@ -364,7 +365,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
-        speak(payload: string | SupportedStreamScript) {
+        async speak(payload: string | SupportedStreamScript) {
             if (!items.streamingManager) {
                 throw new Error('Please connect to the agent first');
             }
@@ -411,6 +412,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date(timestampTracker.get(true)).toISOString(),
                 });
                 options.callbacks.onNewMessage?.([...items.messages], 'answer');
+            }
+
+            const isTextual = isTextualChat(items.chatMode);
+
+            // If the current chat is textual, we shouldn't activate the TTS.
+            if (items.chat && isTextual) {
+                return {
+                    duration: 0,
+                    status: 'success',
+                };
             }
 
             return items.streamingManager.speak({
