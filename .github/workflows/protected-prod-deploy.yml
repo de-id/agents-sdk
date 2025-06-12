@@ -1,0 +1,75 @@
+name: Enforce Staging-to-Production Flow
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+
+jobs:
+  validate-and-deploy-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: 'main'
+          fetch-depth: 0
+
+      - name: Get latest commit on main
+        id: get_main_commit
+        run: |
+          echo "main_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Check if main commit has E2E status
+        id: check_e2e_status
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: '${{ steps.get_main_commit.outputs.main_sha }}'
+            });
+            
+            const e2eStatus = statuses.find(status => status.context === 'Agents-UI E2E');
+            
+            if (!e2eStatus) {
+              core.setFailed('No E2E test status found for the latest main commit. Please trigger staging deployment first.');
+              return;
+            }
+            
+            if (e2eStatus.state !== 'success') {
+              core.setFailed(`E2E tests have not passed. Status: ${e2eStatus.state}. Description: ${e2eStatus.description}`);
+              return;
+            }
+            
+            console.log('✅ E2E tests have passed for main commit');
+            core.setOutput('e2e_passed', 'true');
+
+      - name: Trigger production deployment
+        if: steps.check_e2e_status.outputs.e2e_passed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'publish-prod.yml',
+              ref: 'main',
+              inputs: {
+                version_type: '${{ github.event.inputs.version_type }}',
+                source_branch: 'main'
+              }
+            });
+            
+            console.log('✅ Production deployment triggered successfully');

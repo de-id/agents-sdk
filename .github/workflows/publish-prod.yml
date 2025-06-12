@@ -1,9 +1,22 @@
 name: Publish Production (@d-id/client-sdk)
 
 on:
-  push:
-    branches:
-      - prod
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+      source_branch:
+        description: 'Source branch (default: main)'
+        required: false
+        default: 'main'
+        type: string
 
 jobs:
   publish-prod:
@@ -11,6 +24,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.source_branch || 'main' }}
+          fetch-depth: 0
 
       - name: Cache node modules
         uses: actions/cache@v4
@@ -29,8 +45,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build package
+      - name: Build package (production mode)
         run: npm run build
+        continue-on-error: false
+
+      - name: Bump version
+        run: |
+          npm version ${{ github.event.inputs.version_type }} --no-git-tag-version
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add package.json package-lock.json || true
+          git commit -m "chore: bump version to $(node -p "require('./package.json').version") [skip ci]" || echo "No changes to commit"
+          git push origin ${{ github.event.inputs.source_branch || 'main' }}
         continue-on-error: false
 
       - name: Swap package name to @d-id/client-sdk (temp)
