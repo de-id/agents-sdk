@@ -15,48 +15,43 @@ jobs:
       - name: Cache node modules
         uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.yarn
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-yarn-
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org/'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Build package (production mode)
-        run: npm run build
+        run: yarn build
         continue-on-error: false
 
-      - name: Bump version (patch)
+      - name: Create staging version identifier
+        id: staging_version
         run: |
-          npm version patch --no-git-tag-version
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add package.json package-lock.json || true
-          git commit -m "chore: bump version [skip ci]" || echo "No changes to commit"
-          git push origin main
-        continue-on-error: false
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          STAGING_VERSION="${CURRENT_VERSION}-staging.$(date +%Y%m%d%H%M%S)"
+          echo "version=$STAGING_VERSION" >> $GITHUB_OUTPUT
+          echo "base_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Swap package name to @d-id/client-sdk-staging (temp)
         run: |
           cp package.json package.json.bak
-          jq '.name = "@d-id/client-sdk-staging"' package.json > package.tmp.json && mv package.tmp.json package.json
+          jq --arg version "${{ steps.staging_version.outputs.version }}" '.name = "@d-id/client-sdk-staging" | .version = $version' package.json > package.tmp.json && mv package.tmp.json package.json
 
       - name: Publish to NPM (staging)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: yarn publish --access public
         continue-on-error: false
-
-      - name: Get published version
-        id: get_version
-        run: echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
 
       - name: Revert package name after publish
         run: mv package.json.bak package.json
@@ -70,7 +65,7 @@ jobs:
           event-type: run-e2e-for-sdk-pr
           client-payload: |
             {
-              "sdk_version": "${{ steps.get_version.outputs.version }}",
+              "sdk_version": "${{ steps.staging_version.outputs.version }}",
               "sdk_pr_sha": "${{ github.sha }}",
               "sdk_repo_full": "${{ github.repository }}"
             }
