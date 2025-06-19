@@ -1,11 +1,14 @@
 name: Publish Production (@d-id/client-sdk)
 
 on:
+  push:
+    branches:
+      - prod
   workflow_dispatch:
     inputs:
       version_type:
-        description: 'Version bump type'
-        required: true
+        description: 'Version bump type (only for manual dispatch)'
+        required: false
         default: 'patch'
         type: choice
         options:
@@ -13,7 +16,7 @@ on:
         - minor
         - major
       source_branch:
-        description: 'Source branch (default: main)'
+        description: 'Source branch to build from (only for manual dispatch)'
         required: false
         default: 'main'
         type: string
@@ -22,54 +25,81 @@ jobs:
   publish-prod:
     runs-on: ubuntu-latest
     steps:
+      - name: Determine source branch
+        id: branch
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "source=${{ github.event.inputs.source_branch || 'main' }}" >> $GITHUB_OUTPUT
+            echo "should_bump=true" >> $GITHUB_OUTPUT
+            echo "version_type=${{ github.event.inputs.version_type || 'patch' }}" >> $GITHUB_OUTPUT
+          else
+            # Push to prod branch - we should bump version since staging doesn't
+            echo "source=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "should_bump=true" >> $GITHUB_OUTPUT
+            echo "version_type=patch" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.source_branch || 'main' }}
+          ref: ${{ steps.branch.outputs.source }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Cache node modules
         uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.yarn
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-yarn-
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org/'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Build package (production mode)
-        run: npm run build
+        run: yarn build
         continue-on-error: false
 
-      - name: Bump version
+      - name: Bump version (manual dispatch only)
+        if: steps.branch.outputs.should_bump == 'true'
         run: |
-          npm version ${{ github.event.inputs.version_type }} --no-git-tag-version
+          yarn version --${{ steps.branch.outputs.version_type }} --no-git-tag-version
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add package.json package-lock.json || true
+          git add package.json yarn.lock || true
           git commit -m "chore: bump version to $(node -p "require('./package.json').version") [skip ci]" || echo "No changes to commit"
-          git push origin ${{ github.event.inputs.source_branch || 'main' }}
-        continue-on-error: false
+          git push origin ${{ steps.branch.outputs.source }}
 
-      - name: Swap package name to @d-id/client-sdk (temp)
-        run: |
-          cp package.json package.json.bak
-          jq '.name = "@d-id/client-sdk"' package.json > package.tmp.json && mv package.tmp.json package.json
-
-      - name: Publish to NPM (prod)
+      - name: Publish to NPM (production)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: yarn publish --access public
         continue-on-error: false
 
-      - name: Revert package name after publish
-        run: mv package.json.bak package.json
-        if: always()
+      - name: Merge version back to main (for prod branch pushes)
+        if: github.event_name == 'push' && github.ref_name == 'prod'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          
+          # Fetch latest main to avoid conflicts
+          git fetch origin main
+          git checkout main
+          git pull origin main
+          
+          # Get the updated package.json from prod
+          git show prod:package.json > package.json
+          git show prod:yarn.lock > yarn.lock || true
+          
+          # Commit the version sync
+          git add package.json yarn.lock || true
+          git commit -m "chore: sync version from prod [skip ci]" || echo "No changes to commit"
+          git push origin main
