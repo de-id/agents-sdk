@@ -1,11 +1,6 @@
 import { Chat, CreateStreamOptions, StreamEvents, StreamInterruptPayload, StreamType } from '$/types';
 import { StreamingManager } from '../streaming-manager';
 
-export interface InterruptResult {
-    success: boolean;
-    queued?: boolean;
-}
-
 export function validateInterrupt(
     streamingManager: StreamingManager<CreateStreamOptions> | undefined,
     chat: Chat | undefined,
