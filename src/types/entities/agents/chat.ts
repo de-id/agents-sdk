@@ -63,6 +63,7 @@ export interface ChatResponse {
     matches?: IRetrivalMetadata[];
     chatMode?: ChatMode;
     context?: string;
+    videoId?: string;
 }
 
 export interface Chat {

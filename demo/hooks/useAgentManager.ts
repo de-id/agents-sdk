@@ -150,6 +150,17 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         [agentManager, connectionState]
     );
 
+    const interrupt = useCallback(async () => {
+        if (!agentManager || connectionState !== ConnectionState.Connected) return;
+
+        try {
+            await agentManager.interrupt();
+        } catch (e) {
+            console.error('Error interrupting:', e);
+            throw e;
+        }
+    }, [agentManager, connectionState]);
+
     return {
         connectionState,
         messages,
@@ -159,5 +170,6 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         disconnect,
         speak,
         chat,
+        interrupt,
     };
 }

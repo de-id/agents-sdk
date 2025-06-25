@@ -17,20 +17,21 @@ export function App() {
 
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    const { srcObject, connectionState, messages, isSpeaking, connect, disconnect, speak, chat } = useAgentManager({
-        agentId,
-        baseURL: didApiUrl,
-        wsURL: didSocketApiUrl,
-        mode,
-        enableAnalytics: false,
-        auth: { type: 'key', clientKey },
-        streamOptions: {
-            streamWarmup: warmup,
-            sessionTimeout,
-            compatibilityMode,
-            fluent,
-        },
-    });
+    const { srcObject, connectionState, messages, isSpeaking, connect, disconnect, speak, chat, interrupt } =
+        useAgentManager({
+            agentId,
+            baseURL: didApiUrl,
+            wsURL: didSocketApiUrl,
+            mode,
+            enableAnalytics: false,
+            auth: { type: 'key', clientKey },
+            streamOptions: {
+                streamWarmup: warmup,
+                sessionTimeout,
+                compatibilityMode,
+                fluent,
+            },
+        });
 
     async function onClick() {
         if (connectionState === ConnectionState.New || connectionState === ConnectionState.Fail) {
@@ -79,6 +80,10 @@ export function App() {
                             onClick={() => chat(text)}
                             disabled={isSpeaking || connectionState !== ConnectionState.Connected}>
                             Send to Chat
+                        </button>
+
+                        <button onClick={interrupt} disabled={connectionState !== ConnectionState.Connected || !fluent}>
+                            Interrupt
                         </button>
 
                         <button onClick={disconnect} disabled={connectionState !== ConnectionState.Connected}>
