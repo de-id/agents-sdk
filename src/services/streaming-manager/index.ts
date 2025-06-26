@@ -221,9 +221,11 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     };
 
     function handleStreamVideoEvent(subject: StreamEvents.StreamStarted | StreamEvents.StreamDone) {
+        dataChannelSignal = subject === StreamEvents.StreamStarted ? StreamingState.Start : StreamingState.Stop;
+
         handleStreamState({
             statsSignal: streamType === StreamType.Legacy ? statsSignal : undefined,
-            dataChannelSignal: subject === StreamEvents.StreamStarted ? StreamingState.Start : StreamingState.Stop,
+            dataChannelSignal,
             onVideoStateChange: callbacks.onVideoStateChange,
             onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
             streamType,
