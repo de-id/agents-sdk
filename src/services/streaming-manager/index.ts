@@ -233,7 +233,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     }
 
     function handleStreamReadyEvent(_subject: StreamEvents.StreamReady, payload: any) {
-        payload?.metadata && analytics.enrich({ streamMetadata: payload.metadata })
+        analytics.enrich({ streamMetadata: payload?.metadata })
+        analytics.track('agent-chat', { event: 'ready' });
     }
 
     const dataChannelHandlers = {
