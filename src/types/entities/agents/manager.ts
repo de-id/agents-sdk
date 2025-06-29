@@ -220,4 +220,11 @@ export interface AgentManager {
      * @param properties flat json object with properties that will be added to analytics events fired from the sdk
      */
     enrichAnalytics: (properties: Record<string, any>) => void;
+
+    /**
+     * Method to interrupt the current video stream
+     * Only available for Fluent streams and when there's an active video to interrupt
+     * @returns Promise that resolves when the interrupt signal is successfully sent or queued.
+     */
+    interrupt: () => Promise<void>;
 }
