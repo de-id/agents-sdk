@@ -49,11 +49,11 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
 function parseDataChannelMessage(message: string): { subject: StreamEvents, data: DataChannelPayload } {
     const [subject, rawData = ''] = message.split(/:(.+)/);
     try {
-        const data = JSON.parse(rawData) as Record<string, unknown>;
+        const data = JSON.parse(rawData);
         log('parsed data channel message', { subject, data });
         return { subject: subject as StreamEvents, data };
     } catch (e) {
-        log('Failed to parse data channel message', { subject, rawData, error: e });
+        log('Failed to parse data channel message, returning data as string', { subject, rawData, error: e });
         return { subject: subject as StreamEvents, data: rawData };
     }
 }
@@ -232,7 +232,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     }
 
     function handleStreamReadyEvent(_subject: StreamEvents.StreamReady, payload?: DataChannelPayload) {
-        analytics.enrich({ streamMetadata: typeof payload === 'string' ? payload : payload?.metadata })
+        const streamMetadata = typeof payload === 'string' ? payload : payload?.metadata;
+        streamMetadata && analytics.enrich({ streamMetadata });
         analytics.track('agent-chat', { event: 'ready' });
     }
 
