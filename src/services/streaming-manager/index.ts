@@ -50,11 +50,10 @@ function parseDataChannelMessage(message: string): { subject: StreamEvents, data
     let data = rawData;
     try {
         data = rawData ? JSON.parse(rawData) : undefined;
+        log('parsed data channel message', { subject, data });
     } catch {
         log('Failed to parse data channel message', { subject, rawData });
     }
-
-    log('parsed data channel message', { subject, data });
 
     return { subject: subject as StreamEvents, data };
 }
