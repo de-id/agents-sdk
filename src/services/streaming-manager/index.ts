@@ -22,7 +22,8 @@ const actualRTCPC = (
     (window as any).mozRTCPeerConnection
 ).bind(window);
 
-type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: any) => void
+type DataChannelPayload = string | Record<string, unknown>;
+type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void
 
 function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     switch (state) {
@@ -45,17 +46,16 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function parseDataChannelMessage(message: string): { subject: StreamEvents, data: any } {
+function parseDataChannelMessage(message: string): { subject: StreamEvents, data: DataChannelPayload } {
     const [subject, rawData = ''] = message.split(/:(.+)/);
-    let data = rawData;
     try {
-        data = rawData ? JSON.parse(rawData) : undefined;
+        const data = JSON.parse(rawData) as Record<string, unknown>;
         log('parsed data channel message', { subject, data });
-    } catch {
-        log('Failed to parse data channel message', { subject, rawData });
+        return { subject: subject as StreamEvents, data };
+    } catch (e) {
+        log('Failed to parse data channel message', { subject, rawData, error: e });
+        return { subject: subject as StreamEvents, data: rawData };
     }
-
-    return { subject: subject as StreamEvents, data };
 }
 
 function handleLegacyStreamState({
@@ -231,8 +231,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         });
     }
 
-    function handleStreamReadyEvent(_subject: StreamEvents.StreamReady, payload: any) {
-        analytics.enrich({ streamMetadata: payload?.metadata })
+    function handleStreamReadyEvent(_subject: StreamEvents.StreamReady, payload?: DataChannelPayload) {
+        analytics.enrich({ streamMetadata: typeof payload === 'string' ? payload : payload?.metadata })
         analytics.track('agent-chat', { event: 'ready' });
     }
 
