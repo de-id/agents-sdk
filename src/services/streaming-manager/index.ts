@@ -4,14 +4,13 @@ import {
     AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
-    DataChannelSignalMap,
     PayloadType,
+    StreamEvents,
     StreamType,
     StreamingManagerOptions,
     StreamingState,
     VideoType,
 } from '$/types/index';
-import { ConnectivityState } from '$/types/stream/stream';
 import { pollStats } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
@@ -22,6 +21,9 @@ const actualRTCPC = (
     (window as any).webkitRTCPeerConnection ||
     (window as any).mozRTCPeerConnection
 ).bind(window);
+
+type DataChannelPayload = string | Record<string, unknown>;
+type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void
 
 function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     switch (state) {
@@ -41,6 +43,18 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
             return ConnectionState.Completed;
         default:
             return ConnectionState.New;
+    }
+}
+
+function parseDataChannelMessage(message: string): { subject: StreamEvents, data: DataChannelPayload } {
+    const [subject, rawData = ''] = message.split(/:(.+)/);
+    try {
+        const data = JSON.parse(rawData);
+        log('parsed data channel message', { subject, data });
+        return { subject: subject as StreamEvents, data };
+    } catch (e) {
+        log('Failed to parse data channel message, returning data as string', { subject, rawData, error: e });
+        return { subject: subject as StreamEvents, data: rawData };
     }
 }
 
@@ -205,18 +219,33 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         }
     };
 
-    pcDataChannel.onmessage = (event: MessageEvent) => {
-        if (event.data in DataChannelSignalMap) {
-            dataChannelSignal = DataChannelSignalMap[event.data];
+    function handleStreamVideoEvent(subject: StreamEvents.StreamStarted | StreamEvents.StreamDone) {
+        dataChannelSignal = subject === StreamEvents.StreamStarted ? StreamingState.Start : StreamingState.Stop;
 
-            handleStreamState({
-                statsSignal: streamType === StreamType.Legacy ? statsSignal : undefined,
-                dataChannelSignal,
-                onVideoStateChange: callbacks.onVideoStateChange,
-                onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
-                streamType,
-            });
-        }
+        handleStreamState({
+            statsSignal: streamType === StreamType.Legacy ? statsSignal : undefined,
+            dataChannelSignal,
+            onVideoStateChange: callbacks.onVideoStateChange,
+            onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
+            streamType,
+        });
+    }
+
+    function handleStreamReadyEvent(_subject: StreamEvents.StreamReady, payload?: DataChannelPayload) {
+        const streamMetadata = typeof payload === 'string' ? payload : payload?.metadata;
+        streamMetadata && analytics.enrich({ streamMetadata });
+        analytics.track('agent-chat', { event: 'ready' });
+    }
+
+    const dataChannelHandlers = {
+        [StreamEvents.StreamStarted]: handleStreamVideoEvent,
+        [StreamEvents.StreamDone]: handleStreamVideoEvent,
+        [StreamEvents.StreamReady]: handleStreamReadyEvent,
+    } satisfies Partial<{ [K in StreamEvents]: DataChannelMessageHandler<K> }>
+
+    pcDataChannel.onmessage = (event: MessageEvent) => {
+        const { subject, data } = parseDataChannelMessage(event.data);
+        dataChannelHandlers[subject]?.(subject, data);
     };
 
     peerConnection.oniceconnectionstatechange = () => {

@@ -23,11 +23,6 @@ export enum AgentActivityState {
     Talking = 'TALKING',
 }
 
-export const DataChannelSignalMap: Record<string, StreamingState> = {
-    'stream/started': StreamingState.Start,
-    'stream/done': StreamingState.Stop,
-};
-
 export enum StreamEvents {
     ChatAnswer = 'chat/answer',
     ChatPartial = 'chat/partial',

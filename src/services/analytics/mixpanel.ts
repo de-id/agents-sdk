@@ -67,19 +67,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         additionalProperties: {},
         isEnabled: config.isEnabled ?? true,
         getRandom,
-        enrich(properties: Record<string, any>) {
-            const props = {};
-
-            if (properties && typeof properties !== 'object') {
-                throw new Error('properties must be a flat json object');
-            }
-
-            for (let prop in properties) {
-                if (typeof properties[prop] === 'string' || typeof properties[prop] === 'number') {
-                    props[prop] = properties[prop];
-                }
-            }
-
+        enrich(props: Record<string, any>) {
             this.additionalProperties = { ...this.additionalProperties, ...props };
         },
         async track(event: string, props?: Record<string, any>) {
