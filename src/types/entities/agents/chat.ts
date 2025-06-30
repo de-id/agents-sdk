@@ -31,6 +31,8 @@ export interface Message {
     created_at?: string;
     matches?: ChatResponse['matches'];
     context?: string;
+    videoId?: string;
+    interrupted?: boolean;
 }
 
 export interface ChatPayload {
@@ -63,6 +65,7 @@ export interface ChatResponse {
     matches?: IRetrivalMetadata[];
     chatMode?: ChatMode;
     context?: string;
+    videoId?: string;
 }
 
 export interface Chat {

@@ -87,7 +87,7 @@ export function createMessageEventQueue(
                 } else if (completedEvents.includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
-                    
+
                     if (failedEvents.includes(event)) {
                         // Dont depend on video state change if stream failed
                         analytics.track('agent-video', { ...props, event: streamEvent });
