@@ -132,7 +132,14 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
             ? createClipApi(auth, baseURL, agentId, callbacks.onError)
             : createTalkApi(auth, baseURL, agentId, callbacks.onError);
 
-    const { id: streamIdFromServer, offer, ice_servers, session_id, fluent } = await createStream(agent);
+    const {
+        id: streamIdFromServer,
+        offer,
+        ice_servers,
+        session_id,
+        fluent,
+        interrupt_enabled: interruptEnabled,
+    } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
@@ -297,6 +304,9 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         sendDataChannelMessage(payload: string) {
             if (!isConnected || pcDataChannel.readyState !== 'open') {
                 log('Data channel is not ready for sending messages');
+                callbacks.onError?.(new Error('Data channel is not ready for sending messages'), {
+                    streamId: streamIdFromServer,
+                });
                 return;
             }
 
@@ -317,6 +327,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         streamId: streamIdFromServer,
 
         streamType,
+        interruptEnabled,
     };
 }
 

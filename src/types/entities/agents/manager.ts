@@ -166,6 +166,12 @@ export interface AgentManager {
      * Get the current stream type of the agent
      */
     getStreamType: () => StreamType | undefined;
+
+    /**
+     * Get if the stream supports interrupt
+     */
+    getIsInterruptEnabled: () => boolean;
+
     /**
      * Array of starter messages that will be sent to the agent when the chat starts
      */
@@ -224,7 +230,6 @@ export interface AgentManager {
     /**
      * Method to interrupt the current video stream
      * Only available for Fluent streams and when there's an active video to interrupt
-     * @returns Promise that resolves when the interrupt signal is successfully sent or queued.
      */
-    interrupt: () => Promise<void>;
+    interrupt: () => void;
 }

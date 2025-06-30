@@ -1,6 +1,5 @@
 import {
     Agent,
-    AgentActivityState,
     AgentManager,
     AgentManagerOptions,
     Auth,
@@ -51,32 +50,9 @@ export interface AgentManagerItems {
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-export async function createAgentManager(agent: string, managerOptions: AgentManagerOptions): Promise<AgentManager> {
+export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
     let firstConnection = true;
-
-    let chatRequestPending = false;
     let queuedInterrupt = false;
-    let currentVideoId: string | undefined;
-
-    const resetInterruptState = (): void => {
-        chatRequestPending = false;
-        queuedInterrupt = false;
-        currentVideoId = undefined;
-    };
-
-    const options: AgentManagerOptions = {
-        ...managerOptions,
-        callbacks: {
-            ...managerOptions.callbacks,
-            onAgentActivityStateChange: state => {
-                if (state === AgentActivityState.Idle) {
-                    currentVideoId = undefined;
-                }
-
-                managerOptions.callbacks.onAgentActivityStateChange?.(state);
-            },
-        },
-    };
 
     const mxKey = options.mixpanelKey || mixpanelKey;
     const wsURL = options.wsURL || didSocketApiUrl;
@@ -109,7 +85,7 @@ export async function createAgentManager(agent: string, managerOptions: AgentMan
 
         timestampTracker.reset();
 
-        resetInterruptState();
+        queuedInterrupt = false;
 
         if (newChat && !firstConnection) {
             delete items.chat;
@@ -159,7 +135,7 @@ export async function createAgentManager(agent: string, managerOptions: AgentMan
         items.socketManager?.disconnect();
         await items.streamingManager?.disconnect();
 
-        resetInterruptState();
+        queuedInterrupt = false;
 
         delete items.streamingManager;
         delete items.socketManager;
@@ -183,6 +159,7 @@ export async function createAgentManager(agent: string, managerOptions: AgentMan
     return {
         agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
+        getIsInterruptEnabled: () => items.streamingManager?.interruptEnabled ?? false,
         starterMessages: agentEntity.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,
@@ -301,8 +278,6 @@ export async function createAgentManager(agent: string, managerOptions: AgentMan
                 clearQueue();
                 validateChatRequest();
 
-                chatRequestPending = true;
-
                 items.messages.push({
                     id: getRandom(),
                     role: 'user',
@@ -315,8 +290,6 @@ export async function createAgentManager(agent: string, managerOptions: AgentMan
                 const chatId = await initializeChat();
                 const response = await sendChatRequest([...items.messages], chatId);
 
-                currentVideoId = response.videoId;
-
                 items.messages.push({
                     id: getRandom(),
                     role: 'assistant',
@@ -324,10 +297,12 @@ export async function createAgentManager(agent: string, managerOptions: AgentMan
                     created_at: new Date().toISOString(),
                     context: response.context,
                     matches: response.matches,
+                    videoId: response.videoId,
                 });
 
                 if (queuedInterrupt && response.videoId && items.streamingManager) {
                     queuedInterrupt = false;
+                    items.messages[items.messages.length - 1].interrupted = true;
                     await sendInterrupt(items.streamingManager, response.videoId);
                 }
 
@@ -362,8 +337,6 @@ export async function createAgentManager(agent: string, managerOptions: AgentMan
                 });
 
                 throw e;
-            } finally {
-                chatRequestPending = false;
             }
         },
         rate(messageId: string, score: 1 | -1, rateId?: string) {
@@ -475,13 +448,16 @@ export async function createAgentManager(agent: string, managerOptions: AgentMan
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
             });
         },
-        async interrupt(): Promise<void> {
+        async interrupt() {
+            const lastMessage = items.messages[items.messages.length - 1];
+            const chatRequestPending = lastMessage?.role === 'user';
+
             validateInterrupt(
                 items.streamingManager,
                 items.chat,
                 items.streamingManager?.streamType,
                 chatRequestPending,
-                !!currentVideoId
+                !!lastMessage?.videoId
             );
 
             if (chatRequestPending) {
@@ -489,7 +465,9 @@ export async function createAgentManager(agent: string, managerOptions: AgentMan
                 return;
             }
 
-            await sendInterrupt(items.streamingManager!, currentVideoId!);
+            lastMessage.interrupted = true;
+            options.callbacks.onNewMessage?.([...items.messages], 'answer');
+            sendInterrupt(items.streamingManager!, lastMessage?.videoId!);
         },
     };
 }

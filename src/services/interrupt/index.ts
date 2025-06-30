@@ -12,6 +12,10 @@ export function validateInterrupt(
         throw new Error('Please connect to the agent first');
     }
 
+    if (!streamingManager.interruptEnabled) {
+        throw new Error('Interrupt is not enabled for this stream');
+    }
+
     if (streamType !== StreamType.Fluent) {
         throw new Error('Interrupt only available for Fluent streams');
     }
