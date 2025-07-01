@@ -231,5 +231,5 @@ export interface AgentManager {
      * Method to interrupt the current video stream
      * Only available for Fluent streams and when there's an active video to interrupt
      */
-    interrupt: () => void;
+    interrupt: ({ type }: { type: 'text' | 'audio' | 'click' }) => void;
 }

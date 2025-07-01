@@ -154,7 +154,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         if (!agentManager || connectionState !== ConnectionState.Connected) return;
 
         try {
-            await agentManager.interrupt();
+            agentManager.interrupt({ type: 'click' });
         } catch (e) {
             console.error('Error interrupting:', e);
             throw e;
