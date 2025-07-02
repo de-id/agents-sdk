@@ -385,10 +385,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
         async speak(payload: string | SupportedStreamScript) {
-            if (!items.streamingManager) {
-                throw new Error('Please connect to the agent first');
-            }
-
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
                     if (!agentEntity.presenter.voice) {
@@ -423,7 +419,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-speak', script);
             timestampTracker.update();
 
-            if (items.chat?.id && script.type === 'text') {
+            if (items.messages && script.type === 'text') {
                 items.messages.push({
                     id: getRandom(),
                     role: 'assistant',
@@ -436,11 +432,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const isTextual = isTextualChat(items.chatMode);
 
             // If the current chat is textual, we shouldn't activate the TTS.
-            if (items.chat && isTextual) {
+            if (isTextual) {
                 return {
                     duration: 0,
                     status: 'success',
                 };
+            }
+
+            if (!items.streamingManager) {
+                throw new Error('Please connect to the agent first');
             }
 
             return items.streamingManager.speak({
