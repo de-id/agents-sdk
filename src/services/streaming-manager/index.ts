@@ -23,7 +23,7 @@ const actualRTCPC = (
 ).bind(window);
 
 type DataChannelPayload = string | Record<string, unknown>;
-type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void
+type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void;
 
 function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     switch (state) {
@@ -46,7 +46,7 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function parseDataChannelMessage(message: string): { subject: StreamEvents, data: DataChannelPayload } {
+function parseDataChannelMessage(message: string): { subject: StreamEvents; data: DataChannelPayload } {
     const [subject, rawData = ''] = message.split(/:(.+)/);
     try {
         const data = JSON.parse(rawData);
@@ -155,6 +155,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         fluent,
         interrupt_enabled: interruptEnabled,
     } = await createStream(agent);
+    callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id: session_id as string, agent_id: agentId });
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
@@ -248,7 +249,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         [StreamEvents.StreamStarted]: handleStreamVideoEvent,
         [StreamEvents.StreamDone]: handleStreamVideoEvent,
         [StreamEvents.StreamReady]: handleStreamReadyEvent,
-    } satisfies Partial<{ [K in StreamEvents]: DataChannelMessageHandler<K> }>
+    } satisfies Partial<{ [K in StreamEvents]: DataChannelMessageHandler<K> }>;
 
     pcDataChannel.onmessage = (event: MessageEvent) => {
         const { subject, data } = parseDataChannelMessage(event.data);
