@@ -155,6 +155,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         fluent,
         interrupt_enabled: interruptAvailable,
     } = await createStream(agent);
+    callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id: session_id as string, agent_id: agentId });
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
