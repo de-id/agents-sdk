@@ -7,6 +7,7 @@ import {
     ChatMode,
     ConnectionState,
     CreateStreamOptions,
+    Interrupt,
     Message,
     StreamScript,
     SupportedStreamScript,
@@ -448,7 +449,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
             });
         },
-        async interrupt({ type }: { type: 'text' | 'audio' | 'click' }) {
+        async interrupt({ type }: Interrupt) {
             const lastMessage = items.messages[items.messages.length - 1];
             const chatRequestPending = lastMessage?.role === 'user';
 

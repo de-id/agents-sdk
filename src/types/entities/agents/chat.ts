@@ -79,3 +79,7 @@ export interface Chat {
     agent_id__modified_at: string;
     chat_mode?: ChatMode;
 }
+
+export interface Interrupt {
+    type: 'text' | 'audio' | 'click';
+}
