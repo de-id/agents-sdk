@@ -7,6 +7,7 @@ import {
     ChatMode,
     ConnectionState,
     CreateStreamOptions,
+    Interrupt,
     Message,
     StreamScript,
     SupportedStreamScript,
@@ -21,7 +22,7 @@ import { createAgentsApi } from '../../api/agents';
 import { getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
-import { timestampTracker } from '../analytics/timestamp-tracker';
+import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat, getRequestHeaders } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
 import { sendInterrupt, validateInterrupt } from '../interrupt';
@@ -83,7 +84,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     async function connect(newChat: boolean) {
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
-        timestampTracker.reset();
+        latencyTimestampTracker.reset();
 
         queuedInterrupt = false;
 
@@ -282,7 +283,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'user',
                     content: userMessage,
-                    created_at: new Date(timestampTracker.update()).toISOString(),
+                    created_at: new Date(latencyTimestampTracker.update()).toISOString(),
                 });
 
                 options.callbacks.onNewMessage?.([...items.messages], 'user');
@@ -316,7 +317,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
                     analytics.track('agent-message-received', {
-                        latency: timestampTracker.get(true),
+                        latency: latencyTimestampTracker.get(true),
                         mode: items.chatMode,
                         messages: items.messages.length,
                     });
@@ -417,14 +418,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             const script = getScript();
             analytics.track('agent-speak', script);
-            timestampTracker.update();
+            latencyTimestampTracker.update();
 
             if (items.messages && script.type === 'text') {
                 items.messages.push({
                     id: getRandom(),
                     role: 'assistant',
                     content: script.input,
-                    created_at: new Date(timestampTracker.get(true)).toISOString(),
+                    created_at: new Date(latencyTimestampTracker.get(true)).toISOString(),
                 });
                 options.callbacks.onNewMessage?.([...items.messages], 'answer');
             }
@@ -448,7 +449,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
             });
         },
-        async interrupt() {
+        async interrupt({ type }: Interrupt) {
             const lastMessage = items.messages[items.messages.length - 1];
             const chatRequestPending = lastMessage?.role === 'user';
 
@@ -460,6 +461,18 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 !!lastMessage?.videoId
             );
 
+            analytics.track('agent-video-interrupt', {
+                type: type || 'click',
+                stream_id: items.streamingManager?.streamId,
+                agent_id: agentEntity.id,
+                owner_id: agentEntity.owner_id,
+                video_duration_to_interrupt: interruptTimestampTracker.get(true),
+                message_duration_to_interrupt: latencyTimestampTracker.get(true),
+                chat_id: items.chat?.id,
+                mode: items.chatMode,
+                queued_interrupt: chatRequestPending,
+            });
+
             if (chatRequestPending) {
                 queuedInterrupt = true;
                 return;
@@ -467,7 +480,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             lastMessage.interrupted = true;
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
-            sendInterrupt(items.streamingManager!, lastMessage?.videoId!);
+            sendInterrupt(items.streamingManager!, lastMessage.videoId!);
         },
     };
 }

@@ -12,7 +12,7 @@ import {
 } from '$/types/stream';
 import { SupportedStreamScript } from '$/types/stream-script';
 import { Agent } from './agent';
-import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
+import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -231,5 +231,5 @@ export interface AgentManager {
      * Method to interrupt the current video stream
      * Only available for Fluent streams and when there's an active video to interrupt
      */
-    interrupt: () => void;
+    interrupt: (interrupt: Interrupt) => void;
 }
