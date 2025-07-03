@@ -17,7 +17,7 @@ import { CONNECTION_RETRY_TIMEOUT_MS } from '$/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
 import { ChatCreationFailed, ValidationError } from '$/errors';
 import { getRandom } from '$/utils';
-import { isTextualChat } from '$/utils/chat';
+import { isChatModeWithoutChat, isTextualChat } from '$/utils/chat';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
@@ -99,10 +99,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
-        const websocketPromise =
-            options.mode === ChatMode.DirectPlayback
-                ? Promise.resolve(undefined)
-                : createSocketManager(options.auth, wsURL, { onMessage, onError: options.callbacks.onError });
+        const websocketPromise = isChatModeWithoutChat(options.mode)
+            ? Promise.resolve(undefined)
+            : createSocketManager(options.auth, wsURL, { onMessage, onError: options.callbacks.onError });
 
         const initPromise = retryOperation(
             () => {
@@ -207,8 +206,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async chat(userMessage: string) {
             const validateChatRequest = () => {
-                if (options.mode === ChatMode.DirectPlayback) {
-                    throw new ValidationError('Direct playback is enabled, chat is disabled');
+                if (isChatModeWithoutChat(options.mode)) {
+                    throw new ValidationError(`${options.mode} is enabled, chat is disabled`);
                 } else if (userMessage.length >= 800) {
                     throw new ValidationError('Message cannot be more than 800 characters');
                 } else if (userMessage.length === 0) {
