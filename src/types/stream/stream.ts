@@ -61,6 +61,7 @@ export interface ManagerCallbacks {
     onError?: (error: Error, errorData: object) => void;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
+    onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
