@@ -7,6 +7,7 @@ import {
     ChatMode,
     ConnectionState,
     CreateStreamOptions,
+    Interrupt,
     Message,
     StreamScript,
     SupportedStreamScript,
@@ -21,9 +22,10 @@ import { createAgentsApi } from '../../api/agents';
 import { getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
-import { timestampTracker } from '../analytics/timestamp-tracker';
+import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat, getRequestHeaders } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
+import { sendInterrupt, validateInterrupt } from '../interrupt';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
@@ -51,12 +53,16 @@ export interface AgentManagerItems {
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
     let firstConnection = true;
+    let queuedInterrupt = false;
 
     const mxKey = options.mixpanelKey || mixpanelKey;
     const wsURL = options.wsURL || didSocketApiUrl;
     const baseURL = options.baseURL || didApiUrl;
 
-    const items: AgentManagerItems = { messages: [], chatMode: options.mode || ChatMode.Functional };
+    const items: AgentManagerItems = {
+        messages: [],
+        chatMode: options.mode || ChatMode.Functional,
+    };
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
     const agentEntity = await agentsApi.getById(agent);
     const analytics = initializeAnalytics({
@@ -78,7 +84,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     async function connect(newChat: boolean) {
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
-        timestampTracker.reset();
+        latencyTimestampTracker.reset();
+
+        queuedInterrupt = false;
 
         if (newChat && !firstConnection) {
             delete items.chat;
@@ -128,6 +136,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.socketManager?.disconnect();
         await items.streamingManager?.disconnect();
 
+        queuedInterrupt = false;
+
         delete items.streamingManager;
         delete items.socketManager;
 
@@ -150,6 +160,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     return {
         agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
+        getIsInterruptEnabled: () => items.streamingManager?.interruptEnabled ?? false,
         starterMessages: agentEntity.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,
@@ -272,7 +283,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'user',
                     content: userMessage,
-                    created_at: new Date(timestampTracker.update()).toISOString(),
+                    created_at: new Date(latencyTimestampTracker.update()).toISOString(),
                 });
 
                 options.callbacks.onNewMessage?.([...items.messages], 'user');
@@ -287,7 +298,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date().toISOString(),
                     context: response.context,
                     matches: response.matches,
+                    videoId: response.videoId,
                 });
+
+                if (queuedInterrupt && response.videoId && items.streamingManager) {
+                    queuedInterrupt = false;
+                    items.messages[items.messages.length - 1].interrupted = true;
+                    await sendInterrupt(items.streamingManager, response.videoId);
+                }
 
                 analytics.track('agent-message-send', {
                     event: 'success',
@@ -299,7 +317,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
                     analytics.track('agent-message-received', {
-                        latency: timestampTracker.get(true),
+                        latency: latencyTimestampTracker.get(true),
                         mode: items.chatMode,
                         messages: items.messages.length,
                     });
@@ -307,6 +325,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 return response;
             } catch (e) {
+                queuedInterrupt = false;
+
                 if (items.messages[items.messages.length - 1]?.role === 'assistant') {
                     items.messages.pop();
                 }
@@ -366,10 +386,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
         async speak(payload: string | SupportedStreamScript) {
-            if (!items.streamingManager) {
-                throw new Error('Please connect to the agent first');
-            }
-
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
                     if (!agentEntity.presenter.voice) {
@@ -402,14 +418,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             const script = getScript();
             analytics.track('agent-speak', script);
-            timestampTracker.update();
+            latencyTimestampTracker.update();
 
-            if (items.chat?.id && script.type === 'text') {
+            if (items.messages && script.type === 'text') {
                 items.messages.push({
                     id: getRandom(),
                     role: 'assistant',
                     content: script.input,
-                    created_at: new Date(timestampTracker.get(true)).toISOString(),
+                    created_at: new Date(latencyTimestampTracker.get(true)).toISOString(),
                 });
                 options.callbacks.onNewMessage?.([...items.messages], 'answer');
             }
@@ -417,17 +433,54 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const isTextual = isTextualChat(items.chatMode);
 
             // If the current chat is textual, we shouldn't activate the TTS.
-            if (items.chat && isTextual) {
+            if (isTextual) {
                 return {
                     duration: 0,
                     status: 'success',
                 };
             }
 
+            if (!items.streamingManager) {
+                throw new Error('Please connect to the agent first');
+            }
+
             return items.streamingManager.speak({
                 script,
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
             });
+        },
+        async interrupt({ type }: Interrupt) {
+            const lastMessage = items.messages[items.messages.length - 1];
+            const chatRequestPending = lastMessage?.role === 'user';
+
+            validateInterrupt(
+                items.streamingManager,
+                items.chat,
+                items.streamingManager?.streamType,
+                chatRequestPending,
+                !!lastMessage?.videoId
+            );
+
+            analytics.track('agent-video-interrupt', {
+                type: type || 'click',
+                stream_id: items.streamingManager?.streamId,
+                agent_id: agentEntity.id,
+                owner_id: agentEntity.owner_id,
+                video_duration_to_interrupt: interruptTimestampTracker.get(true),
+                message_duration_to_interrupt: latencyTimestampTracker.get(true),
+                chat_id: items.chat?.id,
+                mode: items.chatMode,
+                queued_interrupt: chatRequestPending,
+            });
+
+            if (chatRequestPending) {
+                queuedInterrupt = true;
+                return;
+            }
+
+            lastMessage.interrupted = true;
+            options.callbacks.onNewMessage?.([...items.messages], 'answer');
+            sendInterrupt(items.streamingManager!, lastMessage.videoId!);
         },
     };
 }

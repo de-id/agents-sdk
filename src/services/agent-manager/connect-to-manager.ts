@@ -15,7 +15,7 @@ import {
     mapVideoType,
 } from '$/types';
 import { Analytics } from '../analytics/mixpanel';
-import { timestampTracker } from '../analytics/timestamp-tracker';
+import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat } from '../chat';
 
 function getAgentStreamArgs(agent: Agent, options?: AgentManagerOptions): CreateStreamOptions {
@@ -71,12 +71,12 @@ function trackAgentActivityAnalytics(
     analytics: Analytics,
     streamType: StreamType
 ) {
-    if (timestampTracker.get() <= 0) return;
+    if (latencyTimestampTracker.get() <= 0) return;
 
     if (state === StreamingState.Start) {
         analytics.linkTrack(
             'agent-video',
-            { event: 'start', latency: timestampTracker.get(true), 'stream-type': streamType },
+            { event: 'start', latency: latencyTimestampTracker.get(true), 'stream-type': streamType },
             'start',
             [StreamEvents.StreamVideoCreated]
         );
@@ -102,12 +102,12 @@ function trackLegacyVideoAnalytics(
     analytics: Analytics,
     streamType: StreamType
 ) {
-    if (timestampTracker.get() <= 0) return;
+    if (latencyTimestampTracker.get() <= 0) return;
 
     if (state === StreamingState.Start) {
         analytics.linkTrack(
             'agent-video',
-            { event: 'start', latency: timestampTracker.get(true), 'stream-type': streamType },
+            { event: 'start', latency: latencyTimestampTracker.get(true), 'stream-type': streamType },
             'start',
             [StreamEvents.StreamVideoCreated]
         );
@@ -132,7 +132,7 @@ function connectToManager(
     options: AgentManagerOptions,
     analytics: Analytics
 ): Promise<StreamingManager<CreateStreamOptions>> {
-    timestampTracker.reset();
+    latencyTimestampTracker.reset();
 
     return new Promise(async (resolve, reject) => {
         try {
@@ -161,6 +161,12 @@ function connectToManager(
                     },
                     onAgentActivityStateChange: (state: AgentActivityState) => {
                         options.callbacks.onAgentActivityStateChange?.(state);
+
+                        if (state === AgentActivityState.Talking) {
+                            interruptTimestampTracker.update();
+                        } else {
+                            interruptTimestampTracker.reset();
+                        }
 
                         trackAgentActivityAnalytics(
                             state === AgentActivityState.Talking ? StreamingState.Start : StreamingState.Stop,

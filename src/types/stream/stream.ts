@@ -31,6 +31,7 @@ export enum StreamEvents {
     StreamFailed = 'stream/error',
     StreamReady = 'stream/ready',
     StreamCreated = 'stream/created',
+    StreamInterrupt = 'stream/interrupt',
     StreamVideoCreated = 'stream-video/started',
     StreamVideoDone = 'stream-video/done',
     StreamVideoError = 'stream-video/error',
@@ -142,4 +143,10 @@ export interface AnalyticsRTCStatsReport {
     freezeDuration: number;
     lowFpsCount?: number;
     causes?: string[];
+}
+
+export interface StreamInterruptPayload {
+    type: StreamEvents.StreamInterrupt;
+    videoId: string;
+    timestamp: number;
 }

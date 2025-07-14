@@ -12,7 +12,7 @@ import {
 } from '$/types/stream';
 import { SupportedStreamScript } from '$/types/stream-script';
 import { Agent } from './agent';
-import { ChatMode, ChatResponse, Message, RatingEntity } from './chat';
+import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -166,6 +166,12 @@ export interface AgentManager {
      * Get the current stream type of the agent
      */
     getStreamType: () => StreamType | undefined;
+
+    /**
+     * Get if the stream supports interrupt
+     */
+    getIsInterruptEnabled: () => boolean;
+
     /**
      * Array of starter messages that will be sent to the agent when the chat starts
      */
@@ -220,4 +226,10 @@ export interface AgentManager {
      * @param properties flat json object with properties that will be added to analytics events fired from the sdk
      */
     enrichAnalytics: (properties: Record<string, any>) => void;
+
+    /**
+     * Method to interrupt the current video stream
+     * Only available for Fluent streams and when there's an active video to interrupt
+     */
+    interrupt: (interrupt: Interrupt) => void;
 }
