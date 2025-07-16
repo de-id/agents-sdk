@@ -29,6 +29,7 @@ import { sendInterrupt, validateInterrupt } from '../interrupt';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
+import { clearGlobalAgentEntity, getGlobalAgentEntity, setGlobalAgentEntity } from './agent-store';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 export interface AgentManagerItems {
@@ -51,7 +52,7 @@ export interface AgentManagerItems {
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
+export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentManager> {
     let firstConnection = true;
     let queuedInterrupt = false;
 
@@ -64,22 +65,29 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         chatMode: options.mode || ChatMode.Functional,
     };
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
-    const agentEntity = await agentsApi.getById(agent);
+
     const analytics = initializeAnalytics({
+        agentId,
         token: mxKey,
-        agent: agentEntity,
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
     });
-    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () =>
+
+    const { onMessage, clearQueue } = createMessageEventQueue(agentId, analytics, items, options, () =>
         items.socketManager?.disconnect()
     );
 
+    const setAgentEntity = async () => {
+        clearGlobalAgentEntity();
+        const time = Date.now();
+        const agentEntity = await agentsApi.getById(agentId);
+        setGlobalAgentEntity(agentEntity);
+    };
+    setAgentEntity();
     items.messages = getInitialMessages(options.initialMessages);
 
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
-
-    analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) });
+    analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo() });
 
     async function connect(newChat: boolean) {
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
@@ -101,7 +109,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         const initPromise = retryOperation(
             () => {
-                return initializeStreamAndChat(agentEntity, options, agentsApi, analytics, items.chat);
+                return initializeStreamAndChat(agentId, options, agentsApi, analytics, items.chat);
             },
             {
                 limit: 3,
@@ -158,11 +166,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     }
 
     return {
-        agent: agentEntity,
+        get agent() {
+            return getGlobalAgentEntity();
+        },
         getStreamType: () => items.streamingManager?.streamType,
         getIsInterruptEnabled: () => items.streamingManager?.interruptEnabled ?? false,
-        starterMessages: agentEntity.knowledge?.starter_message || [],
-        getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
+        starterMessages: getGlobalAgentEntity()?.knowledge?.starter_message || [],
+        getSTTToken: () => agentsApi.getSTTToken(agentId),
         changeMode,
         enrichAnalytics: analytics.enrich,
         async connect() {
@@ -171,7 +181,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'connect',
                 chatId: items.chat?.id,
-                agentId: agentEntity.id,
+                agentId,
                 mode: items.chatMode,
             });
         },
@@ -182,7 +192,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'reconnect',
                 chatId: items.chat?.id,
-                agentId: agentEntity.id,
+                agentId,
                 mode: items.chatMode,
             });
         },
@@ -192,7 +202,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'disconnect',
                 chatId: items.chat?.id,
-                agentId: agentEntity.id,
+                agentId,
                 mode: items.chatMode,
             });
         },
@@ -219,7 +229,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const initializeChat = async () => {
                 if (!items.chat) {
                     const newChat = await createChat(
-                        agentEntity,
+                        agentId,
                         agentsApi,
                         analytics,
                         items.chatMode,
@@ -241,7 +251,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 return retryOperation(
                     () => {
                         return agentsApi.chat(
-                            agentEntity.id,
+                            agentId,
                             chatId,
                             {
                                 chatMode: items.chatMode,
@@ -354,23 +364,23 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-rate', {
                 event: rateId ? 'update' : 'create',
                 thumb: score === 1 ? 'up' : 'down',
-                knowledge_id: agentEntity.knowledge?.id ?? '',
+                knowledge_id: getGlobalAgentEntity()?.knowledge?.id ?? '',
                 mode: items.chatMode,
                 matches,
                 score,
             });
 
             if (rateId) {
-                return agentsApi.updateRating(agentEntity.id, items.chat.id, rateId, {
-                    knowledge_id: agentEntity.knowledge?.id ?? '',
+                return agentsApi.updateRating(agentId, items.chat.id, rateId, {
+                    knowledge_id: getGlobalAgentEntity()?.knowledge?.id ?? '',
                     message_id: messageId,
                     matches,
                     score,
                 });
             }
 
-            return agentsApi.createRating(agentEntity.id, items.chat.id, {
-                knowledge_id: agentEntity.knowledge?.id ?? '',
+            return agentsApi.createRating(agentId, items.chat.id, {
+                knowledge_id: getGlobalAgentEntity()?.knowledge?.id ?? '',
                 message_id: messageId,
                 matches,
                 score,
@@ -383,31 +393,26 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id, mode: items.chatMode });
 
-            return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
+            return agentsApi.deleteRating(agentId, items.chat.id, id);
         },
         async speak(payload: string | SupportedStreamScript) {
             function getScript(): StreamScript {
+                const agentEntity = getGlobalAgentEntity();
                 if (typeof payload === 'string') {
-                    if (!agentEntity.presenter.voice) {
+                    if (!agentEntity?.presenter.voice) {
                         throw new Error('Presenter voice is not initialized');
                     }
 
                     return {
                         type: 'text',
-                        provider: agentEntity.presenter.voice,
                         input: payload,
                         ssml: false,
                     };
                 }
 
                 if (payload.type === 'text' && !payload.provider) {
-                    if (!agentEntity.presenter.voice) {
-                        throw new Error('Presenter voice is not initialized');
-                    }
-
                     return {
                         type: 'text',
-                        provider: agentEntity.presenter.voice,
                         input: payload.input,
                         ssml: payload.ssml,
                     };
@@ -446,7 +451,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return items.streamingManager.speak({
                 script,
-                metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
+                metadata: { chat_id: items.chat?.id, agent_id: agentId },
             });
         },
         async interrupt({ type }: Interrupt) {
@@ -464,8 +469,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-video-interrupt', {
                 type: type || 'click',
                 stream_id: items.streamingManager?.streamId,
-                agent_id: agentEntity.id,
-                owner_id: agentEntity.owner_id,
+                agent_id: agentId,
+                owner_id: getGlobalAgentEntity()?.owner_id,
                 video_duration_to_interrupt: interruptTimestampTracker.get(true),
                 message_duration_to_interrupt: latencyTimestampTracker.get(true),
                 chat_id: items.chat?.id,

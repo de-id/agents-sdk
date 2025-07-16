@@ -1,5 +1,5 @@
 import { PLAYGROUND_HEADER } from '$/config/consts';
-import { Agent, AgentsAPI, Chat, ChatMode } from '$/types';
+import { AgentsAPI, Chat, ChatMode } from '$/types';
 import { Analytics } from '../analytics/mixpanel';
 
 export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {
@@ -7,7 +7,7 @@ export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<st
 }
 
 export async function createChat(
-    agent: Agent,
+    agentId: string,
     agentsApi: AgentsAPI,
     analytics: Analytics,
     chatMode?: ChatMode,
@@ -16,12 +16,12 @@ export async function createChat(
 ) {
     try {
         if (!chat && chatMode !== ChatMode.DirectPlayback) {
-            chat = await agentsApi.newChat(agent.id, { persist }, getRequestHeaders(chatMode));
+            chat = await agentsApi.newChat(agentId, { persist }, getRequestHeaders(chatMode));
 
             analytics.track('agent-chat', {
                 event: 'created',
                 chat_id: chat.id,
-                agent_id: agent.id,
+                agent_id: agentId,
                 mode: chatMode,
             });
         }

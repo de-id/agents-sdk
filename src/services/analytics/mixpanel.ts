@@ -1,11 +1,11 @@
 import { getExternalId } from '$/auth/get-auth-header';
-import { Agent } from '$/types';
-import { getAgentType } from '$/utils/agent';
 import { getRandom } from '$/utils';
+import { getAgentType } from '$/utils/agent';
+import { getGlobalAgentEntity } from '../agent-manager/agent-store';
 
 export interface AnalyticsOptions {
+    agentId: string;
     token: string;
-    agent: Agent;
     isEnabled?: boolean;
     distinctId?: string;
 }
@@ -40,30 +40,33 @@ const mixpanelUrl = 'https://api-js.mixpanel.com/track/?verbose=1&ip=1';
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
-    const presenter = config.agent.presenter;
-    const promptCustomization = config.agent.llm?.prompt_customization;
 
-    const analyticProps = {
-        token: config.token || 'testKey',
-        distinct_id: config.distinctId || getExternalId(),
-        agentId: config.agent.id,
-        agentType: getAgentType(presenter),
-        owner_id: config.agent.owner_id ?? '',
-        promptVersion: config.agent.llm?.prompt_version,
-        behavior: {
-            role: promptCustomization?.role,
-            personality: promptCustomization?.personality,
-            instructions: config.agent.llm?.instructions,
-        },
-        temperature: config.agent.llm?.temperature,
-        knowledgeSource: promptCustomization?.knowledge_source,
-        starterQuestionsCount: config.agent.knowledge?.starter_message?.length,
-        topicsToAvoid: promptCustomization?.topics_to_avoid,
-        maxResponseLength: promptCustomization?.max_response_length,
+    const getAnalyticsInfo = () => {
+        const agent = getGlobalAgentEntity();
+        const promptCustomization = agent?.llm?.prompt_customization;
+
+        return {
+            token: config.token || 'testKey',
+            distinct_id: config.distinctId || getExternalId(),
+            agentId: config.agentId,
+            agentType: agent ? getAgentType(agent.presenter) : undefined,
+            owner_id: agent?.owner_id ?? '',
+            promptVersion: agent?.llm?.prompt_version,
+            behavior: {
+                role: promptCustomization?.role,
+                personality: promptCustomization?.personality,
+                instructions: agent?.llm?.instructions,
+            },
+            temperature: agent?.llm?.temperature,
+            knowledgeSource: promptCustomization?.knowledge_source,
+            starterQuestionsCount: agent?.knowledge?.starter_message?.length,
+            topicsToAvoid: promptCustomization?.topics_to_avoid,
+            maxResponseLength: promptCustomization?.max_response_length,
+        };
     };
 
     return {
-        ...analyticProps,
+        ...getAnalyticsInfo(),
         additionalProperties: {},
         isEnabled: config.isEnabled ?? true,
         getRandom,
@@ -90,7 +93,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                             properties: {
                                 ...this.additionalProperties,
                                 ...sendProps,
-                                ...analyticProps,
+                                ...getAnalyticsInfo(),
                                 source,
                                 time: Date.now(),
                                 $insert_id: this.getRandom(),

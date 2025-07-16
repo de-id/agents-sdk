@@ -1,7 +1,9 @@
+import { getGlobalAgentEntity } from '$/services/agent-manager/agent-store';
 import { Agent } from '$/types/index';
 import { getAgentType } from './agent';
 
-export function getAnalyticsInfo(agent: Agent) {
+export function getAnalyticsInfo() {
+    const agent = getGlobalAgentEntity();
     const mobileOrDesktop = () => {
         return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
     };
@@ -18,18 +20,22 @@ export function getAnalyticsInfo(agent: Agent) {
             return 'Unknown'; // Unable to determine the OS
         }
     };
-    const presenter = agent.presenter;
 
+    const agentAnalytics = agent?.presenter
+        ? {
+              agentType: getAgentType(agent.presenter),
+              agentVoice: {
+                  voiceId: agent.presenter.voice?.voice_id,
+                  provider: agent.presenter.voice?.type,
+              },
+          }
+        : {};
     return {
         $os: `${getUserOS()}`,
         isMobile: `${mobileOrDesktop() == 'Mobile'}`,
         browser: navigator.userAgent,
         origin: window.location.origin,
-        agentType: getAgentType(presenter),
-        agentVoice: {
-            voiceId: agent.presenter?.voice?.voice_id,
-            provider: agent.presenter?.voice?.type,
-        },
+        ...agentAnalytics,
     };
 }
 
