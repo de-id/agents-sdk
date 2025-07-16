@@ -79,7 +79,6 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
 
     const setAgentEntity = async () => {
         clearGlobalAgentEntity();
-        const time = Date.now();
         const agentEntity = await agentsApi.getById(agentId);
         setGlobalAgentEntity(agentEntity);
     };

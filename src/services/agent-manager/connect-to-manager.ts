@@ -199,8 +199,6 @@ export async function initializeStreamAndChat(
         }
     }
 
-    const time = Date.now();
     const streamingManager = await connectToManager(agentId, options, analytics);
-    console.log('connectToManager', Date.now() - time, 'ms');
     return { chat: newChat, streamingManager };
 }
