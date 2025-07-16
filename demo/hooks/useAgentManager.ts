@@ -119,7 +119,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         async (text: string) => {
             if (!agentManager || connectionState !== ConnectionState.Connected) {
                 return;
-            } else if (!agentManager.agent.presenter) {
+            } else if (!agentManager.agent?.presenter) {
                 throw new Error('No presenter');
             }
 
@@ -128,7 +128,6 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                 await agentManager.speak({ type: 'text', input: text });
             } catch (e) {
                 setConnectionState(ConnectionState.Fail);
-
                 throw e;
             }
         },

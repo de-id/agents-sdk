@@ -161,7 +161,7 @@ export interface AgentManager {
      * Agent instance you are working with.
      * To know more about agents go to https://docs.d-id.com/reference/agents
      */
-    agent: Agent;
+    agent: Agent | null;
     /**
      * Get the current stream type of the agent
      */
