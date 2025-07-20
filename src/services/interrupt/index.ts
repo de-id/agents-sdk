@@ -12,7 +12,7 @@ export function validateInterrupt(
         throw new Error('Please connect to the agent first');
     }
 
-    if (!streamingManager.interruptEnabled) {
+    if (!streamingManager.interruptAvailable) {
         throw new Error('Interrupt is not enabled for this stream');
     }
 
