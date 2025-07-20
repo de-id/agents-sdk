@@ -153,7 +153,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         ice_servers,
         session_id,
         fluent,
-        interrupt_enabled: interruptEnabled,
+        interrupt_enabled: interruptAvailable,
     } = await createStream(agent);
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
@@ -357,7 +357,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         streamId: streamIdFromServer,
 
         streamType,
-        interruptEnabled,
+        interruptAvailable,
     };
 }
 

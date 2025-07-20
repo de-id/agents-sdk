@@ -160,7 +160,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     return {
         agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
-        getIsInterruptEnabled: () => items.streamingManager?.interruptEnabled ?? false,
+        getIsInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
         starterMessages: agentEntity.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,

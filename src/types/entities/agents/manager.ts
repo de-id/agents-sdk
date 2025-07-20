@@ -170,7 +170,7 @@ export interface AgentManager {
     /**
      * Get if the stream supports interrupt
      */
-    getIsInterruptEnabled: () => boolean;
+    getIsInterruptAvailable: () => boolean;
 
     /**
      * Array of starter messages that will be sent to the agent when the chat starts
