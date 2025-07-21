@@ -54,6 +54,7 @@ export interface AgentManagerItems {
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
     let firstConnection = true;
     let queuedInterrupt = false;
+    let speakPending = false;
 
     const mxKey = options.mixpanelKey || mixpanelKey;
     const wsURL = options.wsURL || didSocketApiUrl;
@@ -436,6 +437,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             if (isTextual) {
                 return {
                     duration: 0,
+                    video_id: '',
                     status: 'success',
                 };
             }
@@ -444,20 +446,38 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw new Error('Please connect to the agent first');
             }
 
-            return items.streamingManager.speak({
+            speakPending = true;
+
+            const response = await items.streamingManager.speak({
                 script,
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
             });
+
+            speakPending = false;
+
+            items.messages[items.messages.length - 1].videoId = response.video_id;
+
+            if (queuedInterrupt && items.streamingManager) {
+                queuedInterrupt = false;
+                items.messages[items.messages.length - 1].interrupted = true;
+                await sendInterrupt(items.streamingManager, response.video_id);
+            }
+
+            options.callbacks.onNewMessage?.([...items.messages], 'answer');
+
+            return response;
         },
         async interrupt({ type }: Interrupt) {
             const lastMessage = items.messages[items.messages.length - 1];
             const chatRequestPending = lastMessage?.role === 'user';
 
+            const isStreamRequestPending = chatRequestPending || speakPending;
+
             validateInterrupt(
                 items.streamingManager,
                 items.chat,
                 items.streamingManager?.streamType,
-                chatRequestPending,
+                isStreamRequestPending,
                 !!lastMessage?.videoId
             );
 
@@ -473,7 +493,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 queued_interrupt: chatRequestPending,
             });
 
-            if (chatRequestPending) {
+            if (isStreamRequestPending) {
                 queuedInterrupt = true;
                 return;
             }
