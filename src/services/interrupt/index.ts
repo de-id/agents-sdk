@@ -1,14 +1,13 @@
-import { Chat, CreateStreamOptions, StreamEvents, StreamInterruptPayload, StreamType } from '$/types';
+import { CreateStreamOptions, StreamEvents, StreamInterruptPayload, StreamType } from '$/types';
 import { StreamingManager } from '../streaming-manager';
 
 export function validateInterrupt(
     streamingManager: StreamingManager<CreateStreamOptions> | undefined,
-    chat: Chat | undefined,
     streamType: StreamType | undefined,
-    hasChatPending: boolean,
+    hasStreamRequestPending: boolean,
     hasVideoId: boolean
 ): void {
-    if (!streamingManager || !chat) {
+    if (!streamingManager) {
         throw new Error('Please connect to the agent first');
     }
 
@@ -20,7 +19,7 @@ export function validateInterrupt(
         throw new Error('Interrupt only available for Fluent streams');
     }
 
-    if (!hasChatPending && !hasVideoId) {
+    if (!hasStreamRequestPending && !hasVideoId) {
         throw new Error('No active video to interrupt');
     }
 }

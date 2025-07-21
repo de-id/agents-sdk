@@ -481,7 +481,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             validateInterrupt(
                 items.streamingManager,
-                items.chat,
                 items.streamingManager?.streamType,
                 isStreamRequestPending,
                 !!lastMessage?.videoId
