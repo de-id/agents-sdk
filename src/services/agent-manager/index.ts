@@ -88,6 +88,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         latencyTimestampTracker.reset();
 
         queuedInterrupt = false;
+        speakPending = false;
 
         if (newChat && !firstConnection) {
             delete items.chat;
@@ -138,6 +139,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         await items.streamingManager?.disconnect();
 
         queuedInterrupt = false;
+        speakPending = false;
 
         delete items.streamingManager;
         delete items.socketManager;
@@ -448,24 +450,28 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             speakPending = true;
 
-            const response = await items.streamingManager.speak({
-                script,
-                metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
-            });
+            try {
+                const response = await items.streamingManager.speak({
+                    script,
+                    metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
+                });
 
-            speakPending = false;
+                speakPending = false;
 
-            items.messages[items.messages.length - 1].videoId = response.video_id;
+                items.messages[items.messages.length - 1].videoId = response.video_id;
 
-            if (queuedInterrupt && items.streamingManager) {
-                queuedInterrupt = false;
-                items.messages[items.messages.length - 1].interrupted = true;
-                await sendInterrupt(items.streamingManager, response.video_id);
+                if (queuedInterrupt && response.video_id && items.streamingManager) {
+                    queuedInterrupt = false;
+                    items.messages[items.messages.length - 1].interrupted = true;
+                    await sendInterrupt(items.streamingManager, response.video_id);
+                }
+
+                options.callbacks.onNewMessage?.([...items.messages], 'answer');
+
+                return response;
+            } finally {
+                speakPending = false;
             }
-
-            options.callbacks.onNewMessage?.([...items.messages], 'answer');
-
-            return response;
         },
         async interrupt({ type }: Interrupt) {
             const lastMessage = items.messages[items.messages.length - 1];
