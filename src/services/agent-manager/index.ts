@@ -99,9 +99,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
-        const websocketPromise = isChatModeWithoutChat(options.mode)
-            ? Promise.resolve(undefined)
-            : createSocketManager(options.auth, wsURL, { onMessage, onError: options.callbacks.onError });
+        const websocketPromise =
+            options.mode === ChatMode.DirectPlayback
+                ? Promise.resolve(undefined)
+                : createSocketManager(options.auth, wsURL, { onMessage, onError: options.callbacks.onError });
 
         const initPromise = retryOperation(
             () => {
