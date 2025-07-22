@@ -74,6 +74,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const agentEntity = await agentsApi.getById(agent);
     analytics.enrich(getAgentInfo(agentEntity));
+
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () =>
         items.socketManager?.disconnect()
     );
@@ -307,7 +308,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date().toISOString(),
                     context: response.context,
                     matches: response.matches,
-                    videoId: response.videoId,
                 });
 
                 analytics.track('agent-message-send', {
