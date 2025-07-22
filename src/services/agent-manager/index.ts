@@ -74,7 +74,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
 
     const agentEntity = await agentsApi.getById(agent);
-    analytics.enrich({ ...getAgentInfo(agentEntity) });
+    analytics.enrich(getAgentInfo(agentEntity));
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () =>
         items.socketManager?.disconnect()
     );
