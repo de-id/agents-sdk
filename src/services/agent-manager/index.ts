@@ -19,7 +19,7 @@ import { ChatCreationFailed, ValidationError } from '$/errors';
 import { getRandom } from '$/utils';
 import { isTextualChat } from '$/utils/chat';
 import { createAgentsApi } from '../../api/agents';
-import { getAnalyticsInfo } from '../../utils/analytics';
+import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
@@ -64,14 +64,17 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         messages: [],
         chatMode: options.mode || ChatMode.Functional,
     };
-    const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
-    const agentEntity = await agentsApi.getById(agent);
     const analytics = initializeAnalytics({
         token: mxKey,
-        agent: agentEntity,
+        agentId: agent,
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
     });
+    analytics.track('agent-sdk', { event: 'init' });
+    const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
+
+    const agentEntity = await agentsApi.getById(agent);
+    analytics.enrich(getAgentInfo(agentEntity));
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () =>
         items.socketManager?.disconnect()
     );
