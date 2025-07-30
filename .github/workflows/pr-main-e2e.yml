@@ -67,11 +67,10 @@ jobs:
           node-version: 20
 
       - name: Render .npmrc for agents-ui
-        working-directory: agents-ui
-        run: |
-          if [ -f .npmrc.template ]; then
-            envsubst < .npmrc.template > .npmrc
-          fi
+        uses: nowactions/envsubst@v1
+        with:
+          input: agents-ui/.npmrc.template
+          output: agents-ui/.npmrc
         env:
           NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
