@@ -1,0 +1,104 @@
+name: PR to Main - E2E Validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to test (defaults to current branch)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  e2e-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: staging
+    env:
+      ENV: staging
+
+    steps:
+      - name: Checkout SDK branch
+        uses: actions/checkout@v4
+        with:
+          path: agents-sdk
+          ref: ${{ github.event.inputs.branch || github.head_ref || github.ref_name }}
+
+      - name: Setup Node.js for SDK
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: agents-sdk/yarn.lock
+
+      - name: Install SDK dependencies
+        working-directory: agents-sdk
+        run: yarn install --frozen-lockfile
+
+      - name: Build SDK
+        working-directory: agents-sdk
+        run: yarn build
+
+      - name: Pack SDK for testing
+        working-directory: agents-sdk
+        run: |
+          npm pack
+          echo "SDK_PACKAGE=$(ls *.tgz)" >> $GITHUB_ENV
+
+      - name: Checkout agents-ui staging branch
+        uses: actions/checkout@v4
+        with:
+          repository: de-id/agents-ui
+          ref: staging
+          path: agents-ui
+          token: ${{ secrets.DEVOPS_TOKEN }}
+
+      - name: Set github environment variables
+        uses: rlespinasse/github-slug-action@v4
+
+      - name: Setup Node.js for agents-ui
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Render .npmrc for agents-ui
+        working-directory: agents-ui
+        run: |
+          if [ -f .npmrc.template ]; then
+            envsubst < .npmrc.template > .npmrc
+          fi
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install local SDK build in agents-ui
+        working-directory: agents-ui
+        run: |
+          yarn remove @d-id/client-sdk || true
+          yarn add file:../agents-sdk/${{ env.SDK_PACKAGE }}
+          npm install -g yarn && yarn install --frozen-lockfile
+
+      - name: Install Playwright Chrome
+        working-directory: agents-ui
+        run: yarn playwright install chrome
+
+      - name: Run E2E tests against staging
+        working-directory: agents-ui
+        env:
+          E2E_USER_APIKEY: ${{ secrets.E2E_USER_APIKEY }}
+          VITE_CLIENT_KEY: ${{ secrets.VITE_CLIENT_KEY }}
+          ASSERT_CHAT_RESTART: 'false'
+        run: yarn test:staging
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results-main-pr-${{ github.event.number }}
+          path: |
+            agents-ui/playwright-report/
+            agents-ui/test-results/
+          retention-days: 30
