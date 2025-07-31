@@ -1,4 +1,4 @@
-name: PR to Prod - E2E Validation
+name: agents-ui prod with staging sdk build e2e validation
 
 on:
   pull_request:

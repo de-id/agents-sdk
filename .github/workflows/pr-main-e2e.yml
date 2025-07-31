@@ -1,4 +1,4 @@
-name: PR to Main - E2E Validation
+name: agents-ui prod with local sdk build e2e validation
 
 on:
   pull_request:
@@ -14,12 +14,12 @@ on:
 
 jobs:
   e2e-validation:
-    runs-on: aws-medium
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
-      name: staging
+      name: prod
     env:
-      ENV: staging
+      ENV: prod
 
     steps:
       - name: Checkout SDK branch
@@ -50,11 +50,11 @@ jobs:
           npm pack
           echo "SDK_PACKAGE=$(ls *.tgz)" >> $GITHUB_ENV
 
-      - name: Checkout agents-ui staging branch
+      - name: Checkout agents-ui production branch
         uses: actions/checkout@v4
         with:
           repository: de-id/agents-ui
-          ref: staging
+          ref: prod
           path: agents-ui
           token: ${{ secrets.DEVOPS_TOKEN }}
 
@@ -84,13 +84,13 @@ jobs:
         working-directory: agents-ui
         run: yarn playwright install chrome
 
-      - name: Run E2E tests against staging
+      - name: Run E2E tests against production
         working-directory: agents-ui
         env:
           E2E_USER_APIKEY: ${{ secrets.E2E_USER_APIKEY }}
           VITE_CLIENT_KEY: ${{ secrets.VITE_CLIENT_KEY }}
           ASSERT_CHAT_RESTART: 'false'
-        run: yarn test:staging
+        run: yarn test:prod
 
       - name: Upload test results
         if: always()
