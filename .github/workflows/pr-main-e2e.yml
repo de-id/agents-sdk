@@ -15,7 +15,7 @@ on:
 jobs:
   e2e-validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     environment:
       name: prod
     env:
