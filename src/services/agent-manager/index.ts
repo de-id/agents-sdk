@@ -177,6 +177,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'connect',
                 chatId: items.chat?.id,
+                stream_id: items.streamingManager?.streamId,
                 agentId: agentEntity.id,
                 mode: items.chatMode,
             });
@@ -188,6 +189,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'reconnect',
                 chatId: items.chat?.id,
+                stream_id: items.streamingManager?.streamId,
                 agentId: agentEntity.id,
                 mode: items.chatMode,
             });
@@ -198,6 +200,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'disconnect',
                 chatId: items.chat?.id,
+                stream_id: items.streamingManager?.streamId,
                 agentId: agentEntity.id,
                 mode: items.chatMode,
             });
@@ -315,6 +318,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 analytics.track('agent-message-send', {
                     event: 'success',
+                    chatId: items.chat?.id,
+                    stream_id: items.streamingManager?.streamId,
                     mode: items.chatMode,
                     messages: items.messages.length + 1,
                 });
@@ -324,6 +329,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                     analytics.track('agent-message-received', {
                         latency: latencyTimestampTracker.get(true),
+                        chatId: items.chat?.id,
+                        stream_id: items.streamingManager?.streamId,
+                        agentId: agentEntity.id,
                         mode: items.chatMode,
                         messages: items.messages.length,
                     });
@@ -340,6 +348,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 analytics.track('agent-message-send', {
                     event: 'error',
                     mode: items.chatMode,
+                    chatId: items.chat?.id,
+                    stream_id: items.streamingManager?.streamId,
+                    agentId: agentEntity.id,
                     messages: items.messages.length,
                 });
 
