@@ -33,6 +33,25 @@ export function getAnalyticsInfo(agent: Agent) {
     };
 }
 
+export function getAgentInfo(agent: Agent) {
+    const promptCustomization = agent.llm?.prompt_customization;
+
+    return {
+        agentType: getAgentType(agent.presenter),
+        owner_id: agent.owner_id ?? '',
+        promptVersion: agent.llm?.prompt_version,
+        behavior: {
+            role: promptCustomization?.role,
+            personality: promptCustomization?.personality,
+            instructions: agent.llm?.instructions,
+        },
+        temperature: agent.llm?.temperature,
+        knowledgeSource: promptCustomization?.knowledge_source,
+        starterQuestionsCount: agent.knowledge?.starter_message?.length,
+        topicsToAvoid: promptCustomization?.topics_to_avoid,
+        maxResponseLength: promptCustomization?.max_response_length,
+    };
+}
 export const sumFunc = (numbers: number[]) => numbers.reduce((total, aNumber) => total + aNumber, 0);
 export const average = (numbers: number[]) => sumFunc(numbers) / numbers.length;
 

@@ -142,6 +142,10 @@ export function useAgentManager(props: UseAgentManagerOptions) {
             try {
                 await agentManager.chat(userMessage.trim());
             } catch (e) {
+                if (e instanceof Error && e.message?.includes('User stream has reached pending requests limit')) {
+                    console.log('User stream has reached pending requests limit');
+                    return;
+                }
                 setConnectionState(ConnectionState.Fail);
 
                 throw e;

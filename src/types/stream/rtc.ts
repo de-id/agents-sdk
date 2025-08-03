@@ -68,4 +68,5 @@ export interface Status {
 
 export interface SendStreamPayloadResponse extends Status, StickyRequest {
     duration: number;
+    video_id: string;
 }
