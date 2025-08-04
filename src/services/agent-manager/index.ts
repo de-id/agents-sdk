@@ -179,6 +179,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 chatId: items.chat?.id,
                 agentId: agentEntity.id,
                 mode: items.chatMode,
+                access: agentEntity.access,
+                name: agentEntity.preview_name,
+                ...(agentEntity.access === 'public' ? { from: 'agent-template' } : {}),
             });
         },
         async reconnect() {
@@ -190,6 +193,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 chatId: items.chat?.id,
                 agentId: agentEntity.id,
                 mode: items.chatMode,
+                access: agentEntity.access,
+                name: agentEntity.preview_name,
+                ...(agentEntity.access === 'public' ? { from: 'agent-template' } : {}),
             });
         },
         async disconnect() {
@@ -200,6 +206,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 chatId: items.chat?.id,
                 agentId: agentEntity.id,
                 mode: items.chatMode,
+                access: agentEntity.access,
+                name: agentEntity.preview_name,
+                ...(agentEntity.access === 'public' ? { from: 'agent-template' } : {}),
             });
         },
         async chat(userMessage: string) {

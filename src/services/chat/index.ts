@@ -20,9 +20,12 @@ export async function createChat(
 
             analytics.track('agent-chat', {
                 event: 'created',
-                chat_id: chat.id,
-                agent_id: agent.id,
+                chatId: chat.id,
+                agentId: agent.id,
                 mode: chatMode,
+                access: agent.access,
+                name: agent.preview_name,
+                ...(agent.access === 'public' ? { from: 'agent-template' } : {}),
             });
         }
 
