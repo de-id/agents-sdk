@@ -61,6 +61,7 @@ export interface ManagerCallbacks {
     onError?: (error: Error, errorData: object) => void;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
+    onVideoIdChange?: (videoId: string | null) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;

@@ -127,9 +127,15 @@ function trackLegacyVideoAnalytics(
     }
 }
 
+type ConnectToManagerOptions = AgentManagerOptions & {
+    callbacks: AgentManagerOptions['callbacks'] & {
+        onVideoIdChange?: (videoId: string | null) => void;
+    };
+};
+
 function connectToManager(
     agent: Agent,
-    options: AgentManagerOptions,
+    options: ConnectToManagerOptions,
     analytics: Analytics
 ): Promise<StreamingManager<CreateStreamOptions>> {
     latencyTimestampTracker.reset();
@@ -185,7 +191,7 @@ function connectToManager(
 
 export async function initializeStreamAndChat(
     agent: Agent,
-    options: AgentManagerOptions,
+    options: ConnectToManagerOptions,
     agentsApi: AgentsAPI,
     analytics: Analytics,
     chat?: Chat
