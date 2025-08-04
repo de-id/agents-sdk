@@ -23,7 +23,7 @@ const actualRTCPC = (
 ).bind(window);
 
 type DataChannelPayload = string | Record<string, unknown>;
-type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void
+type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void;
 
 function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     switch (state) {
@@ -46,7 +46,7 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function parseDataChannelMessage(message: string): { subject: StreamEvents, data: DataChannelPayload } {
+function parseDataChannelMessage(message: string): { subject: StreamEvents; data: DataChannelPayload } {
     const [subject, rawData = ''] = message.split(/:(.+)/);
     try {
         const data = JSON.parse(rawData);
@@ -226,7 +226,23 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         }
     };
 
-    function handleStreamVideoEvent(subject: StreamEvents.StreamStarted | StreamEvents.StreamDone) {
+    const handleStreamVideoIdChange = (videoId: string | null) => {
+        callbacks.onVideoIdChange?.(videoId);
+    };
+
+    function handleStreamVideoEvent(
+        subject: StreamEvents.StreamStarted | StreamEvents.StreamDone,
+        payload?: DataChannelPayload
+    ) {
+        if (subject === StreamEvents.StreamStarted && typeof payload === 'object' && 'metadata' in payload) {
+            const metadata = payload.metadata as { videoId: string };
+            handleStreamVideoIdChange(metadata.videoId);
+        }
+
+        if (subject === StreamEvents.StreamDone) {
+            handleStreamVideoIdChange(null);
+        }
+
         dataChannelSignal = subject === StreamEvents.StreamStarted ? StreamingState.Start : StreamingState.Stop;
 
         handleStreamState({
@@ -248,7 +264,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         [StreamEvents.StreamStarted]: handleStreamVideoEvent,
         [StreamEvents.StreamDone]: handleStreamVideoEvent,
         [StreamEvents.StreamReady]: handleStreamReadyEvent,
-    } satisfies Partial<{ [K in StreamEvents]: DataChannelMessageHandler<K> }>
+    } satisfies Partial<{ [K in StreamEvents]: DataChannelMessageHandler<K> }>;
 
     pcDataChannel.onmessage = (event: MessageEvent) => {
         const { subject, data } = parseDataChannelMessage(event.data);

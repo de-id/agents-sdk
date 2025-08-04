@@ -55,6 +55,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     let firstConnection = true;
     let queuedInterrupt = false;
     let speakPending = false;
+    let videoId: string | null = null;
 
     const mxKey = options.mixpanelKey || mixpanelKey;
     const wsURL = options.wsURL || didSocketApiUrl;
@@ -83,6 +84,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
+    const updateVideoId = (newVideoId: string | null) => {
+        videoId = newVideoId;
+    };
+
     analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) });
 
     async function connect(newChat: boolean) {
@@ -106,7 +111,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         const initPromise = retryOperation(
             () => {
-                return initializeStreamAndChat(agentEntity, options, agentsApi, analytics, items.chat);
+                return initializeStreamAndChat(
+                    agentEntity,
+                    { ...options, callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId } },
+                    agentsApi,
+                    analytics,
+                    items.chat
+                );
             },
             {
                 limit: 3,
@@ -486,7 +497,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 items.streamingManager,
                 items.streamingManager?.streamType,
                 isStreamRequestPending,
-                !!lastMessage?.videoId
+                !!videoId
             );
 
             analytics.track('agent-video-interrupt', {
