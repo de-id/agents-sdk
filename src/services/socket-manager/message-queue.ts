@@ -58,8 +58,7 @@ export function createMessageEventQueue(
     items: AgentManagerItems,
     options: AgentManagerOptions,
     agentEntity: Agent,
-    onStreamDone: () => void,
-    onMessageCallback?: (event: ChatProgress | StreamEvents, data: any) => void
+    onStreamDone: () => void
 ) {
     let chatEventQueue: ChatEventQueue = {};
 
@@ -105,8 +104,6 @@ export function createMessageEventQueue(
                     onStreamDone();
                 }
             }
-
-            onMessageCallback?.(event, data);
         },
     };
 }
