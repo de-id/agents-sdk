@@ -4,8 +4,7 @@ import { StreamingManager } from '../streaming-manager';
 export function validateInterrupt(
     streamingManager: StreamingManager<CreateStreamOptions> | undefined,
     streamType: StreamType | undefined,
-    hasStreamRequestPending: boolean,
-    hasVideoId: boolean
+    videoId: string | null
 ): void {
     if (!streamingManager) {
         throw new Error('Please connect to the agent first');
@@ -19,7 +18,7 @@ export function validateInterrupt(
         throw new Error('Interrupt only available for Fluent streams');
     }
 
-    if (!hasStreamRequestPending && !hasVideoId) {
+    if (!videoId) {
         throw new Error('No active video to interrupt');
     }
 }

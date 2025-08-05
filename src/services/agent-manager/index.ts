@@ -53,8 +53,6 @@ export interface AgentManagerItems {
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
     let firstConnection = true;
-    let queuedInterrupt = false;
-    let speakPending = false;
     let videoId: string | null = null;
 
     const mxKey = options.mixpanelKey || mixpanelKey;
@@ -94,9 +92,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();
-
-        queuedInterrupt = false;
-        speakPending = false;
 
         if (newChat && !firstConnection) {
             delete items.chat;
@@ -151,9 +146,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     async function disconnect() {
         items.socketManager?.disconnect();
         await items.streamingManager?.disconnect();
-
-        queuedInterrupt = false;
-        speakPending = false;
 
         delete items.streamingManager;
         delete items.socketManager;
@@ -318,12 +310,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     videoId: response.videoId,
                 });
 
-                if (queuedInterrupt && response.videoId && items.streamingManager) {
-                    queuedInterrupt = false;
-                    items.messages[items.messages.length - 1].interrupted = true;
-                    await sendInterrupt(items.streamingManager, response.videoId);
-                }
-
                 analytics.track('agent-message-send', {
                     event: 'success',
                     mode: items.chatMode,
@@ -342,8 +328,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 return response;
             } catch (e) {
-                queuedInterrupt = false;
-
                 if (items.messages[items.messages.length - 1]?.role === 'assistant') {
                     items.messages.pop();
                 }
@@ -462,43 +446,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw new Error('Please connect to the agent first');
             }
 
-            speakPending = true;
-
-            try {
-                const response = await items.streamingManager.speak({
-                    script,
-                    metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
-                });
-
-                speakPending = false;
-
-                items.messages[items.messages.length - 1].videoId = response.video_id;
-
-                if (queuedInterrupt && response.video_id && items.streamingManager) {
-                    queuedInterrupt = false;
-                    items.messages[items.messages.length - 1].interrupted = true;
-                    await sendInterrupt(items.streamingManager, response.video_id);
-                }
-
-                options.callbacks.onNewMessage?.([...items.messages], 'answer');
-
-                return response;
-            } finally {
-                speakPending = false;
-            }
+            return items.streamingManager.speak({
+                script,
+                metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
+            });
         },
         async interrupt({ type }: Interrupt) {
+            validateInterrupt(items.streamingManager, items.streamingManager?.streamType, videoId);
             const lastMessage = items.messages[items.messages.length - 1];
-            const chatRequestPending = lastMessage?.role === 'user';
-
-            const isStreamRequestPending = chatRequestPending || speakPending;
-
-            validateInterrupt(
-                items.streamingManager,
-                items.streamingManager?.streamType,
-                isStreamRequestPending,
-                !!videoId
-            );
 
             analytics.track('agent-video-interrupt', {
                 type: type || 'click',
@@ -509,17 +464,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 message_duration_to_interrupt: latencyTimestampTracker.get(true),
                 chat_id: items.chat?.id,
                 mode: items.chatMode,
-                queued_interrupt: chatRequestPending,
             });
-
-            if (isStreamRequestPending) {
-                queuedInterrupt = true;
-                return;
-            }
 
             lastMessage.interrupted = true;
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
-            sendInterrupt(items.streamingManager!, lastMessage.videoId!);
+            sendInterrupt(items.streamingManager!, videoId!);
         },
     };
 }
