@@ -1,4 +1,4 @@
-name: agents-ui prod with staging sdk build e2e validation
+name: UI prod e2e with staging sdk build
 
 on:
   pull_request:
