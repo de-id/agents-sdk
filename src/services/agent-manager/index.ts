@@ -17,7 +17,7 @@ import { CONNECTION_RETRY_TIMEOUT_MS } from '$/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
 import { ChatCreationFailed, ValidationError } from '$/errors';
 import { getRandom } from '$/utils';
-import { isTextualChat } from '$/utils/chat';
+import { isChatModeWithoutChat, isTextualChat } from '$/utils/chat';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
@@ -74,6 +74,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const agentEntity = await agentsApi.getById(agent);
     analytics.enrich(getAgentInfo(agentEntity));
+
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () =>
         items.socketManager?.disconnect()
     );
@@ -207,8 +208,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async chat(userMessage: string) {
             const validateChatRequest = () => {
-                if (options.mode === ChatMode.DirectPlayback) {
-                    throw new ValidationError('Direct playback is enabled, chat is disabled');
+                if (isChatModeWithoutChat(options.mode)) {
+                    throw new ValidationError(`${options.mode} is enabled, chat is disabled`);
                 } else if (userMessage.length >= 800) {
                     throw new ValidationError('Message cannot be more than 800 characters');
                 } else if (userMessage.length === 0) {
@@ -307,7 +308,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     created_at: new Date().toISOString(),
                     context: response.context,
                     matches: response.matches,
-                    videoId: response.videoId,
                 });
 
                 analytics.track('agent-message-send', {

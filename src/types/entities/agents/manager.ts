@@ -11,6 +11,7 @@ import {
     StreamingState,
 } from '$/types/stream';
 import { SupportedStreamScript } from '$/types/stream-script';
+import type { ManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity } from './chat';
 
@@ -74,13 +75,11 @@ interface ManagerCallbacks {
      * @param chatId - id of the new chat
      */
     onNewChat?(chatId: string): void;
-
     /**
      * Optional callback function that will be triggered each time the chat mode changes
      * @param mode - ChatMode
      */
     onModeChange?(mode: ChatMode): void;
-
     /**
      * Optional callback function that will be triggered each time the user internet connectivity state change by realtime estimated bitrate
      * @param state - ConnectivityState
@@ -90,12 +89,16 @@ interface ManagerCallbacks {
      * Optional callback function that will be triggered on fetch request errors
      */
     onError?: (error: Error, errorData?: object) => void;
-
     /**
      * Optional callback function that will be triggered each time the agent activity state changes
      * @param state - AgentActivityState
      */
     onAgentActivityStateChange?(state: AgentActivityState): void;
+    /**
+     * Optional callback function that will be triggered each time a new stream is created
+     * @param stream - object containing stream_id, session_id and agent_id
+     */
+    onStreamCreated?: StreamManagerCallbacks['onStreamCreated'];
 }
 
 interface StreamOptions {
