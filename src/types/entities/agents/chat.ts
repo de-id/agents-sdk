@@ -82,5 +82,5 @@ export interface Chat {
 }
 
 export interface Interrupt {
-    type: 'text' | 'audio' | 'click';
+    type: 'text' | 'audio' | 'click' | 'manual';
 }
