@@ -4,13 +4,10 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to test (defaults to current branch)'
-        required: false
-        default: ''
-        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   e2e-validation:
@@ -26,7 +23,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: agents-sdk
-          ref: ${{ github.event.inputs.branch || github.head_ref || github.ref_name }}
+          ref: ${{ github.head_ref || github.ref_name }}
+
       - name: Setup Node.js for SDK
         uses: actions/setup-node@v4
         with:
@@ -78,7 +76,7 @@ jobs:
         run: |
           yarn remove @d-id/client-sdk || true
           yarn add file:../agents-sdk/${{ env.SDK_PACKAGE }}
-          npm install -g yarn && yarn install --frozen-lockfile
+          yarn install --frozen-lockfile
 
       - name: Install Playwright Chrome
         working-directory: agents-ui

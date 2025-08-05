@@ -4,13 +4,10 @@ on:
   pull_request:
     branches: [prod]
     types: [opened, synchronize, reopened]
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to test (defaults to current branch)'
-        required: false
-        default: ''
-        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   e2e-validation:
