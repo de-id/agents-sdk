@@ -1,4 +1,4 @@
-name: agents-ui prod with local sdk build e2e validation
+name: UI prod e2e with local sdk build
 
 on:
   pull_request:
