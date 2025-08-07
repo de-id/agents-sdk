@@ -8,7 +8,7 @@ import { useAgentManager } from './hooks/useAgentManager';
 export function App() {
     const [warmup, setWarmup] = useState(true);
     const [text, setText] = useState(
-        'oded bobobobo sagi mamamama . bla raga ode ovem. lol cha cha cha cha cha . bobobobo. cha cha cha cha. bobobobo cha cha cha cha bobobobo. ssssssss cha cha cha cha cha bobobobo . cha cha cha cha bobobobo . cha cha cha cha. bobobobo ssssssss'
+        'Ben bobobobo sagi mamamama . bla raga ode ovem. lol cha cha cha cha cha . bobobobo. cha cha cha cha. bobobobo cha cha cha cha bobobobo. ssssssss cha cha cha cha cha bobobobo . cha cha cha cha bobobobo . cha cha cha cha. bobobobo ssssssss'
     );
     const [mode, setMode] = useState<ChatMode>(ChatMode.Functional);
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
@@ -17,20 +17,21 @@ export function App() {
 
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    const { srcObject, connectionState, messages, isSpeaking, connect, disconnect, speak, chat } = useAgentManager({
-        agentId,
-        baseURL: didApiUrl,
-        wsURL: didSocketApiUrl,
-        mode,
-        enableAnalytics: false,
-        auth: { type: 'key', clientKey },
-        streamOptions: {
-            streamWarmup: warmup,
-            sessionTimeout,
-            compatibilityMode,
-            fluent,
-        },
-    });
+    const { srcObject, connectionState, messages, isSpeaking, connect, disconnect, speak, chat, interrupt } =
+        useAgentManager({
+            agentId,
+            baseURL: didApiUrl,
+            wsURL: didSocketApiUrl,
+            mode,
+            enableAnalytics: false,
+            auth: { type: 'key', clientKey },
+            streamOptions: {
+                streamWarmup: warmup,
+                sessionTimeout,
+                compatibilityMode,
+                fluent,
+            },
+        });
 
     async function onClick() {
         if (connectionState === ConnectionState.New || connectionState === ConnectionState.Fail) {
@@ -79,6 +80,10 @@ export function App() {
                             onClick={() => chat(text)}
                             disabled={isSpeaking || connectionState !== ConnectionState.Connected}>
                             Send to Chat
+                        </button>
+
+                        <button onClick={interrupt} disabled={connectionState !== ConnectionState.Connected || !fluent}>
+                            Interrupt
                         </button>
 
                         <button onClick={disconnect} disabled={connectionState !== ConnectionState.Connected}>

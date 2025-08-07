@@ -1,10 +1,9 @@
 import { getExternalId } from '$/auth/get-auth-header';
-import { Agent } from '$/types';
-import { getAgentType } from '$/utils/agent';
+import { getRandom } from '$/utils';
 
 export interface AnalyticsOptions {
     token: string;
-    agent: Agent;
+    agentId: string;
     isEnabled?: boolean;
     distinctId?: string;
 }
@@ -15,7 +14,7 @@ export interface Analytics {
     isEnabled: boolean;
     chatId?: string;
     agentId: string;
-    owner_id: string;
+    owner_id?: string;
     getRandom(): string;
     track(event: string, props?: Record<string, any>): Promise<any>;
     linkTrack(mixpanelEvent: string, props: Record<string, any>, event: string, dependencies: string[]): any;
@@ -39,46 +38,15 @@ const mixpanelUrl = 'https://api-js.mixpanel.com/track/?verbose=1&ip=1';
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
-    const presenter = config.agent.presenter;
-    const promptCustomization = config.agent.llm?.prompt_customization;
-
-    const analyticProps = {
-        token: config.token || 'testKey',
-        distinct_id: config.distinctId || getExternalId(),
-        agentId: config.agent.id,
-        agentType: getAgentType(presenter),
-        owner_id: config.agent.owner_id ?? '',
-        promptVersion: config.agent.llm?.prompt_version,
-        behavior: {
-            role: promptCustomization?.role,
-            personality: promptCustomization?.personality,
-            instructions: config.agent.llm?.instructions,
-        },
-        temperature: config.agent.llm?.temperature,
-        knowledgeSource: promptCustomization?.knowledge_source,
-        starterQuestionsCount: config.agent.knowledge?.starter_message?.length,
-        topicsToAvoid: promptCustomization?.topics_to_avoid,
-        maxResponseLength: promptCustomization?.max_response_length,
-    };
 
     return {
-        ...analyticProps,
+        token: config.token || 'testKey',
+        distinct_id: config.distinctId || getExternalId(),
+        agentId: config.agentId,
         additionalProperties: {},
         isEnabled: config.isEnabled ?? true,
-        getRandom: () => Math.random().toString(16).slice(2),
-        enrich(properties: Record<string, any>) {
-            const props = {};
-
-            if (properties && typeof properties !== 'object') {
-                throw new Error('properties must be a flat json object');
-            }
-
-            for (let prop in properties) {
-                if (typeof properties[prop] === 'string' || typeof properties[prop] === 'number') {
-                    props[prop] = properties[prop];
-                }
-            }
-
+        getRandom,
+        enrich(props: Record<string, any>) {
             this.additionalProperties = { ...this.additionalProperties, ...props };
         },
         async track(event: string, props?: Record<string, any>) {
@@ -101,7 +69,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                             properties: {
                                 ...this.additionalProperties,
                                 ...sendProps,
-                                ...analyticProps,
+                                agentId: this.agentId,
                                 source,
                                 time: Date.now(),
                                 $insert_id: this.getRandom(),

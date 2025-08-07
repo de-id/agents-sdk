@@ -142,6 +142,10 @@ export function useAgentManager(props: UseAgentManagerOptions) {
             try {
                 await agentManager.chat(userMessage.trim());
             } catch (e) {
+                if (e instanceof Error && e.message?.includes('User stream has reached pending requests limit')) {
+                    console.log('User stream has reached pending requests limit');
+                    return;
+                }
                 setConnectionState(ConnectionState.Fail);
 
                 throw e;
@@ -149,6 +153,17 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         },
         [agentManager, connectionState]
     );
+
+    const interrupt = useCallback(async () => {
+        if (!agentManager || connectionState !== ConnectionState.Connected) return;
+
+        try {
+            agentManager.interrupt({ type: 'click' });
+        } catch (e) {
+            console.error('Error interrupting:', e);
+            throw e;
+        }
+    }, [agentManager, connectionState]);
 
     return {
         connectionState,
@@ -159,5 +174,6 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         disconnect,
         speak,
         chat,
+        interrupt,
     };
 }

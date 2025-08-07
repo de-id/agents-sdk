@@ -8,4 +8,5 @@ function createTimestampTracker() {
     };
 }
 
-export const timestampTracker = createTimestampTracker();
+export const latencyTimestampTracker = createTimestampTracker();
+export const interruptTimestampTracker = createTimestampTracker();

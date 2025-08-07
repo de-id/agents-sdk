@@ -38,6 +38,7 @@ export interface ICreateStreamRequestResponse extends StickyRequest {
     offer: any;
     ice_servers: IceServer[];
     fluent?: boolean;
+    interrupt_enabled?: boolean;
 }
 
 export interface IceCandidate {
@@ -67,4 +68,5 @@ export interface Status {
 
 export interface SendStreamPayloadResponse extends Status, StickyRequest {
     duration: number;
+    video_id: string;
 }

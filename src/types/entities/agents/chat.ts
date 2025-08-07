@@ -31,6 +31,8 @@ export interface Message {
     created_at?: string;
     matches?: ChatResponse['matches'];
     context?: string;
+    videoId?: string;
+    interrupted?: boolean;
 }
 
 export interface ChatPayload {
@@ -55,6 +57,7 @@ export enum ChatMode {
     Maintenance = 'Maintenance',
     Playground = 'Playground',
     DirectPlayback = 'DirectPlayback',
+    Off = 'Off',
 }
 
 export interface ChatResponse {
@@ -63,6 +66,7 @@ export interface ChatResponse {
     matches?: IRetrivalMetadata[];
     chatMode?: ChatMode;
     context?: string;
+    videoId?: string;
 }
 
 export interface Chat {
@@ -75,4 +79,8 @@ export interface Chat {
     agent_id__created_at: string;
     agent_id__modified_at: string;
     chat_mode?: ChatMode;
+}
+
+export interface Interrupt {
+    type: 'text' | 'audio' | 'click' | 'manual';
 }

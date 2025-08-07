@@ -1,0 +1,71 @@
+name: UI prod e2e with staging sdk build
+
+on:
+  pull_request:
+    branches: [prod]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: prod
+    env:
+      ENV: prod
+
+    steps:
+      - name: Checkout agents-ui production branch
+        uses: actions/checkout@v4
+        with:
+          repository: de-id/agents-ui
+          ref: prod
+          path: agents-ui
+          fetch-depth: 0
+          lfs: true
+          token: ${{ secrets.DEVOPS_TOKEN }}
+
+      - name: Set github environment variables
+        uses: rlespinasse/github-slug-action@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Render .npmrc for agents-ui
+        working-directory: agents-ui
+        run: |
+          if [ -f .npmrc.template ]; then
+            envsubst < .npmrc.template > .npmrc
+          fi
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install staging SDK version
+        working-directory: agents-ui
+        run: |
+          yarn remove @d-id/client-sdk || true
+          yarn add @d-id/client-sdk@staging
+          npm install -g yarn && yarn
+
+      - name: Run E2E tests against production environment
+        working-directory: agents-ui
+        env:
+          E2E_USER_APIKEY: ${{ secrets.E2E_USER_APIKEY }}
+          VITE_CLIENT_KEY: ${{ secrets.VITE_CLIENT_KEY }}
+        run: yarn test:prod
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results-prod-pr-${{ github.event.number }}
+          path: |
+            agents-ui/playwright-report/
+            agents-ui/test-results/
+          retention-days: 30

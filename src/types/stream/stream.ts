@@ -23,11 +23,6 @@ export enum AgentActivityState {
     Talking = 'TALKING',
 }
 
-export const DataChannelSignalMap: Record<string, StreamingState> = {
-    'stream/started': StreamingState.Start,
-    'stream/done': StreamingState.Stop,
-};
-
 export enum StreamEvents {
     ChatAnswer = 'chat/answer',
     ChatPartial = 'chat/partial',
@@ -36,6 +31,7 @@ export enum StreamEvents {
     StreamFailed = 'stream/error',
     StreamReady = 'stream/ready',
     StreamCreated = 'stream/created',
+    StreamInterrupt = 'stream/interrupt',
     StreamVideoCreated = 'stream-video/started',
     StreamVideoDone = 'stream-video/done',
     StreamVideoError = 'stream-video/error',
@@ -65,6 +61,8 @@ export interface ManagerCallbacks {
     onError?: (error: Error, errorData: object) => void;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
+    onVideoIdChange?: (videoId: string | null) => void;
+    onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
@@ -109,6 +107,7 @@ export interface StreamingManagerOptions {
 export interface SlimRTCStatsReport {
     index: number;
     codec: string;
+    rtt: number;
     duration?: number;
     bitrate?: number;
     timestamp: any;
@@ -146,4 +145,10 @@ export interface AnalyticsRTCStatsReport {
     freezeDuration: number;
     lowFpsCount?: number;
     causes?: string[];
+}
+
+export interface StreamInterruptPayload {
+    type: StreamEvents.StreamInterrupt;
+    videoId: string;
+    timestamp: number;
 }
