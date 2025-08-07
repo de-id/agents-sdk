@@ -27,7 +27,7 @@ jobs:
           path: agents-ui
           fetch-depth: 0
           lfs: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.DEVOPS_TOKEN }}
 
       - name: Set github environment variables
         uses: rlespinasse/github-slug-action@v4
