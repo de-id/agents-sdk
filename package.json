@@ -1,48 +1,48 @@
 {
-    "name": "@d-id/client-sdk",
-    "private": false,
-    "version": "1.1.2",
-    "type": "module",
-    "description": "d-id client sdk",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/de-id/agents-sdk"
-    },
-    "keywords": [
-        "d-id",
-        "sdk",
-        "client-sdk"
-    ],
-    "license": "MIT",
-    "author": "d-id",
-    "files": [
-        "dist/*"
-    ],
-    "main": "./dist/index.umd.cjs",
-    "module": "./dist/index.js",
-    "types": "./dist/src/index.d.ts",
-    "scripts": {
-        "dev": "vite",
-        "build": "node ./infra/build.js -m production",
-        "build:dev": "node ./infra/build.js -m development",
-        "dev:prod": "export NODE_ENV=production && vite --mode production",
-        "deploy:prod": "node ./infra/deploy.js --version beta",
-        "preview": "vite preview",
-        "test-build": "node .infra/build.js -m development",
-        "build:docs": "typedoc"
-    },
-    "devDependencies": {
-        "@preact/preset-vite": "^2.8.1",
-        "@trivago/prettier-plugin-sort-imports": "^4.3.0",
-        "@types/node": "^22.15.0",
-        "commander": "^11.1.0",
-        "glob": "^10.3.10",
-        "preact": "^10.19.6",
-        "prettier": "^3.2.5",
-        "prettier-plugin-organize-imports": "^3.2.4",
-        "typedoc": "^0.25.7",
-        "typescript": "^5.3.3",
-        "vite": "^5.1.4",
-        "vite-plugin-dts": "^3.7.3"
-    }
+  "name": "@d-id/client-sdk",
+  "private": false,
+  "version": "1.1.3",
+  "type": "module",
+  "description": "d-id client sdk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/de-id/agents-sdk"
+  },
+  "keywords": [
+    "d-id",
+    "sdk",
+    "client-sdk"
+  ],
+  "license": "MIT",
+  "author": "d-id",
+  "files": [
+    "dist/*"
+  ],
+  "main": "./dist/index.umd.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "node ./infra/build.js -m production",
+    "build:dev": "node ./infra/build.js -m development",
+    "dev:prod": "export NODE_ENV=production && vite --mode production",
+    "deploy:prod": "node ./infra/deploy.js --version beta",
+    "preview": "vite preview",
+    "test-build": "node .infra/build.js -m development",
+    "build:docs": "typedoc"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.8.1",
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@types/node": "^22.15.0",
+    "commander": "^11.1.0",
+    "glob": "^10.3.10",
+    "preact": "^10.19.6",
+    "prettier": "^3.2.5",
+    "prettier-plugin-organize-imports": "^3.2.4",
+    "typedoc": "^0.25.7",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4",
+    "vite-plugin-dts": "^3.7.3"
+  }
 }
