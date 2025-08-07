@@ -109,7 +109,7 @@ jobs:
       - name: Sync version back to main (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DEVOPS_TOKEN }}
         run: |
           # Fetch latest main
           git fetch origin main
