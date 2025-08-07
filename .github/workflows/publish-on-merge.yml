@@ -158,7 +158,6 @@ jobs:
               --base main \
               --head "chore/sync-version-${{ steps.version.outputs.version }}" \
               --label "dependencies" \
-              --label "automated"
           fi
 
       - name: Create GitHub Release (prod only)
@@ -234,4 +233,3 @@ jobs:
             --base main \
             --head "chore/bump-sdk-version-${{ steps.version.outputs.version }}" \
             --label "dependencies" \
-            --label "automated"
