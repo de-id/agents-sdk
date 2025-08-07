@@ -64,7 +64,7 @@ jobs:
         run: |
           jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' package.json > package.json.tmp
 
-          if ! jq empty package.json.tmp 2>/dev/null; then
+          if ! jq empty package.json.tmp 4>/dev/null; then
             echo "Error: Generated invalid JSON"
             rm -f package.json.tmp
             exit 1
@@ -118,7 +118,7 @@ jobs:
 
           jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' package.json > package.json.tmp
 
-          if ! jq empty package.json.tmp 2>/dev/null; then
+          if ! jq empty package.json.tmp 4>/dev/null; then
             echo "Error: Generated invalid JSON"
             rm -f package.json.tmp
             exit 1
