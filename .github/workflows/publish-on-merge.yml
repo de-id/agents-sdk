@@ -108,6 +108,8 @@ jobs:
 
       - name: Sync version back to main (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Fetch latest main
           git fetch origin main
@@ -191,6 +193,8 @@ jobs:
 
       - name: Update SDK version and create PR
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd agents-ui
 
@@ -231,5 +235,3 @@ jobs:
             --head "chore/bump-sdk-version-${{ steps.version.outputs.version }}" \
             --label "dependencies" \
             --label "automated"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
