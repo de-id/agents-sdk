@@ -188,13 +188,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: de-id/agents-ui
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.DEVOPS_TOKEN }}
           path: agents-ui
 
       - name: Update SDK version and create PR
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DEVOPS_TOKEN }}
         run: |
           cd agents-ui
 
