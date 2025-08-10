@@ -192,6 +192,9 @@ export async function initializeStreamAndChat(
 
     const { chat: newChat, chatMode } = chatResult;
 
+    console.log('chatMode', chatMode);
+    console.log('options.mode', options.mode);
+
     if (chatMode && chatMode !== options.mode) {
         options.mode = chatMode;
         options.callbacks.onModeChange?.(chatMode);
