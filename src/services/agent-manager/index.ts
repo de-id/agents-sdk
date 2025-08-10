@@ -115,10 +115,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
-        if (items.socketManager) {
-            items.socketManager.disconnect();
-        }
-
         const websocketPromise =
             options.mode === ChatMode.DirectPlayback
                 ? Promise.resolve(undefined)
@@ -148,23 +144,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             throw e;
         });
 
-        try {
-            const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
+        const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
 
-            if (chat && chat.id !== items.chat?.id) {
-                options.callbacks.onNewChat?.(chat.id);
-            }
-
-            items.streamingManager = streamingManager;
-            items.socketManager = socketManager;
-            items.chat = chat;
-
-            firstConnection = false;
-
-            changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
-        } catch (error) {
-            throw error;
+        if (chat && chat.id !== items.chat?.id) {
+            options.callbacks.onNewChat?.(chat.id);
         }
+
+        items.streamingManager = streamingManager;
+        items.socketManager = socketManager;
+        items.chat = chat;
+
+        firstConnection = false;
+
+        changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
     }
 
     async function disconnect() {
