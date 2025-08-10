@@ -8,6 +8,11 @@ export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<st
     return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};
 }
 
+export interface CreateChatResult {
+    chat?: Chat;
+    chatMode?: ChatMode;
+}
+
 export async function createChat(
     agentId: string,
     agentsApi: AgentsAPI,
@@ -15,39 +20,19 @@ export async function createChat(
     chatMode?: ChatMode,
     persist = false,
     chat?: Chat
-) {
-    const startTime = performance.now();
-    console.log(`[PERF] createChat started at ${new Date().toISOString()}`);
-
+): Promise<CreateChatResult> {
     try {
         if (!chat && !isChatModeWithoutChat(chatMode)) {
-            const chatCreateStartTime = performance.now();
             chat = await agentsApi.newChat(agentId, { persist }, getRequestHeaders(chatMode));
-            const chatCreateEndTime = performance.now();
-            console.log(`[PERF] Chat creation API call: ${(chatCreateEndTime - chatCreateStartTime).toFixed(2)}ms`);
-
-            analytics.track('agent-chat', {
-                event: 'created',
-                chatId: chat.id,
-                mode: chatMode,
-            });
         }
 
-        const totalTime = performance.now() - startTime;
-        console.log(`[PERF] createChat completed in ${totalTime.toFixed(2)}ms`);
+        if (chat) {
+            analytics.track('agent-chat', { event: 'created', chat_id: chat.id });
+        }
 
-        return { chat, chatMode: chat?.chat_mode ?? chatMode };
+        return { chat, chatMode };
     } catch (error: any) {
-        try {
-            const parsedError = JSON.parse(error.message);
-
-            if (parsedError?.kind === 'InsufficientCreditsError') {
-                throw new Error('InsufficientCreditsError');
-            }
-        } catch (e) {
-            console.error('Error parsing the error message:', e);
-        }
-
-        throw new Error('Cannot create new chat');
+        analytics.track('agent-chat', { event: 'creation-failed', error: error.message });
+        throw error;
     }
 }

@@ -14,7 +14,7 @@ import {
 } from '$/types';
 import { Analytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
-import { createChat } from '../chat';
+import { CreateChatResult, createChat } from '../chat';
 
 function getAgentStreamArgs(options?: AgentManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
@@ -123,9 +123,6 @@ function connectToManager(
     options: ConnectToManagerOptions,
     analytics: Analytics
 ): Promise<StreamingManager<CreateStreamOptions>> {
-    const startTime = performance.now();
-    console.log(`[PERF] connectToManager started at ${new Date().toISOString()}`);
-
     latencyTimestampTracker.reset();
 
     return new Promise(async (resolve, reject) => {
@@ -139,8 +136,6 @@ function connectToManager(
                         options.callbacks.onConnectionStateChange?.(state);
 
                         if (state === ConnectionState.Connected) {
-                            const endTime = performance.now();
-                            console.log(`[PERF] connectToManager completed in ${(endTime - startTime).toFixed(2)}ms`);
                             resolve(streamingManager);
                         }
                     },
@@ -179,34 +174,34 @@ export async function initializeStreamAndChat(
     analytics: Analytics,
     chat?: Chat
 ): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions> }> {
-    const startTime = performance.now();
-    console.log(`[PERF] initializeStreamAndChat started at ${new Date().toISOString()}`);
+    const promises: Promise<any>[] = [];
+    const createChatPromise = createChat(agentId, agentsApi, analytics, options.mode, options.persistentChat, chat);
+    promises.push(createChatPromise);
 
-    // Start both operations in parallel
-    const [chatResult, streamingManager] = await Promise.all([
-        createChat(agentId, agentsApi, analytics, options.mode, options.persistentChat, chat),
-        connectToManager(agentId, options, analytics),
-    ]);
+    const streamingManagerPromise =
+        options.mode === ChatMode.Functional
+            ? connectToManager(agentId, options, analytics)
+            : Promise.resolve(undefined);
 
-    const parallelEndTime = performance.now();
-    console.log(`[PERF] Parallel operations completed in ${(parallelEndTime - startTime).toFixed(2)}ms`);
+    promises.push(streamingManagerPromise);
+
+    const [chatResult, streamingManager] = (await Promise.all(promises)) as [
+        CreateChatResult,
+        StreamingManager<CreateStreamOptions> | undefined,
+    ];
 
     const { chat: newChat, chatMode } = chatResult;
 
-    // Handle mode changes and text-only logic
     if (chatMode && chatMode !== options.mode) {
         options.mode = chatMode;
         options.callbacks.onModeChange?.(chatMode);
 
         if (chatMode === ChatMode.TextOnly) {
             options.callbacks.onError?.(new ChatModeDowngraded(chatMode));
-
+            await streamingManager?.disconnect();
             return { chat: newChat };
         }
     }
-
-    const totalTime = performance.now() - startTime;
-    console.log(`[PERF] initializeStreamAndChat completed in ${totalTime.toFixed(2)}ms`);
 
     return { chat: newChat, streamingManager };
 }

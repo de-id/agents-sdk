@@ -52,9 +52,6 @@ export interface AgentManagerItems {
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
-    const startTime = performance.now();
-    console.log(`[PERF] createAgentManager started at ${new Date().toISOString()}`);
-
     let firstConnection = true;
     let videoId: string | null = null;
     let agentEntity: Agent | null = null;
@@ -74,50 +71,28 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         distinctId: options.distinctId,
     });
 
-    const analyticsStartTime = performance.now();
     analytics.enrich({ agentId: agent, ...getDeviceAnalyticsInfo() });
     analytics.track('agent-sdk', { event: 'init' });
-    const analyticsEndTime = performance.now();
-    console.log(`[PERF] Analytics initialization: ${(analyticsEndTime - analyticsStartTime).toFixed(2)}ms`);
 
-    const agentsApiStartTime = performance.now();
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
-    const agentsApiEndTime = performance.now();
-    console.log(`[PERF] Agents API creation: ${(agentsApiEndTime - agentsApiStartTime).toFixed(2)}ms`);
 
-    const loadAgentStartTime = performance.now();
     const loadAgent = async () => {
         try {
-            const agentLoadStartTime = performance.now();
             agentEntity = await agentsApi.getById(agent);
-            const agentLoadEndTime = performance.now();
-            console.log(`[PERF] Agent DB fetch: ${(agentLoadEndTime - agentLoadStartTime).toFixed(2)}ms`);
 
-            const enrichStartTime = performance.now();
             analytics.enrich(getAgentInfo(agentEntity));
-            const enrichEndTime = performance.now();
-            console.log(`[PERF] Analytics enrichment: ${(enrichEndTime - enrichStartTime).toFixed(2)}ms`);
 
             options.callbacks.onAgentLoaded?.(agentEntity);
-            const agentLoadTotalTime = performance.now() - startTime;
-            console.log(`[PERF] Agent loading completed at ${new Date().toISOString()}`);
-            console.log(`[PERF] Total time from start to agent loaded: ${agentLoadTotalTime.toFixed(2)}ms`);
         } catch (error) {
-            console.error(`[PERF] Agent loading failed:`, error);
+            options.callbacks.onError?.(new Error('Failed to load agent'), { error });
         }
     };
 
-    // Start agent loading in background
     loadAgent();
-    const loadAgentEndTime = performance.now();
-    console.log(`[PERF] Agent loading initiated: ${(loadAgentEndTime - loadAgentStartTime).toFixed(2)}ms`);
 
-    const messageQueueStartTime = performance.now();
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agent, () =>
         items.socketManager?.disconnect()
     );
-    const messageQueueEndTime = performance.now();
-    console.log(`[PERF] Message queue creation: ${(messageQueueEndTime - messageQueueStartTime).toFixed(2)}ms`);
 
     items.messages = getInitialMessages(options.initialMessages);
 
@@ -130,24 +105,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     analytics.track('agent-sdk', { event: 'loaded' });
 
     async function connect(newChat: boolean) {
-        const connectStartTime = performance.now();
-        console.log(`[PERF] Connect started at ${new Date().toISOString()}`);
-
-        // Check if agent is loaded when connect is called
-        if (agentEntity) {
-            console.log(`[PERF] Agent already loaded when connect called`);
-        } else {
-            console.log(`[PERF] Agent not yet loaded when connect called - will wait if needed`);
-        }
-
-        // Add a check to see if agent gets loaded during connection
-        const checkAgentInterval = setInterval(() => {
-            if (agentEntity) {
-                console.log(`[PERF] Agent became available during connection at ${new Date().toISOString()}`);
-                clearInterval(checkAgentInterval);
-            }
-        }, 100);
-
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();
@@ -162,32 +119,20 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             items.socketManager.disconnect();
         }
 
-        const socketStartTime = performance.now();
         const websocketPromise =
             options.mode === ChatMode.DirectPlayback
                 ? Promise.resolve(undefined)
                 : createSocketManager(options.auth, wsURL, { onMessage, onError: options.callbacks.onError });
-        const socketEndTime = performance.now();
-        console.log(`[PERF] Socket manager creation: ${(socketEndTime - socketStartTime).toFixed(2)}ms`);
-
-        const initStartTime = performance.now();
-        console.log(`[PERF] About to start stream/chat initialization at ${new Date().toISOString()}`);
 
         const initPromise = retryOperation(
             () => {
-                const retryStartTime = performance.now();
-                console.log(`[PERF] Retry attempt started at ${new Date().toISOString()}`);
-
                 return initializeStreamAndChat(
                     agent,
                     { ...options, callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId } },
                     agentsApi,
                     analytics,
                     items.chat
-                ).finally(() => {
-                    const retryEndTime = performance.now();
-                    console.log(`[PERF] Retry attempt completed in ${(retryEndTime - retryStartTime).toFixed(2)}ms`);
-                });
+                );
             },
             {
                 limit: 3,
@@ -202,22 +147,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
         });
-        const initEndTime = performance.now();
-        console.log(`[PERF] Stream/chat initialization setup: ${(initEndTime - initStartTime).toFixed(2)}ms`);
 
         try {
-            console.log(`[PERF] Waiting for both websocket and stream/chat initialization...`);
-            const waitStartTime = performance.now();
-
             const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
-
-            const waitEndTime = performance.now();
-            console.log(`[PERF] Both operations completed in ${(waitEndTime - waitStartTime).toFixed(2)}ms`);
-
-            const initCompleteTime = performance.now();
-            console.log(
-                `[PERF] Stream/chat initialization completed: ${(initCompleteTime - initStartTime).toFixed(2)}ms`
-            );
 
             if (chat && chat.id !== items.chat?.id) {
                 options.callbacks.onNewChat?.(chat.id);
@@ -230,18 +162,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             firstConnection = false;
 
             changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
-
-            // Check agent status when connection completes
-            if (agentEntity) {
-                console.log(`[PERF] Agent was available when connection completed`);
-            } else {
-                console.log(`[PERF] Agent was NOT available when connection completed`);
-            }
-
-            const connectCompleteTime = performance.now();
-            console.log(`[PERF] Connect completed: ${(connectCompleteTime - connectStartTime).toFixed(2)}ms`);
         } catch (error) {
-            console.error(`[PERF] Connect failed:`, error);
             throw error;
         }
     }
@@ -268,9 +189,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             options.callbacks.onModeChange?.(mode);
         }
     }
-
-    const totalTime = performance.now() - startTime;
-    console.log(`[PERF] createAgentManager completed in ${totalTime.toFixed(2)}ms at ${new Date().toISOString()}`);
 
     return {
         agent: agentEntity,
@@ -311,16 +229,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
         },
         async chat(userMessage: string) {
-            const chatStartTime = performance.now();
-            console.log(`[PERF] Chat started at ${new Date().toISOString()}`);
-
-            // Check if agent is loaded when chat is called
-            if (agentEntity) {
-                console.log(`[PERF] Agent already loaded when chat called`);
-            } else {
-                console.log(`[PERF] Agent not yet loaded when chat called - will wait if needed`);
-            }
-
             const validateChatRequest = () => {
                 if (isChatModeWithoutChat(options.mode)) {
                     throw new ValidationError(`${options.mode} is enabled, chat is disabled`);
@@ -440,9 +348,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     });
                 }
 
-                const chatEndTime = performance.now();
-                console.log(`[PERF] Chat completed in ${(chatEndTime - chatStartTime).toFixed(2)}ms`);
-
                 return response;
             } catch (e) {
                 if (items.messages[items.messages.length - 1]?.role === 'assistant') {
@@ -459,9 +364,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
         },
         rate(messageId: string, score: 1 | -1, rateId?: string) {
-            const rateStartTime = performance.now();
-            console.log(`[PERF] Rate started at ${new Date().toISOString()}`);
-
             if (!agentEntity) {
                 throw new Error('Agent is not initialized');
             }
@@ -485,9 +387,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
 
             if (rateId) {
-                const rateEndTime = performance.now();
-                console.log(`[PERF] Rate (update) completed in ${(rateEndTime - rateStartTime).toFixed(2)}ms`);
-
                 return agentsApi.updateRating(agent, items.chat.id, rateId, {
                     knowledge_id: agentEntity.knowledge?.id ?? '',
                     message_id: messageId,
@@ -495,9 +394,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     score,
                 });
             }
-
-            const rateEndTime = performance.now();
-            console.log(`[PERF] Rate (create) completed in ${(rateEndTime - rateStartTime).toFixed(2)}ms`);
 
             return agentsApi.createRating(agent, items.chat.id, {
                 knowledge_id: agentEntity.knowledge?.id ?? '',
@@ -516,9 +412,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return agentsApi.deleteRating(agent, items.chat.id, id);
         },
         async speak(payload: string | SupportedStreamScript) {
-            const speakStartTime = performance.now();
-            console.log(`[PERF] Speak started at ${new Date().toISOString()}`);
-
             if (!agentEntity) {
                 throw new Error('Agent is not initialized');
             }
@@ -581,9 +474,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             if (!items.streamingManager) {
                 throw new Error('Please connect to the agent first');
             }
-
-            const speakEndTime = performance.now();
-            console.log(`[PERF] Speak completed in ${(speakEndTime - speakStartTime).toFixed(2)}ms`);
 
             return items.streamingManager.speak({
                 script,
