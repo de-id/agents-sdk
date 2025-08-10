@@ -1,7 +1,7 @@
 import { Agent } from '$/types/index';
 import { getAgentType } from './agent';
 
-export function getAnalyticsInfo(agent: Agent) {
+export function getDeviceAnalyticsInfo() {
     const mobileOrDesktop = () => {
         return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
     };
@@ -18,18 +18,12 @@ export function getAnalyticsInfo(agent: Agent) {
             return 'Unknown'; // Unable to determine the OS
         }
     };
-    const presenter = agent.presenter;
 
     return {
         $os: `${getUserOS()}`,
         isMobile: `${mobileOrDesktop() == 'Mobile'}`,
         browser: navigator.userAgent,
         origin: window.location.origin,
-        agentType: getAgentType(presenter),
-        agentVoice: {
-            voiceId: agent.presenter?.voice?.voice_id,
-            provider: agent.presenter?.voice?.type,
-        },
     };
 }
 
@@ -50,22 +44,32 @@ export function getAgentInfo(agent: Agent) {
         starterQuestionsCount: agent.knowledge?.starter_message?.length,
         topicsToAvoid: promptCustomization?.topics_to_avoid,
         maxResponseLength: promptCustomization?.max_response_length,
+        agentVoice: {
+            voiceId: agent.presenter?.voice?.voice_id,
+            provider: agent.presenter?.voice?.type,
+        },
+        access: agent.access,
+        name: agent.preview_name,
+        ...(agent.access === 'public' ? { from: 'agent-template' } : {}),
+        knowledge_id: agent.knowledge?.id,
+        is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
+        background: agent.presenter.type === 'clip' && agent.presenter.background,
+        stitch: agent?.presenter.type === 'talk' ? agent?.presenter?.stitch : undefined,
     };
 }
 export const sumFunc = (numbers: number[]) => numbers.reduce((total, aNumber) => total + aNumber, 0);
 export const average = (numbers: number[]) => sumFunc(numbers) / numbers.length;
 
-export function getStreamAnalyticsProps(data: any, agent: Agent, additionalProps: Record<string, any>) {
+export function getStreamAnalyticsProps(data: any, additionalProps: Record<string, any>) {
     const { event, ...baseProps } = data;
 
-    const { template } = agent?.llm || {};
-    const { language } = agent?.presenter?.voice || {};
+    // const { template } = agent?.llm || {};
+    // const { language } = agent?.presenter?.voice || {};
 
     const props = {
         ...baseProps,
-        llm: { ...baseProps.llm, template },
-        script: { ...baseProps.script, provider: { ...baseProps?.script?.provider, language } },
-        stitch: agent?.presenter.type === 'talk' ? agent?.presenter?.stitch : undefined,
+        // llm: { ...baseProps.llm, template },
+        // script: { ...baseProps.script, provider: { ...baseProps?.script?.provider, language } },
         ...additionalProps,
     };
 

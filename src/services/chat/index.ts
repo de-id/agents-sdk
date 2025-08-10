@@ -1,5 +1,5 @@
 import { PLAYGROUND_HEADER } from '$/config/consts';
-import type { Agent, AgentsAPI, Chat } from '$/types';
+import type { AgentsAPI, Chat } from '$/types';
 import { ChatMode } from '$/types';
 import { isChatModeWithoutChat } from '$/utils/chat';
 import { Analytics } from '../analytics/mixpanel';
@@ -9,27 +9,32 @@ export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<st
 }
 
 export async function createChat(
-    agent: Agent,
+    agentId: string,
     agentsApi: AgentsAPI,
     analytics: Analytics,
     chatMode?: ChatMode,
     persist = false,
     chat?: Chat
 ) {
+    const startTime = performance.now();
+    console.log(`[PERF] createChat started at ${new Date().toISOString()}`);
+
     try {
         if (!chat && !isChatModeWithoutChat(chatMode)) {
-            chat = await agentsApi.newChat(agent.id, { persist }, getRequestHeaders(chatMode));
+            const chatCreateStartTime = performance.now();
+            chat = await agentsApi.newChat(agentId, { persist }, getRequestHeaders(chatMode));
+            const chatCreateEndTime = performance.now();
+            console.log(`[PERF] Chat creation API call: ${(chatCreateEndTime - chatCreateStartTime).toFixed(2)}ms`);
 
             analytics.track('agent-chat', {
                 event: 'created',
                 chatId: chat.id,
-                agentId: agent.id,
                 mode: chatMode,
-                access: agent.access,
-                name: agent.preview_name,
-                ...(agent.access === 'public' ? { from: 'agent-template' } : {}),
             });
         }
+
+        const totalTime = performance.now() - startTime;
+        console.log(`[PERF] createChat completed in ${totalTime.toFixed(2)}ms`);
 
         return { chat, chatMode: chat?.chat_mode ?? chatMode };
     } catch (error: any) {

@@ -99,6 +99,12 @@ interface ManagerCallbacks {
      * @param stream - object containing stream_id, session_id and agent_id
      */
     onStreamCreated?: StreamManagerCallbacks['onStreamCreated'];
+
+    /**
+     * Optional callback function that will be triggered each time the agent is loaded
+     * @param agent - Agent
+     */
+    onAgentLoaded?: (agent: Agent) => void;
 }
 
 interface StreamOptions {
@@ -163,8 +169,16 @@ export interface AgentManager {
     /**
      * Agent instance you are working with.
      * To know more about agents go to https://docs.d-id.com/reference/agents
+     * @deprecated Use getAgent or onAgentLoaded callback instead
      */
-    agent: Agent;
+    agent: Agent | null;
+
+    /**
+     * Get the agent instance you are working with.
+     * To know more about agents go to https://docs.d-id.com/reference/agents
+     */
+    getAgent: () => Agent | null;
+
     /**
      * Get the current stream type of the agent
      */
@@ -177,8 +191,15 @@ export interface AgentManager {
 
     /**
      * Array of starter messages that will be sent to the agent when the chat starts
+     * @deprecated Use getStarterMessages or onAgentLoaded callback instead
      */
-    starterMessages: string[];
+    starterMessages: string[] | undefined;
+
+    /**
+     * Get the starter messages that will be sent to the agent when the chat starts
+     */
+    getStarterMessages: () => string[];
+
     /**
      * Get a token for the Speech to Text service
      * Only available after a chat has started and the agent has been connected
