@@ -30,9 +30,18 @@ export async function createChat(
             analytics.track('agent-chat', { event: 'created', chat_id: chat.id });
         }
 
-        return { chat, chatMode };
+        return { chat, chatMode: chat?.chat_mode ?? chatMode };
     } catch (error: any) {
-        analytics.track('agent-chat', { event: 'creation-failed', error: error.message });
-        throw error;
+        try {
+            const parsedError = JSON.parse(error.message);
+
+            if (parsedError?.kind === 'InsufficientCreditsError') {
+                throw new Error('InsufficientCreditsError');
+            }
+        } catch (e) {
+            console.error('Error parsing the error message:', e);
+        }
+
+        throw new Error('Cannot create new chat');
     }
 }

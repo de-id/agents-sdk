@@ -42,7 +42,7 @@ export interface AgentManagerItems {
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
- * @param {string} agent - The ID or instance of the agent to chat with.
+ * @param {string} agentId - The ID or instance of the agent to chat with.
  * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
  * * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
  *
@@ -51,7 +51,7 @@ export interface AgentManagerItems {
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
+export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentManager> {
     let firstConnection = true;
     let videoId: string | null = null;
     let agentEntity: Agent | null = null;
@@ -66,19 +66,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     };
     const analytics = initializeAnalytics({
         token: mxKey,
-        agentId: agent,
+        agentId: agentId,
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
     });
 
-    analytics.enrich({ agentId: agent, ...getDeviceAnalyticsInfo() });
+    analytics.enrich({ agentId, ...getDeviceAnalyticsInfo() });
     analytics.track('agent-sdk', { event: 'init' });
 
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
 
     const loadAgent = async () => {
         try {
-            agentEntity = await agentsApi.getById(agent);
+            agentEntity = await agentsApi.getById(agentId);
 
             analytics.enrich(getAgentInfo(agentEntity));
 
@@ -90,7 +90,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     loadAgent();
 
-    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agent, () =>
+    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentId, () =>
         items.socketManager?.disconnect()
     );
 
@@ -123,7 +123,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         const initPromise = retryOperation(
             () => {
                 return initializeStreamAndChat(
-                    agent,
+                    agentId,
                     { ...options, callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId } },
                     agentsApi,
                     analytics,
@@ -189,7 +189,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         getIsInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
         starterMessages: undefined,
         getStarterMessages: () => agentEntity?.knowledge?.starter_message || [],
-        getSTTToken: () => agentsApi.getSTTToken(agent),
+        getSTTToken: () => agentsApi.getSTTToken(agentId),
         changeMode,
         enrichAnalytics: analytics.enrich,
         async connect() {
@@ -243,7 +243,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const initializeChat = async () => {
                 if (!items.chat) {
                     const newChat = await createChat(
-                        agent,
+                        agentId,
                         agentsApi,
                         analytics,
                         items.chatMode,
@@ -265,7 +265,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 return retryOperation(
                     () => {
                         return agentsApi.chat(
-                            agent,
+                            agentId,
                             chatId,
                             {
                                 chatMode: items.chatMode,
@@ -379,7 +379,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
 
             if (rateId) {
-                return agentsApi.updateRating(agent, items.chat.id, rateId, {
+                return agentsApi.updateRating(agentId, items.chat.id, rateId, {
                     knowledge_id: agentEntity.knowledge?.id ?? '',
                     message_id: messageId,
                     matches,
@@ -387,7 +387,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 });
             }
 
-            return agentsApi.createRating(agent, items.chat.id, {
+            return agentsApi.createRating(agentId, items.chat.id, {
                 knowledge_id: agentEntity.knowledge?.id ?? '',
                 message_id: messageId,
                 matches,
@@ -401,7 +401,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id, mode: items.chatMode });
 
-            return agentsApi.deleteRating(agent, items.chat.id, id);
+            return agentsApi.deleteRating(agentId, items.chat.id, id);
         },
         async speak(payload: string | SupportedStreamScript) {
             if (!agentEntity) {
@@ -469,7 +469,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return items.streamingManager.speak({
                 script,
-                metadata: { chat_id: items.chat?.id, agent_id: agent },
+                metadata: { chat_id: items.chat?.id, agent_id: agentId },
             });
         },
         async interrupt({ type }: Interrupt) {
