@@ -178,7 +178,6 @@ export interface AgentManager {
     /**
      * Agent instance you are working with.
      * To know more about agents go to https://docs.d-id.com/reference/agents
-     * @deprecated Use getAgent instead. This will be removed in the next major version.
      */
     agent: Agent;
 
@@ -194,7 +193,6 @@ export interface AgentManager {
 
     /**
      * Array of starter messages that will be sent to the agent when the chat starts
-     * @deprecated Use getStarterMessages instead. This will be removed in the next major version.
      */
     starterMessages: string[];
 

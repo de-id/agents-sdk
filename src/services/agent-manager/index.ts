@@ -123,7 +123,7 @@ export function createAgentManagerAsync(agentId: string, options: AgentManagerOp
 
             options.callbacks.onAgentLoaded?.(agent);
         } catch (error) {
-            options.callbacks.onError?.(new Error('Failed to load agent'), { error });
+            options.callbacks.onError?.(error as Error);
             throw error;
         }
     };
