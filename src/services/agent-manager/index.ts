@@ -1,6 +1,7 @@
 import {
     Agent,
     AgentManager,
+    AgentManagerAsync,
     AgentManagerOptions,
     Auth,
     Chat,
@@ -19,7 +20,7 @@ import { ChatCreationFailed, ValidationError } from '$/errors';
 import { getRandom } from '$/utils';
 import { isChatModeWithoutChat, isTextualChat } from '$/utils/chat';
 import { createAgentsApi } from '../../api/agents';
-import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
+import { getAgentInfo, getDeviceAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
@@ -42,18 +43,54 @@ export interface AgentManagerItems {
 /**
  * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
  *
- * @param {string} agent - The ID or instance of the agent to chat with.
+ * @param {string} agentId - The ID or instance of the agent to chat with.
  * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
- * * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
+ * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
  *
  * @throws {Error} Throws an error if the agent is not initialized.
  *
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
+export function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentManager> {
+    return new Promise((resolve, reject) => {
+        try {
+            const agentManager = createAgentManagerAsync(agentId, {
+                ...options,
+                callbacks: {
+                    ...options.callbacks,
+                    onAgentLoaded: (agent: Agent) => {
+                        resolve({
+                            ...agentManager,
+                            agent,
+                            starterMessages: agent?.knowledge?.starter_message || [],
+                        });
+                    },
+                },
+            });
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+/**
+ * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
+ * This function returns a Promise that resolves when the agent is loaded, providing better performance.
+ *
+ * @param {string} agentId - The ID or instance of the agent to chat with.
+ * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
+ * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
+ *
+ * @throws {Error} Throws an error if the agent is not initialized.
+ *
+ * @example
+ * const agentManager = await createAgentManagerAsync('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
+ */
+export function createAgentManagerAsync(agentId: string, options: AgentManagerOptions): AgentManagerAsync {
     let firstConnection = true;
     let videoId: string | null = null;
+    let agentEntity: Agent | null = null;
 
     const mxKey = options.mixpanelKey || mixpanelKey;
     const wsURL = options.wsURL || didSocketApiUrl;
@@ -65,18 +102,40 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     };
     const analytics = initializeAnalytics({
         token: mxKey,
-        agentId: agent,
+        agentId: agentId,
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
     });
+
+    analytics.enrich({ agentId, ...getDeviceAnalyticsInfo() });
     analytics.track('agent-sdk', { event: 'init' });
+
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
 
-    const agentEntity = await agentsApi.getById(agent);
-    analytics.enrich(getAgentInfo(agentEntity));
+    const loadAgent = async () => {
+        try {
+            const agent = await agentsApi.getById(agentId);
 
-    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () =>
-        items.socketManager?.disconnect()
+            analytics.enrich(getAgentInfo(agent));
+            analytics.track('agent-sdk', { event: 'agent-loaded' });
+
+            agentEntity = agent;
+
+            options.callbacks.onAgentLoaded?.(agent);
+        } catch (error) {
+            options.callbacks.onError?.(error as Error);
+            throw error;
+        }
+    };
+
+    const loadAgentPromise = loadAgent();
+
+    const { onMessage, clearQueue } = createMessageEventQueue(
+        analytics,
+        items,
+        options,
+        () => agentEntity,
+        () => items.socketManager?.disconnect()
     );
 
     items.messages = getInitialMessages(options.initialMessages);
@@ -87,7 +146,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         videoId = newVideoId;
     };
 
-    analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) });
+    analytics.track('agent-sdk', { event: 'loaded' });
 
     async function connect(newChat: boolean) {
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
@@ -108,7 +167,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         const initPromise = retryOperation(
             () => {
                 return initializeStreamAndChat(
-                    agentEntity,
+                    agentId,
                     { ...options, callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId } },
                     agentsApi,
                     analytics,
@@ -129,7 +188,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             throw e;
         });
 
-        const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
+        const [socketManager, { streamingManager, chat }] = await Promise.all([
+            websocketPromise,
+            initPromise,
+            loadAgentPromise,
+        ]);
 
         if (chat && chat.id !== items.chat?.id) {
             options.callbacks.onNewChat?.(chat.id);
@@ -168,24 +231,20 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     }
 
     return {
-        agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
         getIsInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
-        starterMessages: agentEntity.knowledge?.starter_message || [],
-        getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
+        getSTTToken: () => agentsApi.getSTTToken(agentId),
         changeMode,
         enrichAnalytics: analytics.enrich,
+        getAgent: () => agentEntity,
+        getStarterMessages: () => agentEntity?.knowledge?.starter_message || [],
         async connect() {
             await connect(true);
 
             analytics.track('agent-chat', {
                 event: 'connect',
                 chatId: items.chat?.id,
-                agentId: agentEntity.id,
                 mode: items.chatMode,
-                access: agentEntity.access,
-                name: agentEntity.preview_name,
-                ...(agentEntity.access === 'public' ? { from: 'agent-template' } : {}),
             });
         },
         async reconnect() {
@@ -195,11 +254,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'reconnect',
                 chatId: items.chat?.id,
-                agentId: agentEntity.id,
                 mode: items.chatMode,
-                access: agentEntity.access,
-                name: agentEntity.preview_name,
-                ...(agentEntity.access === 'public' ? { from: 'agent-template' } : {}),
             });
         },
         async disconnect() {
@@ -208,11 +263,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'disconnect',
                 chatId: items.chat?.id,
-                agentId: agentEntity.id,
                 mode: items.chatMode,
-                access: agentEntity.access,
-                name: agentEntity.preview_name,
-                ...(agentEntity.access === 'public' ? { from: 'agent-template' } : {}),
             });
         },
         async chat(userMessage: string) {
@@ -238,7 +289,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const initializeChat = async () => {
                 if (!items.chat) {
                     const newChat = await createChat(
-                        agentEntity,
+                        agentId,
                         agentsApi,
                         analytics,
                         items.chatMode,
@@ -260,7 +311,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 return retryOperation(
                     () => {
                         return agentsApi.chat(
-                            agentEntity.id,
+                            agentId,
                             chatId,
                             {
                                 chatMode: items.chatMode,
@@ -351,6 +402,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
         },
         rate(messageId: string, score: 1 | -1, rateId?: string) {
+            if (!agentEntity) {
+                throw new Error('Agent is not initialized');
+            }
+
             const message = items.messages.find(message => message.id === messageId);
 
             if (!items.chat) {
@@ -364,14 +419,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-rate', {
                 event: rateId ? 'update' : 'create',
                 thumb: score === 1 ? 'up' : 'down',
-                knowledge_id: agentEntity.knowledge?.id ?? '',
                 mode: items.chatMode,
                 matches,
                 score,
             });
 
             if (rateId) {
-                return agentsApi.updateRating(agentEntity.id, items.chat.id, rateId, {
+                return agentsApi.updateRating(agentId, items.chat.id, rateId, {
                     knowledge_id: agentEntity.knowledge?.id ?? '',
                     message_id: messageId,
                     matches,
@@ -379,7 +433,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 });
             }
 
-            return agentsApi.createRating(agentEntity.id, items.chat.id, {
+            return agentsApi.createRating(agentId, items.chat.id, {
                 knowledge_id: agentEntity.knowledge?.id ?? '',
                 message_id: messageId,
                 matches,
@@ -393,31 +447,35 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id, mode: items.chatMode });
 
-            return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
+            return agentsApi.deleteRating(agentId, items.chat.id, id);
         },
         async speak(payload: string | SupportedStreamScript) {
+            if (!agentEntity) {
+                throw new Error('Agent is not initialized');
+            }
+
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
-                    if (!agentEntity.presenter.voice) {
+                    if (!agentEntity!.presenter.voice) {
                         throw new Error('Presenter voice is not initialized');
                     }
 
                     return {
                         type: 'text',
-                        provider: agentEntity.presenter.voice,
+                        provider: agentEntity!.presenter.voice,
                         input: payload,
                         ssml: false,
                     };
                 }
 
                 if (payload.type === 'text' && !payload.provider) {
-                    if (!agentEntity.presenter.voice) {
+                    if (!agentEntity!.presenter.voice) {
                         throw new Error('Presenter voice is not initialized');
                     }
 
                     return {
                         type: 'text',
-                        provider: agentEntity.presenter.voice,
+                        provider: agentEntity!.presenter.voice,
                         input: payload.input,
                         ssml: payload.ssml,
                     };
@@ -457,7 +515,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return items.streamingManager.speak({
                 script,
-                metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
+                metadata: { chat_id: items.chat?.id, agent_id: agentId },
             });
         },
         async interrupt({ type }: Interrupt) {
@@ -467,8 +525,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-video-interrupt', {
                 type: type || 'click',
                 stream_id: items.streamingManager?.streamId,
-                agent_id: agentEntity.id,
-                owner_id: agentEntity.owner_id,
                 video_duration_to_interrupt: interruptTimestampTracker.get(true),
                 message_duration_to_interrupt: latencyTimestampTracker.get(true),
                 chat_id: items.chat?.id,

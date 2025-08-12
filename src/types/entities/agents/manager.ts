@@ -99,6 +99,21 @@ interface ManagerCallbacks {
      * @param stream - object containing stream_id, session_id and agent_id
      */
     onStreamCreated?: StreamManagerCallbacks['onStreamCreated'];
+    /**
+     * Optional callback function that will be triggered when the agent is fully loaded
+     * @param agent - The loaded agent instance
+     */
+    onAgentLoaded?(agent: Agent): void;
+    /**
+     * Optional callback function to get the current agent instance
+     * @returns The current agent instance or null if not loaded
+     */
+    getAgent?(): Agent | null;
+    /**
+     * Optional callback function to get starter questions for the agent
+     * @returns Array of starter questions or empty array if none available
+     */
+    getStarterQuestions?(): string[];
 }
 
 interface StreamOptions {
@@ -165,6 +180,7 @@ export interface AgentManager {
      * To know more about agents go to https://docs.d-id.com/reference/agents
      */
     agent: Agent;
+
     /**
      * Get the current stream type of the agent
      */
@@ -179,6 +195,7 @@ export interface AgentManager {
      * Array of starter messages that will be sent to the agent when the chat starts
      */
     starterMessages: string[];
+
     /**
      * Get a token for the Speech to Text service
      * Only available after a chat has started and the agent has been connected
@@ -235,4 +252,18 @@ export interface AgentManager {
      * Only available for Fluent streams and when there's an active video to interrupt
      */
     interrupt: (interrupt: Interrupt) => void;
+}
+
+export interface AgentManagerAsync extends Omit<AgentManager, 'agent' | 'starterMessages'> {
+    /**
+     * Method to get the current agent instance
+     * @returns The current agent instance or null if not loaded
+     */
+    getAgent: () => Agent | null;
+
+    /**
+     * Method to get starter messages for the agent
+     * @returns Array of starter messages or empty array if none available
+     */
+    getStarterMessages: () => string[];
 }

@@ -57,7 +57,7 @@ export function createMessageEventQueue(
     analytics: Analytics,
     items: AgentManagerItems,
     options: AgentManagerOptions,
-    agentEntity: Agent,
+    getAgent: () => Agent | null,
     onStreamDone: () => void
 ) {
     let chatEventQueue: ChatEventQueue = {};
@@ -78,7 +78,7 @@ export function createMessageEventQueue(
                 const SEvent = StreamEvents;
                 const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
                 const failedEvents = [SEvent.StreamFailed, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
-                const props = getStreamAnalyticsProps(data, agentEntity, { mode: items.chatMode });
+                const props = getStreamAnalyticsProps(data, getAgent, { mode: items.chatMode });
 
                 event = event as StreamEvents;
 

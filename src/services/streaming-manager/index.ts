@@ -1,4 +1,4 @@
-import { createClipApi, createTalkApi } from '$/api/streams';
+import { createStreamApi } from '$/api/streams';
 import { didApiUrl } from '$/config/environment';
 import {
     AgentActivityState,
@@ -9,7 +9,6 @@ import {
     StreamType,
     StreamingManagerOptions,
     StreamingState,
-    VideoType,
 } from '$/types/index';
 import { pollStats } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
@@ -142,10 +141,12 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     let dataChannelSignal: StreamingState = StreamingState.Stop;
     let statsSignal: StreamingState = StreamingState.Stop;
 
-    const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
-        agent.videoType === VideoType.Clip
-            ? createClipApi(auth, baseURL, agentId, callbacks.onError)
-            : createTalkApi(auth, baseURL, agentId, callbacks.onError);
+    const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } = createStreamApi(
+        auth,
+        baseURL,
+        agentId,
+        callbacks.onError
+    );
 
     const {
         id: streamIdFromServer,

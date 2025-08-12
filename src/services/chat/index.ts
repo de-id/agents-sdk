@@ -1,5 +1,5 @@
 import { PLAYGROUND_HEADER } from '$/config/consts';
-import type { Agent, AgentsAPI, Chat } from '$/types';
+import type { AgentsAPI, Chat } from '$/types';
 import { ChatMode } from '$/types';
 import { isChatModeWithoutChat } from '$/utils/chat';
 import { Analytics } from '../analytics/mixpanel';
@@ -8,27 +8,26 @@ export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<st
     return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};
 }
 
+export interface CreateChatResult {
+    chat?: Chat;
+    chatMode?: ChatMode;
+}
+
 export async function createChat(
-    agent: Agent,
+    agentId: string,
     agentsApi: AgentsAPI,
     analytics: Analytics,
     chatMode?: ChatMode,
     persist = false,
     chat?: Chat
-) {
+): Promise<CreateChatResult> {
     try {
         if (!chat && !isChatModeWithoutChat(chatMode)) {
-            chat = await agentsApi.newChat(agent.id, { persist }, getRequestHeaders(chatMode));
+            chat = await agentsApi.newChat(agentId, { persist }, getRequestHeaders(chatMode));
+        }
 
-            analytics.track('agent-chat', {
-                event: 'created',
-                chatId: chat.id,
-                agentId: agent.id,
-                mode: chatMode,
-                access: agent.access,
-                name: agent.preview_name,
-                ...(agent.access === 'public' ? { from: 'agent-template' } : {}),
-            });
+        if (chat) {
+            analytics.track('agent-chat', { event: 'created', chat_id: chat.id });
         }
 
         return { chat, chatMode: chat?.chat_mode ?? chatMode };

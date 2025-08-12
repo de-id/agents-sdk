@@ -1,16 +1,17 @@
 import {
     Auth,
-    ClipStreamOptions,
+    CreateStreamOptions,
     ICreateStreamRequestResponse,
     IceCandidate,
     RtcApi,
     SendClipStreamPayload,
     SendStreamPayloadResponse,
+    SendTalkStreamPayload,
     Status,
 } from '$/types/index';
 import { createClient } from '../apiClient';
 
-export function createClipApi(
+export function createStreamApi(
     auth: Auth,
     host: string,
     agentId: string,
@@ -19,13 +20,9 @@ export function createClipApi(
     const client = createClient(auth, `${host}/agents/${agentId}`, onError);
 
     return {
-        createStream(options: ClipStreamOptions) {
+        createStream(options: CreateStreamOptions) {
             return client.post<ICreateStreamRequestResponse>('/streams', {
-                output_resolution: options.output_resolution,
-                compatibility_mode: options.compatibility_mode,
-                stream_warmup: options.stream_warmup,
-                session_timeout: options.session_timeout,
-                fluent: options.fluent,
+                ...options,
             });
         },
         startConnection(streamId: string, answer: RTCSessionDescriptionInit, sessionId?: string) {
@@ -40,7 +37,7 @@ export function createClipApi(
                 ...candidate,
             });
         },
-        sendStreamRequest(streamId: string, sessionId: string, payload: SendClipStreamPayload) {
+        sendStreamRequest(streamId: string, sessionId: string, payload: SendClipStreamPayload | SendTalkStreamPayload) {
             return client.post<SendStreamPayloadResponse>(`/streams/${streamId}`, {
                 session_id: sessionId,
                 ...payload,
