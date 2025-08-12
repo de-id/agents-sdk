@@ -14,7 +14,7 @@ import {
 } from '$/types';
 import { Analytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
-import { CreateChatResult, createChat } from '../chat';
+import { createChat } from '../chat';
 
 function getAgentStreamArgs(options?: AgentManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
@@ -174,33 +174,18 @@ export async function initializeStreamAndChat(
     analytics: Analytics,
     chat?: Chat
 ): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions> }> {
-    const promises: Promise<any>[] = [];
     const createChatPromise = createChat(agentId, agentsApi, analytics, options.mode, options.persistentChat, chat);
-    promises.push(createChatPromise);
+    const connectToManagerPromise = connectToManager(agentId, options, analytics);
 
-    let streamingManagerPromise: Promise<StreamingManager<CreateStreamOptions> | undefined>;
-
-    if (options.mode === ChatMode.Functional) {
-        streamingManagerPromise = connectToManager(agentId, options, analytics);
-        promises.push(streamingManagerPromise);
-    }
-
-    const [chatResult, streamingManager] = (await Promise.all(promises)) as [
-        CreateChatResult,
-        StreamingManager<CreateStreamOptions> | undefined,
-    ];
+    const [chatResult, streamingManager] = await Promise.all([createChatPromise, connectToManagerPromise]);
 
     const { chat: newChat, chatMode } = chatResult;
-
-    console.log('trying to create chat with mode', options.mode);
-    console.log('chatMode', chatMode);
-    console.log('streaming manager', streamingManager);
 
     if (chatMode && chatMode !== options.mode) {
         options.mode = chatMode;
         options.callbacks.onModeChange?.(chatMode);
 
-        if (chatMode === ChatMode.TextOnly) {
+        if (chatMode !== ChatMode.Functional) {
             options.callbacks.onError?.(new ChatModeDowngraded(chatMode));
             if (streamingManager) {
                 await streamingManager.disconnect();

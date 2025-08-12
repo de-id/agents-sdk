@@ -66,10 +66,6 @@ export function createAgentManager(agentId: string, options: AgentManagerOptions
                             starterMessages: agent?.knowledge?.starter_message || [],
                         });
                     },
-                    onError: (error, errorData) => {
-                        reject(error);
-                        options.callbacks.onError?.(error, errorData);
-                    },
                 },
             });
         } catch (error) {
