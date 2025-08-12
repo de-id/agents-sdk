@@ -88,8 +88,6 @@ export function createAgentManager(agentId: string, options: AgentManagerOptions
  * const agentManager = await createAgentManagerAsync('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
 export function createAgentManagerAsync(agentId: string, options: AgentManagerOptions): AgentManagerAsync {
-    const startTime = performance.now();
-    console.log('createAgentManager startTime', startTime);
     let firstConnection = true;
     let videoId: string | null = null;
     let agentEntity: Agent | null = null;
@@ -120,9 +118,6 @@ export function createAgentManagerAsync(agentId: string, options: AgentManagerOp
 
             analytics.enrich(getAgentInfo(agent));
             analytics.track('agent-sdk', { event: 'agent-loaded' });
-            const endTime = performance.now();
-
-            console.log('loadAgent duration', endTime - startTime);
 
             agentEntity = agent;
 
@@ -135,8 +130,12 @@ export function createAgentManagerAsync(agentId: string, options: AgentManagerOp
 
     const loadAgentPromise = loadAgent();
 
-    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentId, () =>
-        items.socketManager?.disconnect()
+    const { onMessage, clearQueue } = createMessageEventQueue(
+        analytics,
+        items,
+        options,
+        () => agentEntity,
+        () => items.socketManager?.disconnect()
     );
 
     items.messages = getInitialMessages(options.initialMessages);
@@ -150,7 +149,6 @@ export function createAgentManagerAsync(agentId: string, options: AgentManagerOp
     analytics.track('agent-sdk', { event: 'loaded' });
 
     async function connect(newChat: boolean) {
-        const connectStartTime = performance.now();
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();
@@ -207,10 +205,6 @@ export function createAgentManagerAsync(agentId: string, options: AgentManagerOp
         firstConnection = false;
 
         changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
-
-        const endTime = performance.now();
-        console.log('connect duration', endTime - connectStartTime);
-        console.log('full duration', endTime - startTime);
     }
 
     async function disconnect() {

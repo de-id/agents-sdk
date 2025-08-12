@@ -1,7 +1,8 @@
-import { createAgentManager } from '$/services/agent-manager';
+import { createAgentManager, createAgentManagerAsync } from '$/services/agent-manager';
 import {
     AgentActivityState,
     AgentManager,
+    AgentManagerAsync,
     Auth,
     ChatMode,
     ConnectionState,
@@ -19,6 +20,7 @@ interface UseAgentManagerOptions {
     auth: Auth;
     distinctId?: string;
     enableAnalytics?: boolean;
+    isAsync?: boolean;
     streamOptions?: {
         streamWarmup?: boolean;
         sessionTimeout?: number;
@@ -28,14 +30,14 @@ interface UseAgentManagerOptions {
 }
 
 export function useAgentManager(props: UseAgentManagerOptions) {
-    const { agentId, baseURL, wsURL, mode, auth, enableAnalytics, distinctId, streamOptions } = props;
+    const { agentId, baseURL, wsURL, mode, auth, enableAnalytics, distinctId, streamOptions, isAsync } = props;
 
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [videoState, setVideoState] = useState(StreamingState.Stop);
     const [agentActivityState, setAgentActivityState] = useState(AgentActivityState.Idle);
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
-    const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
+    const [agentManager, setAgentManager] = useState<AgentManager | AgentManagerAsync | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
     const streamType = agentManager?.getStreamType();
 
@@ -55,9 +57,10 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         if (agentManager) return;
 
         setConnectionState(ConnectionState.Connecting);
+        const createFunction = isAsync ? createAgentManagerAsync : createAgentManager;
 
         try {
-            const newManager: AgentManager = await createAgentManager(agentId, {
+            const newManager: AgentManager | AgentManagerAsync = await createFunction(agentId, {
                 callbacks: {
                     onConnectionStateChange(state: ConnectionState) {
                         setConnectionState(state);
@@ -98,7 +101,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
 
             throw e;
         }
-    }, [agentManager, agentId, baseURL, wsURL, mode, auth, enableAnalytics, distinctId, streamOptions]);
+    }, [agentManager, agentId, baseURL, wsURL, mode, auth, enableAnalytics, distinctId, streamOptions, isAsync]);
 
     const disconnect = useCallback(async () => {
         if (!agentManager) return;
@@ -119,7 +122,10 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         async (text: string) => {
             if (!agentManager || connectionState !== ConnectionState.Connected) {
                 return;
-            } else if (!agentManager?.agent?.presenter) {
+            }
+
+            const agent = 'getAgent' in agentManager ? agentManager.getAgent() : (agentManager as AgentManager).agent;
+            if (!agent?.presenter) {
                 throw new Error('No presenter');
             }
 

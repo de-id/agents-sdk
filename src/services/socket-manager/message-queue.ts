@@ -1,4 +1,4 @@
-import { AgentManagerOptions, ChatProgress, StreamEvents } from '$/types';
+import { Agent, AgentManagerOptions, ChatProgress, StreamEvents } from '$/types';
 import { getStreamAnalyticsProps } from '$/utils/analytics';
 import { AgentManagerItems } from '../agent-manager';
 import { Analytics } from '../analytics/mixpanel';
@@ -57,7 +57,7 @@ export function createMessageEventQueue(
     analytics: Analytics,
     items: AgentManagerItems,
     options: AgentManagerOptions,
-    agentId: string,
+    getAgent: () => Agent | null,
     onStreamDone: () => void
 ) {
     let chatEventQueue: ChatEventQueue = {};
@@ -78,7 +78,7 @@ export function createMessageEventQueue(
                 const SEvent = StreamEvents;
                 const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
                 const failedEvents = [SEvent.StreamFailed, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
-                const props = getStreamAnalyticsProps(data, { mode: items.chatMode });
+                const props = getStreamAnalyticsProps(data, getAgent, { mode: items.chatMode });
 
                 event = event as StreamEvents;
 

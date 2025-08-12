@@ -14,6 +14,7 @@ export function App() {
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
     const [compatibilityMode, setCompatibilityMode] = useState<'on' | 'off' | 'auto'>();
     const [fluent, setFluent] = useState(false);
+    const [isAsync, setIsAsync] = useState(true);
 
     const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -25,6 +26,7 @@ export function App() {
             mode,
             enableAnalytics: false,
             auth: { type: 'key', clientKey },
+            isAsync,
             streamOptions: {
                 streamWarmup: warmup,
                 sessionTimeout,
@@ -91,6 +93,15 @@ export function App() {
                         </button>
 
                         <div className="input-options">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    name="isAsync"
+                                    checked={isAsync}
+                                    onChange={e => setIsAsync(e.currentTarget.checked)}
+                                />
+                                Async
+                            </label>
                             <label>
                                 <input
                                     type="checkbox"

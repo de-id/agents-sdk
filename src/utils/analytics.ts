@@ -60,16 +60,17 @@ export function getAgentInfo(agent: Agent) {
 export const sumFunc = (numbers: number[]) => numbers.reduce((total, aNumber) => total + aNumber, 0);
 export const average = (numbers: number[]) => sumFunc(numbers) / numbers.length;
 
-export function getStreamAnalyticsProps(data: any, additionalProps: Record<string, any>) {
+export function getStreamAnalyticsProps(data: any, getAgent: () => Agent | null, additionalProps: Record<string, any>) {
     const { event, ...baseProps } = data;
 
-    // const { template } = agent?.llm || {};
-    // const { language } = agent?.presenter?.voice || {};
+    const agent = getAgent();
+    const { template } = agent?.llm || {};
+    const { language } = agent?.presenter?.voice || {};
 
     const props = {
         ...baseProps,
-        // llm: { ...baseProps.llm, template },
-        // script: { ...baseProps.script, provider: { ...baseProps?.script?.provider, language } },
+        llm: { ...baseProps.llm, template },
+        script: { ...baseProps.script, provider: { ...baseProps?.script?.provider, language } },
         ...additionalProps,
     };
 

@@ -20,8 +20,6 @@ function getAgentStreamArgs(options?: AgentManagerOptions): CreateStreamOptions 
     const { streamOptions } = options ?? {};
 
     return {
-        // TODO: this should be fetched in the backend
-        // videoType: mapVideoType(agent.presenter.type),
         output_resolution: streamOptions?.outputResolution,
         session_timeout: streamOptions?.sessionTimeout,
         stream_warmup: streamOptions?.streamWarmup,
