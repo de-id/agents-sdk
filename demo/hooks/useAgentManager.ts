@@ -119,7 +119,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         async (text: string) => {
             if (!agentManager || connectionState !== ConnectionState.Connected) {
                 return;
-            } else if (!agentManager?.getAgent()?.presenter) {
+            } else if (!agentManager?.agent?.presenter) {
                 throw new Error('No presenter');
             }
 

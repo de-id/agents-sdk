@@ -1,6 +1,7 @@
 import {
     Agent,
     AgentManager,
+    AgentManagerAsync,
     AgentManagerOptions,
     Auth,
     Chat,
@@ -44,14 +45,55 @@ export interface AgentManagerItems {
  *
  * @param {string} agentId - The ID or instance of the agent to chat with.
  * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
- * * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
+ * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
  *
  * @throws {Error} Throws an error if the agent is not initialized.
  *
  * @example
  * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
  */
-export async function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentManager> {
+export function createAgentManager(agentId: string, options: AgentManagerOptions): Promise<AgentManager> {
+    return new Promise((resolve, reject) => {
+        try {
+            const agentManager = createAgentManagerAsync(agentId, {
+                ...options,
+                callbacks: {
+                    ...options.callbacks,
+                    onAgentLoaded: (agent: Agent) => {
+                        resolve({
+                            ...agentManager,
+                            agent,
+                            starterMessages: agent?.knowledge?.starter_message || [],
+                        });
+                    },
+                    onError: (error, errorData) => {
+                        reject(error);
+                        options.callbacks.onError?.(error, errorData);
+                    },
+                },
+            });
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+/**
+ * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
+ * This function returns a Promise that resolves when the agent is loaded, providing better performance.
+ *
+ * @param {string} agentId - The ID or instance of the agent to chat with.
+ * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
+ * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
+ *
+ * @throws {Error} Throws an error if the agent is not initialized.
+ *
+ * @example
+ * const agentManager = await createAgentManagerAsync('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
+ */
+export function createAgentManagerAsync(agentId: string, options: AgentManagerOptions): AgentManagerAsync {
+    const startTime = performance.now();
+    console.log('createAgentManager startTime', startTime);
     let firstConnection = true;
     let videoId: string | null = null;
     let agentEntity: Agent | null = null;
@@ -78,17 +120,24 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
 
     const loadAgent = async () => {
         try {
-            agentEntity = await agentsApi.getById(agentId);
+            const agent = await agentsApi.getById(agentId);
 
-            analytics.enrich(getAgentInfo(agentEntity));
+            analytics.enrich(getAgentInfo(agent));
+            analytics.track('agent-sdk', { event: 'agent-loaded' });
+            const endTime = performance.now();
 
-            options.callbacks.onAgentLoaded?.(agentEntity);
+            console.log('loadAgent duration', endTime - startTime);
+
+            agentEntity = agent;
+
+            options.callbacks.onAgentLoaded?.(agent);
         } catch (error) {
             options.callbacks.onError?.(new Error('Failed to load agent'), { error });
+            throw error;
         }
     };
 
-    loadAgent();
+    const loadAgentPromise = loadAgent();
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentId, () =>
         items.socketManager?.disconnect()
@@ -105,6 +154,7 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     analytics.track('agent-sdk', { event: 'loaded' });
 
     async function connect(newChat: boolean) {
+        const connectStartTime = performance.now();
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();
@@ -144,7 +194,11 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
             throw e;
         });
 
-        const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
+        const [socketManager, { streamingManager, chat }] = await Promise.all([
+            websocketPromise,
+            initPromise,
+            loadAgentPromise,
+        ]);
 
         if (chat && chat.id !== items.chat?.id) {
             options.callbacks.onNewChat?.(chat.id);
@@ -157,6 +211,10 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
         firstConnection = false;
 
         changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
+
+        const endTime = performance.now();
+        console.log('connect duration', endTime - connectStartTime);
+        console.log('full duration', endTime - startTime);
     }
 
     async function disconnect() {
@@ -183,15 +241,13 @@ export async function createAgentManager(agentId: string, options: AgentManagerO
     }
 
     return {
-        agent: agentEntity,
-        getAgent: () => agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
         getIsInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
-        starterMessages: undefined,
-        getStarterMessages: () => agentEntity?.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentId),
         changeMode,
         enrichAnalytics: analytics.enrich,
+        getAgent: () => agentEntity,
+        getStarterMessages: () => agentEntity?.knowledge?.starter_message || [],
         async connect() {
             await connect(true);
 

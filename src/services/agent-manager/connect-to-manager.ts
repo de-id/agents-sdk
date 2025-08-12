@@ -178,12 +178,12 @@ export async function initializeStreamAndChat(
     const createChatPromise = createChat(agentId, agentsApi, analytics, options.mode, options.persistentChat, chat);
     promises.push(createChatPromise);
 
-    const streamingManagerPromise =
-        options.mode === ChatMode.Functional
-            ? connectToManager(agentId, options, analytics)
-            : Promise.resolve(undefined);
+    let streamingManagerPromise: Promise<StreamingManager<CreateStreamOptions> | undefined>;
 
-    promises.push(streamingManagerPromise);
+    if (options.mode === ChatMode.Functional) {
+        streamingManagerPromise = connectToManager(agentId, options, analytics);
+        promises.push(streamingManagerPromise);
+    }
 
     const [chatResult, streamingManager] = (await Promise.all(promises)) as [
         CreateChatResult,
@@ -192,8 +192,9 @@ export async function initializeStreamAndChat(
 
     const { chat: newChat, chatMode } = chatResult;
 
+    console.log('trying to create chat with mode', options.mode);
     console.log('chatMode', chatMode);
-    console.log('options.mode', options.mode);
+    console.log('streaming manager', streamingManager);
 
     if (chatMode && chatMode !== options.mode) {
         options.mode = chatMode;
@@ -201,7 +202,9 @@ export async function initializeStreamAndChat(
 
         if (chatMode === ChatMode.TextOnly) {
             options.callbacks.onError?.(new ChatModeDowngraded(chatMode));
-            await streamingManager?.disconnect();
+            if (streamingManager) {
+                await streamingManager.disconnect();
+            }
             return { chat: newChat };
         }
     }
