@@ -71,6 +71,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                                 ...sendProps,
                                 agentId: this.agentId,
                                 source,
+                                token: this.token,
                                 time: Date.now(),
                                 $insert_id: this.getRandom(),
                                 origin: window.location.href,
