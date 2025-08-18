@@ -1,2 +1,1 @@
-export * from './clipStream'
-export * from './talkStream'
+export * from './streamApi';

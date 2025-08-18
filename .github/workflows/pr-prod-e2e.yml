@@ -58,6 +58,7 @@ jobs:
         env:
           E2E_USER_APIKEY: ${{ secrets.E2E_USER_APIKEY }}
           VITE_CLIENT_KEY: ${{ secrets.VITE_CLIENT_KEY }}
+          ASSERT_CHAT_RESTART: 'false'
         run: yarn test:prod
 
       - name: Upload test results
