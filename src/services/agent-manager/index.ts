@@ -141,6 +141,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         firstConnection = false;
 
+        analytics.enrich({
+            agentId: agentEntity.id,
+            chatId: chat?.id,
+            streamId: streamingManager?.streamId,
+            mode: items.chatMode,
+        });
+
         changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
     }
 
@@ -180,9 +187,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-chat', {
                 event: 'connect',
-                chatId: items.chat?.id,
-                stream_id: items.streamingManager?.streamId,
-                agentId: agentEntity.id,
                 mode: items.chatMode,
                 access: agentEntity.access,
                 name: agentEntity.preview_name,
@@ -195,9 +199,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-chat', {
                 event: 'reconnect',
-                chatId: items.chat?.id,
-                stream_id: items.streamingManager?.streamId,
-                agentId: agentEntity.id,
                 mode: items.chatMode,
                 access: agentEntity.access,
                 name: agentEntity.preview_name,
@@ -209,9 +210,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-chat', {
                 event: 'disconnect',
-                chatId: items.chat?.id,
-                stream_id: items.streamingManager?.streamId,
-                agentId: agentEntity.id,
                 mode: items.chatMode,
                 access: agentEntity.access,
                 name: agentEntity.preview_name,
@@ -324,9 +322,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 analytics.track('agent-message-send', {
                     event: 'success',
-                    chatId: items.chat?.id,
-                    stream_id: items.streamingManager?.streamId,
-                    mode: items.chatMode,
                     messages: items.messages.length + 1,
                 });
 
@@ -335,10 +330,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                     analytics.track('agent-message-received', {
                         latency: latencyTimestampTracker.get(true),
-                        chatId: items.chat?.id,
-                        stream_id: items.streamingManager?.streamId,
-                        agentId: agentEntity.id,
-                        mode: items.chatMode,
                         messages: items.messages.length,
                     });
                 }
@@ -351,10 +342,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 analytics.track('agent-message-send', {
                     event: 'error',
-                    mode: items.chatMode,
-                    chatId: items.chat?.id,
-                    stream_id: items.streamingManager?.streamId,
-                    agentId: agentEntity.id,
                     messages: items.messages.length,
                 });
 
@@ -376,7 +363,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 event: rateId ? 'update' : 'create',
                 thumb: score === 1 ? 'up' : 'down',
                 knowledge_id: agentEntity.knowledge?.id ?? '',
-                mode: items.chatMode,
                 matches,
                 score,
             });
@@ -402,7 +388,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw new Error('Chat is not initialized');
             }
 
-            analytics.track('agent-rate-delete', { type: 'text', chat_id: items.chat?.id, id, mode: items.chatMode });
+            analytics.track('agent-rate-delete', { type: 'text' });
 
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
@@ -477,13 +463,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-video-interrupt', {
                 type: type || 'click',
-                stream_id: items.streamingManager?.streamId,
-                agent_id: agentEntity.id,
                 owner_id: agentEntity.owner_id,
                 video_duration_to_interrupt: interruptTimestampTracker.get(true),
                 message_duration_to_interrupt: latencyTimestampTracker.get(true),
-                chat_id: items.chat?.id,
-                mode: items.chatMode,
             });
 
             lastMessage.interrupted = true;
