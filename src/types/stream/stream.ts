@@ -1,7 +1,6 @@
 import { Analytics } from '$/services/analytics/mixpanel';
 import { VideoRTCStatsReport } from '$/services/streaming-manager/stats/report';
 import { Auth } from '../auth';
-import { VideoType } from '../entities';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
 import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
 
@@ -61,16 +60,16 @@ export interface ManagerCallbacks {
     onError?: (error: Error, errorData: object) => void;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
+    onVideoIdChange?: (videoId: string | null) => void;
+    onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
-    videoType: VideoType.Talk;
     fluent?: boolean;
 }
 
 export interface ClipStreamOptions extends CreateClipStreamRequest {
-    videoType: VideoType.Clip;
     fluent?: boolean;
 }
 

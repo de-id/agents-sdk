@@ -1,5 +1,7 @@
 import { PLAYGROUND_HEADER } from '$/config/consts';
-import { Agent, AgentsAPI, Chat, ChatMode } from '$/types';
+import type { Agent, AgentsAPI, Chat } from '$/types';
+import { ChatMode } from '$/types';
+import { isChatModeWithoutChat } from '$/utils/chat';
 import { Analytics } from '../analytics/mixpanel';
 
 export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {
@@ -15,14 +17,17 @@ export async function createChat(
     chat?: Chat
 ) {
     try {
-        if (!chat && chatMode !== ChatMode.DirectPlayback) {
+        if (!chat && !isChatModeWithoutChat(chatMode)) {
             chat = await agentsApi.newChat(agent.id, { persist }, getRequestHeaders(chatMode));
 
             analytics.track('agent-chat', {
                 event: 'created',
-                chat_id: chat.id,
-                agent_id: agent.id,
+                chatId: chat.id,
+                agentId: agent.id,
                 mode: chatMode,
+                access: agent.access,
+                name: agent.preview_name,
+                ...(agent.access === 'public' ? { from: 'agent-template' } : {}),
             });
         }
 

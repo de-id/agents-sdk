@@ -57,6 +57,7 @@ export enum ChatMode {
     Maintenance = 'Maintenance',
     Playground = 'Playground',
     DirectPlayback = 'DirectPlayback',
+    Off = 'Off',
 }
 
 export interface ChatResponse {
@@ -81,5 +82,5 @@ export interface Chat {
 }
 
 export interface Interrupt {
-    type: 'text' | 'audio' | 'click';
+    type: 'text' | 'audio' | 'click' | 'manual';
 }

@@ -1,4 +1,4 @@
-import { createClipApi, createTalkApi } from '$/api/streams';
+import { createStreamApi } from '$/api/streams';
 import { didApiUrl } from '$/config/environment';
 import {
     AgentActivityState,
@@ -9,7 +9,6 @@ import {
     StreamType,
     StreamingManagerOptions,
     StreamingState,
-    VideoType,
 } from '$/types/index';
 import { pollStats } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
@@ -23,7 +22,7 @@ const actualRTCPC = (
 ).bind(window);
 
 type DataChannelPayload = string | Record<string, unknown>;
-type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void
+type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void;
 
 function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     switch (state) {
@@ -46,7 +45,7 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function parseDataChannelMessage(message: string): { subject: StreamEvents, data: DataChannelPayload } {
+function parseDataChannelMessage(message: string): { subject: StreamEvents; data: DataChannelPayload } {
     const [subject, rawData = ''] = message.split(/:(.+)/);
     try {
         const data = JSON.parse(rawData);
@@ -142,10 +141,12 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     let dataChannelSignal: StreamingState = StreamingState.Stop;
     let statsSignal: StreamingState = StreamingState.Stop;
 
-    const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } =
-        agent.videoType === VideoType.Clip
-            ? createClipApi(auth, baseURL, agentId, callbacks.onError)
-            : createTalkApi(auth, baseURL, agentId, callbacks.onError);
+    const { startConnection, sendStreamRequest, close, createStream, addIceCandidate } = createStreamApi(
+        auth,
+        baseURL,
+        agentId,
+        callbacks.onError
+    );
 
     const {
         id: streamIdFromServer,
@@ -155,6 +156,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         fluent,
         interrupt_enabled: interruptAvailable,
     } = await createStream(agent);
+    callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id: session_id as string, agent_id: agentId });
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
@@ -226,7 +228,23 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         }
     };
 
-    function handleStreamVideoEvent(subject: StreamEvents.StreamStarted | StreamEvents.StreamDone) {
+    const handleStreamVideoIdChange = (videoId: string | null) => {
+        callbacks.onVideoIdChange?.(videoId);
+    };
+
+    function handleStreamVideoEvent(
+        subject: StreamEvents.StreamStarted | StreamEvents.StreamDone,
+        payload?: DataChannelPayload
+    ) {
+        if (subject === StreamEvents.StreamStarted && typeof payload === 'object' && 'metadata' in payload) {
+            const metadata = payload.metadata as { videoId: string };
+            handleStreamVideoIdChange(metadata.videoId);
+        }
+
+        if (subject === StreamEvents.StreamDone) {
+            handleStreamVideoIdChange(null);
+        }
+
         dataChannelSignal = subject === StreamEvents.StreamStarted ? StreamingState.Start : StreamingState.Stop;
 
         handleStreamState({
@@ -248,7 +266,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         [StreamEvents.StreamStarted]: handleStreamVideoEvent,
         [StreamEvents.StreamDone]: handleStreamVideoEvent,
         [StreamEvents.StreamReady]: handleStreamReadyEvent,
-    } satisfies Partial<{ [K in StreamEvents]: DataChannelMessageHandler<K> }>
+    } satisfies Partial<{ [K in StreamEvents]: DataChannelMessageHandler<K> }>;
 
     pcDataChannel.onmessage = (event: MessageEvent) => {
         const { subject, data } = parseDataChannelMessage(event.data);
