@@ -106,7 +106,7 @@ jobs:
           git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]" || echo "No changes to commit"
           git push origin prod
         env:
-          GITHUB_TOKEN: ${{ secrets.DEVOPS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Sync version back to main (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
