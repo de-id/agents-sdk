@@ -142,7 +142,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         firstConnection = false;
 
         analytics.enrich({
-            agentId: agentEntity.id,
             chatId: chat?.id,
             streamId: streamingManager?.streamId,
             mode: items.chatMode,
@@ -188,9 +187,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'connect',
                 mode: items.chatMode,
-                access: agentEntity.access,
-                name: agentEntity.preview_name,
-                ...(agentEntity.access === 'public' ? { from: 'agent-template' } : {}),
             });
         },
         async reconnect() {
@@ -200,9 +196,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'reconnect',
                 mode: items.chatMode,
-                access: agentEntity.access,
-                name: agentEntity.preview_name,
-                ...(agentEntity.access === 'public' ? { from: 'agent-template' } : {}),
             });
         },
         async disconnect() {
@@ -211,9 +204,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-chat', {
                 event: 'disconnect',
                 mode: items.chatMode,
-                access: agentEntity.access,
-                name: agentEntity.preview_name,
-                ...(agentEntity.access === 'public' ? { from: 'agent-template' } : {}),
             });
         },
         async chat(userMessage: string) {
@@ -463,7 +453,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-video-interrupt', {
                 type: type || 'click',
-                owner_id: agentEntity.owner_id,
                 video_duration_to_interrupt: interruptTimestampTracker.get(true),
                 message_duration_to_interrupt: latencyTimestampTracker.get(true),
             });
