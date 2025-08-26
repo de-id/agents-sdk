@@ -50,6 +50,10 @@ export function getAgentInfo(agent: Agent) {
         starterQuestionsCount: agent.knowledge?.starter_message?.length,
         topicsToAvoid: promptCustomization?.topics_to_avoid,
         maxResponseLength: promptCustomization?.max_response_length,
+        agentId: agent.id,
+        access: agent.access,
+        name: agent.preview_name,
+        ...(agent.access === 'public' ? { from: 'agent-template' } : {}),
     };
 }
 export const sumFunc = (numbers: number[]) => numbers.reduce((total, aNumber) => total + aNumber, 0);
