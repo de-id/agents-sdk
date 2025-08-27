@@ -238,27 +238,28 @@ Callback functions enable you to manage various events throughout the SDK lifecy
 
 ### ➤ ✴️ Stream Options
 
-- **`compatibilityMode`**:  
-  Defines the video codec to be used in the stream.  
-  When set to `"on"`: VP8 will be used.  
-  When set to `"off"`: H264 will be used  
-  When set to `"auto"` - the codec will be selected according to the browser [Default]  
-  <br />
-- **`streamWarmup`**:  
-  Allowed values:  
-  `true` -  warmup video will be streamed when the connection is established.  
-  `false` - no warmup video [Default]  
-  <br />
-- **`sessionTimeout`**:  
-  **Can only be used with proper permissions**  
-  Maximum duration (in seconds) between messages before the session times out.  
-  Max value: `300`  
-  <br />
-- **`outputResolution`**:  
-  **Supported only with Talk presenters (photo-based).**  
-  The output resolution sets the maximum height or width pixels of the streamed video.  
-  When resolution is not configured, it defaults to the agent output resolution.  
-  Allowed values: `150 - 1080`
+-   **`compatibilityMode`**:  
+    Defines the video codec to be used in the stream.  
+    When set to `"on"`: VP8 will be used.  
+    When set to `"off"`: H264 will be used  
+    When set to `"auto"` - the codec will be selected according to the browser [Default]  
+    <br />
+-   **`streamWarmup`**:  
+    Allowed values:  
+    `true` - warmup video will be streamed when the connection is established.  
+    `false` - no warmup video [Default]  
+    <br />
+-   **`sessionTimeout`**:  
+    **Can only be used with proper permissions**
+    Maximum duration (in seconds) between messages before the session times out.  
+    Max value: `300`  
+    <br />
+-   **`outputResolution` (Deprecated)**:  
+    **Deprecation Notice**: This property is **deprecated** and may be removed in future versions.
+    **Supported only with Talk presenters (photo-based).**
+    The output resolution sets the maximum height or width (in pixels) of the streamed video.
+    When not configured, it defaults to the agent output resolution.
+    **Allowed values**: `150 - 1080`.
 
 ## ✴️ See it in Action
 
