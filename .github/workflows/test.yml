@@ -1,0 +1,123 @@
+name: Unit Tests & Coverage
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for coverage reporting
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run TypeScript type checking
+        run: yarn tsc --noEmit
+
+      - name: Run unit tests
+        run: yarn test --watchAll=false --passWithNoTests
+        env:
+          CI: true
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Check code formatting
+        run: |
+          if command -v yarn prettier &> /dev/null; then
+            echo "Running Prettier check..."
+            yarn prettier --check "src/**/*.{ts,tsx,js,jsx}" || {
+              echo "❌ Code formatting issues found. Please run 'yarn prettier --write .' to fix them."
+              exit 1
+            }
+          else
+            echo "Prettier not configured, skipping format check"
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build project
+        run: yarn build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ github.run_id }}
+          path: |
+            dist/
+          retention-days: 3
+
+  # This job will only run if all previous jobs succeed
+  # It serves as a single status check for branch protection
+  all-checks-passed:
+    runs-on: ubuntu-latest
+    needs: [test, lint, build]
+    if: always()
+
+    steps:
+      - name: Check if all jobs succeeded
+        run: |
+          if [[ "${{ needs.test.result }}" == "success" && 
+                "${{ needs.lint.result }}" == "success" && 
+                "${{ needs.build.result }}" == "success" ]]; then
+            echo "✅ All checks passed!"
+            exit 0
+          else
+            echo "❌ Some checks failed:"
+            echo "  Test: ${{ needs.test.result }}"
+            echo "  Lint: ${{ needs.lint.result }}"
+            echo "  Build: ${{ needs.build.result }}"
+            exit 1
+          fi

@@ -30,7 +30,13 @@
         "preview": "vite preview",
         "test-build": "node .infra/build.js -m development",
         "build:docs": "typedoc",
-        "test": "jest"
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:ci": "jest --watchAll=false --passWithNoTests --verbose=false",
+        "type-check": "tsc --noEmit",
+        "lint": "prettier --check \"src/**/*.{ts,tsx,js,jsx}\"",
+        "lint:fix": "prettier --write \"src/**/*.{ts,tsx,js,jsx}\"",
+        "ci:test": "npm run type-check && npm run test:ci && npm run build"
     },
     "devDependencies": {
         "@preact/preset-vite": "^2.8.1",
