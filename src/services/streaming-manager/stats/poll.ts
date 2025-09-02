@@ -72,8 +72,8 @@ export function pollStats(
                 avgJitterDelayInInterval < LOW_JITTER_TRESHOLD
                     ? ConnectivityState.Strong
                     : avgJitterDelayInInterval > HIGH_JITTER_TRESHOLD && currFreezeCount > 1
-                        ? ConnectivityState.Weak
-                        : prevLowConnState;
+                      ? ConnectivityState.Weak
+                      : prevLowConnState;
 
             if (currLowConnState !== prevLowConnState) {
                 onConnectivityStateChange?.(currLowConnState);
@@ -104,7 +104,7 @@ export function pollStats(
                     onConnected();
                 }
 
-                prevFreezeCount = freezeCount
+                prevFreezeCount = freezeCount;
                 isStreaming = false;
             }
         }

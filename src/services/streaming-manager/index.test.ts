@@ -13,16 +13,14 @@ import { pollStats } from './stats/poll';
 
 // Mock createStreamApi
 const mockApi = {
-    createStream: jest
-        .fn()
-        .mockResolvedValue({
-            id: 'streamId',
-            offer: { type: 'offer', sdp: 'sdp' },
-            ice_servers: [],
-            session_id: 'sessionId',
-            fluent: false,
-            interrupt_enabled: false,
-        }),
+    createStream: jest.fn().mockResolvedValue({
+        id: 'streamId',
+        offer: { type: 'offer', sdp: 'sdp' },
+        ice_servers: [],
+        session_id: 'sessionId',
+        fluent: false,
+        interrupt_enabled: false,
+    }),
     startConnection: jest.fn(),
     sendStreamRequest: jest.fn(),
     close: jest.fn(),
