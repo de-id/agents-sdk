@@ -1,4 +1,6 @@
 name: Unit Tests
+permissions:
+  contents: read
 
 on:
   pull_request:
@@ -19,8 +21,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Needed for coverage reporting
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,7 +36,7 @@ jobs:
         run: yarn tsc --noEmit
 
       - name: Run unit tests
-        run: yarn test --watchAll=false --passWithNoTests
+        run: yarn test:ci
         env:
           CI: true
 

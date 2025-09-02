@@ -7,7 +7,8 @@ module.exports = {
     extensionsToTreatAsEsm: ['.ts', '.tsx'],
     moduleNameMapper: { '^\\$/(.*)$': '<rootDir>/src/$1', '^%/(.*)$': '<rootDir>/src/types/$1' },
     setupFiles: ['<rootDir>/jest.setup.ts'],
-    
+    reporters: ['summary'],
+
     // CI/CD optimizations
     maxWorkers: process.env.CI ? 2 : '50%',
     testTimeout: process.env.CI ? 10000 : 5000,
