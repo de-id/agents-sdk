@@ -140,7 +140,7 @@ function connectToManager(
 
     return new Promise(async (resolve, reject) => {
         try {
-            const streamingManager = await createStreamingManager(agent.id, getAgentStreamArgs(options), {
+            const streamingManager = await createStreamingManager(agent, getAgentStreamArgs(options), {
                 ...options,
                 analytics,
                 callbacks: {
