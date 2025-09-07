@@ -1,4 +1,4 @@
-import { Agent, CreateStreamOptions, StreamingManagerOptions, VideoType } from '$/types';
+import { Agent, CreateStreamOptions, StreamingManagerOptions } from '$/types';
 import { createLiveKitStreamingManager } from './livekit-manager';
 import { createStreamingManager as createWebRTCStreamingManager } from './webrtc-manager';
 
@@ -14,5 +14,6 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         : createWebRTCStreamingManager(agent.id, streamOptions, options);
 }
 
+export type { StreamingManager } from './common';
 export type { LiveKitStreamingManager } from './livekit-manager';
-export type { StreamingManager } from './webrtc-manager';
+export type { WebRTCStreamingManager } from './webrtc-manager';
