@@ -51,22 +51,11 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
 
         if (track.kind === 'video') {
             const videoTrack = track as RemoteVideoTrack;
-            const videoElement = document.createElement('video');
-            videoElement.srcObject = new MediaStream([videoTrack.mediaStreamTrack]);
-            videoElement.autoplay = true;
-            videoElement.playsInline = true;
-
-            // Attach to DOM or call callback
-            if (videoElement.srcObject) {
-                callbacks.onSrcObjectReady?.(videoElement.srcObject);
-            }
+            const mediaStream = new MediaStream([videoTrack.mediaStreamTrack]);
+            callbacks.onSrcObjectReady?.(mediaStream);
         } else if (track.kind === 'audio') {
             const audioTrack = track as RemoteAudioTrack;
-            const audioElement = document.createElement('audio');
-            audioElement.srcObject = new MediaStream([audioTrack.mediaStreamTrack]);
-            audioElement.autoplay = true;
-
-            // Handle audio if needed
+            const mediaStream = new MediaStream([audioTrack.mediaStreamTrack]);
         }
     });
 
