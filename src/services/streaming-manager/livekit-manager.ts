@@ -6,9 +6,11 @@ import {
     StreamType,
     StreamingManagerOptions,
     StreamingState,
+    Transport,
 } from '$/types';
 import { RemoteAudioTrack, RemoteParticipant, RemoteTrack, RemoteVideoTrack, Room, RoomEvent } from 'livekit-client';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
+import { didApiUrl } from '../../config/environment';
 
 let _debug = false;
 const log = (message: string, extra?: any) => _debug && console.log(message, extra);
@@ -33,13 +35,11 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     let isConnected = false;
     let videoId: string | null = null;
 
-    // Create LiveKit room
     room = new Room({
         adaptiveStream: true,
         dynacast: true,
     });
 
-    // Set up event handlers
     room.on(RoomEvent.Connected, () => {
         log('LiveKit room connected successfully');
         isConnected = true;
@@ -103,15 +103,13 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         }
     });
 
-    // Create stream using V2 API
-    const streamApi = createStreamApiV2(auth, baseURL || '', agentId, callbacks.onError);
+    const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     const streamResponse = await streamApi.createStream({
-        transport: 'livekit' as any, // Using string literal for now
+        transport: Transport.Livekit,
     });
 
     const { agent_id: streamId, session_id: sessionId, session_token: token, session_url: url } = streamResponse;
 
-    // Join the room
     await room.connect(url, token);
     log('LiveKit room joined successfully');
 
