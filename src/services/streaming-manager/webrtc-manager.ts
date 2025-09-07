@@ -6,15 +6,14 @@ import {
     CreateStreamOptions,
     PayloadType,
     StreamEvents,
-    StreamType,
     StreamingManagerOptions,
     StreamingState,
-} from '$/types/index';
+    StreamType,
+} from '$/types';
+import { createStreamingLogger, StreamingManager } from './common';
 import { pollStats } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
-let _debug = false;
-const log = (message: string, extra?: any) => _debug && console.log(message, extra);
 const actualRTCPC = (
     window.RTCPeerConnection ||
     (window as any).webkitRTCPeerConnection ||
@@ -45,17 +44,19 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function parseDataChannelMessage(message: string): { subject: StreamEvents; data: DataChannelPayload } {
-    const [subject, rawData = ''] = message.split(/:(.+)/);
-    try {
-        const data = JSON.parse(rawData);
-        log('parsed data channel message', { subject, data });
-        return { subject: subject as StreamEvents, data };
-    } catch (e) {
-        log('Failed to parse data channel message, returning data as string', { subject, rawData, error: e });
-        return { subject: subject as StreamEvents, data: rawData };
-    }
-}
+const createParseDataChannelMessage =
+    (log: ReturnType<typeof createStreamingLogger>) =>
+    (message: string): { subject: StreamEvents; data: DataChannelPayload } => {
+        const [subject, rawData = ''] = message.split(/:(.+)/);
+        try {
+            const data = JSON.parse(rawData);
+            log('parsed data channel message', { subject, data });
+            return { subject: subject as StreamEvents, data };
+        } catch (e) {
+            log('Failed to parse data channel message, returning data as string', { subject, rawData, error: e });
+            return { subject: subject as StreamEvents, data: rawData };
+        }
+    };
 
 function handleLegacyStreamState({
     statsSignal,
@@ -133,8 +134,10 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
     { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions
-) {
-    _debug = debug;
+): Promise<StreamingManager<T>> {
+    const log = createStreamingLogger(debug, 'WebRTCStreamingManager');
+    const parseDataChannelMessage = createParseDataChannelMessage(log);
+
     let srcObject: MediaStream | null = null;
     let isConnected = false;
     let isDatachannelOpen = false;
@@ -375,8 +378,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         streamId: streamIdFromServer,
 
         streamType,
-        interruptAvailable,
+        interruptAvailable: interruptAvailable ?? false,
     };
 }
 
-export type StreamingManager<T extends CreateStreamOptions> = Awaited<ReturnType<typeof createStreamingManager<T>>>;
+export type WebRTCStreamingManager<T extends CreateStreamOptions> = StreamingManager<T>;

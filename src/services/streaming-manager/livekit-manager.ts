@@ -3,32 +3,22 @@ import {
     ConnectionState,
     CreateStreamOptions,
     PayloadType,
-    StreamType,
     StreamingManagerOptions,
     StreamingState,
+    StreamType,
     Transport,
 } from '$/types';
 import { RemoteAudioTrack, RemoteParticipant, RemoteTrack, RemoteVideoTrack, Room, RoomEvent } from 'livekit-client';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
-
-let _debug = false;
-const log = (message: string, extra?: any) => _debug && console.log(message, extra);
+import { createStreamingLogger, StreamingManager } from './common';
 
 export async function createLiveKitStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     agent: T,
     options: StreamingManagerOptions
-): Promise<{
-    speak(payload: PayloadType<T>): Promise<any>;
-    disconnect(): Promise<void>;
-    sendDataChannelMessage(payload: string): void;
-    sessionId: string;
-    streamId: string;
-    streamType: StreamType;
-    interruptAvailable: boolean;
-}> {
-    _debug = options.debug || false;
+): Promise<StreamingManager<T>> {
+    const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
     const { callbacks, auth, baseURL, analytics } = options;
     let room: Room | null = null;
@@ -172,6 +162,4 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     };
 }
 
-export type LiveKitStreamingManager<T extends CreateStreamOptions> = Awaited<
-    ReturnType<typeof createLiveKitStreamingManager<T>>
->;
+export type LiveKitStreamingManager<T extends CreateStreamOptions> = StreamingManager<T>;
