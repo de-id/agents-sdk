@@ -1,9 +1,9 @@
 import { ExtendedTextToSpeechProviders } from '$/types/voice/tts';
 import { Rect } from '../../face-rect';
 
-export type videoType = 'talk' | 'clip';
+export type videoType = 'talk' | 'clip' | 'expressive';
 
-export type Presenter = TalkPresenter | ClipPresenter;
+export type Presenter = TalkPresenter | ClipPresenter | ExpresivePresenter;
 
 export interface BasePresenter {
     type: videoType;
@@ -26,4 +26,8 @@ export interface ClipPresenter extends BasePresenter {
     background?: string;
     presenter_id: string;
     is_greenscreen?: boolean;
+}
+
+export interface ExpresivePresenter extends BasePresenter {
+    type: 'expressive';
 }
