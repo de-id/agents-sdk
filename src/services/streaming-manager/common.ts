@@ -1,7 +1,7 @@
 import { CreateStreamOptions } from '$/types';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
-    debug && console.log(`[${prefix}] ${message}`, extra);
+    debug && console.log(`[${prefix}] ${message}`, extra ?? '');
 
 /**
  * Shared type for all streaming managers (LiveKit, WebRTC, etc.)
