@@ -148,26 +148,31 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         'stream-type': streamType,
     });
 
+    async function sendDataChannelMessage(message: string) {
+        if (!isConnected || !room) {
+            log('Room is not connected for sending messages');
+            callbacks.onError?.(new Error('Room is not connected for sending messages'), {
+                streamId,
+            });
+            return;
+        }
+
+        try {
+            await room.localParticipant.publishData(new TextEncoder().encode(message), { reliable: true });
+        } catch (e: any) {
+            log('Error sending data channel message', e);
+            callbacks.onError?.(e, { streamId });
+        }
+    }
+
     return {
         speak(payload: PayloadType<T>) {
-            if (!isConnected || !room) {
-                throw new Error('Room is not connected');
-            }
-
-            // Send speak request via data channel
             const message = JSON.stringify({
                 type: 'speak',
                 payload,
             });
 
-            room.localParticipant.publishData(new TextEncoder().encode(message), { reliable: true });
-
-            // For now, return a mock response - this should be replaced with actual API call
-            return Promise.resolve({
-                duration: 0,
-                video_id: '',
-                status: 'success',
-            });
+            return sendDataChannelMessage(message);
         },
 
         async disconnect() {
@@ -184,22 +189,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         },
 
-        sendDataChannelMessage(payload: string) {
-            if (!isConnected || !room) {
-                log('Room is not connected for sending messages');
-                callbacks.onError?.(new Error('Room is not connected for sending messages'), {
-                    streamId,
-                });
-                return;
-            }
-
-            try {
-                room.localParticipant.publishData(new TextEncoder().encode(payload), { reliable: true });
-            } catch (e: any) {
-                log('Error sending data channel message', e);
-                callbacks.onError?.(e, { streamId });
-            }
-        },
+        sendDataChannelMessage,
 
         sessionId,
         streamId,
