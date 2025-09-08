@@ -8,7 +8,15 @@ import {
     StreamType,
     Transport,
 } from '$/types';
-import { RemoteAudioTrack, RemoteParticipant, RemoteTrack, RemoteVideoTrack, Room, RoomEvent } from 'livekit-client';
+import {
+    ConnectionState as LiveKitConnectionState,
+    RemoteAudioTrack,
+    RemoteParticipant,
+    RemoteTrack,
+    RemoteVideoTrack,
+    Room,
+    RoomEvent,
+} from 'livekit-client';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { createStreamingLogger, StreamingManager } from './common';
@@ -31,17 +39,42 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         dynacast: true,
     });
 
-    room.on(RoomEvent.Connected, () => {
-        log('LiveKit room connected successfully');
-        isConnected = true;
-        callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+    room.on(RoomEvent.ConnectionStateChanged, state => {
+        log('Connection state changed:', state);
+        switch (state) {
+            case LiveKitConnectionState.Connecting:
+                callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+                break;
+            case LiveKitConnectionState.Connected:
+                log('LiveKit room connected successfully');
+                isConnected = true;
+                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+                break;
+            case LiveKitConnectionState.Disconnected:
+                log('LiveKit room disconnected');
+                isConnected = false;
+                callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+                break;
+            case LiveKitConnectionState.Reconnecting:
+                log('LiveKit room reconnecting...');
+                callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+                break;
+            case LiveKitConnectionState.SignalReconnecting:
+                log('LiveKit room signal reconnecting...');
+                callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+                break;
+        }
     });
 
-    room.on(RoomEvent.Disconnected, () => {
-        log('LiveKit room disconnected');
-        isConnected = false;
-        callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+    // Handle connection errors
+    room.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+        if (participant?.isLocal && quality === 'poor') {
+            log('Connection quality is poor');
+        }
     });
+
+    // Handle room closure - this would be handled by the server or other means
+    // For now, we'll handle Closed state in disconnect method
 
     room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
         log('Participant connected:', participant.identity);
@@ -83,15 +116,29 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         }
     });
 
+    callbacks.onConnectionStateChange?.(ConnectionState.New);
+
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
-    const streamResponse = await streamApi.createStream({
-        transport: Transport.Livekit,
-    });
+    let streamId: string;
+    let sessionId: string;
 
-    const { agent_id: streamId, session_id: sessionId, session_token: token, session_url: url } = streamResponse;
+    try {
+        const streamResponse = await streamApi.createStream({
+            transport: Transport.Livekit,
+        });
 
-    await room.connect(url, token);
-    log('LiveKit room joined successfully');
+        const { agent_id, session_id, session_token: token, session_url: url } = streamResponse;
+        streamId = agent_id;
+        sessionId = session_id;
+
+        await room.connect(url, token);
+        log('LiveKit room joined successfully');
+    } catch (error) {
+        log('Failed to connect to LiveKit room:', error);
+        callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+        callbacks.onError?.(error as Error, { streamId: '' });
+        throw error;
+    }
 
     analytics.enrich({
         'stream-type': streamType,
@@ -125,6 +172,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
                 room = null;
             }
             isConnected = false;
+            callbacks.onConnectionStateChange?.(ConnectionState.Completed);
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         },
 
