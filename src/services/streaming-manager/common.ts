@@ -1,4 +1,4 @@
-import { CreateStreamOptions } from '$/types';
+import { CreateStreamOptions, PayloadType, StreamType } from '$/types';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');
@@ -12,7 +12,7 @@ export type StreamingManager<T extends CreateStreamOptions> = {
      * Method to send request to server to get clip or talk depending on payload
      * @param payload The payload to send to the streaming service
      */
-    speak(payload: any): Promise<any>;
+    speak(payload: PayloadType<T>): Promise<any>;
 
     /**
      * Method to close the streaming connection
@@ -38,7 +38,7 @@ export type StreamingManager<T extends CreateStreamOptions> = {
     /**
      * Type of streaming implementation being used
      */
-    streamType: any;
+    streamType: StreamType;
 
     /**
      * Whether interrupt functionality is available for this stream
