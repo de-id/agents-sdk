@@ -50,7 +50,6 @@ export enum ConnectionState {
 export enum StreamType {
     Legacy = 'legacy',
     Fluent = 'fluent',
-    LiveKit = 'livekit',
 }
 
 export interface ManagerCallbacks {

@@ -24,6 +24,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     let room: Room | null = null;
     let isConnected = false;
     let videoId: string | null = null;
+    const streamType = StreamType.Fluent;
 
     room = new Room({
         adaptiveStream: true,
@@ -93,7 +94,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     log('LiveKit room joined successfully');
 
     analytics.enrich({
-        'stream-type': StreamType.LiveKit,
+        'stream-type': streamType,
     });
 
     return {
@@ -146,7 +147,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
 
         sessionId,
         streamId,
-        streamType: StreamType.LiveKit,
+        streamType,
         interruptAvailable: true,
     };
 }
