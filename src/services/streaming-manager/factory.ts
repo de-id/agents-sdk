@@ -1,4 +1,4 @@
-import { Agent, CreateStreamOptions, StreamingManagerOptions } from '$/types';
+import { Agent, CreateStreamOptions, StreamingManagerOptions, VideoType } from '$/types';
 import { createLiveKitStreamingManager } from './livekit-manager';
 import { createStreamingManager as createWebRTCStreamingManager } from './webrtc-manager';
 
