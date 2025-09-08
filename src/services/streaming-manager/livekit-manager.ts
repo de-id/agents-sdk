@@ -10,12 +10,11 @@ import {
 } from '$/types';
 import {
     ConnectionState as LiveKitConnectionState,
-    RemoteAudioTrack,
     RemoteParticipant,
     RemoteTrack,
-    RemoteVideoTrack,
     Room,
     RoomEvent,
+    Track,
 } from 'livekit-client';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
@@ -32,6 +31,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     let room: Room | null = null;
     let isConnected = false;
     let videoId: string | null = null;
+    let mediaStream: MediaStream | null = null;
     const streamType = StreamType.Fluent;
 
     room = new Room({
@@ -83,13 +83,17 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication, participant: RemoteParticipant) => {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
-        if (track.kind === 'video') {
-            const videoTrack = track as RemoteVideoTrack;
-            const mediaStream = new MediaStream([videoTrack.mediaStreamTrack]);
+        if (!mediaStream) {
+            mediaStream = new MediaStream([track.mediaStreamTrack]);
+        } else {
+            mediaStream.addTrack(track.mediaStreamTrack);
+        }
+
+        if (
+            track.kind === Track.Kind.Video ||
+            (track.kind === Track.Kind.Audio && mediaStream.getVideoTracks().length > 0)
+        ) {
             callbacks.onSrcObjectReady?.(mediaStream);
-        } else if (track.kind === 'audio') {
-            const audioTrack = track as RemoteAudioTrack;
-            const mediaStream = new MediaStream([audioTrack.mediaStreamTrack]);
         }
     });
 
@@ -170,6 +174,10 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
             if (room) {
                 await room.disconnect();
                 room = null;
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
             }
             isConnected = false;
             callbacks.onConnectionStateChange?.(ConnectionState.Completed);
