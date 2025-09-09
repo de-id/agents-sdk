@@ -1160,6 +1160,11 @@
   dependencies:
     undici-types "~6.21.0"
 
+"@types/rosie@^0.0.45":
+  version "0.0.45"
+  resolved "https://registry.yarnpkg.com/@types/rosie/-/rosie-0.0.45.tgz#60c50ba496c36fa2018321ae1a224fb1d679413a"
+  integrity sha512-t3ZEJ4xIE5CaJnsWcU+nY8R7rhvIEfX2xHNpvK6mA+CwUyvYJJ7SdU+pIodqTv0w4I0cBCWuJ4wzmwZOsjZdOg==
+
 "@types/stack-utils@^2.0.0", "@types/stack-utils@^2.0.3":
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/@types/stack-utils/-/stack-utils-2.0.3.tgz#6209321eb2c1712a7e7466422b8cb1fc0d9dd5d8"
@@ -3333,6 +3338,11 @@ rollup@^4.20.0:
     "@rollup/rollup-win32-ia32-msvc" "4.50.0"
     "@rollup/rollup-win32-x64-msvc" "4.50.0"
     fsevents "~2.3.2"
+
+rosie@^2.1.1:
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/rosie/-/rosie-2.1.1.tgz#f8c9b8145d581d19fb1c933cf6ac1c554ad68798"
+  integrity sha512-2AXB7WrIZXtKMZ6Q/PlozqPF5nu/x7NEvRJZOblrJuprrPfm5gL8JVvJPj9aaib9F8IUALnLUFhzXrwEtnI5cQ==
 
 "safer-buffer@>= 2.1.2 < 3.0.0":
   version "2.1.2"

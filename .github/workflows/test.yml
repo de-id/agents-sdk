@@ -4,19 +4,19 @@ permissions:
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, prod]
     types: [opened, synchronize, reopened]
   push:
-    branches: [main, develop]
+    branches: [main, prod]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  test:
+  type-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -34,11 +34,6 @@ jobs:
 
       - name: Run TypeScript type checking
         run: yarn tsc --noEmit
-
-      - name: Run unit tests
-        run: yarn test:ci
-        env:
-          CI: true
 
   lint:
     runs-on: ubuntu-latest
@@ -69,6 +64,30 @@ jobs:
           else
             echo "Prettier not configured, skipping format check"
           fi
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [type-check, lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        run: yarn test:ci --coverage
+        env:
+          CI: true
 
   build:
     runs-on: ubuntu-latest
@@ -103,21 +122,23 @@ jobs:
   # It serves as a single status check for branch protection
   all-checks-passed:
     runs-on: ubuntu-latest
-    needs: [test, lint, build]
+    needs: [type-check, lint, test, build]
     if: always()
 
     steps:
       - name: Check if all jobs succeeded
         run: |
-          if [[ "${{ needs.test.result }}" == "success" && 
+          if [[ "${{ needs.type-check.result }}" == "success" && 
                 "${{ needs.lint.result }}" == "success" && 
+                "${{ needs.test.result }}" == "success" && 
                 "${{ needs.build.result }}" == "success" ]]; then
             echo "✅ All checks passed!"
             exit 0
           else
             echo "❌ Some checks failed:"
-            echo "  Test: ${{ needs.test.result }}"
+            echo "  Type Check: ${{ needs.type-check.result }}"
             echo "  Lint: ${{ needs.lint.result }}"
+            echo "  Test: ${{ needs.test.result }}"
             echo "  Build: ${{ needs.build.result }}"
             exit 1
           fi

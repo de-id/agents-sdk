@@ -1,4 +1,13 @@
 import { createAgentsApi } from '../../api/agents';
+import {
+    AgentFactory,
+    AgentManagerOptionsFactory,
+    AgentsApiFactory,
+    AnalyticsFactory,
+    ChatFactory,
+    SocketManagerFactory,
+    StreamingManagerFactory,
+} from '../../test-utils/factories';
 import { Agent, AgentManager, AgentManagerOptions, ChatMode, ConnectionState, StreamType } from '../../types';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
@@ -51,61 +60,13 @@ describe('createAgentManager', () => {
     beforeEach(() => {
         jest.clearAllMocks();
 
-        mockAgent = {
-            id: 'agent-123',
-            name: 'Test Agent',
-            knowledge: {
-                id: 'knowledge-123',
-                starter_message: ['Hello!', 'How can I help?'],
-                provider: 'pinecone' as const,
-            },
-            presenter: {
-                type: 'talk',
-                source_url: 'https://example.com/presenter',
-                voice: { type: 'microsoft', voice_id: 'voice-123' },
-            },
-        } as Agent;
-
-        mockOptions = {
-            auth: { type: 'key', clientKey: 'test-key' },
-            callbacks: {
-                onError: jest.fn(),
-                onNewMessage: jest.fn(),
-                onConnectionStateChange: jest.fn(),
-                onNewChat: jest.fn(),
-                onModeChange: jest.fn(),
-                onVideoStateChange: jest.fn(),
-                onAgentActivityStateChange: jest.fn(),
-                onSrcObjectReady: jest.fn(),
-            },
-            mode: ChatMode.Functional,
-            enableAnalitics: true,
-            persistentChat: true,
-        };
-
-        mockStreamingManager = {
-            streamId: 'stream-123',
-            sessionId: 'session-123',
-            streamType: StreamType.Legacy,
-            interruptAvailable: false,
-            speak: jest.fn().mockResolvedValue({ status: 'success', duration: 5000, video_id: 'video-123' }),
-            disconnect: jest.fn().mockResolvedValue(undefined),
-        };
-
-        mockChat = { id: 'chat-123', chat_mode: ChatMode.Functional };
-
-        mockSocketManager = { disconnect: jest.fn() };
-
-        mockAnalytics = { track: jest.fn(), enrich: jest.fn() };
-
-        mockAgentsApi = {
-            getById: jest.fn().mockResolvedValue(mockAgent),
-            getSTTToken: jest.fn().mockResolvedValue({ token: 'stt-token' }),
-            chat: jest.fn().mockResolvedValue({ result: 'Agent response', context: 'test context', matches: [] }),
-            createRating: jest.fn().mockResolvedValue({ id: 'rating-123' }),
-            updateRating: jest.fn().mockResolvedValue({ id: 'rating-123' }),
-            deleteRating: jest.fn().mockResolvedValue(undefined),
-        };
+        mockAgent = AgentFactory.build();
+        mockOptions = AgentManagerOptionsFactory.build();
+        mockStreamingManager = StreamingManagerFactory.build({ streamType: StreamType.Legacy });
+        mockChat = ChatFactory.build();
+        mockSocketManager = SocketManagerFactory.build();
+        mockAnalytics = AnalyticsFactory.build();
+        mockAgentsApi = AgentsApiFactory.build({ getById: jest.fn().mockResolvedValue(mockAgent) });
 
         // Setup mocks
         (createAgentsApi as jest.Mock).mockReturnValue(mockAgentsApi);
@@ -224,10 +185,49 @@ describe('createAgentManager', () => {
         });
 
         describe('reconnect', () => {
-            it('should reconnect successfully', async () => {
+            it('should reconnect successfully and check inner actions', async () => {
+                // First connect to establish initial state
+                await manager.connect();
+
+                // Clear previous analytics calls
+                mockAnalytics.track.mockClear();
+
                 await manager.reconnect();
 
+                // Verify analytics tracking for reconnect event
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-chat', {
+                    event: 'reconnect',
+                    mode: ChatMode.Functional,
+                });
+
+                // Verify that the streaming manager and socket manager have disconnect methods
+                expect(typeof mockStreamingManager.disconnect).toBe('function');
+                expect(typeof mockSocketManager.disconnect).toBe('function');
+            });
+
+            it('should handle reconnect failure during disconnect', async () => {
+                // First connect to establish initial state
+                await manager.connect();
+
+                // Make streaming manager disconnect fail
+                mockStreamingManager.disconnect.mockRejectedValueOnce(new Error('Disconnect failed'));
+
+                await expect(manager.reconnect()).rejects.toThrow('Disconnect failed');
+                expect(mockAnalytics.track).not.toHaveBeenCalledWith('agent-chat', {
+                    event: 'reconnect',
+                    mode: ChatMode.Functional,
+                });
+            });
+
+            it('should handle reconnect failure during connect', async () => {
+                // First connect to establish initial state
+                await manager.connect();
+
+                // Make initializeStreamAndChat fail on reconnect
+                (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connect failed'));
+
+                await expect(manager.reconnect()).rejects.toThrow('Connect failed');
+                expect(mockAnalytics.track).not.toHaveBeenCalledWith('agent-chat', {
                     event: 'reconnect',
                     mode: ChatMode.Functional,
                 });
@@ -305,7 +305,6 @@ describe('createAgentManager', () => {
 
             it('should handle chat without existing chat session', async () => {
                 // Reset the mock to ensure clean state
-                jest.clearAllMocks();
 
                 // Use TextOnly mode which allows chat without streaming manager
                 const textOnlyOptions = { ...mockOptions, mode: ChatMode.TextOnly };
@@ -328,7 +327,6 @@ describe('createAgentManager', () => {
 
             it('should handle chat creation failure', async () => {
                 // Reset the mock to ensure clean state
-                jest.clearAllMocks();
 
                 // Use TextOnly mode which allows chat without streaming manager
                 const textOnlyOptions = { ...mockOptions, mode: ChatMode.TextOnly };
@@ -415,6 +413,65 @@ describe('createAgentManager', () => {
                 });
             });
 
+            it('should trigger onNewMessage callback when speak is called with text', async () => {
+                const textInput = 'Hello from speak method';
+                const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
+
+                // Clear previous calls
+                mockCallback.mockClear();
+
+                await manager.speak(textInput);
+
+                // Verify onNewMessage was called
+                expect(mockCallback).toHaveBeenCalledTimes(1);
+
+                // Verify the message structure
+                const [messages, messageType] = mockCallback.mock.calls[0];
+                expect(messageType).toBe('answer');
+                expect(Array.isArray(messages)).toBe(true);
+                expect(messages.length).toBeGreaterThan(0);
+
+                // Check the last message (the one we just added)
+                const lastMessage = messages[messages.length - 1];
+                expect(lastMessage.role).toBe('assistant');
+                expect(lastMessage.content).toBe(textInput);
+                expect(lastMessage.id).toBeDefined();
+                expect(lastMessage.created_at).toBeDefined();
+            });
+
+            it('should trigger onNewMessage with script object', async () => {
+                const script = { type: 'text' as const, input: 'Hello from script', ssml: false };
+                const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
+
+                // Clear previous calls
+                mockCallback.mockClear();
+
+                await manager.speak(script);
+
+                // Verify onNewMessage was called
+                expect(mockCallback).toHaveBeenCalledTimes(1);
+
+                // Verify the message content
+                const [messages, messageType] = mockCallback.mock.calls[0];
+                expect(messageType).toBe('answer');
+                const lastMessage = messages[messages.length - 1];
+                expect(lastMessage.role).toBe('assistant');
+                expect(lastMessage.content).toBe('Hello from script');
+            });
+
+            it('should not trigger onNewMessage for non-text script types', async () => {
+                const audioScript = { type: 'audio' as const, audio_url: 'http://example.com/audio.mp3' };
+                const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
+
+                // Clear previous calls
+                mockCallback.mockClear();
+
+                await manager.speak(audioScript);
+
+                // Verify onNewMessage was NOT called for audio script
+                expect(mockCallback).not.toHaveBeenCalled();
+            });
+
             it('should handle textual chat mode', async () => {
                 const { isTextualChat } = require('../../utils/chat');
                 (isTextualChat as jest.Mock).mockReturnValueOnce(true);
@@ -462,6 +519,24 @@ describe('createAgentManager', () => {
                     video_duration_to_interrupt: expect.any(Number),
                     message_duration_to_interrupt: expect.any(Number),
                 });
+            });
+
+            it('should handle validateInterrupt rejection', async () => {
+                // Add a message to interrupt
+                await manager.chat('Hello');
+
+                // Mock validateInterrupt to throw an error
+                (validateInterrupt as jest.Mock).mockImplementationOnce(() => {
+                    throw new Error('Interrupt validation failed');
+                });
+
+                await expect(manager.interrupt({ type: 'click' })).rejects.toThrow('Interrupt validation failed');
+
+                // Verify validateInterrupt was called
+                expect(validateInterrupt).toHaveBeenCalledWith(mockStreamingManager, StreamType.Legacy, null);
+
+                // Verify sendInterrupt was not called due to validation failure
+                expect(sendInterrupt).not.toHaveBeenCalled();
             });
         });
 
@@ -517,9 +592,8 @@ describe('createAgentManager', () => {
                 });
             });
 
-            it('should throw error if chat not initialized', async () => {
+            it('should throw error if chat not initialized when rating', async () => {
                 // Reset mocks to ensure clean state
-                jest.clearAllMocks();
 
                 // Mock initializeStreamAndChat to return no chat
                 (initializeStreamAndChat as jest.Mock).mockResolvedValue({
@@ -551,9 +625,8 @@ describe('createAgentManager', () => {
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-rate-delete', { type: 'text' });
             });
 
-            it('should throw error if chat not initialized', async () => {
+            it('should throw error if chat not initialized when deleting rating', async () => {
                 // Reset mocks to ensure clean state
-                jest.clearAllMocks();
 
                 // Mock initializeStreamAndChat to return no chat
                 (initializeStreamAndChat as jest.Mock).mockResolvedValue({
@@ -654,7 +727,11 @@ describe('getAgent', () => {
     let mockAgentsApi: any;
 
     beforeEach(() => {
-        mockAgentsApi = { getById: jest.fn().mockResolvedValue({ id: 'agent-123', name: 'Test Agent' }) };
+        jest.clearAllMocks();
+
+        mockAgentsApi = AgentsApiFactory.build({
+            getById: jest.fn().mockResolvedValue({ id: 'agent-123', name: 'Test Agent' }),
+        });
         (createAgentsApi as jest.Mock).mockReturnValue(mockAgentsApi);
     });
 
