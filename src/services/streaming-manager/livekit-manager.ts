@@ -14,7 +14,6 @@ import {
     RemoteTrack,
     Room,
     RoomEvent,
-    Track,
 } from 'livekit-client';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
@@ -89,12 +88,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
             mediaStream.addTrack(track.mediaStreamTrack);
         }
 
-        if (
-            track.kind === Track.Kind.Video ||
-            (track.kind === Track.Kind.Audio && mediaStream.getVideoTracks().length > 0)
-        ) {
-            callbacks.onSrcObjectReady?.(mediaStream);
-        }
+        callbacks.onSrcObjectReady?.(mediaStream);
     });
 
     room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
