@@ -18,6 +18,12 @@ import {
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { createStreamingLogger, StreamingManager } from './common';
+import { recordLiveKitProfiling } from './profiling-comparison';
+import { LIVEKIT_PHASE_DESCRIPTIONS, logDetailedProfiling, ProfilingTimestamps } from './profiling-utils';
+
+function logProfilingResults(managerType: string, timestamps: ProfilingTimestamps) {
+    logDetailedProfiling(managerType, timestamps, LIVEKIT_PHASE_DESCRIPTIONS);
+}
 
 export async function createLiveKitStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
@@ -25,6 +31,17 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     options: StreamingManagerOptions
 ): Promise<StreamingManager<T>> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
+
+    // Profiling timestamps
+    const profileTimestamps = {
+        init: performance.now(),
+        streamApiCreated: 0,
+        roomCreated: 0,
+        streamCreated: 0,
+        roomConnected: 0,
+        firstTrackReceived: 0,
+        videoRendered: 0,
+    };
 
     const { callbacks, auth, baseURL, analytics } = options;
     let room: Room | null = null;
@@ -37,6 +54,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         adaptiveStream: true,
         dynacast: true,
     });
+    profileTimestamps.roomCreated = performance.now();
 
     room.on(RoomEvent.ConnectionStateChanged, state => {
         log('Connection state changed:', state);
@@ -82,6 +100,10 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication, participant: RemoteParticipant) => {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
+        if (!profileTimestamps.firstTrackReceived) {
+            profileTimestamps.firstTrackReceived = performance.now();
+        }
+
         if (!mediaStream) {
             mediaStream = new MediaStream([track.mediaStreamTrack]);
         } else {
@@ -99,6 +121,11 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
             const data = JSON.parse(message);
             if (data.subject === 'stream_started' && data.metadata?.videoId) {
                 videoId = data.metadata.videoId;
+                if (!profileTimestamps.videoRendered) {
+                    profileTimestamps.videoRendered = performance.now();
+                    logProfilingResults('LiveKit', profileTimestamps);
+                    recordLiveKitProfiling(profileTimestamps);
+                }
                 callbacks.onVideoIdChange?.(videoId);
                 callbacks.onVideoStateChange?.(StreamingState.Start);
             } else if (data.subject === 'stream_done') {
@@ -118,6 +145,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     callbacks.onConnectionStateChange?.(ConnectionState.New);
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
+    profileTimestamps.streamApiCreated = performance.now();
     let streamId: string;
     let sessionId: string;
 
@@ -125,12 +153,14 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         const streamResponse = await streamApi.createStream({
             transport: Transport.Livekit,
         });
+        profileTimestamps.streamCreated = performance.now();
 
         const { agent_id, session_id, session_token: token, session_url: url } = streamResponse;
         streamId = agent_id;
         sessionId = session_id;
 
         await room.connect(url, token);
+        profileTimestamps.roomConnected = performance.now();
         log('LiveKit room joined successfully');
     } catch (error) {
         log('Failed to connect to LiveKit room:', error);

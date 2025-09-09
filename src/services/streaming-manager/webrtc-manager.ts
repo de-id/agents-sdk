@@ -11,6 +11,8 @@ import {
     StreamType,
 } from '$/types';
 import { createStreamingLogger, StreamingManager } from './common';
+import { recordWebRTCProfiling } from './profiling-comparison';
+import { logDetailedProfiling, ProfilingTimestamps, WEBRTC_PHASE_DESCRIPTIONS } from './profiling-utils';
 import { pollStats } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
@@ -19,6 +21,10 @@ const actualRTCPC = (
     (window as any).webkitRTCPeerConnection ||
     (window as any).mozRTCPeerConnection
 ).bind(window);
+
+function logProfilingResults(managerType: string, timestamps: ProfilingTimestamps) {
+    logDetailedProfiling(managerType, timestamps, WEBRTC_PHASE_DESCRIPTIONS);
+}
 
 type DataChannelPayload = string | Record<string, unknown>;
 type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void;
@@ -138,6 +144,19 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     const log = createStreamingLogger(debug, 'WebRTCStreamingManager');
     const parseDataChannelMessage = createParseDataChannelMessage(log);
 
+    // Profiling timestamps
+    const profileTimestamps = {
+        init: performance.now(),
+        streamCreated: 0,
+        peerConnectionCreated: 0,
+        offerSet: 0,
+        answerCreated: 0,
+        answerSet: 0,
+        connectionStarted: 0,
+        firstTrackReceived: 0,
+        videoRendered: 0,
+    };
+
     let srcObject: MediaStream | null = null;
     let isConnected = false;
     let isDatachannelOpen = false;
@@ -159,8 +178,10 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         fluent,
         interrupt_enabled: interruptAvailable,
     } = await createStream(agent);
+    profileTimestamps.streamCreated = performance.now();
     callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id: session_id as string, agent_id: agentId });
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
+    profileTimestamps.peerConnectionCreated = performance.now();
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
     if (!session_id) {
@@ -232,6 +253,11 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     };
 
     const handleStreamVideoIdChange = (videoId: string | null) => {
+        if (videoId && !profileTimestamps.videoRendered) {
+            profileTimestamps.videoRendered = performance.now();
+            logProfilingResults('WebRTC', profileTimestamps);
+            recordWebRTCProfiling(profileTimestamps);
+        }
         callbacks.onVideoIdChange?.(videoId);
     };
 
@@ -288,19 +314,24 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     peerConnection.ontrack = (event: RTCTrackEvent) => {
         log('peerConnection.ontrack', event);
+        profileTimestamps.firstTrackReceived = performance.now();
         callbacks.onSrcObjectReady?.(event.streams[0]);
     };
 
     await peerConnection.setRemoteDescription(offer);
+    profileTimestamps.offerSet = performance.now();
     log('set remote description OK');
 
     const sessionClientAnswer = await peerConnection.createAnswer();
+    profileTimestamps.answerCreated = performance.now();
     log('create answer OK');
 
     await peerConnection.setLocalDescription(sessionClientAnswer);
+    profileTimestamps.answerSet = performance.now();
     log('set local description OK');
 
     await startConnection(streamIdFromServer, sessionClientAnswer, session_id);
+    profileTimestamps.connectionStarted = performance.now();
     log('start connection OK');
 
     return {
