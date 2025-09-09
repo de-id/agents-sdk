@@ -1,14 +1,13 @@
 import { Auth } from '$/types/auth';
 import { getRandom } from '$/utils';
 
-
 export function getExternalId() {
     let key = window.localStorage.getItem('did_external_key_id');
 
     if (!key) {
-        let newKey = getRandom()
+        let newKey = getRandom();
         window.localStorage.setItem('did_external_key_id', newKey);
-        key = newKey
+        key = newKey;
     }
 
     return key;

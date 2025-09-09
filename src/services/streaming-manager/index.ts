@@ -24,7 +24,7 @@ const actualRTCPC = (
 type DataChannelPayload = string | Record<string, unknown>;
 type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void;
 
-function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
+export function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     switch (state) {
         case 'connected':
             return ConnectionState.Connected;
@@ -45,7 +45,7 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-function parseDataChannelMessage(message: string): { subject: StreamEvents; data: DataChannelPayload } {
+export function parseDataChannelMessage(message: string): { subject: StreamEvents; data: DataChannelPayload } {
     const [subject, rawData = ''] = message.split(/:(.+)/);
     try {
         const data = JSON.parse(rawData);
@@ -166,9 +166,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     const streamType = fluent ? StreamType.Fluent : StreamType.Legacy;
 
-    analytics.enrich({
-        'stream-type': streamType,
-    });
+    analytics.enrich({ 'stream-type': streamType });
 
     const warmup = agent.stream_warmup && !fluent;
 
@@ -266,7 +264,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         [StreamEvents.StreamStarted]: handleStreamVideoEvent,
         [StreamEvents.StreamDone]: handleStreamVideoEvent,
         [StreamEvents.StreamReady]: handleStreamReadyEvent,
-    } satisfies Partial<{ [K in StreamEvents]: DataChannelMessageHandler<K> }>;
+    } satisfies Partial<{ [key in StreamEvents]: DataChannelMessageHandler<key> }>;
 
     pcDataChannel.onmessage = (event: MessageEvent) => {
         const { subject, data } = parseDataChannelMessage(event.data);

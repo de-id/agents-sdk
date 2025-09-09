@@ -31,7 +31,9 @@ function createAggregateReport(
         framesDropped: end.framesDropped - start.framesDropped,
         framesDecoded: end.framesDecoded - start.framesDecoded,
         jitter: end.jitter,
-        avgJitterDelayInInterval: (end.jitterBufferDelay - start.jitterBufferDelay) / (end.jitterBufferEmittedCount - start.jitterBufferEmittedCount),
+        avgJitterDelayInInterval:
+            (end.jitterBufferDelay - start.jitterBufferDelay) /
+            (end.jitterBufferEmittedCount - start.jitterBufferEmittedCount),
         jitterBufferEmittedCount: end.jitterBufferEmittedCount - start.jitterBufferEmittedCount,
         jitterBufferDelay: (end.jitterBufferDelay - start.jitterBufferDelay) / duration,
         framesPerSecond: end.framesPerSecond,
@@ -180,7 +182,9 @@ export function createVideoStatsReport(
     });
     const anomalies = extractAnomalies(differentialReport);
     const lowFpsCount = anomalies.reduce((acc, report) => acc + (report.causes!.includes('low fps') ? 1 : 0), 0);
-    const avgJittersSamples = differentialReport.filter(stat => !!stat.avgJitterDelayInInterval).map(stat => stat.avgJitterDelayInInterval);
+    const avgJittersSamples = differentialReport
+        .filter(stat => !!stat.avgJitterDelayInInterval)
+        .map(stat => stat.avgJitterDelayInInterval);
     const avgRttSamples = differentialReport.filter(stat => !!stat.rtt).map(stat => stat.rtt);
 
     return {

@@ -25,12 +25,7 @@ export function App() {
             mode,
             enableAnalytics: false,
             auth: { type: 'key', clientKey },
-            streamOptions: {
-                streamWarmup: warmup,
-                sessionTimeout,
-                compatibilityMode,
-                fluent,
-            },
+            streamOptions: { streamWarmup: warmup, sessionTimeout, compatibilityMode, fluent },
         });
 
     async function onClick() {
@@ -52,7 +47,6 @@ export function App() {
             <section>
                 <div id="left">
                     <textarea
-                        type="text"
                         placeholder="Enter text to stream"
                         value={text}
                         onInput={e => setText(e.currentTarget.value)}
