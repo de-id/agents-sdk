@@ -3,7 +3,7 @@
  * Tests basic streaming manager creation, connection, and operations
  */
 
-import { StreamApiFactory, StreamingManagerOptionsFactory, StreamingAgentFactory } from '../../test-utils/factories';
+import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { ConnectionState, CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
 import { createStreamingManager } from './index';
 import { pollStats } from './stats/poll';

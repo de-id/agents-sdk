@@ -3,7 +3,7 @@
  * Tests critical end-to-end workflows and configurations
  */
 
-import { StreamApiFactory, StreamingManagerOptionsFactory, StreamingAgentFactory } from '../../test-utils/factories';
+import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { AgentActivityState, CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
 import { createStreamingManager } from './index';
 import { pollStats } from './stats/poll';

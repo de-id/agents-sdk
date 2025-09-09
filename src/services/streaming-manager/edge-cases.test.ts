@@ -3,7 +3,7 @@
  * Tests detailed edge cases, error conditions, and branch coverage scenarios
  */
 
-import { StreamApiFactory, StreamingManagerOptionsFactory, StreamingAgentFactory } from '../../test-utils/factories';
+import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
     ConnectionState,
