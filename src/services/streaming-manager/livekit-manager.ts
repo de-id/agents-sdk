@@ -101,18 +101,19 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         const message = new TextDecoder().decode(payload);
         log('Data received:', message);
 
-        // Handle data channel messages similar to WebRTC
         try {
             const data = JSON.parse(message);
             if (data.subject === 'stream_started' && data.metadata?.videoId) {
                 videoId = data.metadata.videoId;
                 callbacks.onVideoIdChange?.(videoId);
                 callbacks.onVideoStateChange?.(StreamingState.Start);
-                callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
             } else if (data.subject === 'stream_done') {
                 videoId = null;
                 callbacks.onVideoIdChange?.(videoId);
                 callbacks.onVideoStateChange?.(StreamingState.Stop);
+            } else if (data.subject === 'speak_started') {
+                callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
+            } else if (data.subject === 'speak_stopped') {
                 callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
             }
         } catch (e) {
