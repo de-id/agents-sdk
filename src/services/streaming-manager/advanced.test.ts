@@ -3,7 +3,7 @@
  * Tests complex scenarios, edge cases, and advanced features
  */
 
-import { StreamApiFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
+import { StreamApiFactory, StreamingManagerOptionsFactory, StreamingAgentFactory } from '../../test-utils/factories';
 import { CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
 import { createStreamingManager, parseDataChannelMessage } from './index';
 import { pollStats } from './stats/poll';
@@ -28,8 +28,8 @@ describe('Streaming Manager Advanced', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         agentId = 'agent123';
-        agent = { stream_warmup: false, stream_type: 'talk' } as any;
-        options = StreamingManagerOptionsFactory.build() as StreamingManagerOptions;
+        agent = StreamingAgentFactory.build();
+        options = StreamingManagerOptionsFactory.build();
     });
 
     describe('Stream Events and Processing', () => {

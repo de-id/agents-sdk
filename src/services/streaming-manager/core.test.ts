@@ -3,7 +3,7 @@
  * Tests basic streaming manager creation, connection, and operations
  */
 
-import { StreamApiFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
+import { StreamApiFactory, StreamingManagerOptionsFactory, StreamingAgentFactory } from '../../test-utils/factories';
 import { ConnectionState, CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
 import { createStreamingManager } from './index';
 import { pollStats } from './stats/poll';
@@ -28,8 +28,8 @@ describe('Streaming Manager Core', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         agentId = 'agent123';
-        agent = { stream_warmup: false, stream_type: 'talk' } as any;
-        options = StreamingManagerOptionsFactory.build() as StreamingManagerOptions;
+        agent = StreamingAgentFactory.build();
+        options = StreamingManagerOptionsFactory.build();
     });
 
     describe('Basic Creation and Setup', () => {

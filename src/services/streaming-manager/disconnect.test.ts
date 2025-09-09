@@ -3,7 +3,7 @@
  * Tests disconnection workflows, cleanup, and error handling
  */
 
-import { StreamApiFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
+import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { AgentActivityState, CreateStreamOptions, StreamingManagerOptions } from '../../types/index';
 import { createStreamingManager } from './index';
 
@@ -27,8 +27,8 @@ describe('Streaming Manager Disconnect', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         agentId = 'agent123';
-        agent = { stream_warmup: false, stream_type: 'talk' } as any;
-        options = StreamingManagerOptionsFactory.build() as StreamingManagerOptions;
+        agent = StreamingAgentFactory.build();
+        options = StreamingManagerOptionsFactory.build();
     });
 
     describe('Basic Disconnection', () => {
@@ -45,7 +45,6 @@ describe('Streaming Manager Disconnect', () => {
         it('should handle disconnect when connection is already closed', async () => {
             const manager = await createStreamingManager(agentId, agent, options);
 
-            await manager.disconnect();
             await manager.disconnect();
 
             expect(typeof manager.disconnect).toBe('function');

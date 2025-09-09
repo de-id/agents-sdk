@@ -19,3 +19,8 @@ export const AgentFactory = new Factory<Agent>().attrs({
         },
     },
 });
+
+export const StreamingAgentFactory = new Factory().attrs({
+    stream_warmup: false,
+    stream_type: 'talk' as const,
+});

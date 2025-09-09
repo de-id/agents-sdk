@@ -3,7 +3,7 @@
  * Tests critical end-to-end workflows and configurations
  */
 
-import { StreamApiFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
+import { StreamApiFactory, StreamingManagerOptionsFactory, StreamingAgentFactory } from '../../test-utils/factories';
 import { AgentActivityState, CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
 import { createStreamingManager } from './index';
 import { pollStats } from './stats/poll';
@@ -28,8 +28,8 @@ describe('Streaming Manager Business Flows', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         agentId = 'agent123';
-        agent = { stream_warmup: false, stream_type: 'talk' } as any;
-        options = StreamingManagerOptionsFactory.build() as StreamingManagerOptions;
+        agent = StreamingAgentFactory.build();
+        options = StreamingManagerOptionsFactory.build();
     });
 
     describe('Critical Business Flows', () => {

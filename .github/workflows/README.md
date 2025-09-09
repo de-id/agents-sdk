@@ -59,14 +59,6 @@ yarn lint:fix
 yarn ci:test
 ```
 
-## 🛡️ Branch Protection
-
-See `.github/branch-protection.md` for setting up required status checks that will:
-
-- ❌ Block PRs with failing tests
-- ❌ Block PRs with build errors
-- ✅ Allow PRs only when all checks pass
-
 ## 📊 Artifacts
 
 Each workflow run produces:

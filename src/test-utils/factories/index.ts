@@ -1,5 +1,5 @@
 export { AgentManagerOptionsFactory } from './agent-manager.factory';
-export { AgentFactory } from './agent.factory';
+export { AgentFactory, StreamingAgentFactory } from './agent.factory';
 export { AgentsApiFactory } from './agents-api.factory';
 export { AnalyticsFactory } from './analytics.factory';
 export { ChatFactory } from './chat.factory';

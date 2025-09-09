@@ -3,7 +3,7 @@
  * Tests detailed edge cases, error conditions, and branch coverage scenarios
  */
 
-import { StreamApiFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
+import { StreamApiFactory, StreamingManagerOptionsFactory, StreamingAgentFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
     ConnectionState,
@@ -33,8 +33,8 @@ describe('Streaming Manager Edge Cases', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         agentId = 'agent123';
-        agent = { stream_warmup: false, stream_type: 'talk' } as any;
-        options = StreamingManagerOptionsFactory.build() as StreamingManagerOptions;
+        agent = StreamingAgentFactory.build();
+        options = StreamingManagerOptionsFactory.build();
     });
 
     describe('Branch Coverage Tests', () => {

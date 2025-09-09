@@ -1,4 +1,5 @@
 import { Factory } from 'rosie';
+import { StreamingManagerOptions } from '../../types';
 
 export const StreamingManagerFactory = new Factory().attrs({
     streamId: 'stream-123',
@@ -10,7 +11,7 @@ export const StreamingManagerFactory = new Factory().attrs({
     sendDataChannelMessage: () => jest.fn(),
 });
 
-export const StreamingManagerOptionsFactory = new Factory().attrs({
+export const StreamingManagerOptionsFactory = new Factory<StreamingManagerOptions>().attrs({
     debug: false,
     callbacks: () => ({
         onError: jest.fn(),
