@@ -23,7 +23,7 @@ const actualRTCPC = (
 type DataChannelPayload = string | Record<string, unknown>;
 type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void;
 
-function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
+export function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     switch (state) {
         case 'connected':
             return ConnectionState.Connected;
@@ -44,7 +44,7 @@ function mapConnectionState(state: RTCIceConnectionState): ConnectionState {
     }
 }
 
-const createParseDataChannelMessage =
+export const createParseDataChannelMessage =
     (log: ReturnType<typeof createStreamingLogger>) =>
     (message: string): { subject: StreamEvents; data: DataChannelPayload } => {
         const [subject, rawData = ''] = message.split(/:(.+)/);
@@ -130,9 +130,9 @@ function handleStreamState({
     }
 }
 
-export async function createStreamingManager<T extends CreateStreamOptions>(
+export async function createWebRTCStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
-    agent: T,
+    streamOptions: T,
     { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions
 ): Promise<StreamingManager<T>> {
     const log = createStreamingLogger(debug, 'WebRTCStreamingManager');
@@ -158,7 +158,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         session_id,
         fluent,
         interrupt_enabled: interruptAvailable,
-    } = await createStream(agent);
+    } = await createStream(streamOptions);
     callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id: session_id as string, agent_id: agentId });
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
@@ -173,7 +173,7 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         'stream-type': streamType,
     });
 
-    const warmup = agent.stream_warmup && !fluent;
+    const warmup = streamOptions.stream_warmup && !fluent;
 
     const getIsConnected = () => isConnected;
     const onConnected = () => {

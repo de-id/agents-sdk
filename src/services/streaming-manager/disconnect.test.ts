@@ -5,7 +5,7 @@
 
 import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { AgentActivityState, CreateStreamOptions, StreamingManagerOptions } from '../../types/index';
-import { createStreamingManager } from './index';
+import { createWebRTCStreamingManager as createStreamingManager } from './webrtc-manager';
 
 // Mock createStreamApi
 const mockApi = StreamApiFactory.build();
@@ -21,19 +21,19 @@ jest.mock('../../config/environment', () => ({ didApiUrl: 'http://test-api.com' 
 
 describe('Streaming Manager Disconnect', () => {
     let agentId: string;
-    let agent: CreateStreamOptions;
+    let agentStreamOptions: CreateStreamOptions;
     let options: StreamingManagerOptions;
 
     beforeEach(() => {
         jest.clearAllMocks();
         agentId = 'agent123';
-        agent = StreamingAgentFactory.build();
+        agentStreamOptions = StreamingAgentFactory.build();
         options = StreamingManagerOptionsFactory.build();
     });
 
     describe('Basic Disconnection', () => {
         it('should disconnect and clean up resources', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -43,7 +43,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle disconnect when connection is already closed', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
 
             await manager.disconnect();
 
@@ -51,7 +51,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle disconnect error gracefully', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -61,7 +61,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle disconnect when already in new state', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
 
             mockPC.iceConnectionState = 'new';
@@ -72,7 +72,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle error in disconnect close operation', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -84,7 +84,7 @@ describe('Streaming Manager Disconnect', () => {
 
     describe('Cleanup Operations', () => {
         it('should handle disconnect with media stream cleanup', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -94,7 +94,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle clearInterval in disconnect', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -108,7 +108,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle agent activity state changes on disconnect', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -118,7 +118,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle null event handlers after disconnect', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -131,7 +131,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle disconnect cleanup and clearInterval', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -146,7 +146,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle srcObject cleanup in disconnect', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -157,7 +157,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle disconnect with complete cleanup', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -182,7 +182,7 @@ describe('Streaming Manager Disconnect', () => {
     describe('Error Handling During Disconnect', () => {
         it('should handle error logging in disconnect', async () => {
             const debugOptions = { ...options, debug: true };
-            const manager = await createStreamingManager(agentId, agent, debugOptions);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, debugOptions);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -201,7 +201,7 @@ describe('Streaming Manager Disconnect', () => {
 
         it('should handle error logging in debug mode during disconnect', async () => {
             const debugOptions = { ...options, debug: true };
-            const manager = await createStreamingManager(agentId, agent, debugOptions);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, debugOptions);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -213,13 +213,16 @@ describe('Streaming Manager Disconnect', () => {
 
             await manager.disconnect();
 
-            expect(consoleSpy).toHaveBeenCalledWith('Error on close stream connection', expect.any(Error));
+            expect(consoleSpy).toHaveBeenCalledWith(
+                '[WebRTCStreamingManager] Error on close stream connection',
+                expect.any(Error)
+            );
 
             consoleSpy.mockRestore();
         });
 
         it('should handle disconnect without streamIdFromServer', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
 
             (manager as any).streamIdFromServer = null;
 
@@ -229,7 +232,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle clearInterval on disconnect', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -243,7 +246,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle complete disconnect cleanup sequence', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -258,7 +261,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should execute all disconnect cleanup paths', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
@@ -275,7 +278,7 @@ describe('Streaming Manager Disconnect', () => {
 
     describe('SrcObject Management', () => {
         it('should handle srcObject assignment on track events', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
 
             const mockStream = new MediaStream();
@@ -298,7 +301,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle srcObject assignment and track management', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
 
             const mockStream = new MediaStream();
@@ -321,7 +324,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle srcObject cleanup branches', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
 
             const mockStream = new MediaStream();
@@ -339,7 +342,7 @@ describe('Streaming Manager Disconnect', () => {
 
     describe('Connection State Management', () => {
         it('should handle connection state change to connected', async () => {
-            await createStreamingManager(agentId, agent, options);
+            await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
 
             mockPC.iceConnectionState = 'connected';
@@ -351,7 +354,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle default connection state mapping', async () => {
-            await createStreamingManager(agentId, agent, options);
+            await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
 
             mockPC.iceConnectionState = 'unknown-state';
@@ -361,7 +364,7 @@ describe('Streaming Manager Disconnect', () => {
         });
 
         it('should handle isConnected state management', async () => {
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
 
             expect(manager.streamId).toBe('streamId');
             expect(manager.sessionId).toBe('sessionId');
@@ -373,7 +376,7 @@ describe('Streaming Manager Disconnect', () => {
             const debugOptions = { ...options, debug: true };
             const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-            const manager = await createStreamingManager(agentId, agent, debugOptions);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, debugOptions);
 
             expect(consoleSpy).toHaveBeenCalled();
             expect(manager.streamId).toBe('streamId');
@@ -385,12 +388,12 @@ describe('Streaming Manager Disconnect', () => {
             const debugOptions = { ...options, debug: true };
             const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-            const manager = await createStreamingManager(agentId, agent, debugOptions);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, debugOptions);
 
-            expect(consoleSpy).toHaveBeenCalledWith('set remote description OK', undefined);
-            expect(consoleSpy).toHaveBeenCalledWith('create answer OK', undefined);
-            expect(consoleSpy).toHaveBeenCalledWith('set local description OK', undefined);
-            expect(consoleSpy).toHaveBeenCalledWith('start connection OK', undefined);
+            expect(consoleSpy).toHaveBeenCalledWith('[WebRTCStreamingManager] set remote description OK', '');
+            expect(consoleSpy).toHaveBeenCalledWith('[WebRTCStreamingManager] create answer OK', '');
+            expect(consoleSpy).toHaveBeenCalledWith('[WebRTCStreamingManager] set local description OK', '');
+            expect(consoleSpy).toHaveBeenCalledWith('[WebRTCStreamingManager] start connection OK', '');
 
             consoleSpy.mockRestore();
         });
@@ -398,7 +401,7 @@ describe('Streaming Manager Disconnect', () => {
         it('should handle WebRTC setup logging without debug mode', async () => {
             const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-            const manager = await createStreamingManager(agentId, agent, options);
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
 
             expect(manager.streamId).toBe('streamId');
 
