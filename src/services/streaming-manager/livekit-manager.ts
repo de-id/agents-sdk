@@ -1,6 +1,7 @@
 import {
     AgentActivityState,
     ConnectionState,
+    ConnectivityState,
     CreateStreamOptions,
     PayloadType,
     StreamingManagerOptions,
@@ -90,10 +91,10 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         }
     });
 
-    // Handle connection errors
     room.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
         if (participant?.isLocal && quality === 'poor') {
             log('Connection quality is poor');
+            callbacks.onConnectivityStateChange?.(ConnectivityState.Weak);
         }
     });
 
