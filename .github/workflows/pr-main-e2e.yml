@@ -1,5 +1,8 @@
 name: UI prod e2e with local sdk build
 
+permissions:
+  contents: read
+
 on:
   pull_request:
     branches: [main]
