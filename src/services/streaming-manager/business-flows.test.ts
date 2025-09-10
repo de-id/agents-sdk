@@ -5,8 +5,8 @@
 
 import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { AgentActivityState, CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
-import { createStreamingManager } from './index';
 import { pollStats } from './stats/poll';
+import { createWebRTCStreamingManager as createStreamingManager } from './webrtc-manager';
 
 // Mock createStreamApi
 const mockApi = StreamApiFactory.build();

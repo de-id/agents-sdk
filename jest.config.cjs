@@ -7,7 +7,7 @@ module.exports = {
     extensionsToTreatAsEsm: ['.ts', '.tsx'],
     moduleNameMapper: { '^\\$/(.*)$': '<rootDir>/src/$1', '^%/(.*)$': '<rootDir>/src/types/$1' },
     setupFiles: ['<rootDir>/jest.setup.ts'],
-    reporters: ['summary'],
+    ...(process.env.CI && { reporters: ['summary'] }),
 
     // Coverage configuration - only for files that have tests
     collectCoverage: false, // Only collect when explicitly requested

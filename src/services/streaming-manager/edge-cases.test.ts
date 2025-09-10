@@ -11,7 +11,11 @@ import {
     StreamType,
     StreamingManagerOptions,
 } from '../../types/index';
-import { createStreamingManager, mapConnectionState, parseDataChannelMessage } from './index';
+import {
+    createParseDataChannelMessage,
+    createWebRTCStreamingManager as createStreamingManager,
+    mapConnectionState,
+} from './webrtc-manager';
 
 // Mock createStreamApi
 const mockApi = StreamApiFactory.build();
@@ -24,6 +28,8 @@ jest.mock('./stats/poll', () => ({
 
 // Mock other dependencies as needed
 jest.mock('../../config/environment', () => ({ didApiUrl: 'http://test-api.com' }));
+
+const parseDataChannelMessage = createParseDataChannelMessage(jest.fn());
 
 describe('Streaming Manager Edge Cases', () => {
     let agentId: string;
