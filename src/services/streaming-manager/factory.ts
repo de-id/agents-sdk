@@ -18,7 +18,3 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
         return createWebRTCStreamingManager(agentId, streamOptions, options);
     }
 }
-
-export type { StreamingManager } from './common';
-export type { LiveKitStreamingManager } from './livekit-manager';
-export type { WebRTCStreamingManager } from './webrtc-manager';
