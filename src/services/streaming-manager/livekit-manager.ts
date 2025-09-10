@@ -8,16 +8,33 @@ import {
     StreamType,
     Transport,
 } from '$/types';
-import {
+import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
+import { didApiUrl } from '../../config/environment';
+import { createStreamingLogger, StreamingManager } from './common';
+
+import type {
     ConnectionState as LiveKitConnectionState,
     RemoteParticipant,
     RemoteTrack,
     Room,
     RoomEvent,
 } from 'livekit-client';
-import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
-import { didApiUrl } from '../../config/environment';
-import { createStreamingLogger, StreamingManager } from './common';
+
+async function importLiveKit(): Promise<{
+    Room: typeof Room;
+    RoomEvent: typeof RoomEvent;
+    ConnectionState: typeof LiveKitConnectionState;
+    RemoteParticipant: typeof RemoteParticipant;
+    RemoteTrack: typeof RemoteTrack;
+}> {
+    try {
+        return await import('livekit-client');
+    } catch (error) {
+        throw new Error(
+            'LiveKit client is required for this streaming manager. Please install it using: npm install livekit-client'
+        );
+    }
+}
 
 export async function createLiveKitStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
@@ -25,6 +42,14 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
     options: StreamingManagerOptions
 ): Promise<StreamingManager<T>> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
+
+    const {
+        Room,
+        RoomEvent,
+        ConnectionState: LiveKitConnectionState,
+        RemoteParticipant,
+        RemoteTrack,
+    } = await importLiveKit();
 
     const { callbacks, auth, baseURL, analytics } = options;
     let room: Room | null = null;

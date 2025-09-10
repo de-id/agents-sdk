@@ -1,5 +1,4 @@
 import { Agent, CreateStreamOptions, StreamingManagerOptions, VideoType } from '$/types';
-import { createLiveKitStreamingManager } from './livekit-manager';
 import { createStreamingManager as createWebRTCStreamingManager } from './webrtc-manager';
 
 const isLiveKitAgent = (agent: Agent): boolean => agent.presenter.type === VideoType.Expressive;
@@ -9,9 +8,13 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
     streamOptions: T,
     options: StreamingManagerOptions
 ) {
-    return isLiveKitAgent(agent)
-        ? createLiveKitStreamingManager(agent.id, streamOptions, options)
-        : createWebRTCStreamingManager(agent.id, streamOptions, options);
+    if (isLiveKitAgent(agent)) {
+        // Lazy import the LiveKit manager only when needed
+        const { createLiveKitStreamingManager } = await import('./livekit-manager');
+        return createLiveKitStreamingManager(agent.id, streamOptions, options);
+    } else {
+        return createWebRTCStreamingManager(agent.id, streamOptions, options);
+    }
 }
 
 export type { StreamingManager } from './common';
