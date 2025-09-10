@@ -4,6 +4,7 @@ import {
     ConnectivityState,
     CreateStreamOptions,
     PayloadType,
+    StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     StreamType,
@@ -115,6 +116,20 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         }
 
         callbacks.onSrcObjectReady?.(mediaStream);
+
+        // Handle video track subscription as stats signal for fluent streams
+        if (track.kind === 'video') {
+            callbacks.onVideoStateChange?.(StreamingState.Start);
+        }
+    });
+
+    room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication, participant: RemoteParticipant) => {
+        log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
+
+        // Handle video track unsubscription as stats signal for fluent streams
+        if (track.kind === 'video') {
+            callbacks.onVideoStateChange?.(StreamingState.Stop);
+        }
     });
 
     room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
@@ -123,17 +138,13 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
 
         try {
             const data = JSON.parse(message);
-            if (data.subject === 'stream_started' && data.metadata?.videoId) {
+            if (data.subject === StreamEvents.StreamStarted && data.metadata?.videoId) {
                 videoId = data.metadata.videoId;
                 callbacks.onVideoIdChange?.(videoId);
-                callbacks.onVideoStateChange?.(StreamingState.Start);
-            } else if (data.subject === 'stream_done') {
+                callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
+            } else if (data.subject === StreamEvents.StreamDone) {
                 videoId = null;
                 callbacks.onVideoIdChange?.(videoId);
-                callbacks.onVideoStateChange?.(StreamingState.Stop);
-            } else if (data.subject === 'speak_started') {
-                callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
-            } else if (data.subject === 'speak_stopped') {
                 callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
             }
         } catch (e) {
