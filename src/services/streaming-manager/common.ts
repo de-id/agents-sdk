@@ -44,4 +44,9 @@ export type StreamingManager<T extends CreateStreamOptions> = {
      * Whether interrupt functionality is available for this stream
      */
     interruptAvailable: boolean;
+
+    /**
+     * Whether triggers functionality is available for this stream
+     */
+    triggersAvailable: boolean;
 };

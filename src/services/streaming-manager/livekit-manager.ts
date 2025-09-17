@@ -227,6 +227,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
         streamId,
         streamType,
         interruptAvailable: true,
+        triggersAvailable: false,
     };
 }
 
