@@ -6,6 +6,7 @@ export interface AnalyticsOptions {
     agentId: string;
     isEnabled?: boolean;
     distinctId?: string;
+    mixpanelAdditionalProperties?: Record<string, any>;
 }
 
 export interface Analytics {
@@ -43,13 +44,17 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         token: config.token || 'testKey',
         distinct_id: config.distinctId || getExternalId(),
         agentId: config.agentId,
-        additionalProperties: {},
+        additionalProperties: {
+            id: config.distinctId,
+            ...(config.mixpanelAdditionalProperties || {}),
+        },
         isEnabled: config.isEnabled ?? true,
         getRandom,
         enrich(props: Record<string, any>) {
             this.additionalProperties = { ...this.additionalProperties, ...props };
         },
         async track(event: string, props?: Record<string, any>) {
+            console.log('track', event, props);
             if (!this.isEnabled) {
                 return Promise.resolve();
             }

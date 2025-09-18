@@ -68,6 +68,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         agentId: agent,
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
+        mixpanelAdditionalProperties: options.mixpanelAdditionalProperties,
     });
     analytics.track('agent-sdk', { event: 'init' });
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
