@@ -54,7 +54,6 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
             this.additionalProperties = { ...this.additionalProperties, ...props };
         },
         async track(event: string, props?: Record<string, any>) {
-            console.log('track', event, props);
             if (!this.isEnabled) {
                 return Promise.resolve();
             }
