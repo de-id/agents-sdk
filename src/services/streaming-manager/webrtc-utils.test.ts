@@ -4,7 +4,7 @@
  */
 
 import { ConnectionState } from '../../types/index';
-import { mapConnectionState, parseDataChannelMessage } from './index';
+import { createParseDataChannelMessage, mapConnectionState } from './webrtc-manager';
 
 // Mock dependencies to avoid import issues
 jest.mock('../../api/streams', () => ({ createStreamApi: jest.fn() }));
@@ -12,6 +12,7 @@ jest.mock('./stats/poll', () => ({ pollStats: jest.fn() }));
 jest.mock('../../config/environment', () => ({ didApiUrl: 'http://test-api.com' }));
 
 describe('Streaming Manager Utilities', () => {
+    const parseDataChannelMessage = createParseDataChannelMessage(jest.fn());
     describe('mapConnectionState', () => {
         it('should map all RTCIceConnectionState values correctly', () => {
             expect(mapConnectionState('connected')).toBe(ConnectionState.Connected);

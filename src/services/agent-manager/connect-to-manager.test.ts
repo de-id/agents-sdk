@@ -138,7 +138,7 @@ describe('connect-to-manager', () => {
             expect(result.streamingManager).toBe(mockStreamingManager);
             expect(result.chat).toBe(mockChat);
             expect(createStreamingManager).toHaveBeenCalledWith(
-                'agent-123',
+                mockAgent,
                 {
                     output_resolution: 1080,
                     session_timeout: 30000,
@@ -378,7 +378,7 @@ describe('connect-to-manager', () => {
             await initializeStreamAndChat(mockAgent, customOptions, mockAgentsApi, mockAnalytics);
 
             expect(createStreamingManager).toHaveBeenCalledWith(
-                'agent-123',
+                mockAgent,
                 {
                     output_resolution: 720,
                     session_timeout: 60000,
@@ -396,7 +396,7 @@ describe('connect-to-manager', () => {
             await initializeStreamAndChat(mockAgent, optionsWithoutStreamOptions, mockAgentsApi, mockAnalytics);
 
             expect(createStreamingManager).toHaveBeenCalledWith(
-                'agent-123',
+                mockAgent,
                 {
                     output_resolution: undefined,
                     session_timeout: undefined,

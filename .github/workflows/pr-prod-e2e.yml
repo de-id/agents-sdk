@@ -1,4 +1,6 @@
 name: UI prod e2e with staging sdk build
+permissions:
+  contents: read
 
 on:
   pull_request:
