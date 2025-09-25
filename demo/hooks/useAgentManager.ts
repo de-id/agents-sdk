@@ -17,18 +17,31 @@ interface UseAgentManagerOptions {
     wsURL: string;
     mode: ChatMode;
     auth: Auth;
-    distinctId?: string;
-    enableAnalytics?: boolean;
     streamOptions?: {
         streamWarmup?: boolean;
         sessionTimeout?: number;
         compatibilityMode?: 'on' | 'off' | 'auto';
         fluent?: boolean;
     };
+    enableAnalytics?: boolean;
+    distinctId?: string;
+    mixpanelKey?: string;
+    mixpanelAdditionalProperties?: Record<string, any>;
 }
 
 export function useAgentManager(props: UseAgentManagerOptions) {
-    const { agentId, baseURL, wsURL, mode, auth, enableAnalytics, distinctId, streamOptions } = props;
+    const {
+        agentId,
+        baseURL,
+        wsURL,
+        mode,
+        auth,
+        enableAnalytics,
+        distinctId,
+        streamOptions,
+        mixpanelKey,
+        mixpanelAdditionalProperties,
+    } = props;
 
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -88,6 +101,8 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                 wsURL,
                 enableAnalitics: enableAnalytics,
                 distinctId,
+                mixpanelKey,
+                mixpanelAdditionalProperties,
                 streamOptions,
             });
 
