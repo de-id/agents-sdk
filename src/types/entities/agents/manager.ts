@@ -177,6 +177,11 @@ export interface AgentManager {
     getIsInterruptAvailable: () => boolean;
 
     /**
+     * Get if the stream supports triggers
+     */
+    getIsTriggersAvailable: () => boolean;
+
+    /**
      * Array of starter messages that will be sent to the agent when the chat starts
      */
     starterMessages: string[];
