@@ -150,6 +150,7 @@ export interface AgentManagerOptions {
     debug?: boolean;
     enableAnalitics?: boolean;
     mixpanelKey?: string;
+    mixpanelAdditionalProperties?: Record<string, any>;
     /**
      * Unique ID of agent user used in analytics. Pass it to override the default way to get distinctId
      */
@@ -174,6 +175,11 @@ export interface AgentManager {
      * Get if the stream supports interrupt
      */
     getIsInterruptAvailable: () => boolean;
+
+    /**
+     * Get if the stream supports triggers
+     */
+    getIsTriggersAvailable: () => boolean;
 
     /**
      * Array of starter messages that will be sent to the agent when the chat starts

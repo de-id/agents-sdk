@@ -68,6 +68,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         agentId: agent,
         isEnabled: options.enableAnalitics,
         distinctId: options.distinctId,
+        mixpanelAdditionalProperties: options.mixpanelAdditionalProperties,
     });
     analytics.track('agent-sdk', { event: 'init' });
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
@@ -177,6 +178,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
         getIsInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
+        getIsTriggersAvailable: () => items.streamingManager?.triggersAvailable ?? false,
         starterMessages: agentEntity.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,
