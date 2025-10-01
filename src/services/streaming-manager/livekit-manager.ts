@@ -209,6 +209,8 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
 
         async disconnect() {
             if (room) {
+                // Remove all event listeners to prevent memory leaks and stale event handlers
+                room.removeAllListeners();
                 await room.disconnect();
                 room = null;
             }
@@ -217,6 +219,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
                 mediaStream = null;
             }
             isConnected = false;
+            videoId = null;
             callbacks.onConnectionStateChange?.(ConnectionState.Completed);
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         },

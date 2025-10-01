@@ -331,6 +331,12 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                         return;
                     }
 
+                    // Clean up data channel event handlers
+                    pcDataChannel.onopen = null;
+                    pcDataChannel.onmessage = null;
+                    pcDataChannel.onclose = null;
+                    pcDataChannel.onerror = null;
+
                     peerConnection.close();
                     peerConnection.oniceconnectionstatechange = null;
                     peerConnection.onnegotiationneeded = null;
@@ -345,6 +351,12 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 } catch (e) {
                     log('Error on close stream connection', e);
                 }
+
+                // Reset state flags to prevent stale state on reconnection
+                isConnected = false;
+                isDatachannelOpen = false;
+                dataChannelSignal = StreamingState.Stop;
+                statsSignal = StreamingState.Stop;
 
                 callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
                 clearInterval(videoStatsInterval);
