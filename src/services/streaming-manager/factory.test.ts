@@ -63,20 +63,20 @@ describe('createStreamingManager', () => {
         expect(mockCreateLiveKitStreamingManager).not.toHaveBeenCalled();
     });
 
-    // it('calls to createLiveKitStreamingManager when agent presenter type is expressive', async () => {
-    //     const agent = AgentFactory.build({
-    //         presenter: {
-    //             type: 'expressive',
-    //             voice: {
-    //                 type: Providers.Microsoft,
-    //                 voice_id: 'voice-123',
-    //             },
-    //         },
-    //     });
+    it('calls to createLiveKitStreamingManager when agent presenter type is expressive', async () => {
+        const agent = AgentFactory.build({
+            presenter: {
+                type: 'expressive',
+                voice: {
+                    type: Providers.Microsoft,
+                    voice_id: 'voice-123',
+                },
+            },
+        });
 
-    //     await createStreamingManager(agent, mockStreamOptions, mockOptions);
+        await createStreamingManager(agent, mockStreamOptions, mockOptions);
 
-    //     expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(agent.id, mockStreamOptions, mockOptions);
-    //     expect(mockCreateWebRTCStreamingManager).not.toHaveBeenCalled();
-    // });
+        expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(agent.id, mockStreamOptions, mockOptions);
+        expect(mockCreateWebRTCStreamingManager).not.toHaveBeenCalled();
+    });
 });

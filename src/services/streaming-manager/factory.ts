@@ -12,9 +12,8 @@ export async function createStreamingManager<T extends CreateStreamOptions>(
 
     if (isLiveKitAgent(agent)) {
         // Lazy import the LiveKit manager only when needed
-        // const { createLiveKitStreamingManager } = await import('./livekit-manager');
-        // return createLiveKitStreamingManager(agentId, streamOptions, options);
-        return {} as any;
+        const { createLiveKitStreamingManager } = await import('./livekit-manager');
+        return createLiveKitStreamingManager(agentId, streamOptions, options);
     } else {
         return createWebRTCStreamingManager(agentId, streamOptions, options);
     }
