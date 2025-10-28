@@ -65,12 +65,19 @@ export interface ManagerCallbacks {
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
+export interface StreamAnalyticsOptions {
+    distinct_id?: string;
+    plan?: string;
+}
+
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
     fluent?: boolean;
+    analytics?: StreamAnalyticsOptions;
 }
 
 export interface ClipStreamOptions extends CreateClipStreamRequest {
     fluent?: boolean;
+    analytics?: StreamAnalyticsOptions;
 }
 
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;

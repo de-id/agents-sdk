@@ -20,13 +20,29 @@ import { createChat } from '../chat';
 function getAgentStreamArgs(options?: AgentManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
 
-    return {
+    const analytics =
+        options?.distinctId || options?.mixpanelAdditionalProperties?.plan !== undefined
+            ? {
+                  ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
+                  ...(options?.mixpanelAdditionalProperties?.plan !== undefined
+                      ? { plan: options.mixpanelAdditionalProperties?.plan }
+                      : {}),
+              }
+            : undefined;
+
+    const streamArgs = {
         output_resolution: streamOptions?.outputResolution,
         session_timeout: streamOptions?.sessionTimeout,
         stream_warmup: streamOptions?.streamWarmup,
         compatibility_mode: streamOptions?.compatibilityMode,
         fluent: streamOptions?.fluent,
     };
+
+    if (analytics && Object.keys(analytics).length > 0) {
+        return { ...streamArgs, analytics };
+    }
+
+    return streamArgs as CreateStreamOptions;
 }
 
 function trackVideoStateChangeAnalytics(
