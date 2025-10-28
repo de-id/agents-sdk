@@ -420,7 +420,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 expect.objectContaining({
-                    analytics: {
+                    end_user_data: {
                         distinct_id: 'analytics-user',
                         plan: 'scale',
                     },

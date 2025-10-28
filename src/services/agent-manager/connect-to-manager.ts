@@ -20,7 +20,7 @@ import { createChat } from '../chat';
 function getAgentStreamArgs(options?: AgentManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
 
-    const analytics =
+    const endUserData =
         options?.distinctId || options?.mixpanelAdditionalProperties?.plan !== undefined
             ? {
                   ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
@@ -38,8 +38,8 @@ function getAgentStreamArgs(options?: AgentManagerOptions): CreateStreamOptions 
         fluent: streamOptions?.fluent,
     };
 
-    if (analytics && Object.keys(analytics).length > 0) {
-        return { ...streamArgs, analytics };
+    if (endUserData && Object.keys(endUserData).length > 0) {
+        return { ...streamArgs, end_user_data: endUserData };
     }
 
     return streamArgs as CreateStreamOptions;
