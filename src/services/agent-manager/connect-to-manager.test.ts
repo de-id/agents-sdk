@@ -407,6 +407,27 @@ describe('connect-to-manager', () => {
                 expect.any(Object)
             );
         });
+
+        it('should include analytics data when provided', async () => {
+            const optionsWithAnalytics = {
+                ...mockOptions,
+                distinctId: 'analytics-user',
+                mixpanelAdditionalProperties: { plan: 'scale' },
+            };
+
+            await initializeStreamAndChat(mockAgent, optionsWithAnalytics, mockAgentsApi, mockAnalytics);
+
+            expect(createStreamingManager).toHaveBeenCalledWith(
+                mockAgent,
+                expect.objectContaining({
+                    end_user_data: {
+                        distinct_id: 'analytics-user',
+                        plan: 'scale',
+                    },
+                }),
+                expect.any(Object)
+            );
+        });
     });
 
     describe('Analytics Tracking', () => {
