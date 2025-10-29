@@ -38,11 +38,7 @@ function getAgentStreamArgs(options?: AgentManagerOptions): CreateStreamOptions 
         fluent: streamOptions?.fluent,
     };
 
-    if (endUserData && Object.keys(endUserData).length > 0) {
-        return { ...streamArgs, end_user_data: endUserData };
-    }
-
-    return streamArgs as CreateStreamOptions;
+    return { ...streamArgs, ...(endUserData && { end_user_data: endUserData }) };
 }
 
 function trackVideoStateChangeAnalytics(
