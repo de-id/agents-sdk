@@ -160,7 +160,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
 
     try {
         const streamResponse = await streamApi.createStream({
-            transport: Transport.Livekit,
+            transport_provider: Transport.Livekit,
         });
 
         const { agent_id, session_id, session_token: token, session_url: url } = streamResponse;
