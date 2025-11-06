@@ -1,5 +1,5 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { CreateStreamOptions, CreateStreamV2Options, Providers, StreamingManagerOptions, Transport } from '../../types';
+import { CreateStreamOptions, CreateStreamV2Options, Providers, StreamingManagerOptions, TransportProvider } from '../../types';
 import { createStreamingManager, StreamVersion } from './factory';
 
 const mockCreateWebRTCStreamingManager = jest.fn();
@@ -75,7 +75,7 @@ describe('createStreamingManager', () => {
         });
 
         const v2StreamOptions: CreateStreamV2Options = {
-            transport_provider: Transport.Livekit,
+            transport_provider: TransportProvider.Livekit,
             chat_id: 'chat-123',
         };
 

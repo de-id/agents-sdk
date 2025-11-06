@@ -9,7 +9,7 @@ import {
     StreamingManagerOptions,
     StreamingState,
     StreamType,
-    Transport,
+    TransportProvider,
 } from '$/types';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
@@ -161,7 +161,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
 
     try {
         const streamResponse = await streamApi.createStream({
-            transport_provider: Transport.Livekit,
+            transport_provider: TransportProvider.Livekit,
             chat_id: agent.chat_id,
         });
 

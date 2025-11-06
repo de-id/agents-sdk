@@ -1,4 +1,4 @@
-import { Agent, CreateStreamOptions, CreateStreamV2Options, StreamingManagerOptions, Transport } from '$/types';
+import { Agent, CreateStreamOptions, CreateStreamV2Options, StreamingManagerOptions, TransportProvider } from '$/types';
 import { StreamingManager } from './common';
 import { createWebRTCStreamingManager } from './webrtc-manager';
 
@@ -28,7 +28,7 @@ export async function createStreamingManager(
             const { version, ...createStreamOptions } = streamOptions;
 
             switch (createStreamOptions.transport_provider) {
-                case Transport.Livekit:
+                case TransportProvider.Livekit:
                     const { createLiveKitStreamingManager } = await import('./livekit-manager');
                     return createLiveKitStreamingManager(agentId, createStreamOptions, options);
                 default:

@@ -18,7 +18,7 @@ import {
     StreamEvents,
     StreamType,
     StreamingState,
-    Transport,
+    TransportProvider,
 } from '$/types';
 import { isStreamsV2Agent } from '$/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
@@ -27,7 +27,7 @@ import { createChat } from '../chat';
 
 function getAgentStreamV2Options(options?: ConnectToManagerOptions): CreateStreamV2Options {
     return {
-        transport_provider: Transport.Livekit,
+        transport_provider: TransportProvider.Livekit,
         chat_id: options?.chatId,
     };
 }

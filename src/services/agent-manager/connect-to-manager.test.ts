@@ -8,7 +8,7 @@ import {
     StreamEvents,
     StreamingState,
     StreamType,
-    Transport,
+    TransportProvider,
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
@@ -529,7 +529,7 @@ describe('connect-to-manager', () => {
                 expressiveAgent,
                 {
                     version: StreamVersion.V2,
-                    transport_provider: Transport.Livekit,
+                    transport_provider: TransportProvider.Livekit,
                     chat_id: 'chat-123',
                 },
                 expect.objectContaining({
