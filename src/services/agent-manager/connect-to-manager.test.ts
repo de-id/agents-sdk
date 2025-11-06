@@ -12,7 +12,7 @@ import {
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
-import { createStreamingManager, StreamVersion } from '../streaming-manager';
+import { createStreamingManager, StreamApiVersion } from '../streaming-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 // Mock dependencies
@@ -154,7 +154,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
-                    version: StreamVersion.V1,
+                    version: StreamApiVersion.V1,
                     output_resolution: 1080,
                     session_timeout: 30000,
                     stream_warmup: true,
@@ -388,7 +388,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
-                    version: StreamVersion.V1,
+                    version: StreamApiVersion.V1,
                     output_resolution: 720,
                     session_timeout: 60000,
                     stream_warmup: false,
@@ -409,7 +409,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
-                    version: StreamVersion.V1,
+                    version: StreamApiVersion.V1,
                     output_resolution: undefined,
                     session_timeout: undefined,
                     stream_warmup: undefined,
@@ -434,7 +434,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 expect.objectContaining({
-                    version: StreamVersion.V1,
+                    version: StreamApiVersion.V1,
                     end_user_data: {
                         distinct_id: 'analytics-user',
                         plan: 'scale',
@@ -528,7 +528,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 expressiveAgent,
                 {
-                    version: StreamVersion.V2,
+                    version: StreamApiVersion.V2,
                     transport_provider: TransportProvider.Livekit,
                     chat_id: 'chat-123',
                 },
@@ -544,7 +544,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 expect.objectContaining({
-                    version: StreamVersion.V1,
+                    version: StreamApiVersion.V1,
                     output_resolution: 1080,
                     session_timeout: 30000,
                 }),

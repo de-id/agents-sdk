@@ -1,7 +1,7 @@
 import { ChatModeDowngraded } from '$/errors';
 import {
     ExtendedStreamOptions,
-    StreamVersion,
+    StreamApiVersion,
     StreamingManager,
     createStreamingManager,
 } from '$/services/streaming-manager';
@@ -60,10 +60,10 @@ function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions):
     const isStreamsV2 = isStreamsV2Agent(agent.presenter.type);
 
     if (isStreamsV2) {
-        return { version: StreamVersion.V2, ...getAgentStreamV2Options(options) };
+        return { version: StreamApiVersion.V2, ...getAgentStreamV2Options(options) };
     }
 
-    return { version: StreamVersion.V1, ...getAgentStreamV1Options(options) };
+    return { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
 }
 
 function trackVideoStateChangeAnalytics(
