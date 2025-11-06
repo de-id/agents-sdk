@@ -1,4 +1,4 @@
-export { StreamVersion, createStreamingManager } from './factory';
+export { StreamApiVersion as StreamVersion, createStreamingManager } from './factory';
 export type { ExtendedStreamOptions } from './factory';
 
 export type { StreamingManager } from './common';
