@@ -8,6 +8,7 @@ import {
     StreamEvents,
     StreamType,
     StreamingState,
+    Transport,
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
@@ -17,6 +18,9 @@ import { initializeStreamAndChat } from './connect-to-manager';
 // Mock dependencies
 jest.mock('../streaming-manager');
 jest.mock('../chat');
+jest.mock('$/utils/agent', () => ({
+    isStreamsV2Agent: jest.fn((type: string) => type === 'expressive'),
+}));
 jest.mock('$/config/consts', () => ({ CONNECTION_RETRY_TIMEOUT_MS: 5000 }));
 jest.mock('../../config/environment', () => ({
     didApiUrl: 'https://api.d-id.com',
@@ -116,6 +120,7 @@ describe('connect-to-manager', () => {
         mockAgentsApi = { getById: jest.fn().mockResolvedValue(mockAgent), chat: jest.fn(), createRating: jest.fn() };
 
         // Setup mocks
+        (createStreamingManager as jest.Mock).mockReset();
         (createStreamingManager as jest.Mock).mockImplementation((agentId, streamArgs, options) => {
             // Immediately trigger the connection state change to Connected
             setTimeout(() => {
@@ -128,6 +133,7 @@ describe('connect-to-manager', () => {
             return Promise.resolve(mockStreamingManager);
         });
 
+        (createChat as jest.Mock).mockReset();
         (createChat as jest.Mock).mockResolvedValue({ chat: mockChat, chatMode: ChatMode.Functional });
     });
 
@@ -137,6 +143,14 @@ describe('connect-to-manager', () => {
 
             expect(result.streamingManager).toBe(mockStreamingManager);
             expect(result.chat).toBe(mockChat);
+            expect(createChat).toHaveBeenCalledWith(
+                mockAgent,
+                mockAgentsApi,
+                mockAnalytics,
+                ChatMode.Functional,
+                true,
+                undefined
+            );
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
@@ -153,15 +167,8 @@ describe('connect-to-manager', () => {
                         onVideoStateChange: expect.any(Function),
                         onAgentActivityStateChange: expect.any(Function),
                     }),
+                    chatId: 'chat-123',
                 })
-            );
-            expect(createChat).toHaveBeenCalledWith(
-                mockAgent,
-                mockAgentsApi,
-                mockAnalytics,
-                ChatMode.Functional,
-                true,
-                undefined
             );
         });
 
@@ -386,7 +393,9 @@ describe('connect-to-manager', () => {
                     compatibility_mode: 'on',
                     fluent: true,
                 },
-                expect.any(Object)
+                expect.objectContaining({
+                    chatId: 'chat-123',
+                })
             );
         });
 
@@ -404,7 +413,9 @@ describe('connect-to-manager', () => {
                     compatibility_mode: undefined,
                     fluent: undefined,
                 },
-                expect.any(Object)
+                expect.objectContaining({
+                    chatId: 'chat-123',
+                })
             );
         });
 
@@ -425,7 +436,9 @@ describe('connect-to-manager', () => {
                         plan: 'scale',
                     },
                 }),
-                expect.any(Object)
+                expect.objectContaining({
+                    chatId: 'chat-123',
+                })
             );
         });
     });
@@ -479,22 +492,60 @@ describe('connect-to-manager', () => {
             (createStreamingManager as jest.Mock).mockRejectedValueOnce(streamError);
             (createChat as jest.Mock).mockRejectedValueOnce(chatError);
 
-            // Should reject with the first error encountered
             await expect(
                 initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics)
-            ).rejects.toThrow();
+            ).rejects.toThrow('Chat failed');
         });
     });
 
-    describe('Concurrent Operations', () => {
-        it('should handle streaming manager and chat creation concurrently', async () => {
-            // Simplified test to avoid timing issues
+    describe('Sequential Operations', () => {
+        it('should handle streaming manager and chat creation sequentially', async () => {
             const result = await initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics);
 
             expect(result.streamingManager).toBeDefined();
             expect(result.chat).toBeDefined();
             expect(createStreamingManager).toHaveBeenCalled();
             expect(createChat).toHaveBeenCalled();
+        });
+    });
+
+    describe('Streams V2 Support', () => {
+        it('should use CreateStreamV2Options for expressive agents', async () => {
+            const expressiveAgent = {
+                ...mockAgent,
+                presenter: {
+                    type: 'expressive' as const,
+                    voice: { type: Providers.Microsoft, voice_id: 'voice-123' },
+                },
+            };
+
+            await initializeStreamAndChat(expressiveAgent, mockOptions, mockAgentsApi, mockAnalytics);
+
+            expect(createStreamingManager).toHaveBeenCalledWith(
+                expressiveAgent,
+                {
+                    transport_provider: Transport.Livekit,
+                    chat_id: 'chat-123',
+                },
+                expect.objectContaining({
+                    chatId: 'chat-123',
+                })
+            );
+        });
+
+        it('should use CreateStreamOptions for non-expressive agents', async () => {
+            await initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics);
+
+            expect(createStreamingManager).toHaveBeenCalledWith(
+                mockAgent,
+                expect.objectContaining({
+                    output_resolution: 1080,
+                    session_timeout: 30000,
+                }),
+                expect.objectContaining({
+                    chatId: 'chat-123',
+                })
+            );
         });
     });
 });

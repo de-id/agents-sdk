@@ -4,6 +4,7 @@ export enum Transport {
 
 export interface CreateStreamV2Options {
     transport_provider: Transport.Livekit;
+    chat_id?: string;
 }
 
 export interface CreateStreamV2Response {

@@ -9,25 +9,35 @@ import {
     ChatMode,
     ConnectionState,
     CreateStreamOptions,
+    CreateStreamV2Options,
     StreamEvents,
     StreamType,
     StreamingState,
+    Transport,
 } from '$/types';
+import { isStreamsV2Agent } from '$/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat } from '../chat';
 
-function getAgentStreamArgs(options?: AgentManagerOptions): CreateStreamOptions {
+function getAgentStreamV2Args(options?: ConnectToManagerOptions): CreateStreamV2Options {
+    return {
+        transport_provider: Transport.Livekit,
+        chat_id: options?.chatId,
+    };
+}
+
+function getAgentStreamArgs(options?: ConnectToManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
 
     const endUserData =
         options?.distinctId || options?.mixpanelAdditionalProperties?.plan !== undefined
             ? {
-                  ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
-                  ...(options?.mixpanelAdditionalProperties?.plan !== undefined
-                      ? { plan: options.mixpanelAdditionalProperties?.plan }
-                      : {}),
-              }
+                ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
+                ...(options?.mixpanelAdditionalProperties?.plan !== undefined
+                    ? { plan: options.mixpanelAdditionalProperties?.plan }
+                    : {}),
+            }
             : undefined;
 
     const streamArgs = {
@@ -141,19 +151,23 @@ type ConnectToManagerOptions = AgentManagerOptions & {
     callbacks: AgentManagerOptions['callbacks'] & {
         onVideoIdChange?: (videoId: string | null) => void;
     };
+    chatId?: string;
 };
 
 function connectToManager(
     agent: Agent,
     options: ConnectToManagerOptions,
     analytics: Analytics
-): Promise<StreamingManager<CreateStreamOptions>> {
+): Promise<StreamingManager<CreateStreamOptions | CreateStreamV2Options>> {
     latencyTimestampTracker.reset();
 
     return new Promise(async (resolve, reject) => {
         try {
-            let streamingManager: StreamingManager<CreateStreamOptions>;
-            streamingManager = await createStreamingManager(agent, getAgentStreamArgs(options), {
+            const isStreamsV2 = isStreamsV2Agent(agent.presenter.type);
+            const streamArgs = isStreamsV2 ? getAgentStreamV2Args(options) : getAgentStreamArgs(options);
+
+            let streamingManager: StreamingManager<CreateStreamOptions | CreateStreamV2Options>;
+            streamingManager = await createStreamingManager(agent, streamArgs, {
                 ...options,
                 analytics,
                 callbacks: {
@@ -206,13 +220,10 @@ export async function initializeStreamAndChat(
     agentsApi: AgentsAPI,
     analytics: Analytics,
     chat?: Chat
-): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions> }> {
-    const createChatPromise = createChat(agent, agentsApi, analytics, options.mode, options.persistentChat, chat);
-    const connectToManagerPromise = connectToManager(agent, options, analytics);
-
-    const [chatResult, streamingManager] = await Promise.all([createChatPromise, connectToManagerPromise]);
-
+): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions | CreateStreamV2Options> }> {
+    const chatResult = await createChat(agent, agentsApi, analytics, options.mode, options.persistentChat, chat);
     const { chat: newChat, chatMode } = chatResult;
+    const streamingManager = await connectToManager(agent, { ...options, chatId: newChat?.id }, analytics);
 
     if (chatMode && chatMode !== options.mode) {
         options.mode = chatMode;
