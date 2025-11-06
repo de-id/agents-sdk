@@ -1,6 +1,12 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { CreateStreamOptions, Providers, StreamingManagerOptions } from '../../types';
-import { createStreamingManager } from './factory';
+import {
+    CreateStreamOptions,
+    CreateStreamV2Options,
+    Providers,
+    StreamingManagerOptions,
+    TransportProvider,
+} from '../../types';
+import { createStreamingManager, StreamApiVersion } from './factory';
 
 const mockCreateWebRTCStreamingManager = jest.fn();
 jest.mock('./webrtc-manager', () => ({
@@ -38,7 +44,7 @@ describe('createStreamingManager', () => {
             },
         });
 
-        await createStreamingManager(agent, mockStreamOptions, mockOptions);
+        await createStreamingManager(agent, { version: StreamApiVersion.V1, ...mockStreamOptions }, mockOptions);
 
         expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(agent.id, mockStreamOptions, mockOptions);
         expect(mockCreateLiveKitStreamingManager).not.toHaveBeenCalled();
@@ -57,7 +63,7 @@ describe('createStreamingManager', () => {
             },
         });
 
-        await createStreamingManager(agent, mockStreamOptions, mockOptions);
+        await createStreamingManager(agent, { version: StreamApiVersion.V1, ...mockStreamOptions }, mockOptions);
 
         expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(agent.id, mockStreamOptions, mockOptions);
         expect(mockCreateLiveKitStreamingManager).not.toHaveBeenCalled();
@@ -74,9 +80,14 @@ describe('createStreamingManager', () => {
             },
         });
 
-        await createStreamingManager(agent, mockStreamOptions, mockOptions);
+        const v2StreamOptions: CreateStreamV2Options = {
+            transport_provider: TransportProvider.Livekit,
+            chat_id: 'chat-123',
+        };
 
-        expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(agent.id, mockStreamOptions, mockOptions);
+        await createStreamingManager(agent, { version: StreamApiVersion.V2, ...v2StreamOptions }, mockOptions);
+
+        expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(agent.id, v2StreamOptions, mockOptions);
         expect(mockCreateWebRTCStreamingManager).not.toHaveBeenCalled();
     });
 });
