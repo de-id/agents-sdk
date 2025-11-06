@@ -2,14 +2,14 @@ import { Agent, CreateStreamOptions, CreateStreamV2Options, StreamingManagerOpti
 import { StreamingManager } from './common';
 import { createWebRTCStreamingManager } from './webrtc-manager';
 
-export enum StreamApiVersion {
+export enum StreamVersion {
     V1 = 'v1',
     V2 = 'v2',
 }
 
 export type ExtendedStreamOptions =
-    | ({ version: StreamApiVersion.V1 } & CreateStreamOptions)
-    | ({ version: StreamApiVersion.V2 } & CreateStreamV2Options);
+    | ({ version: StreamVersion.V1 } & CreateStreamOptions)
+    | ({ version: StreamVersion.V2 } & CreateStreamV2Options);
 
 export async function createStreamingManager(
     agent: Agent,
@@ -19,12 +19,12 @@ export async function createStreamingManager(
     const agentId = agent.id;
 
     switch (streamOptions.version) {
-        case StreamApiVersion.V1: {
+        case StreamVersion.V1: {
             const { version, ...createStreamOptions } = streamOptions;
             return createWebRTCStreamingManager(agentId, createStreamOptions, options);
         }
 
-        case StreamApiVersion.V2: {
+        case StreamVersion.V2: {
             const { version, ...createStreamOptions } = streamOptions;
 
             switch (createStreamOptions.transport_provider) {

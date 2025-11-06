@@ -1,6 +1,6 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { CreateStreamOptions, CreateStreamV2Options, Providers, StreamingManagerOptions, TransportProvider } from '../../types';
-import { createStreamingManager, StreamApiVersion } from './factory';
+import { createStreamingManager, StreamVersion } from './factory';
 
 const mockCreateWebRTCStreamingManager = jest.fn();
 jest.mock('./webrtc-manager', () => ({
@@ -38,7 +38,7 @@ describe('createStreamingManager', () => {
             },
         });
 
-        await createStreamingManager(agent, { version: StreamApiVersion.V1, ...mockStreamOptions }, mockOptions);
+        await createStreamingManager(agent, { version: StreamVersion.V1, ...mockStreamOptions }, mockOptions);
 
         expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(agent.id, mockStreamOptions, mockOptions);
         expect(mockCreateLiveKitStreamingManager).not.toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe('createStreamingManager', () => {
             },
         });
 
-        await createStreamingManager(agent, { version: StreamApiVersion.V1, ...mockStreamOptions }, mockOptions);
+        await createStreamingManager(agent, { version: StreamVersion.V1, ...mockStreamOptions }, mockOptions);
 
         expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(agent.id, mockStreamOptions, mockOptions);
         expect(mockCreateLiveKitStreamingManager).not.toHaveBeenCalled();
@@ -79,7 +79,7 @@ describe('createStreamingManager', () => {
             chat_id: 'chat-123',
         };
 
-        await createStreamingManager(agent, { version: StreamApiVersion.V2, ...v2StreamOptions }, mockOptions);
+        await createStreamingManager(agent, { version: StreamVersion.V2, ...v2StreamOptions }, mockOptions);
 
         expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(agent.id, v2StreamOptions, mockOptions);
         expect(mockCreateWebRTCStreamingManager).not.toHaveBeenCalled();
