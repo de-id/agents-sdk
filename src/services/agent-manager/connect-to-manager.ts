@@ -1,5 +1,5 @@
 import { ChatModeDowngraded } from '$/errors';
-import { StreamingManager, createStreamingManager } from '$/services/streaming-manager';
+import { StreamingManager, createStreamingManager, StreamVersion, ExtendedStreamOptions } from '$/services/streaming-manager';
 import {
     Agent,
     AgentActivityState,
@@ -20,14 +20,14 @@ import { Analytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat } from '../chat';
 
-function getAgentStreamV2Args(options?: ConnectToManagerOptions): CreateStreamV2Options {
+function getAgentStreamV2Options(options?: ConnectToManagerOptions): CreateStreamV2Options {
     return {
         transport_provider: Transport.Livekit,
         chat_id: options?.chatId,
     };
 }
 
-function getAgentStreamArgs(options?: ConnectToManagerOptions): CreateStreamOptions {
+function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
 
     const endUserData =
@@ -49,6 +49,16 @@ function getAgentStreamArgs(options?: ConnectToManagerOptions): CreateStreamOpti
     };
 
     return { ...streamArgs, ...(endUserData && { end_user_data: endUserData }) };
+}
+
+function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
+    const isStreamsV2 = isStreamsV2Agent(agent.presenter.type);
+
+    if (isStreamsV2) {
+        return { version: StreamVersion.V2, ...getAgentStreamV2Options(options) };
+    }
+
+    return { version: StreamVersion.V1, ...getAgentStreamV1Options(options) };
 }
 
 function trackVideoStateChangeAnalytics(
@@ -163,11 +173,8 @@ function connectToManager(
 
     return new Promise(async (resolve, reject) => {
         try {
-            const isStreamsV2 = isStreamsV2Agent(agent.presenter.type);
-            const streamArgs = isStreamsV2 ? getAgentStreamV2Args(options) : getAgentStreamArgs(options);
-
             let streamingManager: StreamingManager<CreateStreamOptions | CreateStreamV2Options>;
-            streamingManager = await createStreamingManager(agent, streamArgs, {
+            streamingManager = await createStreamingManager(agent, getAgentStreamOptions(agent, options), {
                 ...options,
                 analytics,
                 callbacks: {

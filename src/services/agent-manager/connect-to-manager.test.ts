@@ -12,7 +12,7 @@ import {
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
-import { createStreamingManager } from '../streaming-manager';
+import { createStreamingManager, StreamVersion } from '../streaming-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 // Mock dependencies
@@ -121,7 +121,7 @@ describe('connect-to-manager', () => {
 
         // Setup mocks
         (createStreamingManager as jest.Mock).mockReset();
-        (createStreamingManager as jest.Mock).mockImplementation((agentId, streamArgs, options) => {
+        (createStreamingManager as jest.Mock).mockImplementation((agent, streamOptions, options) => {
             // Immediately trigger the connection state change to Connected
             setTimeout(() => {
                 if (options.callbacks.onConnectionStateChange) {
@@ -154,6 +154,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
+                    version: StreamVersion.V1,
                     output_resolution: 1080,
                     session_timeout: 30000,
                     stream_warmup: true,
@@ -240,7 +241,7 @@ describe('connect-to-manager', () => {
             onVideoStateChange = jest.fn();
             onAgentActivityStateChange = jest.fn();
 
-            (createStreamingManager as jest.Mock).mockImplementation((agentId, streamArgs, options) => {
+            (createStreamingManager as jest.Mock).mockImplementation((agent, streamOptions, options) => {
                 onConnectionStateChange = options.callbacks.onConnectionStateChange;
                 onVideoStateChange = options.callbacks.onVideoStateChange;
                 onAgentActivityStateChange = options.callbacks.onAgentActivityStateChange;
@@ -387,6 +388,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
+                    version: StreamVersion.V1,
                     output_resolution: 720,
                     session_timeout: 60000,
                     stream_warmup: false,
@@ -407,6 +409,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
+                    version: StreamVersion.V1,
                     output_resolution: undefined,
                     session_timeout: undefined,
                     stream_warmup: undefined,
@@ -431,6 +434,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 expect.objectContaining({
+                    version: StreamVersion.V1,
                     end_user_data: {
                         distinct_id: 'analytics-user',
                         plan: 'scale',
@@ -524,6 +528,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 expressiveAgent,
                 {
+                    version: StreamVersion.V2,
                     transport_provider: Transport.Livekit,
                     chat_id: 'chat-123',
                 },
@@ -539,6 +544,7 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 expect.objectContaining({
+                    version: StreamVersion.V1,
                     output_resolution: 1080,
                     session_timeout: 30000,
                 }),

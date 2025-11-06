@@ -1,4 +1,5 @@
-export { createStreamingManager } from './factory';
+export { createStreamingManager, StreamVersion } from './factory';
+export type { ExtendedStreamOptions } from './factory';
 
 export type { StreamingManager } from './common';
 export type { LiveKitStreamingManager } from './livekit-manager';
