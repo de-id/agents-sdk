@@ -1,5 +1,11 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { CreateStreamOptions, CreateStreamV2Options, Providers, StreamingManagerOptions, TransportProvider } from '../../types';
+import {
+    CreateStreamOptions,
+    CreateStreamV2Options,
+    Providers,
+    StreamingManagerOptions,
+    TransportProvider,
+} from '../../types';
 import { createStreamingManager, StreamApiVersion } from './factory';
 
 const mockCreateWebRTCStreamingManager = jest.fn();
