@@ -38,11 +38,11 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
     const endUserData =
         options?.distinctId || options?.mixpanelAdditionalProperties?.plan !== undefined
             ? {
-                  ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
-                  ...(options?.mixpanelAdditionalProperties?.plan !== undefined
-                      ? { plan: options.mixpanelAdditionalProperties?.plan }
-                      : {}),
-              }
+                ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
+                ...(options?.mixpanelAdditionalProperties?.plan !== undefined
+                    ? { plan: options.mixpanelAdditionalProperties?.plan }
+                    : {}),
+            }
             : undefined;
 
     const streamArgs = {
@@ -57,13 +57,9 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
 }
 
 function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
-    const isStreamsV2 = isStreamsV2Agent(agent.presenter.type);
-
-    if (isStreamsV2) {
-        return { version: StreamApiVersion.V2, ...getAgentStreamV2Options(options) };
-    }
-
-    return { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
+    return isStreamsV2Agent(agent.presenter.type)
+        ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options(options) }
+        : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
 }
 
 function trackVideoStateChangeAnalytics(
