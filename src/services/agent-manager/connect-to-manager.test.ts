@@ -6,8 +6,8 @@ import {
     ConnectionState,
     Providers,
     StreamEvents,
-    StreamType,
     StreamingState,
+    StreamType,
     Transport,
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
@@ -496,9 +496,9 @@ describe('connect-to-manager', () => {
             (createStreamingManager as jest.Mock).mockRejectedValueOnce(streamError);
             (createChat as jest.Mock).mockRejectedValueOnce(chatError);
 
-            await expect(
-                initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics)
-            ).rejects.toThrow('Chat failed');
+            await expect(initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics)).rejects.toThrow(
+                'Chat failed'
+            );
         });
     });
 

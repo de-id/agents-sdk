@@ -11,7 +11,6 @@ export type ExtendedStreamOptions =
     | ({ version: StreamVersion.V1 } & CreateStreamOptions)
     | ({ version: StreamVersion.V2 } & CreateStreamV2Options);
 
-
 export async function createStreamingManager(
     agent: Agent,
     streamOptions: ExtendedStreamOptions,

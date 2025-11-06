@@ -1,5 +1,10 @@
 import { ChatModeDowngraded } from '$/errors';
-import { StreamingManager, createStreamingManager, StreamVersion, ExtendedStreamOptions } from '$/services/streaming-manager';
+import {
+    ExtendedStreamOptions,
+    StreamVersion,
+    StreamingManager,
+    createStreamingManager,
+} from '$/services/streaming-manager';
 import {
     Agent,
     AgentActivityState,
@@ -33,11 +38,11 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
     const endUserData =
         options?.distinctId || options?.mixpanelAdditionalProperties?.plan !== undefined
             ? {
-                ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
-                ...(options?.mixpanelAdditionalProperties?.plan !== undefined
-                    ? { plan: options.mixpanelAdditionalProperties?.plan }
-                    : {}),
-            }
+                  ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
+                  ...(options?.mixpanelAdditionalProperties?.plan !== undefined
+                      ? { plan: options.mixpanelAdditionalProperties?.plan }
+                      : {}),
+              }
             : undefined;
 
     const streamArgs = {
