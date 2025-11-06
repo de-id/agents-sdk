@@ -3,7 +3,7 @@ export enum Transport {
 }
 
 export interface CreateStreamV2Options {
-    transport: Transport.Livekit;
+    transport_provider: Transport.Livekit;
 }
 
 export interface CreateStreamV2Response {
