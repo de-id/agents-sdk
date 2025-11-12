@@ -38,11 +38,11 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
     const endUserData =
         options?.distinctId || options?.mixpanelAdditionalProperties?.plan !== undefined
             ? {
-                ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
-                ...(options?.mixpanelAdditionalProperties?.plan !== undefined
-                    ? { plan: options.mixpanelAdditionalProperties?.plan }
-                    : {}),
-            }
+                  ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
+                  ...(options?.mixpanelAdditionalProperties?.plan !== undefined
+                      ? { plan: options.mixpanelAdditionalProperties?.plan }
+                      : {}),
+              }
             : undefined;
 
     const streamArgs = {
@@ -231,11 +231,29 @@ export async function initializeStreamAndChat(
 ): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions | CreateStreamV2Options> }> {
     const resolveStreamAndChat = async () => {
         if (isStreamsV2Agent(agent.presenter.type)) {
-            const chatResult = await createChat(agent, agentsApi, analytics, options.mode, options.persistentChat, chat);
-            const streamingManager = await connectToManager(agent, { ...options, chatId: chatResult.chat?.id }, analytics);
+            const chatResult = await createChat(
+                agent,
+                agentsApi,
+                analytics,
+                options.mode,
+                options.persistentChat,
+                chat
+            );
+            const streamingManager = await connectToManager(
+                agent,
+                { ...options, chatId: chatResult.chat?.id },
+                analytics
+            );
             return { chatResult, streamingManager };
         } else {
-            const createChatPromise = createChat(agent, agentsApi, analytics, options.mode, options.persistentChat, chat);
+            const createChatPromise = createChat(
+                agent,
+                agentsApi,
+                analytics,
+                options.mode,
+                options.persistentChat,
+                chat
+            );
             const connectToManagerPromise = connectToManager(agent, options, analytics);
             const [chatResult, streamingManager] = await Promise.all([createChatPromise, connectToManagerPromise]);
             return { chatResult, streamingManager };

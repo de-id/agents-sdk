@@ -165,7 +165,7 @@ describe('connect-to-manager', () => {
                         onVideoStateChange: expect.any(Function),
                         onAgentActivityStateChange: expect.any(Function),
                     }),
-                }),
+                })
             );
         });
 
