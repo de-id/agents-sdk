@@ -424,7 +424,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'assistant',
                     content: script.input,
-                    created_at: new Date(latencyTimestampTracker.get(true)).toISOString(),
+                    created_at: new Date().toISOString(),
                 });
                 options.callbacks.onNewMessage?.([...items.messages], 'answer');
             }

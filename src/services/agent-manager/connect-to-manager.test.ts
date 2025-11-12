@@ -6,12 +6,13 @@ import {
     ConnectionState,
     Providers,
     StreamEvents,
-    StreamType,
     StreamingState,
+    StreamType,
+    TransportProvider,
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
-import { createStreamingManager } from '../streaming-manager';
+import { createStreamingManager, StreamApiVersion } from '../streaming-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 // Mock dependencies
@@ -116,7 +117,8 @@ describe('connect-to-manager', () => {
         mockAgentsApi = { getById: jest.fn().mockResolvedValue(mockAgent), chat: jest.fn(), createRating: jest.fn() };
 
         // Setup mocks
-        (createStreamingManager as jest.Mock).mockImplementation((agentId, streamArgs, options) => {
+        (createStreamingManager as jest.Mock).mockReset();
+        (createStreamingManager as jest.Mock).mockImplementation((agent, streamOptions, options) => {
             // Immediately trigger the connection state change to Connected
             setTimeout(() => {
                 if (options.callbacks.onConnectionStateChange) {
@@ -128,6 +130,7 @@ describe('connect-to-manager', () => {
             return Promise.resolve(mockStreamingManager);
         });
 
+        (createChat as jest.Mock).mockReset();
         (createChat as jest.Mock).mockResolvedValue({ chat: mockChat, chatMode: ChatMode.Functional });
     });
 
@@ -137,9 +140,18 @@ describe('connect-to-manager', () => {
 
             expect(result.streamingManager).toBe(mockStreamingManager);
             expect(result.chat).toBe(mockChat);
+            expect(createChat).toHaveBeenCalledWith(
+                mockAgent,
+                mockAgentsApi,
+                mockAnalytics,
+                ChatMode.Functional,
+                true,
+                undefined
+            );
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
+                    version: StreamApiVersion.V1,
                     output_resolution: 1080,
                     session_timeout: 30000,
                     stream_warmup: true,
@@ -154,14 +166,6 @@ describe('connect-to-manager', () => {
                         onAgentActivityStateChange: expect.any(Function),
                     }),
                 })
-            );
-            expect(createChat).toHaveBeenCalledWith(
-                mockAgent,
-                mockAgentsApi,
-                mockAnalytics,
-                ChatMode.Functional,
-                true,
-                undefined
             );
         });
 
@@ -233,7 +237,7 @@ describe('connect-to-manager', () => {
             onVideoStateChange = jest.fn();
             onAgentActivityStateChange = jest.fn();
 
-            (createStreamingManager as jest.Mock).mockImplementation((agentId, streamArgs, options) => {
+            (createStreamingManager as jest.Mock).mockImplementation((agent, streamOptions, options) => {
                 onConnectionStateChange = options.callbacks.onConnectionStateChange;
                 onVideoStateChange = options.callbacks.onVideoStateChange;
                 onAgentActivityStateChange = options.callbacks.onAgentActivityStateChange;
@@ -380,13 +384,16 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
+                    version: StreamApiVersion.V1,
                     output_resolution: 720,
                     session_timeout: 60000,
                     stream_warmup: false,
                     compatibility_mode: 'on',
                     fluent: true,
                 },
-                expect.any(Object)
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
+                })
             );
         });
 
@@ -398,13 +405,40 @@ describe('connect-to-manager', () => {
             expect(createStreamingManager).toHaveBeenCalledWith(
                 mockAgent,
                 {
+                    version: StreamApiVersion.V1,
                     output_resolution: undefined,
                     session_timeout: undefined,
                     stream_warmup: undefined,
                     compatibility_mode: undefined,
                     fluent: undefined,
                 },
-                expect.any(Object)
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
+                })
+            );
+        });
+
+        it('should include analytics data when provided', async () => {
+            const optionsWithAnalytics = {
+                ...mockOptions,
+                distinctId: 'analytics-user',
+                mixpanelAdditionalProperties: { plan: 'scale' },
+            };
+
+            await initializeStreamAndChat(mockAgent, optionsWithAnalytics, mockAgentsApi, mockAnalytics);
+
+            expect(createStreamingManager).toHaveBeenCalledWith(
+                mockAgent,
+                expect.objectContaining({
+                    version: StreamApiVersion.V1,
+                    end_user_data: {
+                        distinct_id: 'analytics-user',
+                        plan: 'scale',
+                    },
+                }),
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
+                })
             );
         });
     });
@@ -458,22 +492,62 @@ describe('connect-to-manager', () => {
             (createStreamingManager as jest.Mock).mockRejectedValueOnce(streamError);
             (createChat as jest.Mock).mockRejectedValueOnce(chatError);
 
-            // Should reject with the first error encountered
-            await expect(
-                initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics)
-            ).rejects.toThrow();
+            await expect(initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics)).rejects.toThrow(
+                'Chat failed'
+            );
         });
     });
 
-    describe('Concurrent Operations', () => {
-        it('should handle streaming manager and chat creation concurrently', async () => {
-            // Simplified test to avoid timing issues
+    describe('Sequential Operations', () => {
+        it('should handle streaming manager and chat creation sequentially', async () => {
             const result = await initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics);
 
             expect(result.streamingManager).toBeDefined();
             expect(result.chat).toBeDefined();
             expect(createStreamingManager).toHaveBeenCalled();
             expect(createChat).toHaveBeenCalled();
+        });
+    });
+
+    describe('Streams V2 Support', () => {
+        it('should use CreateStreamV2Options for expressive agents', async () => {
+            const expressiveAgent = {
+                ...mockAgent,
+                presenter: {
+                    type: 'expressive' as const,
+                    voice: { type: Providers.Microsoft, voice_id: 'voice-123' },
+                },
+            };
+
+            await initializeStreamAndChat(expressiveAgent, mockOptions, mockAgentsApi, mockAnalytics);
+
+            expect(createStreamingManager).toHaveBeenCalledWith(
+                expressiveAgent,
+                {
+                    version: StreamApiVersion.V2,
+                    transport_provider: TransportProvider.Livekit,
+                    chat_id: 'chat-123',
+                },
+                expect.objectContaining({
+                    chatId: 'chat-123',
+                })
+            );
+        });
+
+        it('should use CreateStreamOptions for non-expressive agents', async () => {
+            await initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics);
+
+            expect(createStreamingManager).toHaveBeenCalledWith(
+                mockAgent,
+                expect.objectContaining({
+                    version: StreamApiVersion.V1,
+                    output_resolution: 1080,
+                    session_timeout: 30000,
+                }),
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
+                })
+            );
         });
     });
 });

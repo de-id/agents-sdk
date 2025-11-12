@@ -3,12 +3,13 @@ import {
     ConnectionState,
     ConnectivityState,
     CreateStreamOptions,
+    CreateStreamV2Options,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     StreamType,
-    Transport,
+    TransportProvider,
 } from '$/types';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
@@ -38,7 +39,7 @@ async function importLiveKit(): Promise<{
     }
 }
 
-export async function createLiveKitStreamingManager<T extends CreateStreamOptions>(
+export async function createLiveKitStreamingManager<T extends CreateStreamV2Options>(
     agentId: string,
     agent: T,
     options: StreamingManagerOptions
@@ -160,7 +161,8 @@ export async function createLiveKitStreamingManager<T extends CreateStreamOption
 
     try {
         const streamResponse = await streamApi.createStream({
-            transport: Transport.Livekit,
+            transport_provider: TransportProvider.Livekit,
+            chat_id: agent.chat_id,
         });
 
         const { agent_id, session_id, session_token: token, session_url: url } = streamResponse;
