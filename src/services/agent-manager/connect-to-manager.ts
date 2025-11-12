@@ -229,9 +229,39 @@ export async function initializeStreamAndChat(
     analytics: Analytics,
     chat?: Chat
 ): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions | CreateStreamV2Options> }> {
-    const chatResult = await createChat(agent, agentsApi, analytics, options.mode, options.persistentChat, chat);
+    const resolveStreamAndChat = async () => {
+        if (isStreamsV2Agent(agent.presenter.type)) {
+            const chatResult = await createChat(
+                agent,
+                agentsApi,
+                analytics,
+                options.mode,
+                options.persistentChat,
+                chat
+            );
+            const streamingManager = await connectToManager(
+                agent,
+                { ...options, chatId: chatResult.chat?.id },
+                analytics
+            );
+            return { chatResult, streamingManager };
+        } else {
+            const createChatPromise = createChat(
+                agent,
+                agentsApi,
+                analytics,
+                options.mode,
+                options.persistentChat,
+                chat
+            );
+            const connectToManagerPromise = connectToManager(agent, options, analytics);
+            const [chatResult, streamingManager] = await Promise.all([createChatPromise, connectToManagerPromise]);
+            return { chatResult, streamingManager };
+        }
+    };
+
+    const { chatResult, streamingManager } = await resolveStreamAndChat();
     const { chat: newChat, chatMode } = chatResult;
-    const streamingManager = await connectToManager(agent, { ...options, chatId: newChat?.id }, analytics);
 
     if (chatMode && chatMode !== options.mode) {
         options.mode = chatMode;

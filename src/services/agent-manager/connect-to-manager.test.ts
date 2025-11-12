@@ -18,9 +18,6 @@ import { initializeStreamAndChat } from './connect-to-manager';
 // Mock dependencies
 jest.mock('../streaming-manager');
 jest.mock('../chat');
-jest.mock('$/utils/agent', () => ({
-    isStreamsV2Agent: jest.fn((type: string) => type === 'expressive'),
-}));
 jest.mock('$/config/consts', () => ({ CONNECTION_RETRY_TIMEOUT_MS: 5000 }));
 jest.mock('../../config/environment', () => ({
     didApiUrl: 'https://api.d-id.com',
@@ -168,7 +165,6 @@ describe('connect-to-manager', () => {
                         onVideoStateChange: expect.any(Function),
                         onAgentActivityStateChange: expect.any(Function),
                     }),
-                    chatId: 'chat-123',
                 })
             );
         });
@@ -395,8 +391,8 @@ describe('connect-to-manager', () => {
                     compatibility_mode: 'on',
                     fluent: true,
                 },
-                expect.objectContaining({
-                    chatId: 'chat-123',
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
                 })
             );
         });
@@ -416,8 +412,8 @@ describe('connect-to-manager', () => {
                     compatibility_mode: undefined,
                     fluent: undefined,
                 },
-                expect.objectContaining({
-                    chatId: 'chat-123',
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
                 })
             );
         });
@@ -440,8 +436,8 @@ describe('connect-to-manager', () => {
                         plan: 'scale',
                     },
                 }),
-                expect.objectContaining({
-                    chatId: 'chat-123',
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
                 })
             );
         });
@@ -548,8 +544,8 @@ describe('connect-to-manager', () => {
                     output_resolution: 1080,
                     session_timeout: 30000,
                 }),
-                expect.objectContaining({
-                    chatId: 'chat-123',
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
                 })
             );
         });
