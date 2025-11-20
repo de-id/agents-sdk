@@ -1,5 +1,6 @@
 export enum Providers {
     Amazon = 'amazon',
+    AzureOpenAi = 'azure-openai',
     Microsoft = 'microsoft',
     Afflorithmics = 'afflorithmics',
     Elevenlabs = 'elevenlabs',
@@ -91,6 +92,14 @@ export interface Microsoft_tts_provider {
 }
 
 /**
+ * AzureOpenAi provider details, contains the provider type and requested voice id and style
+ */
+export interface AzureOpenAi_tts_provider extends Omit<Microsoft_tts_provider, 'type'> {
+    type: Providers.AzureOpenAi;
+}
+
+
+/**
  * Amazon provider details, contains the provider type and requested voice id
  */
 export interface Amazon_tts_provider {
@@ -164,10 +173,11 @@ export interface VoiceConfigAfflorithmics {
     voiceIntelligence?: boolean;
 }
 
-export type TextToSpeechProviders = Microsoft_tts_provider | Afflorithmics_tts_provider | Elevenlabs_tts_provider;
+export type TextToSpeechProviders = Microsoft_tts_provider | Afflorithmics_tts_provider | Elevenlabs_tts_provider | AzureOpenAi_tts_provider;
 export type ExtendedTextToSpeechProviders = TextToSpeechProviders | Amazon_tts_provider;
 export type StreamTextToSpeechProviders =
     | Microsoft_tts_provider
+    | AzureOpenAi_tts_provider
     | Afflorithmics_tts_provider
     | Elevenlabs_tts_provider
     | Amazon_tts_provider;
