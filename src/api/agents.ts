@@ -15,9 +15,10 @@ import { RequestOptions, createClient } from './apiClient';
 export function createAgentsApi(
     auth: Auth,
     host: string = didApiUrl,
-    onError?: (error: Error, errorData: object) => void
+    onError?: (error: Error, errorData: object) => void,
+    externalId?: string
 ) {
-    const client = createClient(auth, `${host}/agents`, onError);
+    const client = createClient(auth, `${host}/agents`, onError, externalId);
 
     return {
         create(payload: AgentPayload, options?: RequestOptions) {

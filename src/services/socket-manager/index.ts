@@ -7,6 +7,7 @@ import { sleep } from '$/utils';
 interface Options {
     auth: Auth;
     retries?: number;
+    externalId?: string;
     callbacks?: {
         onMessage?: (event: MessageEvent) => void;
         onOpen?: (event: Event) => void;
@@ -24,9 +25,9 @@ export interface SocketManager {
 
 function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
-        const { callbacks, host, auth } = options;
+        const { callbacks, host, auth, externalId } = options;
         const { onMessage = null, onOpen = null, onClose = null, onError = null } = callbacks || {};
-        const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth)}`);
+        const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth, externalId)}`);
 
         socket.onmessage = onMessage;
         socket.onclose = onClose;
@@ -69,12 +70,14 @@ export async function createSocketManager(
     callbacks: {
         onMessage: ChatProgressCallback;
         onError?: (error: Error) => void;
-    }
+    },
+    externalId?: string
 ): Promise<SocketManager> {
     const messageCallbacks: ChatProgressCallback[] = callbacks?.onMessage ? [callbacks.onMessage] : [];
     const socket: WebSocket = await connectWithRetries({
         auth,
         host,
+        externalId,
         callbacks: {
             onError: error => callbacks.onError?.(new WsError(error)),
             onMessage(event: MessageEvent) {

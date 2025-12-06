@@ -421,7 +421,7 @@ describe('connect-to-manager', () => {
         it('should include analytics data when provided', async () => {
             const optionsWithAnalytics = {
                 ...mockOptions,
-                distinctId: 'analytics-user',
+                externalId: 'analytics-user',
                 mixpanelAdditionalProperties: { plan: 'scale' },
             };
 
@@ -432,7 +432,6 @@ describe('connect-to-manager', () => {
                 expect.objectContaining({
                     version: StreamApiVersion.V1,
                     end_user_data: {
-                        distinct_id: 'analytics-user',
                         plan: 'scale',
                     },
                 }),

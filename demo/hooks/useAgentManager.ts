@@ -24,7 +24,7 @@ interface UseAgentManagerOptions {
         fluent?: boolean;
     };
     enableAnalytics?: boolean;
-    distinctId?: string;
+    externalId?: string;
     mixpanelKey?: string;
     mixpanelAdditionalProperties?: Record<string, any>;
 }
@@ -37,7 +37,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         mode,
         auth,
         enableAnalytics,
-        distinctId,
+        externalId,
         streamOptions,
         mixpanelKey,
         mixpanelAdditionalProperties,
@@ -100,7 +100,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                 auth,
                 wsURL,
                 enableAnalitics: enableAnalytics,
-                distinctId,
+                externalId,
                 mixpanelKey,
                 mixpanelAdditionalProperties,
                 streamOptions,
@@ -113,7 +113,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
 
             throw e;
         }
-    }, [agentManager, agentId, baseURL, wsURL, mode, auth, enableAnalytics, distinctId, streamOptions]);
+    }, [agentManager, agentId, baseURL, wsURL, mode, auth, enableAnalytics, externalId, streamOptions]);
 
     const disconnect = useCallback(async () => {
         if (!agentManager) return;

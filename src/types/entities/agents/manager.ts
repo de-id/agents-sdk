@@ -151,10 +151,7 @@ export interface AgentManagerOptions {
     enableAnalitics?: boolean;
     mixpanelKey?: string;
     mixpanelAdditionalProperties?: Record<string, any>;
-    /**
-     * Unique ID of agent user used in analytics. Pass it to override the default way to get distinctId
-     */
-    distinctId?: string;
+    externalId?: string;
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
     persistentChat?: boolean;

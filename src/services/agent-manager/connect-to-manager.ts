@@ -36,12 +36,9 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
     const { streamOptions } = options ?? {};
 
     const endUserData =
-        options?.distinctId || options?.mixpanelAdditionalProperties?.plan !== undefined
+        options?.mixpanelAdditionalProperties?.plan !== undefined
             ? {
-                  ...(options?.distinctId ? { distinct_id: options.distinctId } : {}),
-                  ...(options?.mixpanelAdditionalProperties?.plan !== undefined
-                      ? { plan: options.mixpanelAdditionalProperties?.plan }
-                      : {}),
+                  plan: options.mixpanelAdditionalProperties?.plan,
               }
             : undefined;
 
