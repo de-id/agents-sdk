@@ -105,7 +105,7 @@ describe('createAgentManager', () => {
                 token: 'test-mixpanel-key',
                 agentId: 'agent-123',
                 isEnabled: true,
-                distinctId: undefined,
+                externalId: undefined,
             });
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-sdk', { event: 'init' });
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-sdk', expect.objectContaining({ event: 'loaded' }));
@@ -117,7 +117,7 @@ describe('createAgentManager', () => {
                 mixpanelKey: 'custom-mixpanel',
                 wsURL: 'wss://custom.com',
                 baseURL: 'https://custom.com',
-                distinctId: 'custom-user',
+                externalId: 'custom-user',
             };
 
             await createAgentManager('agent-123', customOptions);
@@ -126,7 +126,7 @@ describe('createAgentManager', () => {
                 token: 'custom-mixpanel',
                 agentId: 'agent-123',
                 isEnabled: true,
-                distinctId: 'custom-user',
+                externalId: 'custom-user',
             });
         });
 
@@ -717,7 +717,7 @@ describe('createAgentManager', () => {
                 token: 'test-mixpanel-key',
                 agentId: 'agent-123',
                 isEnabled: false,
-                distinctId: undefined,
+                externalId: undefined,
             });
         });
     });

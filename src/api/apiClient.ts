@@ -15,7 +15,12 @@ const retryHttpTooManyRequests = <T>(operation: () => Promise<T>): Promise<T> =>
         shouldRetryFn: error => error.status === 429,
     });
 
-export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Error, errorData: object) => void) {
+export function createClient(
+    auth: Auth,
+    host = didApiUrl,
+    onError?: (error: Error, errorData: object) => void,
+    externalId?: string
+) {
     const client = async <T>(url: string, options?: RequestOptions) => {
         const { skipErrorHandler, ...fetchOptions } = options || {};
 
@@ -24,7 +29,7 @@ export function createClient(auth: Auth, host = didApiUrl, onError?: (error: Err
                 ...fetchOptions,
                 headers: {
                     ...fetchOptions.headers,
-                    Authorization: getAuthHeader(auth),
+                    Authorization: getAuthHeader(auth, externalId),
                     'Content-Type': 'application/json',
                 },
             })

@@ -67,7 +67,6 @@ export interface ManagerCallbacks {
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
 
 export interface StreamEndUserData {
-    distinct_id?: string;
     plan?: string;
 }
 

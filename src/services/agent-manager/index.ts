@@ -67,11 +67,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         token: mxKey,
         agentId: agent,
         isEnabled: options.enableAnalitics,
-        distinctId: options.distinctId,
+        externalId: options.externalId,
         mixpanelAdditionalProperties: options.mixpanelAdditionalProperties,
     });
     analytics.track('agent-sdk', { event: 'init' });
-    const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError);
+    const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
 
     const agentEntity = await agentsApi.getById(agent);
     analytics.enrich(getAgentInfo(agentEntity));
@@ -104,7 +104,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         const websocketPromise =
             options.mode === ChatMode.DirectPlayback
                 ? Promise.resolve(undefined)
-                : createSocketManager(options.auth, wsURL, { onMessage, onError: options.callbacks.onError });
+                : createSocketManager(
+                      options.auth,
+                      wsURL,
+                      { onMessage, onError: options.callbacks.onError },
+                      options.externalId
+                  );
 
         const initPromise = retryOperation(
             () => {
