@@ -42,10 +42,10 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
 
     return {
         token: config.token || 'testKey',
-        distinct_id: config.externalId || getExternalId(),
+        distinct_id: getExternalId(config.externalId),
         agentId: config.agentId,
         additionalProperties: {
-            id: config.externalId,
+            id: getExternalId(config.externalId),
             ...(config.mixpanelAdditionalProperties || {}),
         },
         isEnabled: config.isEnabled ?? true,
