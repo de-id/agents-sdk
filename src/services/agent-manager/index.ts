@@ -1,8 +1,6 @@
 import {
-    Agent,
     AgentManager,
     AgentManagerOptions,
-    Auth,
     Chat,
     ChatMode,
     ConnectionState,
@@ -469,10 +467,4 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             sendInterrupt(items.streamingManager!, videoId!);
         },
     };
-}
-
-export function getAgent(agentId: string, auth: Auth, baseURL?: string): Promise<Agent> {
-    const { getById } = createAgentsApi(auth, baseURL || didApiUrl);
-
-    return getById(agentId);
 }
