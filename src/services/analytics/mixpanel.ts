@@ -5,7 +5,7 @@ export interface AnalyticsOptions {
     token: string;
     agentId: string;
     isEnabled?: boolean;
-    distinctId?: string;
+    externalId?: string;
     mixpanelAdditionalProperties?: Record<string, any>;
 }
 
@@ -42,10 +42,10 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
 
     return {
         token: config.token || 'testKey',
-        distinct_id: config.distinctId || getExternalId(),
+        distinct_id: getExternalId(config.externalId),
         agentId: config.agentId,
         additionalProperties: {
-            id: config.distinctId,
+            id: getExternalId(config.externalId),
             ...(config.mixpanelAdditionalProperties || {}),
         },
         isEnabled: config.isEnabled ?? true,

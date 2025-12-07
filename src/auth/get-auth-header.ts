@@ -1,7 +1,12 @@
 import { Auth } from '$/types/auth';
 import { getRandom } from '$/utils';
 
-export function getExternalId() {
+export function getExternalId(externalId?: string): string {
+    if (externalId !== undefined) {
+        window.localStorage.setItem('did_external_key_id', externalId);
+        return externalId;
+    }
+
     let key = window.localStorage.getItem('did_external_key_id');
 
     if (!key) {
@@ -14,13 +19,13 @@ export function getExternalId() {
 }
 
 let sessionKey = getRandom();
-export function getAuthHeader(auth: Auth) {
+export function getAuthHeader(auth: Auth, externalId?: string) {
     if (auth.type === 'bearer') {
         return `Bearer ${auth.token}`;
     } else if (auth.type === 'basic') {
         return `Basic ${btoa(`${auth.username}:${auth.password}`)}`;
     } else if (auth.type === 'key') {
-        return `Client-Key ${auth.clientKey}.${getExternalId()}_${sessionKey}`;
+        return `Client-Key ${auth.clientKey}.${getExternalId(externalId)}_${sessionKey}`;
     } else {
         throw new Error(`Unknown auth type: ${auth}`);
     }

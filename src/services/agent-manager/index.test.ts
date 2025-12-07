@@ -16,7 +16,7 @@ import { sendInterrupt, validateInterrupt } from '../interrupt';
 import { createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { initializeStreamAndChat } from './connect-to-manager';
-import { createAgentManager, getAgent } from './index';
+import { createAgentManager } from './index';
 
 // Mock all dependencies
 jest.mock('../../api/agents');
@@ -93,7 +93,8 @@ describe('createAgentManager', () => {
             expect(createAgentsApi).toHaveBeenCalledWith(
                 mockOptions.auth,
                 'https://api.d-id.com',
-                mockOptions.callbacks.onError
+                mockOptions.callbacks.onError,
+                undefined
             );
             expect(mockAgentsApi.getById).toHaveBeenCalledWith('agent-123');
         });
@@ -105,7 +106,7 @@ describe('createAgentManager', () => {
                 token: 'test-mixpanel-key',
                 agentId: 'agent-123',
                 isEnabled: true,
-                distinctId: undefined,
+                externalId: undefined,
             });
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-sdk', { event: 'init' });
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-sdk', expect.objectContaining({ event: 'loaded' }));
@@ -117,7 +118,7 @@ describe('createAgentManager', () => {
                 mixpanelKey: 'custom-mixpanel',
                 wsURL: 'wss://custom.com',
                 baseURL: 'https://custom.com',
-                distinctId: 'custom-user',
+                externalId: 'custom-user',
             };
 
             await createAgentManager('agent-123', customOptions);
@@ -126,7 +127,7 @@ describe('createAgentManager', () => {
                 token: 'custom-mixpanel',
                 agentId: 'agent-123',
                 isEnabled: true,
-                distinctId: 'custom-user',
+                externalId: 'custom-user',
             });
         });
 
@@ -717,39 +718,8 @@ describe('createAgentManager', () => {
                 token: 'test-mixpanel-key',
                 agentId: 'agent-123',
                 isEnabled: false,
-                distinctId: undefined,
+                externalId: undefined,
             });
         });
-    });
-});
-
-describe('getAgent', () => {
-    let mockAgentsApi: any;
-
-    beforeEach(() => {
-        jest.clearAllMocks();
-
-        mockAgentsApi = AgentsApiFactory.build({
-            getById: jest.fn().mockResolvedValue({ id: 'agent-123', name: 'Test Agent' }),
-        });
-        (createAgentsApi as jest.Mock).mockReturnValue(mockAgentsApi);
-    });
-
-    it('should get agent by ID', async () => {
-        const auth = { type: 'key' as const, clientKey: 'test-key', externalId: 'user-123' };
-        const agent = await getAgent('agent-123', auth);
-
-        expect(createAgentsApi).toHaveBeenCalledWith(auth, 'https://api.d-id.com');
-        expect(mockAgentsApi.getById).toHaveBeenCalledWith('agent-123');
-        expect(agent).toEqual({ id: 'agent-123', name: 'Test Agent' });
-    });
-
-    it('should use custom baseURL', async () => {
-        const auth = { type: 'key' as const, clientKey: 'test-key', externalId: 'user-123' };
-        const customBaseURL = 'https://custom-api.com';
-
-        await getAgent('agent-123', auth, customBaseURL);
-
-        expect(createAgentsApi).toHaveBeenCalledWith(auth, customBaseURL);
     });
 });
