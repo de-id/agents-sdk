@@ -39,6 +39,18 @@ async function importLiveKit(): Promise<{
     }
 }
 
+function attachHiddenElement(track: RemoteTrack, attachedElements: HTMLMediaElement[]): HTMLMediaElement {
+    const hiddenElement = track.attach();
+    attachedElements.push(hiddenElement);
+    hiddenElement.style.position = 'absolute';
+    hiddenElement.style.width = '1px';
+    hiddenElement.style.height = '1px';
+    hiddenElement.style.opacity = '0.01';
+    hiddenElement.style.pointerEvents = 'none';
+    hiddenElement.muted = true;
+    return hiddenElement;
+}
+
 export async function createLiveKitStreamingManager<T extends CreateStreamV2Options>(
     agentId: string,
     agent: T,
@@ -60,6 +72,10 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     let videoId: string | null = null;
     let mediaStream: MediaStream | null = null;
     const streamType = StreamType.Fluent;
+    let isInitialConnection = true;
+    // Store attached elements to prevent garbage collection
+    const attachedElements: HTMLMediaElement[] = [];
+    let videoElement: HTMLVideoElement | null = null;
 
     room = new Room({
         adaptiveStream: true,
@@ -110,24 +126,38 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication, participant: RemoteParticipant) => {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
-        if (!mediaStream) {
-            mediaStream = new MediaStream([track.mediaStreamTrack]);
-        } else {
-            mediaStream.addTrack(track.mediaStreamTrack);
+        if (track.kind === 'video') {
+            const hiddenElement = attachHiddenElement(track, attachedElements);
+            document.body.appendChild(hiddenElement);
+
+            // Play the hidden element to keep the track "alive"
+            hiddenElement
+                .play()
+                .then(() => {
+                    log('Hidden video element playing');
+                })
+                .catch(e => log('Error playing hidden element:', e));
+
+            log(`Video element created, srcObject: ${hiddenElement.srcObject}`);
+
+            if (hiddenElement.srcObject) {
+                callbacks.onSrcObjectReady?.(hiddenElement.srcObject as MediaStream);
+            }
         }
 
-        callbacks.onSrcObjectReady?.(mediaStream);
-
-        // Handle video track subscription as stats signal for fluent streams
-        if (track.kind === 'video') {
-            callbacks.onVideoStateChange?.(StreamingState.Start);
+        if (track.kind === 'audio') {
+            // For audio, create element and play it directly
+            const audioElement = track.attach();
+            attachedElements.push(audioElement);
+            audioElement.style.display = 'none';
+            document.body.appendChild(audioElement);
+            audioElement.play().catch(e => log('Error playing audio element:', e));
         }
     });
 
     room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication, participant: RemoteParticipant) => {
         log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
 
-        // Handle video track unsubscription as stats signal for fluent streams
         if (track.kind === 'video') {
             callbacks.onVideoStateChange?.(StreamingState.Stop);
         }
@@ -182,7 +212,16 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         'stream-type': streamType,
     });
 
-    async function sendDataChannelMessage(message: string) {
+    function cleanDomElements(): void {
+        attachedElements.forEach(el => {
+            if (el.parentNode) {
+                el.parentNode.removeChild(el);
+            }
+        });
+        attachedElements.length = 0;
+    }
+
+    async function sendTextMessage(message: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(new Error('Room is not connected for sending messages'), {
@@ -214,10 +253,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
                 await room.disconnect();
                 room = null;
             }
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
+            cleanDomElements();
             isConnected = false;
             callbacks.onConnectionStateChange?.(ConnectionState.Completed);
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
