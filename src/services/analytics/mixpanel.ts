@@ -1,5 +1,5 @@
-import { getExternalId } from '$/auth/get-auth-header';
-import { getRandom } from '$/utils';
+import { getExternalId } from '@sdk/auth/get-auth-header';
+import { getRandom } from '@sdk/utils';
 
 export interface AnalyticsOptions {
     token: string;

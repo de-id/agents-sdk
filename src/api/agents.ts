@@ -8,7 +8,7 @@ import {
     RatingEntity,
     RatingPayload,
     STTTokenResponse,
-} from '$/types/index';
+} from '@sdk/types/index';
 import { didApiUrl } from '../config/environment';
 import { RequestOptions, createClient } from './apiClient';
 

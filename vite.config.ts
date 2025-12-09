@@ -25,7 +25,7 @@ export default ({ mode }) => {
         plugins: [preact(), dts({ include: [resolve(__dirname, './src/**/*.{ts,tsx}')] })],
         resolve: {
             alias: {
-                $: resolve(__dirname, './src'),
+                '@sdk': resolve(__dirname, './src'),
                 '%': resolve(__dirname, './types'),
             },
         },

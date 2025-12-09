@@ -1,4 +1,4 @@
-import { Agent } from '$/types/index';
+import { Agent } from '@sdk/types/index';
 import { getAgentType } from './agent';
 
 export function getAnalyticsInfo(agent: Agent) {

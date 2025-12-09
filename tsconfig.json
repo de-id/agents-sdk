@@ -41,7 +41,7 @@
         "noFallthroughCasesInSwitch": true,
         "types": ["node", "jest"],
         "paths": {
-            "$/*": ["src/*"],
+            "@sdk/*": ["src/*"],
             "%/*": ["src/types/*"]
         }
     },

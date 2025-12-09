@@ -1,5 +1,5 @@
-import { createStreamApi } from '$/api/streams';
-import { didApiUrl } from '$/config/environment';
+import { createStreamApi } from '@sdk/api/streams';
+import { didApiUrl } from '@sdk/config/environment';
 import {
     AgentActivityState,
     ConnectionState,
@@ -9,7 +9,7 @@ import {
     StreamingManagerOptions,
     StreamingState,
     StreamType,
-} from '$/types';
+} from '@sdk/types';
 import { createStreamingLogger, StreamingManager } from './common';
 import { pollStats } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';

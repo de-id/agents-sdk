@@ -1,5 +1,5 @@
-import { AnalyticsRTCStatsReport, SlimRTCStatsReport } from '$/types';
-import { average } from '$/utils/analytics';
+import { AnalyticsRTCStatsReport, SlimRTCStatsReport } from '@sdk/types';
+import { average } from '@sdk/utils/analytics';
 
 export interface VideoRTCStatsReport {
     webRTCStats: {

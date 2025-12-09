@@ -18,7 +18,7 @@ import { initializeStreamAndChat } from './connect-to-manager';
 // Mock dependencies
 jest.mock('../streaming-manager');
 jest.mock('../chat');
-jest.mock('$/config/consts', () => ({ CONNECTION_RETRY_TIMEOUT_MS: 5000 }));
+jest.mock('/config/consts', () => ({ CONNECTION_RETRY_TIMEOUT_MS: 5000 }));
 jest.mock('../../config/environment', () => ({
     didApiUrl: 'https://api.d-id.com',
     didSocketApiUrl: 'wss://api.d-id.com',

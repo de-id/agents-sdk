@@ -1,5 +1,5 @@
-import { Auth } from '$/types/auth';
-import { retryOperation } from '$/utils/retry-operation';
+import { Auth } from '@sdk/types/auth';
+import { retryOperation } from '@sdk/utils/retry-operation';
 import { getAuthHeader } from '../auth/get-auth-header';
 import { didApiUrl } from '../config/environment';
 

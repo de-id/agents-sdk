@@ -1,4 +1,4 @@
-import { ConnectivityState, SlimRTCStatsReport, StreamingState } from '$/types';
+import { ConnectivityState, SlimRTCStatsReport, StreamingState } from '@sdk/types';
 import { VideoRTCStatsReport, createVideoStatsReport, formatStats } from './report';
 
 const interval = 100;
