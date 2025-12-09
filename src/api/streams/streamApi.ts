@@ -8,7 +8,7 @@ import {
     SendStreamPayloadResponse,
     SendTalkStreamPayload,
     Status,
-} from '$/types/index';
+} from '@sdk/types/index';
 import { createClient } from '../apiClient';
 
 export function createStreamApi(

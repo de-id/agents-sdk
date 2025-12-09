@@ -1,4 +1,4 @@
-import { Agent, VideoType } from '$/types';
+import { Agent, VideoType } from '@sdk/types';
 
 type AgentType = 'clip_v2' | Agent['presenter']['type'];
 

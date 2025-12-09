@@ -1,4 +1,4 @@
-import { createAgentManager } from '$/services/agent-manager';
+import { createAgentManager } from '@sdk/services/agent-manager';
 import {
     AgentActivityState,
     AgentManager,
@@ -8,7 +8,7 @@ import {
     Message,
     StreamType,
     StreamingState,
-} from '$/types';
+} from '@sdk/types';
 import { useCallback, useEffect, useState } from 'preact/hooks';
 
 interface UseAgentManagerOptions {

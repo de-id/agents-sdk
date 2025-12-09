@@ -10,7 +10,7 @@
     "importOrder": ["^@d-id/tests$", "^@d-id/(.*)$", "^@/(.*)$", "^[./]"],
     "importOrderSeparation": true,
     "importOrderParserPlugins": ["typescript", "decorators-legacy"],
-    "plugins": ["prettier-plugin-organize-imports"],
+    "plugins": ["@trivago/prettier-plugin-sort-imports", "prettier-plugin-organize-imports"],
     "overrides": [
         {
             "files": "*.yml",

@@ -10,7 +10,7 @@ import {
     StreamingState,
     StreamType,
     TransportProvider,
-} from '$/types';
+} from '@sdk/types';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { createStreamingLogger, StreamingManager } from './common';

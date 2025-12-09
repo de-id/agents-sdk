@@ -1,4 +1,4 @@
-import { ChatMode, ConnectionState } from '$/types';
+import { ChatMode, ConnectionState } from '@sdk/types';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import './app.css';

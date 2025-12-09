@@ -1,4 +1,4 @@
-import { Auth, CreateStreamV2Options, CreateStreamV2Response } from '$/types';
+import { Auth, CreateStreamV2Options, CreateStreamV2Response } from '@sdk/types';
 import { createClient } from '../apiClient';
 
 export function createStreamApiV2(

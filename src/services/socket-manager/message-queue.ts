@@ -1,5 +1,5 @@
-import { Agent, AgentManagerOptions, ChatProgress, StreamEvents } from '$/types';
-import { getStreamAnalyticsProps } from '$/utils/analytics';
+import { Agent, AgentManagerOptions, ChatProgress, StreamEvents } from '@sdk/types';
+import { getStreamAnalyticsProps } from '@sdk/utils/analytics';
 import { AgentManagerItems } from '../agent-manager';
 import { Analytics } from '../analytics/mixpanel';
 

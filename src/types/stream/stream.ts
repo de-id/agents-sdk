@@ -1,5 +1,5 @@
-import { Analytics } from '$/services/analytics/mixpanel';
-import { VideoRTCStatsReport } from '$/services/streaming-manager/stats/report';
+import { Analytics } from '@sdk/services/analytics/mixpanel';
+import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/report';
 import { Auth } from '../auth';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
 import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';

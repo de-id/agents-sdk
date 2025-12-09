@@ -1,5 +1,5 @@
-import { STTTokenResponse } from '$/types';
-import { Auth } from '$/types/auth';
+import { STTTokenResponse } from '@sdk/types';
+import { Auth } from '@sdk/types/auth';
 import {
     AgentActivityState,
     CompatibilityMode,
@@ -9,8 +9,8 @@ import {
     StreamEvents,
     StreamType,
     StreamingState,
-} from '$/types/stream';
-import { SupportedStreamScript } from '$/types/stream-script';
+} from '@sdk/types/stream';
+import { SupportedStreamScript } from '@sdk/types/stream-script';
 import type { ManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity } from './chat';

@@ -1,4 +1,4 @@
-import { ExtendedTextToSpeechProviders } from '$/types/voice/tts';
+import { ExtendedTextToSpeechProviders } from '@sdk/types/voice/tts';
 import { Rect } from '../../face-rect';
 
 export type videoType = 'talk' | 'clip' | 'expressive';

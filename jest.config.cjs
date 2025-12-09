@@ -5,7 +5,7 @@ module.exports = {
     testMatch: ['**/**.spec.ts', '**/**.test.ts', '**/**.test.tsx'],
     transform: { '^.+\\.tsx?$': ['ts-jest', { useESM: true, tsconfig: '<rootDir>/tsconfig.json' }] },
     extensionsToTreatAsEsm: ['.ts', '.tsx'],
-    moduleNameMapper: { '^\\$/(.*)$': '<rootDir>/src/$1', '^%/(.*)$': '<rootDir>/src/types/$1' },
+    moduleNameMapper: { '^@sdk/(.*)$': '<rootDir>/src/$1', '^%/(.*)$': '<rootDir>/src/types/$1' },
     setupFiles: ['<rootDir>/jest.setup.ts'],
     ...(process.env.CI && { reporters: ['summary'] }),
 
