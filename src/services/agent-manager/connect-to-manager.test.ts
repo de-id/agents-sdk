@@ -1,3 +1,4 @@
+import { createStreamingManager, StreamApiVersion } from '@sdk/services/streaming-manager';
 import {
     Agent,
     AgentActivityState,
@@ -12,7 +13,6 @@ import {
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
-import { createStreamingManager, StreamApiVersion } from '@sdk/services/streaming-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 // Mock dependencies
