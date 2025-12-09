@@ -27,7 +27,7 @@ function connect(options: Options): Promise<WebSocket> {
     return new Promise<WebSocket>((resolve, reject) => {
         const { callbacks, host, auth, externalId } = options;
         const { onMessage = null, onOpen = null, onClose = null, onError = null } = callbacks || {};
-        const socket = new WebSocket(`${host}?authorization=${getAuthHeader(auth, externalId)}`);
+        const socket = new WebSocket(`${host}?authorization=${encodeURIComponent(getAuthHeader(auth, externalId))}`);
 
         socket.onmessage = onMessage;
         socket.onclose = onClose;
