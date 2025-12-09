@@ -1,4 +1,4 @@
-import { CreateStreamOptions, StreamEvents, StreamInterruptPayload, StreamType } from '$/types';
+import { CreateStreamOptions, StreamEvents, StreamInterruptPayload, StreamType } from '@sdk/types';
 import { StreamingManager } from '../streaming-manager';
 
 export function validateInterrupt(

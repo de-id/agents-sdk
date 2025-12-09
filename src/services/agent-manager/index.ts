@@ -11,11 +11,11 @@ import {
     SupportedStreamScript,
 } from '../../types';
 
-import { CONNECTION_RETRY_TIMEOUT_MS } from '$/config/consts';
-import { didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
-import { ChatCreationFailed, ValidationError } from '$/errors';
-import { getRandom } from '$/utils';
-import { isChatModeWithoutChat, isTextualChat } from '$/utils/chat';
+import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
+import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
+import { ChatCreationFailed, ValidationError } from '@sdk/errors';
+import { getRandom } from '@sdk/utils';
+import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';

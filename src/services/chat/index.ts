@@ -1,7 +1,7 @@
-import { PLAYGROUND_HEADER } from '$/config/consts';
-import type { Agent, AgentsAPI, Chat } from '$/types';
-import { ChatMode } from '$/types';
-import { isChatModeWithoutChat } from '$/utils/chat';
+import { PLAYGROUND_HEADER } from '@sdk/config/consts';
+import type { Agent, AgentsAPI, Chat } from '@sdk/types';
+import { ChatMode } from '@sdk/types';
+import { isChatModeWithoutChat } from '@sdk/utils/chat';
 import { Analytics } from '../analytics/mixpanel';
 
 export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {

@@ -1,3 +1,4 @@
+import { createStreamingManager, StreamApiVersion } from '@sdk/services/streaming-manager';
 import {
     Agent,
     AgentActivityState,
@@ -12,13 +13,12 @@ import {
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
-import { createStreamingManager, StreamApiVersion } from '../streaming-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 // Mock dependencies
-jest.mock('../streaming-manager');
+jest.mock('@sdk/services/streaming-manager');
 jest.mock('../chat');
-jest.mock('$/config/consts', () => ({ CONNECTION_RETRY_TIMEOUT_MS: 5000 }));
+jest.mock('@sdk/config/consts', () => ({ CONNECTION_RETRY_TIMEOUT_MS: 5000 }));
 jest.mock('../../config/environment', () => ({
     didApiUrl: 'https://api.d-id.com',
     didSocketApiUrl: 'wss://api.d-id.com',

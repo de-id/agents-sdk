@@ -1,8 +1,8 @@
-import { getAuthHeader } from '$/auth/get-auth-header';
-import { WsError } from '$/errors';
-import { ChatProgressCallback } from '$/types';
-import { Auth } from '$/types/auth';
-import { sleep } from '$/utils';
+import { getAuthHeader } from '@sdk/auth/get-auth-header';
+import { WsError } from '@sdk/errors';
+import { ChatProgressCallback } from '@sdk/types';
+import { Auth } from '@sdk/types/auth';
+import { sleep } from '@sdk/utils';
 
 interface Options {
     auth: Auth;

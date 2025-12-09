@@ -1,4 +1,10 @@
-import { Agent, CreateStreamOptions, CreateStreamV2Options, StreamingManagerOptions, TransportProvider } from '$/types';
+import {
+    Agent,
+    CreateStreamOptions,
+    CreateStreamV2Options,
+    StreamingManagerOptions,
+    TransportProvider,
+} from '@sdk/types';
 import { StreamingManager } from './common';
 import { createWebRTCStreamingManager } from './webrtc-manager';
 

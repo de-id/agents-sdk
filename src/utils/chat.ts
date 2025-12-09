@@ -1,4 +1,4 @@
-import { ChatMode } from '$/types';
+import { ChatMode } from '@sdk/types';
 
 export const isTextualChat = (chatMode: ChatMode) =>
     [ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance].includes(chatMode);

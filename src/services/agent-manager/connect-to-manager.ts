@@ -1,10 +1,10 @@
-import { ChatModeDowngraded } from '$/errors';
+import { ChatModeDowngraded } from '@sdk/errors';
 import {
     ExtendedStreamOptions,
     StreamApiVersion,
     StreamingManager,
     createStreamingManager,
-} from '$/services/streaming-manager';
+} from '@sdk/services/streaming-manager';
 import {
     Agent,
     AgentActivityState,
@@ -19,8 +19,8 @@ import {
     StreamType,
     StreamingState,
     TransportProvider,
-} from '$/types';
-import { isStreamsV2Agent } from '$/utils/agent';
+} from '@sdk/types';
+import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat } from '../chat';

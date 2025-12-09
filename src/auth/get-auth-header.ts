@@ -1,5 +1,5 @@
-import { Auth } from '$/types/auth';
-import { getRandom } from '$/utils';
+import { Auth } from '@sdk/types/auth';
+import { getRandom } from '@sdk/utils';
 
 export function getExternalId(externalId?: string): string {
     if (externalId !== undefined) {

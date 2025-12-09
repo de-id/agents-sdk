@@ -1,4 +1,4 @@
-import { CreateStreamOptions, CreateStreamV2Options, PayloadType, StreamType } from '$/types';
+import { CreateStreamOptions, CreateStreamV2Options, PayloadType, StreamType } from '@sdk/types';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');
