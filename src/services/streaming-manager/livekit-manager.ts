@@ -283,10 +283,13 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         }
 
         try {
-            await room.localParticipant.publishData(new TextEncoder().encode(message), { reliable: true });
-        } catch (e: any) {
-            log('Error sending data channel message', e);
-            callbacks.onError?.(e, { streamId });
+            await room.localParticipant.sendText(message, {
+                topic: 'lk.chat',
+            });
+            log('Message sent successfully:', message);
+        } catch (error) {
+            log('Failed to send message:', error);
+            callbacks.onError?.(error as Error, { streamId });
         }
     }
 
@@ -311,7 +314,8 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         },
 
-        sendDataChannelMessage,
+        sendDataChannelMessage: sendTextMessage,
+        sendTextMessage,
 
         sessionId,
         streamId,
