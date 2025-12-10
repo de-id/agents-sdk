@@ -251,6 +251,23 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         }
     });
 
+    room.on(RoomEvent.MediaDevicesError, (error: Error) => {
+        log('Media devices error:', error);
+        callbacks.onError?.(error, { streamId: '' });
+    });
+
+    room.on(RoomEvent.EncryptionError, (error: Error) => {
+        log('Encryption error:', error);
+        callbacks.onError?.(error, { streamId: '' });
+    });
+
+    room.on(
+        RoomEvent.TrackSubscriptionFailed,
+        (trackSid: string, participant: RemoteParticipant, reason?: SubscriptionError): void => {
+            log('Track subscription failed:', { trackSid, participant, reason });
+        }
+    );
+
     callbacks.onConnectionStateChange?.(ConnectionState.New);
 
     try {
