@@ -11,11 +11,20 @@ import {
     SupportedStreamScript,
 } from '../../types';
 
+<<<<<<< HEAD
 import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
 import { ChatCreationFailed, ValidationError } from '@sdk/errors';
 import { getRandom } from '@sdk/utils';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
+=======
+import { CONNECTION_RETRY_TIMEOUT_MS } from '$/config/consts';
+import { didApiUrl, didSocketApiUrl, mixpanelKey } from '$/config/environment';
+import { ChatCreationFailed, ValidationError } from '$/errors';
+import { getRandom } from '$/utils';
+import { isStreamsV2Agent } from '$/utils/agent';
+import { isChatModeWithoutChat, isTextualChat } from '$/utils/chat';
+>>>>>>> f85e6ae (in livekit there is no need to use ws - all data is from the dataChannel)
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { retryOperation } from '../../utils/retry-operation';
@@ -72,6 +81,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
 
     const agentEntity = await agentsApi.getById(agent);
+    const isStreamsV2 = isStreamsV2Agent(agentEntity.presenter.type);
     analytics.enrich(getAgentInfo(agentEntity));
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () =>
@@ -100,7 +110,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         const websocketPromise =
-            options.mode === ChatMode.DirectPlayback
+            options.mode === ChatMode.DirectPlayback || isStreamsV2
                 ? Promise.resolve(undefined)
                 : createSocketManager(
                       options.auth,
