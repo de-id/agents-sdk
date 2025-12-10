@@ -16,11 +16,14 @@ import { didApiUrl } from '../../config/environment';
 import { createStreamingLogger, StreamingManager } from './common';
 
 import type {
+    ConnectionQuality,
     ConnectionState as LiveKitConnectionState,
+    Participant,
     RemoteParticipant,
     RemoteTrack,
     Room,
     RoomEvent,
+    SubscriptionError,
 } from 'livekit-client';
 
 async function importLiveKit(): Promise<{
@@ -51,6 +54,14 @@ function attachHiddenElement(track: RemoteTrack, attachedElements: HTMLMediaElem
     return hiddenElement;
 }
 
+const connectivityQualityToState = {
+    excellent: ConnectivityState.Strong,
+    good: ConnectivityState.Strong,
+    poor: ConnectivityState.Weak,
+    lost: ConnectivityState.Unknown,
+    unknown: ConnectivityState.Unknown,
+};
+
 export async function createLiveKitStreamingManager<T extends CreateStreamV2Options>(
     agentId: string,
     agent: T,
@@ -70,12 +81,9 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     let room: Room | null = null;
     let isConnected = false;
     let videoId: string | null = null;
-    let mediaStream: MediaStream | null = null;
     const streamType = StreamType.Fluent;
     let isInitialConnection = true;
-    // Store attached elements to prevent garbage collection
     const attachedElements: HTMLMediaElement[] = [];
-    let videoElement: HTMLVideoElement | null = null;
 
     room = new Room({
         adaptiveStream: true,
@@ -109,10 +117,20 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         }
     });
 
-    room.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
-        if (participant?.isLocal && quality === 'poor') {
-            log('Connection quality is poor');
-            callbacks.onConnectivityStateChange?.(ConnectivityState.Weak);
+    room.on(RoomEvent.ConnectionQualityChanged, (quality: ConnectionQuality, participant) => {
+        log('Connection quality:', quality);
+        if (participant?.isLocal) {
+            callbacks.onConnectivityStateChange?.(connectivityQualityToState[quality]);
+        }
+    });
+
+    room.on(RoomEvent.ActiveSpeakersChanged, (activeSpeakers: Participant[]) => {
+        log('Active speakers changed:', activeSpeakers);
+        const activeSpeaker = activeSpeakers[0];
+        if (activeSpeaker) {
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
+        } else {
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         }
     });
 
