@@ -142,7 +142,14 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
             case LiveKitConnectionState.Connected:
                 log('LiveKit room connected successfully');
                 isConnected = true;
-                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+                // During initial connection, defer the callback to ensure manager is returned first
+                if (isInitialConnection) {
+                    queueMicrotask(() => {
+                        callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+                    });
+                } else {
+                    callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+                }
                 break;
             case LiveKitConnectionState.Disconnected:
                 log('LiveKit room disconnected');
