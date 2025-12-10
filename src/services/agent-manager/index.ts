@@ -3,6 +3,7 @@ import {
     AgentManagerOptions,
     Chat,
     ChatMode,
+    ChatResponse,
     ConnectionState,
     CreateStreamOptions,
     Interrupt,
@@ -263,28 +264,35 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             };
 
             const sendChatRequest = async (messages: Message[], chatId: string) => {
-                return retryOperation(
-                    () => {
-                        return agentsApi.chat(
-                            agentEntity.id,
-                            chatId,
-                            {
-                                chatMode: items.chatMode,
-                                streamId: items.streamingManager?.streamId,
-                                sessionId: items.streamingManager?.sessionId,
-                                messages: messages.map(({ matches, ...message }) => message),
-                            },
-                            {
-                                ...getRequestHeaders(items.chatMode),
-                                skipErrorHandler: true,
-                            }
-                        );
-                    },
-                    {
-                        limit: 2,
-                        shouldRetryFn: error => {
-                            const isInvalidSessionId = error?.message?.includes('missing or invalid session_id');
-                            const isStreamError = error?.message?.includes('Stream Error');
+                const chatRequestFn = isStreamsV2
+                    ? async () => {
+                          await items.streamingManager?.sendTextMessage?.(userMessage);
+                          return Promise.resolve({
+                              result: 'This is a mock message until the data channel is implemented.',
+                          } as ChatResponse);
+                      }
+                    : async () => {
+                          return agentsApi.chat(
+                              agentEntity.id,
+                              chatId,
+                              {
+                                  chatMode: items.chatMode,
+                                  streamId: items.streamingManager?.streamId,
+                                  sessionId: items.streamingManager?.sessionId,
+                                  messages: messages.map(({ matches, ...message }) => message),
+                              },
+                              {
+                                  ...getRequestHeaders(items.chatMode),
+                                  skipErrorHandler: true,
+                              }
+                          );
+                      };
+
+                return retryOperation(chatRequestFn, {
+                    limit: 2,
+                    shouldRetryFn: error => {
+                        const isInvalidSessionId = error?.message?.includes('missing or invalid session_id');
+                        const isStreamError = error?.message?.includes('Stream Error');
 
                             if (!isStreamError && !isInvalidSessionId) {
                                 options.callbacks.onError?.(error);
