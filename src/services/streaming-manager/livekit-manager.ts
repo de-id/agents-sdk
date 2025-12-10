@@ -133,7 +133,38 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         return Promise.reject(new Error('Failed to initialize LiveKit stream'));
     }
 
-    room.on(RoomEvent.ConnectionStateChanged, state => {
+    room.on(RoomEvent.ConnectionStateChanged, handleConnectionStateChanged)
+        .on(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged)
+        .on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged)
+        .on(RoomEvent.ParticipantConnected, handleParticipantConnected)
+        .on(RoomEvent.TrackSubscribed, handleTrackSubscribed)
+        .on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed)
+        .on(RoomEvent.DataReceived, handleDataReceived)
+        .on(RoomEvent.MediaDevicesError, handleMediaDevicesError)
+        .on(RoomEvent.EncryptionError, handleEncryptionError)
+        .on(RoomEvent.TrackSubscriptionFailed, handleTrackSubscriptionFailed);
+
+    callbacks.onConnectionStateChange?.(ConnectionState.New);
+
+    try {
+        await room.connect(url, token);
+        log('LiveKit room joined successfully');
+
+        isInitialConnection = false;
+        if (isConnected) {
+            callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+        }
+    } catch (error) {
+        handleInitError(error, log, callbacks, () => {
+            isInitialConnection = false;
+        });
+    }
+
+    analytics.enrich({
+        'stream-type': streamType,
+    });
+
+    function handleConnectionStateChanged(state: LiveKitConnectionState): void {
         log('Connection state changed:', state);
         switch (state) {
             case LiveKitConnectionState.Connecting:
@@ -165,16 +196,16 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
                 callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
                 break;
         }
-    });
+    }
 
-    room.on(RoomEvent.ConnectionQualityChanged, (quality: ConnectionQuality, participant) => {
+    function handleConnectionQualityChanged(quality: ConnectionQuality, participant?: Participant): void {
         log('Connection quality:', quality);
         if (participant?.isLocal) {
             callbacks.onConnectivityStateChange?.(connectivityQualityToState[quality]);
         }
-    });
+    }
 
-    room.on(RoomEvent.ActiveSpeakersChanged, (activeSpeakers: Participant[]) => {
+    function handleActiveSpeakersChanged(activeSpeakers: Participant[]): void {
         log('Active speakers changed:', activeSpeakers);
         const activeSpeaker = activeSpeakers[0];
         if (activeSpeaker) {
@@ -182,16 +213,13 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         } else {
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         }
-    });
+    }
 
-    // Handle room closure - this would be handled by the server or other means
-    // For now, we'll handle Closed state in disconnect method
-
-    room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+    function handleParticipantConnected(participant: RemoteParticipant): void {
         log('Participant connected:', participant.identity);
-    });
+    }
 
-    room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication, participant: RemoteParticipant) => {
+    function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
         if (track.kind === 'video') {
@@ -222,17 +250,17 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
             document.body.appendChild(audioElement);
             audioElement.play().catch(e => log('Error playing audio element:', e));
         }
-    });
+    }
 
-    room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication, participant: RemoteParticipant) => {
+    function handleTrackUnsubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
 
         if (track.kind === 'video') {
             callbacks.onVideoStateChange?.(StreamingState.Stop);
         }
-    });
+    }
 
-    room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
+    function handleDataReceived(payload: Uint8Array, participant?: RemoteParticipant): void {
         const message = new TextDecoder().decode(payload);
         log('Data received:', message);
 
@@ -250,44 +278,25 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         } catch (e) {
             log('Failed to parse data channel message:', e);
         }
-    });
-
-    room.on(RoomEvent.MediaDevicesError, (error: Error) => {
-        log('Media devices error:', error);
-        callbacks.onError?.(error, { streamId: '' });
-    });
-
-    room.on(RoomEvent.EncryptionError, (error: Error) => {
-        log('Encryption error:', error);
-        callbacks.onError?.(error, { streamId: '' });
-    });
-
-    room.on(
-        RoomEvent.TrackSubscriptionFailed,
-        (trackSid: string, participant: RemoteParticipant, reason?: SubscriptionError): void => {
-            log('Track subscription failed:', { trackSid, participant, reason });
-        }
-    );
-
-    callbacks.onConnectionStateChange?.(ConnectionState.New);
-
-    try {
-        await room.connect(url, token);
-        log('LiveKit room joined successfully');
-
-        isInitialConnection = false;
-        if (isConnected) {
-            callbacks.onConnectionStateChange?.(ConnectionState.Connected);
-        }
-    } catch (error) {
-        handleInitError(error, log, callbacks, () => {
-            isInitialConnection = false;
-        });
     }
 
-    analytics.enrich({
-        'stream-type': streamType,
-    });
+    function handleMediaDevicesError(error: Error): void {
+        log('Media devices error:', error);
+        callbacks.onError?.(error, { streamId: '' });
+    }
+
+    function handleEncryptionError(error: Error): void {
+        log('Encryption error:', error);
+        callbacks.onError?.(error, { streamId: '' });
+    }
+
+    function handleTrackSubscriptionFailed(
+        trackSid: string,
+        participant: RemoteParticipant,
+        reason?: SubscriptionError
+    ): void {
+        log('Track subscription failed:', { trackSid, participant, reason });
+    }
 
     function cleanDomElements(): void {
         attachedElements.forEach(el => {
