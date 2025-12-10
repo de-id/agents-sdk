@@ -210,6 +210,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
 
             if (hiddenElement.srcObject) {
                 callbacks.onSrcObjectReady?.(hiddenElement.srcObject as MediaStream);
+                callbacks.onVideoStateChange?.(StreamingState.Start);
             }
         }
 
