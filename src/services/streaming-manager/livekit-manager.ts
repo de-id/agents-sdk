@@ -324,7 +324,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
                 payload,
             });
 
-            return sendDataChannelMessage(message);
+            return sendTextMessage(message);
         },
 
         async disconnect() {
