@@ -65,10 +65,10 @@ export function App() {
                             {connectionState === ConnectionState.Connected
                                 ? 'Send'
                                 : connectionState === ConnectionState.Connecting
-                                  ? 'Connecting...'
-                                  : connectionState === ConnectionState.Fail
-                                    ? 'Failed, Try Again'
-                                    : 'Connect'}
+                                    ? 'Connecting...'
+                                    : connectionState === ConnectionState.Fail
+                                        ? 'Failed, Try Again'
+                                        : 'Connect'}
                         </button>
 
                         <button
