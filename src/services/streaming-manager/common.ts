@@ -26,6 +26,12 @@ export type StreamingManager<T extends CreateStreamOptions | CreateStreamV2Optio
     sendDataChannelMessage(payload: string): void;
 
     /**
+     * Method to send text messages to the server
+     * @param payload The message payload to send
+     */
+    sendTextMessage?(payload: string): Promise<void>;
+
+    /**
      * Session identifier information, should be returned in the body of all streaming requests
      */
     sessionId: string;

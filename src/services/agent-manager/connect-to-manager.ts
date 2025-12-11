@@ -172,6 +172,8 @@ function connectToManager(
     return new Promise(async (resolve, reject) => {
         try {
             let streamingManager: StreamingManager<CreateStreamOptions | CreateStreamV2Options>;
+            let shouldResolveOnComplete = false;
+
             streamingManager = await createStreamingManager(agent, getAgentStreamOptions(agent, options), {
                 ...options,
                 analytics,
@@ -181,7 +183,13 @@ function connectToManager(
                         options.callbacks.onConnectionStateChange?.(state);
 
                         if (state === ConnectionState.Connected) {
-                            resolve(streamingManager);
+                            // If manager is ready, resolve immediately
+                            // Otherwise, mark to resolve after manager is created
+                            if (streamingManager) {
+                                resolve(streamingManager);
+                            } else {
+                                shouldResolveOnComplete = true;
+                            }
                         }
                     },
                     onVideoStateChange: (state: StreamingState, statsReport?: any) => {
@@ -213,6 +221,10 @@ function connectToManager(
                     },
                 },
             });
+
+            if (shouldResolveOnComplete) {
+                resolve(streamingManager);
+            }
         } catch (error) {
             reject(error);
         }

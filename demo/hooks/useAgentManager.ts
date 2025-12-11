@@ -27,6 +27,7 @@ interface UseAgentManagerOptions {
     externalId?: string;
     mixpanelKey?: string;
     mixpanelAdditionalProperties?: Record<string, any>;
+    debug?: boolean;
 }
 
 export function useAgentManager(props: UseAgentManagerOptions) {
@@ -41,6 +42,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         streamOptions,
         mixpanelKey,
         mixpanelAdditionalProperties,
+        debug,
     } = props;
 
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -104,6 +106,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                 mixpanelKey,
                 mixpanelAdditionalProperties,
                 streamOptions,
+                debug,
             });
 
             await newManager.connect();
