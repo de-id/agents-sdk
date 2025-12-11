@@ -72,6 +72,7 @@ export function handleInitError(
     markInitialConnectionDone();
     callbacks.onConnectionStateChange?.(ConnectionState.Fail);
     callbacks.onError?.(error as Error, { streamId: '' });
+    throw error;
 }
 
 export async function createLiveKitStreamingManager<T extends CreateStreamV2Options>(
