@@ -152,9 +152,6 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         log('LiveKit room joined successfully');
 
         isInitialConnection = false;
-        if (isConnected) {
-            callbacks.onConnectionStateChange?.(ConnectionState.Connected);
-        }
     } catch (error) {
         handleInitError(error, log, callbacks, () => {
             isInitialConnection = false;
