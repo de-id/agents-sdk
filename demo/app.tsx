@@ -2,7 +2,7 @@ import { ChatMode, ConnectionState } from '@sdk/types';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 import './app.css';
-import { agentId, clientKey, didApiUrl, didSocketApiUrl } from './environment';
+import { agentId, clientKey, debug, didApiUrl, didSocketApiUrl } from './environment';
 import { useAgentManager } from './hooks/useAgentManager';
 
 export function App() {
@@ -19,6 +19,7 @@ export function App() {
 
     const { srcObject, connectionState, messages, isSpeaking, connect, disconnect, speak, chat, interrupt } =
         useAgentManager({
+            debug,
             agentId,
             baseURL: didApiUrl,
             wsURL: didSocketApiUrl,
@@ -64,10 +65,10 @@ export function App() {
                             {connectionState === ConnectionState.Connected
                                 ? 'Send'
                                 : connectionState === ConnectionState.Connecting
-                                  ? 'Connecting...'
-                                  : connectionState === ConnectionState.Fail
-                                    ? 'Failed, Try Again'
-                                    : 'Connect'}
+                                    ? 'Connecting...'
+                                    : connectionState === ConnectionState.Fail
+                                        ? 'Failed, Try Again'
+                                        : 'Connect'}
                         </button>
 
                         <button
