@@ -62,6 +62,11 @@ const connectivityQualityToState = {
     unknown: ConnectivityState.Unknown,
 };
 
+const internalErrorMassage = JSON.stringify({
+    kind: 'InternalServerError',
+    description: 'Stream Error',
+});
+
 export function handleInitError(
     error: unknown,
     log: (message?: any, ...optionalParams: any[]) => void,
@@ -280,12 +285,12 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
 
     function handleMediaDevicesError(error: Error): void {
         log('Media devices error:', error);
-        callbacks.onError?.(error, { streamId: '' });
+        callbacks.onError?.(new Error(internalErrorMassage), { streamId });
     }
 
     function handleEncryptionError(error: Error): void {
         log('Encryption error:', error);
-        callbacks.onError?.(error, { streamId: '' });
+        callbacks.onError?.(new Error(internalErrorMassage), { streamId });
     }
 
     function handleTrackSubscriptionFailed(
@@ -308,7 +313,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     async function sendTextMessage(message: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
-            callbacks.onError?.(new Error('Room is not connected for sending messages'), {
+            callbacks.onError?.(new Error(internalErrorMassage), {
                 streamId,
             });
             return;
@@ -321,7 +326,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
             log('Message sent successfully:', message);
         } catch (error) {
             log('Failed to send message:', error);
-            callbacks.onError?.(error as Error, { streamId });
+            callbacks.onError?.(new Error(internalErrorMassage), { streamId });
         }
     }
 
