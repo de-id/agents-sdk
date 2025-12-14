@@ -28,6 +28,7 @@ export type StreamingManager<T extends CreateStreamOptions | CreateStreamV2Optio
     /**
      * Method to send text messages to the server
      * @param payload The message payload to send
+     * supported only for livekit manager
      */
     sendTextMessage?(payload: string): Promise<void>;
 
