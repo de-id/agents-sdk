@@ -58,19 +58,6 @@ describe('Streaming Manager Core', () => {
             expect(options.analytics.enrich).toHaveBeenCalledWith({ 'stream-type': StreamType.Fluent });
         });
 
-        it('should handle warmup mode', async () => {
-            agentStreamOptions = { stream_warmup: true } as any;
-            await createStreamingManager(agentId, agentStreamOptions, options);
-            expect(pollStats).toHaveBeenCalledWith(
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
-                true
-            );
-        });
-
         it('should throw error when session_id is missing', async () => {
             mockApi.createStream.mockResolvedValueOnce({
                 id: 'streamId',
@@ -255,8 +242,7 @@ describe('Streaming Manager Core', () => {
                 expect.anything(),
                 expect.anything(),
                 expect.anything(),
-                expect.anything(),
-                false
+                expect.anything()
             );
         });
     });
@@ -370,8 +356,7 @@ describe('Streaming Manager Core', () => {
                 expect.anything(),
                 expect.anything(),
                 expect.anything(),
-                expect.anything(),
-                false
+                expect.anything()
             );
 
             expect(manager.streamId).toBe('streamId');
