@@ -215,7 +215,7 @@ export function createVideoStatsReport(
             maxJitterDelayInInterval: Math.max(...avgJittersSamples),
             avgJitterDelayInInterval: average(avgJittersSamples),
         },
-        codec: stats[0]?.codec || 'Unknown',
-        resolution: stats[0] ? `${stats[0].frameWidth || 0}x${stats[0].frameHeight || 0}` : 'Unknown',
+        codec: stats[0].codec,
+        resolution: `${stats[0].frameWidth}x${stats[0].frameHeight}`,
     };
 }
