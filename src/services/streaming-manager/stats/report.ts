@@ -77,12 +77,26 @@ function extractAnomalies(stats: AnalyticsRTCStatsReport[]): AnalyticsRTCStatsRe
 export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
     let codec = '';
     let currRtt: number = 0;
+
     for (const report of stats.values()) {
         if (report && report.type === 'codec' && report.mimeType.startsWith('video')) {
             codec = report.mimeType.split('/')[1];
         }
         if (report && report.type === 'candidate-pair') {
-            currRtt = report.currentRoundTripTime;
+            const rtt = report.currentRoundTripTime;
+            const candidatePair = report as any;
+            const isNominated = candidatePair.nominated === true;
+
+            // Prioritize RTT from the nominated candidate-pair (the active connection path).
+            // This ensures we capture the actual network latency being used, not just any candidate.
+            // Only update if we have a valid positive RTT value to avoid overwriting with invalid data.
+            if (rtt > 0) {
+                if (isNominated) {
+                    currRtt = rtt;
+                } else if (currRtt === 0) {
+                    currRtt = rtt;
+                }
+            }
         }
         if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
             return {
@@ -180,11 +194,14 @@ export function createVideoStatsReport(
             freezeDuration: report.freezeDuration - stats[index - 1].freezeDuration,
         };
     });
+
     const anomalies = extractAnomalies(differentialReport);
     const lowFpsCount = anomalies.reduce((acc, report) => acc + (report.causes!.includes('low fps') ? 1 : 0), 0);
+
     const avgJittersSamples = differentialReport
         .filter(stat => !!stat.avgJitterDelayInInterval)
         .map(stat => stat.avgJitterDelayInInterval);
+
     const avgRttSamples = differentialReport.filter(stat => !!stat.rtt).map(stat => stat.rtt);
 
     return {
@@ -198,7 +215,7 @@ export function createVideoStatsReport(
             maxJitterDelayInInterval: Math.max(...avgJittersSamples),
             avgJitterDelayInInterval: average(avgJittersSamples),
         },
-        codec: stats[0].codec,
-        resolution: `${stats[0].frameWidth}x${stats[0].frameHeight}`,
+        codec: stats[0]?.codec || 'Unknown',
+        resolution: stats[0] ? `${stats[0].frameWidth || 0}x${stats[0].frameHeight || 0}` : 'Unknown',
     };
 }

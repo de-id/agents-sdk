@@ -43,11 +43,8 @@ export function pollStats(
     getIsConnected: () => boolean,
     onConnected: () => void,
     onVideoStateChange?: (state: StreamingState, statsReport?: VideoRTCStatsReport) => void,
-    onConnectivityStateChange?: (state: ConnectivityState) => void,
-    warmup: boolean = false
+    onConnectivityStateChange?: (state: ConnectivityState) => void
 ) {
-    const streamsBeforeReady = warmup ? 1 : 0;
-
     let allStats: SlimRTCStatsReport[] = [];
     let previousStats: SlimRTCStatsReport;
     let notReceivingNumIntervals = 0;
