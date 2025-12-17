@@ -42,18 +42,6 @@ async function importLiveKit(): Promise<{
     }
 }
 
-function attachHiddenElement(track: RemoteTrack, attachedElements: HTMLMediaElement[]): HTMLMediaElement {
-    const hiddenElement = track.attach();
-    attachedElements.push(hiddenElement);
-    hiddenElement.style.position = 'absolute';
-    hiddenElement.style.width = '1px';
-    hiddenElement.style.height = '1px';
-    hiddenElement.style.opacity = '0.01';
-    hiddenElement.style.pointerEvents = 'none';
-    hiddenElement.muted = true;
-    return hiddenElement;
-}
-
 const connectivityQualityToState = {
     excellent: ConnectivityState.Strong,
     good: ConnectivityState.Strong,
@@ -101,10 +89,10 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     let videoId: string | null = null;
     const streamType = StreamType.Fluent;
     let isInitialConnection = true;
-    const attachedElements: HTMLMediaElement[] = [];
+    let sharedMediaStream: MediaStream | null = null;
 
     room = new Room({
-        adaptiveStream: true,
+        adaptiveStream: false, // Must be false to use mediaStreamTrack directly
         dynacast: true,
     });
 
@@ -225,33 +213,24 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
-        if (track.kind === 'video') {
-            const hiddenElement = attachHiddenElement(track, attachedElements);
-            document.body.appendChild(hiddenElement);
-
-            // Play the hidden element to keep the track "alive"
-            hiddenElement
-                .play()
-                .then(() => {
-                    log('Hidden video element playing');
-                })
-                .catch(e => log('Error playing hidden element:', e));
-
-            log(`Video element created, srcObject: ${hiddenElement.srcObject}`);
-
-            if (hiddenElement.srcObject) {
-                callbacks.onSrcObjectReady?.(hiddenElement.srcObject as MediaStream);
-                callbacks.onVideoStateChange?.(StreamingState.Start);
-            }
+        const mediaStreamTrack = track.mediaStreamTrack;
+        if (!mediaStreamTrack) {
+            log(`No mediaStreamTrack available for ${track.kind}`);
+            return;
         }
 
-        if (track.kind === 'audio') {
-            // For audio, create element and play it directly
-            const audioElement = track.attach();
-            attachedElements.push(audioElement);
-            audioElement.style.display = 'none';
-            document.body.appendChild(audioElement);
-            audioElement.play().catch(e => log('Error playing audio element:', e));
+        // Create shared stream if it doesn't exist, or add track to existing stream
+        if (!sharedMediaStream) {
+            sharedMediaStream = new MediaStream([mediaStreamTrack]);
+            log(`Created shared MediaStream with ${track.kind} track`);
+        } else {
+            sharedMediaStream.addTrack(mediaStreamTrack);
+            log(`Added ${track.kind} track to shared MediaStream`);
+        }
+
+        if (track.kind === 'video') {
+            callbacks.onSrcObjectReady?.(sharedMediaStream);
+            callbacks.onVideoStateChange?.(StreamingState.Start);
         }
     }
 
@@ -301,13 +280,11 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         log('Track subscription failed:', { trackSid, participant, reason });
     }
 
-    function cleanDomElements(): void {
-        attachedElements.forEach(el => {
-            if (el.parentNode) {
-                el.parentNode.removeChild(el);
-            }
-        });
-        attachedElements.length = 0;
+    function cleanMediaStream(): void {
+        if (sharedMediaStream) {
+            sharedMediaStream.getTracks().forEach(track => track.stop());
+            sharedMediaStream = null;
+        }
     }
 
     async function sendTextMessage(message: string) {
@@ -345,7 +322,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
                 await room.disconnect();
                 room = null;
             }
-            cleanDomElements();
+            cleanMediaStream();
             isConnected = false;
             callbacks.onConnectionStateChange?.(ConnectionState.Completed);
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
