@@ -54,7 +54,6 @@ export enum StreamType {
 }
 
 export interface ManagerCallbacks {
-    onNewMessage?: (event: string, data: string) => void;
     onMessage?: ChatProgressCallback;
     onConnectionStateChange?: (state: ConnectionState) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;

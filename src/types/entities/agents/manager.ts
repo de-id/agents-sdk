@@ -71,10 +71,6 @@ interface ManagerCallbacks {
      */
     onNewMessage?(messages: Message[], type: 'answer' | 'partial' | 'user'): void;
     /**
-     * Internal callback used to route low-level chat/data-channel events.
-     */
-    onMessage?: ChatProgressCallback;
-    /**
      * Optional callback function that will be triggered each time new chat is created
      * @param chatId - id of the new chat
      */
