@@ -11,6 +11,7 @@ import {
     StreamType,
     TransportProvider,
 } from '@sdk/types';
+import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { createStreamingLogger, StreamingManager } from './common';
@@ -248,14 +249,12 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
 
         try {
             const data = JSON.parse(message);
-            if (data.subject === StreamEvents.StreamStarted && data.metadata?.videoId) {
-                videoId = data.metadata.videoId;
-                callbacks.onVideoIdChange?.(videoId);
-                callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
-            } else if (data.subject === StreamEvents.StreamDone) {
-                videoId = null;
-                callbacks.onVideoIdChange?.(videoId);
-                callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+            if (data.subject === StreamEvents.ChatAnswer) {
+                const eventName = ChatProgress.Answer;
+                callbacks.onMessage?.(eventName, {
+                    event: eventName,
+                    ...data,
+                });
             }
         } catch (e) {
             log('Failed to parse data channel message:', e);
