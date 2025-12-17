@@ -5,7 +5,6 @@
 
 import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { AgentActivityState, CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
-import { pollStats } from './stats/poll';
 import { createWebRTCStreamingManager as createStreamingManager } from './webrtc-manager';
 
 // Mock createStreamApi
@@ -143,51 +142,6 @@ describe('Streaming Manager Business Flows', () => {
 
             expect(manager.streamType).toBe(StreamType.Fluent);
             expect(manager.interruptAvailable).toBe(true);
-        });
-    });
-
-    describe('Warmup Mode Flows', () => {
-        it('should handle warmup=true with legacy stream', async () => {
-            const warmupAgent = { ...agent, stream_warmup: true };
-            const manager = await createStreamingManager(agentId, warmupAgent, options);
-
-            // Warmup should be enabled for legacy streams
-            expect(pollStats).toHaveBeenCalledWith(
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
-                true // warmup = true
-            );
-
-            expect(manager.streamId).toBe('streamId');
-        });
-
-        it('should handle warmup=true with fluent stream (should disable warmup)', async () => {
-            mockApi.createStream.mockResolvedValueOnce({
-                id: 'streamId',
-                offer: { type: 'offer', sdp: 'sdp' },
-                ice_servers: [],
-                session_id: 'sessionId',
-                fluent: true,
-                interrupt_enabled: false,
-            });
-
-            const warmupAgent = { ...agent, stream_warmup: true };
-            const manager = await createStreamingManager(agentId, warmupAgent, options);
-
-            // Warmup should be disabled for fluent streams
-            expect(pollStats).toHaveBeenCalledWith(
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
-                expect.anything(),
-                false // warmup = false for fluent
-            );
-
-            expect(manager.streamType).toBe(StreamType.Fluent);
         });
     });
 

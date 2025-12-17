@@ -396,8 +396,7 @@ describe('Streaming Manager Advanced', () => {
                 expect.anything(),
                 expect.anything(),
                 expect.anything(),
-                expect.any(Function),
-                false
+                expect.any(Function)
             );
 
             const connectivityCallback = (pollStats as jest.Mock).mock.calls[0][4];
@@ -422,8 +421,7 @@ describe('Streaming Manager Advanced', () => {
                 expect.anything(),
                 expect.anything(),
                 expect.anything(),
-                expect.anything(),
-                false
+                expect.anything()
             );
 
             expect(manager.streamId).toBe('streamId');
