@@ -3,6 +3,7 @@ import {
     AgentManagerOptions,
     Chat,
     ChatMode,
+    ChatResponse,
     ConnectionState,
     CreateStreamOptions,
     Interrupt,
@@ -15,6 +16,7 @@ import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
 import { ChatCreationFailed, ValidationError } from '@sdk/errors';
 import { getRandom } from '@sdk/utils';
+import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
@@ -72,6 +74,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
 
     const agentEntity = await agentsApi.getById(agent);
+    const isStreamsV2 = isStreamsV2Agent(agentEntity.presenter.type);
     analytics.enrich(getAgentInfo(agentEntity));
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () =>
@@ -100,7 +103,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         const websocketPromise =
-            options.mode === ChatMode.DirectPlayback
+            options.mode === ChatMode.DirectPlayback || isStreamsV2
                 ? Promise.resolve(undefined)
                 : createSocketManager(
                       options.auth,
@@ -113,7 +116,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             () => {
                 return initializeStreamAndChat(
                     agentEntity,
-                    { ...options, callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId } },
+                    {
+                        ...options,
+                        callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId, onMessage },
+                    },
                     agentsApi,
                     analytics,
                     items.chat
@@ -253,41 +259,45 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             };
 
             const sendChatRequest = async (messages: Message[], chatId: string) => {
-                return retryOperation(
-                    () => {
-                        return agentsApi.chat(
-                            agentEntity.id,
-                            chatId,
-                            {
-                                chatMode: items.chatMode,
-                                streamId: items.streamingManager?.streamId,
-                                sessionId: items.streamingManager?.sessionId,
-                                messages: messages.map(({ matches, ...message }) => message),
-                            },
-                            {
-                                ...getRequestHeaders(items.chatMode),
-                                skipErrorHandler: true,
-                            }
-                        );
-                    },
-                    {
-                        limit: 2,
-                        shouldRetryFn: error => {
-                            const isInvalidSessionId = error?.message?.includes('missing or invalid session_id');
-                            const isStreamError = error?.message?.includes('Stream Error');
+                const chatRequestFn = isStreamsV2
+                    ? async () => {
+                          await items.streamingManager?.sendTextMessage?.(userMessage);
+                          return Promise.resolve({} as ChatResponse);
+                      }
+                    : async () => {
+                          return agentsApi.chat(
+                              agentEntity.id,
+                              chatId,
+                              {
+                                  chatMode: items.chatMode,
+                                  streamId: items.streamingManager?.streamId,
+                                  sessionId: items.streamingManager?.sessionId,
+                                  messages: messages.map(({ matches, ...message }) => message),
+                              },
+                              {
+                                  ...getRequestHeaders(items.chatMode),
+                                  skipErrorHandler: true,
+                              }
+                          );
+                      };
 
-                            if (!isStreamError && !isInvalidSessionId) {
-                                options.callbacks.onError?.(error);
-                                return false;
-                            }
-                            return true;
-                        },
-                        onRetry: async () => {
-                            await disconnect();
-                            await connect(false);
-                        },
-                    }
-                );
+                return retryOperation(chatRequestFn, {
+                    limit: 2,
+                    shouldRetryFn: error => {
+                        const isInvalidSessionId = error?.message?.includes('missing or invalid session_id');
+                        const isStreamError = error?.message?.includes('Stream Error');
+
+                        if (!isStreamError && !isInvalidSessionId) {
+                            options.callbacks.onError?.(error);
+                            return false;
+                        }
+                        return true;
+                    },
+                    onRetry: async () => {
+                        await disconnect();
+                        await connect(false);
+                    },
+                });
             };
 
             try {

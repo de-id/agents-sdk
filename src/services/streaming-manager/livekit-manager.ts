@@ -11,16 +11,20 @@ import {
     StreamType,
     TransportProvider,
 } from '@sdk/types';
+import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { createStreamingLogger, StreamingManager } from './common';
 
 import type {
+    ConnectionQuality,
     ConnectionState as LiveKitConnectionState,
+    Participant,
     RemoteParticipant,
     RemoteTrack,
     Room,
     RoomEvent,
+    SubscriptionError,
 } from 'livekit-client';
 
 async function importLiveKit(): Promise<{
@@ -37,6 +41,32 @@ async function importLiveKit(): Promise<{
             'LiveKit client is required for this streaming manager. Please install it using: npm install livekit-client'
         );
     }
+}
+
+const connectivityQualityToState = {
+    excellent: ConnectivityState.Strong,
+    good: ConnectivityState.Strong,
+    poor: ConnectivityState.Weak,
+    lost: ConnectivityState.Unknown,
+    unknown: ConnectivityState.Unknown,
+};
+
+const internalErrorMassage = JSON.stringify({
+    kind: 'InternalServerError',
+    description: 'Stream Error',
+});
+
+export function handleInitError(
+    error: unknown,
+    log: (message?: any, ...optionalParams: any[]) => void,
+    callbacks: StreamingManagerOptions['callbacks'],
+    markInitialConnectionDone: () => void
+): void {
+    log('Failed to connect to LiveKit room:', error);
+    markInitialConnectionDone();
+    callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+    callbacks.onError?.(error as Error, { streamId: '' });
+    throw error;
 }
 
 export async function createLiveKitStreamingManager<T extends CreateStreamV2Options>(
@@ -58,15 +88,75 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     let room: Room | null = null;
     let isConnected = false;
     let videoId: string | null = null;
-    let mediaStream: MediaStream | null = null;
     const streamType = StreamType.Fluent;
+    let isInitialConnection = true;
+    let sharedMediaStream: MediaStream | null = null;
 
     room = new Room({
-        adaptiveStream: true,
+        adaptiveStream: false, // Must be false to use mediaStreamTrack directly
         dynacast: true,
     });
 
-    room.on(RoomEvent.ConnectionStateChanged, state => {
+    const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
+    let streamId: string | undefined;
+    let sessionId: string | undefined;
+
+    let token: string | undefined;
+    let url: string | undefined;
+
+    try {
+        const streamResponse = await streamApi.createStream({
+            transport_provider: TransportProvider.Livekit,
+            chat_id: agent.chat_id,
+        });
+
+        const { session_id, session_token, session_url } = streamResponse;
+        callbacks.onStreamCreated?.({ stream_id: session_id, session_id, agent_id: agentId });
+        streamId = session_id;
+        sessionId = session_id;
+        token = session_token;
+        url = session_url;
+
+        await room.prepareConnection(url, token);
+    } catch (error) {
+        handleInitError(error, log, callbacks, () => {
+            isInitialConnection = false;
+        });
+    }
+
+    if (!url || !token || !streamId || !sessionId) {
+        return Promise.reject(new Error('Failed to initialize LiveKit stream'));
+    }
+
+    room.on(RoomEvent.ConnectionStateChanged, handleConnectionStateChanged)
+        .on(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged)
+        .on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged)
+        .on(RoomEvent.ParticipantConnected, handleParticipantConnected)
+        .on(RoomEvent.TrackSubscribed, handleTrackSubscribed)
+        .on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed)
+        .on(RoomEvent.DataReceived, handleDataReceived)
+        .on(RoomEvent.MediaDevicesError, handleMediaDevicesError)
+        .on(RoomEvent.EncryptionError, handleEncryptionError)
+        .on(RoomEvent.TrackSubscriptionFailed, handleTrackSubscriptionFailed);
+
+    callbacks.onConnectionStateChange?.(ConnectionState.New);
+
+    try {
+        await room.connect(url, token);
+        log('LiveKit room joined successfully');
+
+        isInitialConnection = false;
+    } catch (error) {
+        handleInitError(error, log, callbacks, () => {
+            isInitialConnection = false;
+        });
+    }
+
+    analytics.enrich({
+        'stream-type': streamType,
+    });
+
+    function handleConnectionStateChanged(state: LiveKitConnectionState): void {
         log('Connection state changed:', state);
         switch (state) {
             case LiveKitConnectionState.Connecting:
@@ -75,7 +165,14 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
             case LiveKitConnectionState.Connected:
                 log('LiveKit room connected successfully');
                 isConnected = true;
-                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+                // During initial connection, defer the callback to ensure manager is returned first
+                if (isInitialConnection) {
+                    queueMicrotask(() => {
+                        callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+                    });
+                } else {
+                    callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+                }
                 break;
             case LiveKitConnectionState.Disconnected:
                 log('LiveKit room disconnected');
@@ -91,111 +188,121 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
                 callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
                 break;
         }
-    });
+    }
 
-    room.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
-        if (participant?.isLocal && quality === 'poor') {
-            log('Connection quality is poor');
-            callbacks.onConnectivityStateChange?.(ConnectivityState.Weak);
+    function handleConnectionQualityChanged(quality: ConnectionQuality, participant?: Participant): void {
+        log('Connection quality:', quality);
+        if (participant?.isLocal) {
+            callbacks.onConnectivityStateChange?.(connectivityQualityToState[quality]);
         }
-    });
+    }
 
-    // Handle room closure - this would be handled by the server or other means
-    // For now, we'll handle Closed state in disconnect method
+    function handleActiveSpeakersChanged(activeSpeakers: Participant[]): void {
+        log('Active speakers changed:', activeSpeakers);
+        const activeSpeaker = activeSpeakers[0];
+        if (activeSpeaker) {
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
+        } else {
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+        }
+    }
 
-    room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+    function handleParticipantConnected(participant: RemoteParticipant): void {
         log('Participant connected:', participant.identity);
-    });
+    }
 
-    room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication, participant: RemoteParticipant) => {
+    function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
-        if (!mediaStream) {
-            mediaStream = new MediaStream([track.mediaStreamTrack]);
-        } else {
-            mediaStream.addTrack(track.mediaStreamTrack);
+        const mediaStreamTrack = track.mediaStreamTrack;
+        if (!mediaStreamTrack) {
+            log(`No mediaStreamTrack available for ${track.kind}`);
+            return;
         }
 
-        callbacks.onSrcObjectReady?.(mediaStream);
+        // Create shared stream if it doesn't exist, or add track to existing stream
+        if (!sharedMediaStream) {
+            sharedMediaStream = new MediaStream([mediaStreamTrack]);
+            log(`Created shared MediaStream with ${track.kind} track`);
+        } else {
+            sharedMediaStream.addTrack(mediaStreamTrack);
+            log(`Added ${track.kind} track to shared MediaStream`);
+        }
 
-        // Handle video track subscription as stats signal for fluent streams
         if (track.kind === 'video') {
+            callbacks.onSrcObjectReady?.(sharedMediaStream);
             callbacks.onVideoStateChange?.(StreamingState.Start);
         }
-    });
+    }
 
-    room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication, participant: RemoteParticipant) => {
+    function handleTrackUnsubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
 
-        // Handle video track unsubscription as stats signal for fluent streams
         if (track.kind === 'video') {
             callbacks.onVideoStateChange?.(StreamingState.Stop);
         }
-    });
+    }
 
-    room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
+    function handleDataReceived(payload: Uint8Array, participant?: RemoteParticipant): void {
         const message = new TextDecoder().decode(payload);
         log('Data received:', message);
 
         try {
             const data = JSON.parse(message);
-            if (data.subject === StreamEvents.StreamStarted && data.metadata?.videoId) {
-                videoId = data.metadata.videoId;
-                callbacks.onVideoIdChange?.(videoId);
-                callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
-            } else if (data.subject === StreamEvents.StreamDone) {
-                videoId = null;
-                callbacks.onVideoIdChange?.(videoId);
-                callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+            if (data.subject === StreamEvents.ChatAnswer) {
+                const eventName = ChatProgress.Answer;
+                callbacks.onMessage?.(eventName, {
+                    event: eventName,
+                    ...data,
+                });
             }
         } catch (e) {
             log('Failed to parse data channel message:', e);
         }
-    });
-
-    callbacks.onConnectionStateChange?.(ConnectionState.New);
-
-    const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
-    let streamId: string;
-    let sessionId: string;
-
-    try {
-        const streamResponse = await streamApi.createStream({
-            transport_provider: TransportProvider.Livekit,
-            chat_id: agent.chat_id,
-        });
-
-        const { agent_id, session_id, session_token: token, session_url: url } = streamResponse;
-        streamId = agent_id;
-        sessionId = session_id;
-
-        await room.connect(url, token);
-        log('LiveKit room joined successfully');
-    } catch (error) {
-        log('Failed to connect to LiveKit room:', error);
-        callbacks.onConnectionStateChange?.(ConnectionState.Fail);
-        callbacks.onError?.(error as Error, { streamId: '' });
-        throw error;
     }
 
-    analytics.enrich({
-        'stream-type': streamType,
-    });
+    function handleMediaDevicesError(error: Error): void {
+        log('Media devices error:', error);
+        callbacks.onError?.(new Error(internalErrorMassage), { streamId });
+    }
 
-    async function sendDataChannelMessage(message: string) {
+    function handleEncryptionError(error: Error): void {
+        log('Encryption error:', error);
+        callbacks.onError?.(new Error(internalErrorMassage), { streamId });
+    }
+
+    function handleTrackSubscriptionFailed(
+        trackSid: string,
+        participant: RemoteParticipant,
+        reason?: SubscriptionError
+    ): void {
+        log('Track subscription failed:', { trackSid, participant, reason });
+    }
+
+    function cleanMediaStream(): void {
+        if (sharedMediaStream) {
+            sharedMediaStream.getTracks().forEach(track => track.stop());
+            sharedMediaStream = null;
+        }
+    }
+
+    async function sendTextMessage(message: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
-            callbacks.onError?.(new Error('Room is not connected for sending messages'), {
+            callbacks.onError?.(new Error(internalErrorMassage), {
                 streamId,
             });
             return;
         }
 
         try {
-            await room.localParticipant.publishData(new TextEncoder().encode(message), { reliable: true });
-        } catch (e: any) {
-            log('Error sending data channel message', e);
-            callbacks.onError?.(e, { streamId });
+            await room.localParticipant.sendText(message, {
+                topic: 'lk.chat',
+            });
+            log('Message sent successfully:', message);
+        } catch (error) {
+            log('Failed to send message:', error);
+            callbacks.onError?.(new Error(internalErrorMassage), { streamId });
         }
     }
 
@@ -206,7 +313,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
                 payload,
             });
 
-            return sendDataChannelMessage(message);
+            return sendTextMessage(message);
         },
 
         async disconnect() {
@@ -214,16 +321,14 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
                 await room.disconnect();
                 room = null;
             }
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
+            cleanMediaStream();
             isConnected = false;
             callbacks.onConnectionStateChange?.(ConnectionState.Completed);
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         },
 
-        sendDataChannelMessage,
+        sendDataChannelMessage: sendTextMessage,
+        sendTextMessage,
 
         sessionId,
         streamId,

@@ -198,8 +198,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 report,
                 streamType,
             }),
-        state => callbacks.onConnectivityStateChange?.(state),
-        warmup
+        state => callbacks.onConnectivityStateChange?.(state)
     );
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
