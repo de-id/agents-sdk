@@ -10,6 +10,8 @@ export const mapVideoType = (type: string): VideoType => {
             return VideoType.Clip;
         case 'talk':
             return VideoType.Talk;
+        case 'expressive':
+            return VideoType.Expressive;
         default:
             throw new Error(`Unknown video type: ${type}`);
     }
