@@ -116,7 +116,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             () => {
                 return initializeStreamAndChat(
                     agentEntity,
-                    { ...options, callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId } },
+                    {
+                        ...options,
+                        callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId, onMessage },
+                    },
                     agentsApi,
                     analytics,
                     items.chat
@@ -259,9 +262,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 const chatRequestFn = isStreamsV2
                     ? async () => {
                           await items.streamingManager?.sendTextMessage?.(userMessage);
-                          return Promise.resolve({
-                              result: 'This is a mock message until the data channel is implemented.',
-                          } as ChatResponse);
+                          return Promise.resolve({} as ChatResponse);
                       }
                     : async () => {
                           return agentsApi.chat(
