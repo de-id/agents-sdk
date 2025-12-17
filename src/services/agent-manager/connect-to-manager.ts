@@ -12,6 +12,7 @@ import {
     AgentsAPI,
     Chat,
     ChatMode,
+    ChatProgressCallback,
     ConnectionState,
     CreateStreamOptions,
     CreateStreamV2Options,
@@ -158,6 +159,8 @@ function trackLegacyVideoAnalytics(
 type ConnectToManagerOptions = AgentManagerOptions & {
     callbacks: AgentManagerOptions['callbacks'] & {
         onVideoIdChange?: (videoId: string | null) => void;
+        /** Internal callback for livekit-manager data channel events */
+        onMessage?: ChatProgressCallback;
     };
     chatId?: string;
 };
