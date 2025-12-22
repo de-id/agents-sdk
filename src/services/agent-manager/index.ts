@@ -20,6 +20,7 @@ import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
+import { defer } from '../../utils/defer';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
@@ -70,7 +71,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         externalId: options.externalId,
         mixpanelAdditionalProperties: options.mixpanelAdditionalProperties,
     });
-    analytics.track('agent-sdk', { event: 'init' });
+
+    const initTimestamp = Date.now();
+    defer(() => {
+        analytics.track('agent-sdk', { event: 'init' }, initTimestamp);
+    });
+
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
 
     const agentEntity = await agentsApi.getById(agent);
@@ -89,7 +95,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         videoId = newVideoId;
     };
 
-    analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) });
+    const loadedTimestamp = Date.now();
+    defer(() => {
+        analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) }, loadedTimestamp);
+    });
 
     async function connect(newChat: boolean) {
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);

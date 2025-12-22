@@ -37,6 +37,9 @@ jest.mock('../../utils/analytics', () => ({
     getAgentInfo: jest.fn(() => ({ agentType: 'talk' })),
     getAnalyticsInfo: jest.fn(() => ({ agentType: 'talk' })),
 }));
+jest.mock('../../utils/defer', () => ({
+    defer: jest.fn(fn => fn()),
+}));
 jest.mock('../analytics/timestamp-tracker', () => ({
     latencyTimestampTracker: { reset: jest.fn(), update: jest.fn(() => Date.now()), get: jest.fn(() => 1000) },
     interruptTimestampTracker: { reset: jest.fn(), update: jest.fn(), get: jest.fn(() => 500) },
@@ -108,8 +111,12 @@ describe('createAgentManager', () => {
                 isEnabled: true,
                 externalId: undefined,
             });
-            expect(mockAnalytics.track).toHaveBeenCalledWith('agent-sdk', { event: 'init' });
-            expect(mockAnalytics.track).toHaveBeenCalledWith('agent-sdk', expect.objectContaining({ event: 'loaded' }));
+            expect(mockAnalytics.track).toHaveBeenCalledWith('agent-sdk', { event: 'init' }, expect.any(Number));
+            expect(mockAnalytics.track).toHaveBeenCalledWith(
+                'agent-sdk',
+                expect.objectContaining({ event: 'loaded' }),
+                expect.any(Number)
+            );
         });
 
         it('should use custom configuration options', async () => {
