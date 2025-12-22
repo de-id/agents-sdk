@@ -17,7 +17,7 @@ export interface Analytics {
     agentId: string;
     owner_id?: string;
     getRandom(): string;
-    track(event: string, props?: Record<string, any>): Promise<any>;
+    track(event: string, props?: Record<string, any>, eventTimestamp?: number): Promise<any>;
     linkTrack(mixpanelEvent: string, props: Record<string, any>, event: string, dependencies: string[]): any;
     enrich(props: Record<string, any>): void;
     additionalProperties: Record<string, any>;
@@ -53,13 +53,15 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
         enrich(props: Record<string, any>) {
             this.additionalProperties = { ...this.additionalProperties, ...props };
         },
-        async track(event: string, props?: Record<string, any>) {
+        async track(event: string, props?: Record<string, any>, eventTimestamp?: number) {
             if (!this.isEnabled) {
                 return Promise.resolve();
             }
 
             // Ignore audioPath event from agent-video
             const { audioPath, ...sendProps } = props || {};
+
+            const eventTime = eventTimestamp || Date.now();
 
             const options = {
                 method: 'POST',
@@ -76,7 +78,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                                 agentId: this.agentId,
                                 source,
                                 token: this.token,
-                                time: Date.now(),
+                                time: eventTime,
                                 $insert_id: this.getRandom(),
                                 origin: window.location.href,
                                 'Screen Height': window.screen.height || window.innerWidth,
@@ -88,11 +90,12 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                 }),
             };
 
-            try {
-                return await fetch(mixpanelUrl, options).then(res => res.json());
-            } catch (err) {
-                return console.error(err);
-            }
+            fetch(mixpanelUrl, {
+                ...options,
+                keepalive: true,
+            }).catch(err => console.error('Analytics tracking error:', err));
+
+            return Promise.resolve();
         },
         linkTrack(mixpanelEvent: string, props: Record<string, any>, event: string, dependencies: string[]) {
             if (!mixpanelEvents[mixpanelEvent]) {
