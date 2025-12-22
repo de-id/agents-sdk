@@ -98,11 +98,10 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     });
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
-    let streamId: string | undefined;
-    let sessionId: string | undefined;
-
-    let token: string | undefined;
-    let url: string | undefined;
+    let streamId: string = '';
+    let sessionId: string = '';
+    let token: string = '';
+    let url: string = '';
 
     try {
         const streamResponse = await streamApi.createStream({
@@ -124,7 +123,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         });
     }
 
-    if (!url || !token || !streamId) {
+    if (!url || !token || !streamId || !sessionId) {
         return Promise.reject(new Error('Failed to initialize LiveKit stream'));
     }
 
