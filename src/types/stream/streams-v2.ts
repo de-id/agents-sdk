@@ -8,8 +8,7 @@ export interface CreateStreamV2Options {
 }
 
 export interface CreateStreamV2Response {
-    agent_id: 'string';
-    session_id: 'string';
-    session_url: 'string';
-    session_token: 'string';
+    id: string;
+    session_url: string;
+    session_token: string;
 }

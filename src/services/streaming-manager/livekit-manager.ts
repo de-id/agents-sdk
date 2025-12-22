@@ -110,10 +110,10 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
             chat_id: agent.chat_id,
         });
 
-        const { session_id, session_token, session_url } = streamResponse;
-        callbacks.onStreamCreated?.({ stream_id: session_id, session_id, agent_id: agentId });
-        streamId = session_id;
-        sessionId = session_id;
+        const { id, session_token, session_url } = streamResponse;
+        callbacks.onStreamCreated?.({ stream_id: id, session_id: id, agent_id: agentId });
+        streamId = id;
+        sessionId = id;
         token = session_token;
         url = session_url;
 
@@ -124,7 +124,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         });
     }
 
-    if (!url || !token || !streamId || !sessionId) {
+    if (!url || !token || !streamId) {
         return Promise.reject(new Error('Failed to initialize LiveKit stream'));
     }
 
