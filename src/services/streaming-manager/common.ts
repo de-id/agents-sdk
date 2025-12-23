@@ -1,4 +1,4 @@
-import { CreateStreamOptions, CreateStreamV2Options, PayloadType, StreamType } from '@sdk/types';
+import { CreateSessionV2Options, CreateStreamOptions, PayloadType, StreamType } from '@sdk/types';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');
@@ -7,7 +7,7 @@ export const createStreamingLogger = (debug: boolean, prefix: string) => (messag
  * Shared type for all streaming managers (LiveKit, WebRTC, etc.)
  * This type represents the return value of any streaming manager implementation
  */
-export type StreamingManager<T extends CreateStreamOptions | CreateStreamV2Options> = {
+export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Options> = {
     /**
      * Method to send request to server to get clip or talk depending on payload
      * @param payload The payload to send to the streaming service

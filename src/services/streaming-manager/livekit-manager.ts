@@ -2,8 +2,8 @@ import {
     AgentActivityState,
     ConnectionState,
     ConnectivityState,
+    CreateSessionV2Options,
     CreateStreamOptions,
-    CreateStreamV2Options,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
@@ -65,29 +65,22 @@ export function handleInitError(
     log('Failed to connect to LiveKit room:', error);
     markInitialConnectionDone();
     callbacks.onConnectionStateChange?.(ConnectionState.Fail);
-    callbacks.onError?.(error as Error, { streamId: '' });
+    callbacks.onError?.(error as Error, { sessionId: '' });
     throw error;
 }
 
-export async function createLiveKitStreamingManager<T extends CreateStreamV2Options>(
+export async function createLiveKitStreamingManager<T extends CreateSessionV2Options>(
     agentId: string,
-    agent: T,
+    sessionOptions: CreateSessionV2Options,
     options: StreamingManagerOptions
 ): Promise<StreamingManager<T>> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
-    const {
-        Room,
-        RoomEvent,
-        ConnectionState: LiveKitConnectionState,
-        RemoteParticipant,
-        RemoteTrack,
-    } = await importLiveKit();
+    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState } = await importLiveKit();
 
     const { callbacks, auth, baseURL, analytics } = options;
     let room: Room | null = null;
     let isConnected = false;
-    let videoId: string | null = null;
     const streamType = StreamType.Fluent;
     let isInitialConnection = true;
     let sharedMediaStream: MediaStream | null = null;
@@ -98,7 +91,6 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     });
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
-    let streamId: string | undefined;
     let sessionId: string | undefined;
 
     let token: string | undefined;
@@ -107,13 +99,12 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
     try {
         const streamResponse = await streamApi.createStream({
             transport_provider: TransportProvider.Livekit,
-            chat_id: agent.chat_id,
+            chat_persist: sessionOptions.chat_persist ?? true,
         });
 
-        const { session_id, session_token, session_url } = streamResponse;
-        callbacks.onStreamCreated?.({ stream_id: session_id, session_id, agent_id: agentId });
-        streamId = session_id;
-        sessionId = session_id;
+        const { id, session_token, session_url } = streamResponse;
+        callbacks.onStreamCreated?.({ session_id: id, stream_id: id, agent_id: agentId });
+        sessionId = id;
         token = session_token;
         url = session_url;
 
@@ -124,7 +115,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         });
     }
 
-    if (!url || !token || !streamId || !sessionId) {
+    if (!url || !token || !sessionId) {
         return Promise.reject(new Error('Failed to initialize LiveKit stream'));
     }
 
@@ -263,12 +254,12 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
 
     function handleMediaDevicesError(error: Error): void {
         log('Media devices error:', error);
-        callbacks.onError?.(new Error(internalErrorMassage), { streamId });
+        callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
     }
 
     function handleEncryptionError(error: Error): void {
         log('Encryption error:', error);
-        callbacks.onError?.(new Error(internalErrorMassage), { streamId });
+        callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
     }
 
     function handleTrackSubscriptionFailed(
@@ -290,7 +281,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(new Error(internalErrorMassage), {
-                streamId,
+                sessionId,
             });
             return;
         }
@@ -302,7 +293,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
             log('Message sent successfully:', message);
         } catch (error) {
             log('Failed to send message:', error);
-            callbacks.onError?.(new Error(internalErrorMassage), { streamId });
+            callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
         }
     }
 
@@ -331,7 +322,7 @@ export async function createLiveKitStreamingManager<T extends CreateStreamV2Opti
         sendTextMessage,
 
         sessionId,
-        streamId,
+        streamId: sessionId,
         streamType,
         interruptAvailable: true,
         triggersAvailable: false,
