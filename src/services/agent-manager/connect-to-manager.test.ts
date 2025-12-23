@@ -525,10 +525,9 @@ describe('connect-to-manager', () => {
                 {
                     version: StreamApiVersion.V2,
                     transport_provider: TransportProvider.Livekit,
-                    chat_id: 'chat-123',
                 },
-                expect.objectContaining({
-                    chatId: 'chat-123',
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
                 })
             );
         });
