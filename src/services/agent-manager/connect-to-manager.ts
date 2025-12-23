@@ -27,10 +27,9 @@ import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics
 import { createChat } from '../chat';
 
 const ChatPrefix = 'cht';
-function getAgentStreamV2Options(options?: ConnectToManagerOptions): CreateStreamV2Options {
+function getAgentStreamV2Options(): CreateSessionV2Options {
     return {
         transport_provider: TransportProvider.Livekit,
-        chat_id: options?.chatId,
     };
 }
 
@@ -57,7 +56,7 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
 
 function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
     return isStreamsV2Agent(agent.presenter.type)
-        ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options(options) }
+        ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options() }
         : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
 }
 
@@ -170,12 +169,12 @@ function connectToManager(
     agent: Agent,
     options: ConnectToManagerOptions,
     analytics: Analytics
-): Promise<StreamingManager<CreateStreamOptions | CreateStreamV2Options>> {
+): Promise<StreamingManager<CreateStreamOptions | CreateSessionV2Options>> {
     latencyTimestampTracker.reset();
 
     return new Promise(async (resolve, reject) => {
         try {
-            let streamingManager: StreamingManager<CreateStreamOptions | CreateStreamV2Options>;
+            let streamingManager: StreamingManager<CreateStreamOptions | CreateSessionV2Options>;
             let shouldResolveOnComplete = false;
 
             streamingManager = await createStreamingManager(agent, getAgentStreamOptions(agent, options), {

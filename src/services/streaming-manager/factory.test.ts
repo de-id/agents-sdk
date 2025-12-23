@@ -1,7 +1,7 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     CreateStreamOptions,
-    CreateStreamV2Options,
+    CreateSessionV2Options,
     Providers,
     StreamingManagerOptions,
     TransportProvider,
@@ -80,9 +80,9 @@ describe('createStreamingManager', () => {
             },
         });
 
-        const v2StreamOptions: CreateStreamV2Options = {
+        const v2StreamOptions: CreateSessionV2Options = {
             transport_provider: TransportProvider.Livekit,
-            chat_id: 'chat-123',
+            chat_persist: true,
         };
 
         await createStreamingManager(agent, { version: StreamApiVersion.V2, ...v2StreamOptions }, mockOptions);
