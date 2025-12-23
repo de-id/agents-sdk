@@ -71,7 +71,7 @@ export function handleInitError(
 
 export async function createLiveKitStreamingManager<T extends CreateSessionV2Options>(
     agentId: string,
-    streamOptions: CreateSessionV2Options,
+    sessionOptions: CreateSessionV2Options,
     options: StreamingManagerOptions
 ): Promise<StreamingManager<T>> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
@@ -99,7 +99,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     try {
         const streamResponse = await streamApi.createStream({
             transport_provider: TransportProvider.Livekit,
-            chat_persist: streamOptions.chat_persist ?? true,
+            chat_persist: sessionOptions.chat_persist ?? true,
         });
 
         const { id, session_token, session_url } = streamResponse;
