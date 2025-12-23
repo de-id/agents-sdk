@@ -14,8 +14,8 @@ import {
     ChatMode,
     ChatProgressCallback,
     ConnectionState,
+    CreateSessionV2Options,
     CreateStreamOptions,
-    CreateStreamV2Options,
     StreamEvents,
     StreamType,
     StreamingState,
@@ -26,6 +26,7 @@ import { Analytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat } from '../chat';
 
+const ChatPrefix = 'cht';
 function getAgentStreamV2Options(options?: ConnectToManagerOptions): CreateStreamV2Options {
     return {
         transport_provider: TransportProvider.Livekit,
@@ -240,22 +241,27 @@ export async function initializeStreamAndChat(
     agentsApi: AgentsAPI,
     analytics: Analytics,
     chat?: Chat
-): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions | CreateStreamV2Options> }> {
+): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions | CreateSessionV2Options> }> {
     const resolveStreamAndChat = async () => {
         if (isStreamsV2Agent(agent.presenter.type)) {
-            const chatResult = await createChat(
-                agent,
-                agentsApi,
-                analytics,
-                options.mode,
-                options.persistentChat,
-                chat
-            );
-            const streamingManager = await connectToManager(
-                agent,
-                { ...options, chatId: chatResult.chat?.id },
-                analytics
-            );
+            const streamingManager = await connectToManager(agent, options, analytics);
+            const chatId = `${ChatPrefix}_${streamingManager.sessionId}`;
+            const now = new Date().toISOString();
+
+            const chatResult = {
+                chatMode: ChatMode.Functional,
+                chat: {
+                    id: chatId,
+                    agent_id: agent.id,
+                    owner_id: agent.owner_id ?? '',
+                    created: now,
+                    modified: now,
+                    agent_id__created_at: now,
+                    agent_id__modified_at: now,
+                    chat_mode: ChatMode.Functional,
+                    messages: [],
+                },
+            };
             return { chatResult, streamingManager };
         } else {
             const createChatPromise = createChat(

@@ -2,14 +2,13 @@ export enum TransportProvider {
     Livekit = 'livekit',
 }
 
-export interface CreateStreamV2Options {
+export interface CreateSessionV2Options {
     transport_provider: TransportProvider.Livekit;
-    chat_id?: string;
+    chat_persist?: boolean;
 }
 
-export interface CreateStreamV2Response {
-    agent_id: 'string';
-    session_id: 'string';
-    session_url: 'string';
-    session_token: 'string';
+export interface CreateSessionV2Response {
+    id: string;
+    session_url: string;
+    session_token: string;
 }

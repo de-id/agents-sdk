@@ -1,4 +1,4 @@
-import { Auth, CreateStreamV2Options, CreateStreamV2Response } from '@sdk/types';
+import { Auth, CreateSessionV2Options, CreateSessionV2Response } from '@sdk/types';
 import { createClient } from '../apiClient';
 
 export function createStreamApiV2(
@@ -10,8 +10,8 @@ export function createStreamApiV2(
     const client = createClient(auth, `${host}/v2/agents/${agentId}`, onError);
 
     return {
-        async createStream(options: CreateStreamV2Options) {
-            return client.post<CreateStreamV2Response>('/streams', options);
+        async createStream(options: CreateSessionV2Options) {
+            return client.post<CreateSessionV2Response>('/sessions', options);
         },
     };
 }
