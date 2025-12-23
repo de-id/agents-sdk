@@ -1,7 +1,7 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
-    CreateStreamOptions,
     CreateSessionV2Options,
+    CreateStreamOptions,
     Providers,
     StreamingManagerOptions,
     TransportProvider,
