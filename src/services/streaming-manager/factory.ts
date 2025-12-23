@@ -1,7 +1,7 @@
 import {
     Agent,
+    CreateSessionV2Options,
     CreateStreamOptions,
-    CreateStreamV2Options,
     StreamingManagerOptions,
     TransportProvider,
 } from '@sdk/types';
@@ -15,13 +15,13 @@ export enum StreamApiVersion {
 
 export type ExtendedStreamOptions =
     | ({ version: StreamApiVersion.V1 } & CreateStreamOptions)
-    | ({ version: StreamApiVersion.V2 } & CreateStreamV2Options);
+    | ({ version: StreamApiVersion.V2 } & CreateSessionV2Options);
 
 export async function createStreamingManager(
     agent: Agent,
     streamOptions: ExtendedStreamOptions,
     options: StreamingManagerOptions
-): Promise<StreamingManager<CreateStreamOptions | CreateStreamV2Options>> {
+): Promise<StreamingManager<CreateStreamOptions | CreateSessionV2Options>> {
     const agentId = agent.id;
 
     switch (streamOptions.version) {
