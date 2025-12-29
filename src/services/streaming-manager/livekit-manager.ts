@@ -56,6 +56,11 @@ const internalErrorMassage = JSON.stringify({
     description: 'Stream Error',
 });
 
+enum DataChannelTopic {
+    Chat = 'lk.chat',
+    Speak = 'did.speak',
+}
+
 export function handleInitError(
     error: unknown,
     log: (message?: any, ...optionalParams: any[]) => void,
@@ -277,7 +282,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendTextMessage(message: string) {
+    async function sendTextMessage(message: string, topic: DataChannelTopic = DataChannelTopic.Chat) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(new Error(internalErrorMassage), {
@@ -287,9 +292,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         try {
-            await room.localParticipant.sendText(message, {
-                topic: 'lk.chat',
-            });
+            await room.localParticipant.sendText(message, { topic });
             log('Message sent successfully:', message);
         } catch (error) {
             log('Failed to send message:', error);
@@ -299,12 +302,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     return {
         speak(payload: PayloadType<T>) {
-            const message = JSON.stringify({
-                type: 'speak',
-                payload,
-            });
-
-            return sendTextMessage(message);
+            const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
+            return sendTextMessage(message, DataChannelTopic.Speak);
         },
 
         async disconnect() {
