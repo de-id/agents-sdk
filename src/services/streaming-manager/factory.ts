@@ -20,14 +20,15 @@ export type ExtendedStreamOptions =
 export async function createStreamingManager(
     agent: Agent,
     streamOptions: ExtendedStreamOptions,
-    options: StreamingManagerOptions
+    options: StreamingManagerOptions,
+    signal?: AbortSignal
 ): Promise<StreamingManager<CreateStreamOptions | CreateSessionV2Options>> {
     const agentId = agent.id;
 
     switch (streamOptions.version) {
         case StreamApiVersion.V1: {
             const { version, ...createStreamOptions } = streamOptions;
-            return createWebRTCStreamingManager(agentId, createStreamOptions, options);
+            return createWebRTCStreamingManager(agentId, createStreamOptions, options, signal);
         }
 
         case StreamApiVersion.V2: {

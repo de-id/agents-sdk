@@ -168,7 +168,8 @@ type ConnectToManagerOptions = AgentManagerOptions & {
 function connectToManager(
     agent: Agent,
     options: ConnectToManagerOptions,
-    analytics: Analytics
+    analytics: Analytics,
+    signal?: AbortSignal
 ): Promise<StreamingManager<CreateStreamOptions | CreateSessionV2Options>> {
     latencyTimestampTracker.reset();
 
@@ -177,53 +178,58 @@ function connectToManager(
             let streamingManager: StreamingManager<CreateStreamOptions | CreateSessionV2Options>;
             let shouldResolveOnComplete = false;
 
-            streamingManager = await createStreamingManager(agent, getAgentStreamOptions(agent, options), {
-                ...options,
-                analytics,
-                callbacks: {
-                    ...options.callbacks,
-                    onConnectionStateChange: state => {
-                        options.callbacks.onConnectionStateChange?.(state);
+            streamingManager = await createStreamingManager(
+                agent,
+                getAgentStreamOptions(agent, options),
+                {
+                    ...options,
+                    analytics,
+                    callbacks: {
+                        ...options.callbacks,
+                        onConnectionStateChange: state => {
+                            options.callbacks.onConnectionStateChange?.(state);
 
-                        if (state === ConnectionState.Connected) {
-                            // If manager is ready, resolve immediately
-                            // Otherwise, mark to resolve after manager is created
-                            if (streamingManager) {
-                                resolve(streamingManager);
-                            } else {
-                                shouldResolveOnComplete = true;
+                            if (state === ConnectionState.Connected) {
+                                // If manager is ready, resolve immediately
+                                // Otherwise, mark to resolve after manager is created
+                                if (streamingManager) {
+                                    resolve(streamingManager);
+                                } else {
+                                    shouldResolveOnComplete = true;
+                                }
                             }
-                        }
-                    },
-                    onVideoStateChange: (state: StreamingState, statsReport?: any) => {
-                        options.callbacks.onVideoStateChange?.(state);
+                        },
+                        onVideoStateChange: (state: StreamingState, statsReport?: any) => {
+                            options.callbacks.onVideoStateChange?.(state);
 
-                        trackVideoStateChangeAnalytics(
-                            state,
-                            agent,
-                            statsReport,
-                            analytics,
-                            streamingManager.streamType
-                        );
-                    },
-                    onAgentActivityStateChange: (state: AgentActivityState) => {
-                        options.callbacks.onAgentActivityStateChange?.(state);
+                            trackVideoStateChangeAnalytics(
+                                state,
+                                agent,
+                                statsReport,
+                                analytics,
+                                streamingManager.streamType
+                            );
+                        },
+                        onAgentActivityStateChange: (state: AgentActivityState) => {
+                            options.callbacks.onAgentActivityStateChange?.(state);
 
-                        if (state === AgentActivityState.Talking) {
-                            interruptTimestampTracker.update();
-                        } else {
-                            interruptTimestampTracker.reset();
-                        }
+                            if (state === AgentActivityState.Talking) {
+                                interruptTimestampTracker.update();
+                            } else {
+                                interruptTimestampTracker.reset();
+                            }
 
-                        trackAgentActivityAnalytics(
-                            state === AgentActivityState.Talking ? StreamingState.Start : StreamingState.Stop,
-                            agent,
-                            analytics,
-                            streamingManager.streamType
-                        );
+                            trackAgentActivityAnalytics(
+                                state === AgentActivityState.Talking ? StreamingState.Start : StreamingState.Stop,
+                                agent,
+                                analytics,
+                                streamingManager.streamType
+                            );
+                        },
                     },
                 },
-            });
+                signal
+            );
 
             if (shouldResolveOnComplete) {
                 resolve(streamingManager);
@@ -263,17 +269,35 @@ export async function initializeStreamAndChat(
             };
             return { chatResult, streamingManager };
         } else {
-            const createChatPromise = createChat(
-                agent,
-                agentsApi,
-                analytics,
-                options.mode,
-                options.persistentChat,
-                chat
-            );
-            const connectToManagerPromise = connectToManager(agent, options, analytics);
-            const [chatResult, streamingManager] = await Promise.all([createChatPromise, connectToManagerPromise]);
-            return { chatResult, streamingManager };
+            const abortController = new AbortController();
+            const signal = abortController.signal;
+            let streamingManagerRef: StreamingManager<CreateStreamOptions | CreateSessionV2Options> | undefined;
+
+            try {
+                const createChatPromise = createChat(
+                    agent,
+                    agentsApi,
+                    analytics,
+                    options.mode,
+                    options.persistentChat,
+                    chat
+                );
+                const connectToManagerPromise = connectToManager(agent, options, analytics, signal).then(manager => {
+                    streamingManagerRef = manager;
+                    return manager;
+                });
+
+                const [chatResult, streamingManager] = await Promise.all([createChatPromise, connectToManagerPromise]);
+                return { chatResult, streamingManager };
+            } catch (error) {
+                abortController.abort();
+
+                if (streamingManagerRef) {
+                    await streamingManagerRef.disconnect().catch(() => {});
+                }
+
+                throw error;
+            }
         }
     };
 
