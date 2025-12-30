@@ -581,12 +581,12 @@ describe('connect-to-manager', () => {
                     disconnect: jest.fn().mockResolvedValue(undefined),
                 };
                 return new Promise((resolve, reject) => {
-                    setTimeout(() => {
+                    Promise.resolve().then(() => {
                         if (options.callbacks.onConnectionStateChange) {
                             options.callbacks.onConnectionStateChange(ConnectionState.Connecting);
                         }
                         reject(error);
-                    }, 10);
+                    });
                 });
             });
 
@@ -610,23 +610,23 @@ describe('connect-to-manager', () => {
 
             // Make streaming manager succeed immediately to set streamingManagerRef
             (createStreamingManager as jest.Mock).mockImplementationOnce((agent, streamOptions, options) => {
-                // Immediately trigger connection state change to Connected
-                setTimeout(() => {
+                // Trigger connection state change to Connected in next microtask
+                Promise.resolve().then(() => {
                     if (options.callbacks.onConnectionStateChange) {
                         options.callbacks.onConnectionStateChange(ConnectionState.Connected);
                     }
-                }, 0);
+                });
                 return Promise.resolve(streamingManagerWithDisconnect);
             });
 
-            // Make chat creation fail AFTER a delay to ensure streamingManagerRef is set first
+            // Make chat creation fail AFTER streaming manager resolves
             // The .then() callback on connectToManagerPromise sets streamingManagerRef,
             // so we need connectToManager to resolve before Promise.all rejects
             (createChat as jest.Mock).mockImplementationOnce(() => {
                 return new Promise((resolve, reject) => {
-                    setTimeout(() => {
+                    Promise.resolve().then(() => {
                         reject(chatError);
-                    }, 20); // Delay to ensure connectToManager resolves first
+                    });
                 });
             });
 
@@ -634,7 +634,6 @@ describe('connect-to-manager', () => {
                 'Chat creation failed'
             );
 
-            // Verify disconnect is called on the streaming manager
             expect(disconnectSpy).toHaveBeenCalled();
         });
     });
@@ -654,11 +653,11 @@ describe('connect-to-manager', () => {
                         onConnectionStateChange(ConnectionState.Connected);
                     }
 
-                    // Then resolve the manager after a delay
-                    setTimeout(() => {
+                    // Resolve the manager in the next microtask
+                    Promise.resolve().then(() => {
                         managerResolved = true;
                         resolve(mockStreamingManager);
-                    }, 10);
+                    });
                 });
             });
 
