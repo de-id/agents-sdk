@@ -156,10 +156,6 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         callbacks.onError
     );
 
-    if (signal?.aborted) {
-        throw new Error('Operation aborted');
-    }
-
     const {
         id: streamIdFromServer,
         offer,
