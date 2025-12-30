@@ -37,9 +37,14 @@ describe('connect-to-manager', () => {
     let mockAnalytics: Analytics;
     let mockStreamingManager: any;
     let mockChat: any;
+    let mockAbortController: AbortController;
+    let mockAbortSignal: AbortSignal;
 
     beforeEach(() => {
         jest.clearAllMocks();
+
+        mockAbortController = new AbortController();
+        mockAbortSignal = mockAbortController.signal;
 
         mockAgent = {
             id: 'agent-123',
@@ -165,7 +170,8 @@ describe('connect-to-manager', () => {
                         onVideoStateChange: expect.any(Function),
                         onAgentActivityStateChange: expect.any(Function),
                     }),
-                })
+                }),
+                mockAbortSignal
             );
         });
 
@@ -393,7 +399,8 @@ describe('connect-to-manager', () => {
                 },
                 expect.not.objectContaining({
                     chatId: expect.anything(),
-                })
+                }),
+                mockAbortSignal
             );
         });
 
@@ -414,7 +421,8 @@ describe('connect-to-manager', () => {
                 },
                 expect.not.objectContaining({
                     chatId: expect.anything(),
-                })
+                }),
+                mockAbortSignal
             );
         });
 
@@ -437,7 +445,8 @@ describe('connect-to-manager', () => {
                 }),
                 expect.not.objectContaining({
                     chatId: expect.anything(),
-                })
+                }),
+                mockAbortSignal
             );
         });
     });
@@ -528,7 +537,8 @@ describe('connect-to-manager', () => {
                 },
                 expect.not.objectContaining({
                     chatId: expect.anything(),
-                })
+                }),
+                undefined
             );
         });
 
@@ -544,7 +554,8 @@ describe('connect-to-manager', () => {
                 }),
                 expect.not.objectContaining({
                     chatId: expect.anything(),
-                })
+                }),
+                mockAbortSignal
             );
         });
     });

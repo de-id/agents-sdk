@@ -147,11 +147,17 @@ describe('Streaming Manager Edge Cases', () => {
                     sdpMid: fullCandidate.sdpMid,
                     sdpMLineIndex: fullCandidate.sdpMLineIndex,
                 },
-                'sessionId'
+                'sessionId',
+                undefined
             );
 
             mockPC.onicecandidate({ candidate: null });
-            expect(mockApi.addIceCandidate).toHaveBeenCalledWith('streamId', { candidate: null }, 'sessionId');
+            expect(mockApi.addIceCandidate).toHaveBeenCalledWith(
+                'streamId',
+                { candidate: null },
+                'sessionId',
+                undefined
+            );
         });
 
         it('should test ICE candidate branches comprehensively', async () => {
@@ -159,13 +165,28 @@ describe('Streaming Manager Edge Cases', () => {
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
 
             mockPC.onicecandidate({ candidate: { candidate: 'test', sdpMid: null, sdpMLineIndex: 0 } });
-            expect(mockApi.addIceCandidate).toHaveBeenCalledWith('streamId', { candidate: null }, 'sessionId');
+            expect(mockApi.addIceCandidate).toHaveBeenCalledWith(
+                'streamId',
+                { candidate: null },
+                'sessionId',
+                undefined
+            );
 
             mockPC.onicecandidate({ candidate: { candidate: 'test', sdpMid: '0', sdpMLineIndex: null } });
-            expect(mockApi.addIceCandidate).toHaveBeenCalledWith('streamId', { candidate: null }, 'sessionId');
+            expect(mockApi.addIceCandidate).toHaveBeenCalledWith(
+                'streamId',
+                { candidate: null },
+                'sessionId',
+                undefined
+            );
 
             mockPC.onicecandidate({ candidate: { candidate: 'test', sdpMid: null, sdpMLineIndex: null } });
-            expect(mockApi.addIceCandidate).toHaveBeenCalledWith('streamId', { candidate: null }, 'sessionId');
+            expect(mockApi.addIceCandidate).toHaveBeenCalledWith(
+                'streamId',
+                { candidate: null },
+                'sessionId',
+                undefined
+            );
         });
 
         it('should test error handling in ICE candidate processing', async () => {
