@@ -155,6 +155,7 @@ export interface AgentManagerOptions {
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
     persistentChat?: boolean;
+    microphoneStream?: MediaStream;
 }
 
 export interface AgentManager {

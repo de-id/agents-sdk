@@ -100,4 +100,39 @@ describe('createStreamingManager', () => {
         expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(agent.id, v2StreamOptions, mockOptions);
         expect(mockCreateWebRTCStreamingManager).not.toHaveBeenCalled();
     });
+
+    it('passes microphoneStream to createLiveKitStreamingManager when provided', async () => {
+        const agent = AgentFactory.build({
+            presenter: {
+                type: 'expressive',
+                voice: {
+                    type: Providers.Microsoft,
+                    voice_id: 'voice-123',
+                },
+            },
+        });
+
+        const v2StreamOptions: CreateSessionV2Options = {
+            transport_provider: TransportProvider.Livekit,
+            chat_persist: true,
+        };
+
+        const mockMicrophoneStream = new MediaStream();
+        const optionsWithMicrophone = {
+            ...mockOptions,
+            microphoneStream: mockMicrophoneStream,
+        };
+
+        await createStreamingManager(
+            agent,
+            { version: StreamApiVersion.V2, ...v2StreamOptions },
+            optionsWithMicrophone
+        );
+
+        expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(
+            agent.id,
+            v2StreamOptions,
+            expect.objectContaining({ microphoneStream: mockMicrophoneStream })
+        );
+    });
 });
