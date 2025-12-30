@@ -527,7 +527,7 @@ describe('connect-to-manager', () => {
                 },
             };
 
-            await initializeStreamAndChat(expressiveAgent, mockOptions, mockAgentsApi, mockAnalytics);
+            const result = await initializeStreamAndChat(expressiveAgent, mockOptions, mockAgentsApi, mockAnalytics);
 
             expect(createStreamingManager).toHaveBeenCalledWith(
                 expressiveAgent,
@@ -540,6 +540,16 @@ describe('connect-to-manager', () => {
                 }),
                 undefined
             );
+
+            // Verify Streams V2 path creates chat with correct chatId format
+            expect(result.chat).toBeDefined();
+            expect(result.chat?.id).toMatch(/^cht_/);
+            expect(result.chat?.id).toContain(mockStreamingManager.sessionId);
+            expect(result.chat?.chat_mode).toBe(ChatMode.Functional);
+            expect(result.chat?.agent_id).toBe(expressiveAgent.id);
+
+            // Verify createChat is NOT called for V2 agents (chat is created internally)
+            expect(createChat).not.toHaveBeenCalled();
         });
 
         it('should use CreateStreamOptions for non-expressive agents', async () => {
@@ -557,6 +567,105 @@ describe('connect-to-manager', () => {
                 }),
                 mockAbortSignal
             );
+        });
+    });
+
+    describe('Error Handling with AbortController', () => {
+        it('should abort and disconnect streaming manager when error occurs during initialization', async () => {
+            const error = new Error('Connection failed');
+            let streamingManagerRef: any;
+
+            (createStreamingManager as jest.Mock).mockImplementationOnce((agent, streamOptions, options, signal) => {
+                streamingManagerRef = {
+                    ...mockStreamingManager,
+                    disconnect: jest.fn().mockResolvedValue(undefined),
+                };
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        if (options.callbacks.onConnectionStateChange) {
+                            options.callbacks.onConnectionStateChange(ConnectionState.Connecting);
+                        }
+                        reject(error);
+                    }, 10);
+                });
+            });
+
+            (createChat as jest.Mock).mockResolvedValueOnce({
+                chat: mockChat,
+                chatMode: ChatMode.Functional,
+            });
+
+            await expect(initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics)).rejects.toThrow(
+                'Connection failed'
+            );
+        });
+
+        it('should handle error when streaming manager is created but chat creation fails', async () => {
+            const chatError = new Error('Chat creation failed');
+            const disconnectSpy = jest.fn().mockResolvedValue(undefined);
+            const streamingManagerWithDisconnect = {
+                ...mockStreamingManager,
+                disconnect: disconnectSpy,
+            };
+
+            // Make streaming manager succeed immediately to set streamingManagerRef
+            (createStreamingManager as jest.Mock).mockImplementationOnce((agent, streamOptions, options) => {
+                // Immediately trigger connection state change to Connected
+                setTimeout(() => {
+                    if (options.callbacks.onConnectionStateChange) {
+                        options.callbacks.onConnectionStateChange(ConnectionState.Connected);
+                    }
+                }, 0);
+                return Promise.resolve(streamingManagerWithDisconnect);
+            });
+
+            // Make chat creation fail AFTER a delay to ensure streamingManagerRef is set first
+            // The .then() callback on connectToManagerPromise sets streamingManagerRef,
+            // so we need connectToManager to resolve before Promise.all rejects
+            (createChat as jest.Mock).mockImplementationOnce(() => {
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        reject(chatError);
+                    }, 20); // Delay to ensure connectToManager resolves first
+                });
+            });
+
+            await expect(initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics)).rejects.toThrow(
+                'Chat creation failed'
+            );
+
+            // Verify disconnect is called on the streaming manager
+            expect(disconnectSpy).toHaveBeenCalled();
+        });
+    });
+
+    describe('Connection State Handling', () => {
+        it('should resolve when connection state changes to Connected before manager is ready', async () => {
+            let onConnectionStateChange: ((state: ConnectionState) => void) | undefined;
+            let managerResolved = false;
+
+            (createStreamingManager as jest.Mock).mockImplementationOnce((agent, streamOptions, options) => {
+                onConnectionStateChange = options.callbacks.onConnectionStateChange;
+
+                return new Promise(resolve => {
+                    // Trigger connection state change to Connected BEFORE manager is created
+                    // This should set shouldResolveOnComplete = true
+                    if (onConnectionStateChange) {
+                        onConnectionStateChange(ConnectionState.Connected);
+                    }
+
+                    // Then resolve the manager after a delay
+                    setTimeout(() => {
+                        managerResolved = true;
+                        resolve(mockStreamingManager);
+                    }, 10);
+                });
+            });
+
+            const result = await initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics);
+
+            expect(managerResolved).toBe(true);
+            expect(result.streamingManager).toBe(mockStreamingManager);
         });
     });
 });
