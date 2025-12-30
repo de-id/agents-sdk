@@ -19,12 +19,14 @@ import { createStreamingLogger, StreamingManager } from './common';
 import type {
     ConnectionQuality,
     ConnectionState as LiveKitConnectionState,
+    LocalTrackPublication,
     Participant,
     RemoteParticipant,
     RemoteTrack,
     Room,
     RoomEvent,
     SubscriptionError,
+    Track,
 } from 'livekit-client';
 
 async function importLiveKit(): Promise<{
@@ -33,6 +35,7 @@ async function importLiveKit(): Promise<{
     ConnectionState: typeof LiveKitConnectionState;
     RemoteParticipant: typeof RemoteParticipant;
     RemoteTrack: typeof RemoteTrack;
+    Track: typeof Track;
 }> {
     try {
         return await import('livekit-client');
@@ -83,12 +86,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     const { Room, RoomEvent, ConnectionState: LiveKitConnectionState } = await importLiveKit();
 
-    const { callbacks, auth, baseURL, analytics } = options;
+    const { callbacks, auth, baseURL, analytics, microphoneStream } = options;
     let room: Room | null = null;
     let isConnected = false;
     const streamType = StreamType.Fluent;
     let isInitialConnection = true;
     let sharedMediaStream: MediaStream | null = null;
+    let microphonePublication: LocalTrackPublication | null = null;
 
     room = new Room({
         adaptiveStream: false, // Must be false to use mediaStreamTrack directly
@@ -161,6 +165,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             case LiveKitConnectionState.Connected:
                 log('LiveKit room connected successfully');
                 isConnected = true;
+
+                if (microphoneStream && room) {
+                    publishMicrophoneStream(microphoneStream, room).catch(error => {
+                        log('Failed to publish microphone stream:', error);
+                        callbacks.onError?.(error as Error, { sessionId });
+                    });
+                }
+
                 // During initial connection, defer the callback to ensure manager is returned first
                 if (isInitialConnection) {
                     queueMicrotask(() => {
@@ -288,6 +300,44 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log('Track subscription failed:', { trackSid, participant, reason });
     }
 
+    async function publishMicrophoneStream(stream: MediaStream, roomInstance: Room): Promise<void> {
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length === 0) {
+            log('No audio track found in the provided MediaStream');
+            return;
+        }
+
+        const audioTrack = audioTracks[0];
+        log('Publishing microphone track from provided MediaStream');
+
+        try {
+            const { Track } = await importLiveKit();
+            microphonePublication = await roomInstance.localParticipant.publishTrack(audioTrack, {
+                source: Track.Source.Microphone,
+            });
+            log('Microphone track published successfully');
+        } catch (error) {
+            log('Failed to publish microphone track:', error);
+            throw error;
+        }
+    }
+
+    async function unpublishMicrophoneStream(roomInstance: Room): Promise<void> {
+        if (!microphonePublication || !microphonePublication.track) {
+            return;
+        }
+
+        try {
+            await roomInstance.localParticipant.unpublishTrack(microphonePublication.track);
+            log('Microphone track unpublished');
+        } catch (error) {
+            log('Error unpublishing microphone track:', error);
+            throw error;
+        } finally {
+            microphonePublication = null;
+        }
+    }
+
     function cleanMediaStream(): void {
         if (sharedMediaStream) {
             sharedMediaStream.getTracks().forEach(track => track.stop());
@@ -321,6 +371,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         async disconnect() {
             if (room) {
+                await unpublishMicrophoneStream(room);
                 await room.disconnect();
                 room = null;
             }
