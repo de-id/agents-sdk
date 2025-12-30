@@ -136,10 +136,6 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions,
     signal?: AbortSignal
 ): Promise<StreamingManager<T>> {
-    if (signal?.aborted) {
-        throw new Error('Operation aborted');
-    }
-
     const log = createStreamingLogger(debug, 'WebRTCStreamingManager');
     const parseDataChannelMessage = createParseDataChannelMessage(log);
 
@@ -207,10 +203,6 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     );
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
-        if (signal?.aborted) {
-            return;
-        }
-
         log('peerConnection.onicecandidate', event);
 
         try {
