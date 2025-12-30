@@ -451,7 +451,12 @@ describe('Streaming Manager Advanced', () => {
 
             mockPC.onicecandidate(mockEvent);
 
-            expect(mockApi.addIceCandidate).toHaveBeenCalledWith('streamId', { candidate: null }, 'sessionId');
+            expect(mockApi.addIceCandidate).toHaveBeenCalledWith(
+                'streamId',
+                { candidate: null },
+                'sessionId',
+                undefined
+            );
         });
 
         it('should handle agent activity state changes for fluent streams', async () => {

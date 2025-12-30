@@ -90,9 +90,19 @@ export type PayloadType<T> = T extends TalkStreamOptions
       : never;
 
 export interface RtcApi {
-    createStream(options: CreateStreamOptions): Promise<ICreateStreamRequestResponse>;
-    startConnection(streamId: string, answer: RTCSessionDescriptionInit, sessionId?: string): Promise<Status>;
-    addIceCandidate(streamId: string, candidate: IceCandidate, sessionId: string): Promise<Status>;
+    createStream(options: CreateStreamOptions, signal?: AbortSignal): Promise<ICreateStreamRequestResponse>;
+    startConnection(
+        streamId: string,
+        answer: RTCSessionDescriptionInit,
+        sessionId?: string,
+        signal?: AbortSignal
+    ): Promise<Status>;
+    addIceCandidate(
+        streamId: string,
+        candidate: IceCandidate,
+        sessionId: string,
+        signal?: AbortSignal
+    ): Promise<Status>;
     sendStreamRequest(
         streamId: string,
         sessionId: string,

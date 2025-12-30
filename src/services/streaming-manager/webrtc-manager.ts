@@ -133,7 +133,8 @@ function handleStreamState({
 export async function createWebRTCStreamingManager<T extends CreateStreamOptions>(
     agentId: string,
     streamOptions: T,
-    { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions
+    { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions,
+    signal?: AbortSignal
 ): Promise<StreamingManager<T>> {
     const log = createStreamingLogger(debug, 'WebRTCStreamingManager');
     const parseDataChannelMessage = createParseDataChannelMessage(log);
@@ -159,7 +160,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         fluent,
         interrupt_enabled: interruptAvailable,
         triggers_enabled: triggersAvailable,
-    } = await createStream(streamOptions);
+    } = await createStream(streamOptions, signal);
     callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id: session_id as string, agent_id: agentId });
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
@@ -213,10 +214,11 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                         sdpMid: event.candidate.sdpMid,
                         sdpMLineIndex: event.candidate.sdpMLineIndex,
                     },
-                    session_id
+                    session_id,
+                    signal
                 );
             } else {
-                addIceCandidate(streamIdFromServer, { candidate: null }, session_id);
+                addIceCandidate(streamIdFromServer, { candidate: null }, session_id, signal);
             }
         } catch (e: any) {
             callbacks.onError?.(e, { streamId: streamIdFromServer });
@@ -300,7 +302,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     await peerConnection.setLocalDescription(sessionClientAnswer);
     log('set local description OK');
 
-    await startConnection(streamIdFromServer, sessionClientAnswer, session_id);
+    await startConnection(streamIdFromServer, sessionClientAnswer, session_id, signal);
     log('start connection OK');
 
     return {

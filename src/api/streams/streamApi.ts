@@ -20,20 +20,28 @@ export function createStreamApi(
     const client = createClient(auth, `${host}/agents/${agentId}`, onError);
 
     return {
-        createStream(options: CreateStreamOptions) {
-            return client.post<ICreateStreamRequestResponse>('/streams', options);
+        createStream(options: CreateStreamOptions, signal?: AbortSignal) {
+            return client.post<ICreateStreamRequestResponse>('/streams', options, { signal });
         },
-        startConnection(streamId: string, answer: RTCSessionDescriptionInit, sessionId?: string) {
-            return client.post<Status>(`/streams/${streamId}/sdp`, {
-                session_id: sessionId,
-                answer,
-            });
+        startConnection(streamId: string, answer: RTCSessionDescriptionInit, sessionId?: string, signal?: AbortSignal) {
+            return client.post<Status>(
+                `/streams/${streamId}/sdp`,
+                {
+                    session_id: sessionId,
+                    answer,
+                },
+                { signal }
+            );
         },
-        addIceCandidate(streamId: string, candidate: IceCandidate, sessionId: string) {
-            return client.post<Status>(`/streams/${streamId}/ice`, {
-                session_id: sessionId,
-                ...candidate,
-            });
+        addIceCandidate(streamId: string, candidate: IceCandidate, sessionId: string, signal?: AbortSignal) {
+            return client.post<Status>(
+                `/streams/${streamId}/ice`,
+                {
+                    session_id: sessionId,
+                    ...candidate,
+                },
+                { signal }
+            );
         },
         sendStreamRequest(streamId: string, sessionId: string, payload: SendClipStreamPayload | SendTalkStreamPayload) {
             return client.post<SendStreamPayloadResponse>(`/streams/${streamId}`, {

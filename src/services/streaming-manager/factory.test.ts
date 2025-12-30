@@ -46,7 +46,12 @@ describe('createStreamingManager', () => {
 
         await createStreamingManager(agent, { version: StreamApiVersion.V1, ...mockStreamOptions }, mockOptions);
 
-        expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(agent.id, mockStreamOptions, mockOptions);
+        expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(
+            agent.id,
+            mockStreamOptions,
+            mockOptions,
+            undefined
+        );
         expect(mockCreateLiveKitStreamingManager).not.toHaveBeenCalled();
     });
 
@@ -65,7 +70,12 @@ describe('createStreamingManager', () => {
 
         await createStreamingManager(agent, { version: StreamApiVersion.V1, ...mockStreamOptions }, mockOptions);
 
-        expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(agent.id, mockStreamOptions, mockOptions);
+        expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(
+            agent.id,
+            mockStreamOptions,
+            mockOptions,
+            undefined
+        );
         expect(mockCreateLiveKitStreamingManager).not.toHaveBeenCalled();
     });
 
