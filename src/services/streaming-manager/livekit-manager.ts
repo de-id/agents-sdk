@@ -332,7 +332,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             log('Microphone track unpublished');
         } catch (error) {
             log('Error unpublishing microphone track:', error);
-            throw error;
         } finally {
             microphonePublication = null;
         }

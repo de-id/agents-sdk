@@ -1,8 +1,3 @@
-/**
- * Tests for LiveKit streaming manager
- * Tests microphone stream publishing functionality
- */
-
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { CreateSessionV2Options, StreamingManagerOptions } from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
@@ -263,12 +258,10 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             options.microphoneStream = mockStream;
 
-            // First cycle
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection(0);
             await manager.disconnect();
 
-            // Second cycle - need to create new manager
             const manager2 = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection(1);
             await manager2.disconnect();

@@ -1,5 +1,5 @@
 import { ChatMode, ConnectionState } from '@sdk/types';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 
 import './app.css';
 import { agentId, clientKey, debug, didApiUrl, didSocketApiUrl } from './environment';
@@ -14,6 +14,11 @@ export function App() {
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
     const [compatibilityMode, setCompatibilityMode] = useState<'on' | 'off' | 'auto'>();
     const [fluent, setFluent] = useState(false);
+    const [enableMicrophone, setEnableMicrophone] = useState(true);
+    const [microphoneStream, setMicrophoneStream] = useState<MediaStream | undefined>(undefined);
+    const microphoneStreamRef = useRef<MediaStream | undefined>(undefined);
+    const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
+    const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string>('');
 
     const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -29,13 +34,81 @@ export function App() {
             streamOptions: { streamWarmup: warmup, sessionTimeout, compatibilityMode, fluent },
         });
 
+    const cleanupMicrophoneStream = useCallback(() => {
+        if (microphoneStreamRef.current) {
+            microphoneStreamRef.current.getTracks().forEach(track => track.stop());
+            microphoneStreamRef.current = undefined;
+            setMicrophoneStream(undefined);
+        }
+    }, []);
+
+    const updateAudioDevices = useCallback(async () => {
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioInputs = devices.filter(device => device.kind === 'audioinput');
+
+            const realDevices = audioInputs.filter(
+                device => !device.label.toLowerCase().includes('blackhole') &&
+                    !device.label.toLowerCase().includes('virtual')
+            );
+
+            const devicesToShow = realDevices.length > 0 ? realDevices : audioInputs;
+
+            setAudioInputDevices(devicesToShow);
+
+            if (devicesToShow.length > 0 && !selectedAudioDeviceId) {
+                setSelectedAudioDeviceId(devicesToShow[0].deviceId);
+            }
+        } catch (error) {
+            console.error('Failed to enumerate audio devices:', error);
+        }
+    }, [selectedAudioDeviceId]);
+
     async function onClick() {
         if (connectionState === ConnectionState.New || connectionState === ConnectionState.Fail) {
-            await connect();
+            let streamToPass: MediaStream | undefined = undefined;
+
+            if (enableMicrophone && !microphoneStreamRef.current) {
+                try {
+                    const audioConstraints: MediaStreamConstraints['audio'] = selectedAudioDeviceId
+                        ? { deviceId: { exact: selectedAudioDeviceId } }
+                        : true;
+
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+                    setMicrophoneStream(stream);
+                    microphoneStreamRef.current = stream;
+                    streamToPass = stream;
+                } catch (error) {
+                    console.error('Failed to get microphone access:', error);
+                    alert('Failed to access microphone. Please check permissions.');
+                    return;
+                }
+            } else if (enableMicrophone) {
+                streamToPass = microphoneStreamRef.current || microphoneStream;
+            }
+
+            await connect(streamToPass);
         } else if (connectionState === ConnectionState.Connected && text) {
             await speak(text);
         }
     }
+
+    useEffect(() => {
+        return cleanupMicrophoneStream;
+    }, [cleanupMicrophoneStream]);
+
+    useEffect(() => {
+        if (!enableMicrophone && microphoneStreamRef.current) {
+            cleanupMicrophoneStream();
+        }
+    }, [enableMicrophone, cleanupMicrophoneStream]);
+
+    useEffect(() => {
+        if (enableMicrophone) {
+            updateAudioDevices();
+        }
+    }, [enableMicrophone, updateAudioDevices]);
 
     useEffect(() => {
         if (srcObject && videoRef.current) {
@@ -105,7 +178,36 @@ export function App() {
                                 />
                                 Fluent
                             </label>
+
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    name="microphone"
+                                    checked={enableMicrophone}
+                                    onChange={e => setEnableMicrophone(e.currentTarget.checked)}
+                                    disabled={connectionState === ConnectionState.Connected}
+                                />
+                                Microphone (Expressive only)
+                            </label>
                         </div>
+                        {enableMicrophone && audioInputDevices.length > 0 && (
+                            <div className="input-options" style={{ marginTop: '10px' }}>
+                                <label>
+                                    Audio Input Device:
+                                    <select
+                                        value={selectedAudioDeviceId}
+                                        onChange={e => setSelectedAudioDeviceId(e.currentTarget.value)}
+                                        disabled={connectionState === ConnectionState.Connected}
+                                        style={{ marginLeft: '10px', minWidth: '200px' }}>
+                                        {audioInputDevices.map(device => (
+                                            <option key={device.deviceId} value={device.deviceId}>
+                                                {device.label || `Device ${device.deviceId.substring(0, 8)}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+                        )}
                     </fieldset>
                 </div>
             </section>

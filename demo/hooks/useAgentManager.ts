@@ -66,57 +66,61 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         }
     }, [videoState, streamType]);
 
-    const connect = useCallback(async () => {
-        if (agentManager) return;
+    const connect = useCallback(
+        async (microphoneStream?: MediaStream) => {
+            if (agentManager) return;
 
-        setConnectionState(ConnectionState.Connecting);
+            setConnectionState(ConnectionState.Connecting);
 
-        try {
-            const newManager: AgentManager = await createAgentManager(agentId, {
-                callbacks: {
-                    onConnectionStateChange(state: ConnectionState) {
-                        setConnectionState(state);
+            try {
+                const newManager: AgentManager = await createAgentManager(agentId, {
+                    callbacks: {
+                        onConnectionStateChange(state: ConnectionState) {
+                            setConnectionState(state);
 
-                        if (state !== ConnectionState.Connected) {
-                            setAgentManager(null);
-                        }
+                            if (state !== ConnectionState.Connected) {
+                                setAgentManager(null);
+                            }
+                        },
+                        onVideoStateChange(state) {
+                            setVideoState(state);
+                        },
+                        onConnectivityStateChange(state) {
+                            console.log('onConnectivityStateChange: ', state);
+                        },
+                        onNewMessage(newMessages, _type) {
+                            setMessages([...newMessages]);
+                        },
+                        onSrcObjectReady(stream) {
+                            setSrcObject(stream);
+                        },
+                        onAgentActivityStateChange(state) {
+                            setAgentActivityState(state);
+                        },
                     },
-                    onVideoStateChange(state) {
-                        setVideoState(state);
-                    },
-                    onConnectivityStateChange(state) {
-                        console.log('onConnectivityStateChange: ', state);
-                    },
-                    onNewMessage(newMessages, _type) {
-                        setMessages([...newMessages]);
-                    },
-                    onSrcObjectReady(stream) {
-                        setSrcObject(stream);
-                    },
-                    onAgentActivityStateChange(state) {
-                        setAgentActivityState(state);
-                    },
-                },
-                baseURL,
-                mode,
-                auth,
-                wsURL,
-                enableAnalitics: enableAnalytics,
-                externalId,
-                mixpanelKey,
-                mixpanelAdditionalProperties,
-                streamOptions,
-                debug,
-            });
+                    baseURL,
+                    mode,
+                    auth,
+                    wsURL,
+                    enableAnalitics: enableAnalytics,
+                    externalId,
+                    mixpanelKey,
+                    mixpanelAdditionalProperties,
+                    streamOptions,
+                    debug,
+                    microphoneStream,
+                });
 
-            await newManager.connect();
-            setAgentManager(newManager);
-        } catch (e) {
-            setConnectionState(ConnectionState.Fail);
+                await newManager.connect();
+                setAgentManager(newManager);
+            } catch (e) {
+                setConnectionState(ConnectionState.Fail);
 
-            throw e;
-        }
-    }, [agentManager, agentId, baseURL, wsURL, mode, auth, enableAnalytics, externalId, streamOptions]);
+                throw e;
+            }
+        },
+        [agentManager, agentId, baseURL, wsURL, mode, auth, enableAnalytics, externalId, streamOptions]
+    );
 
     const disconnect = useCallback(async () => {
         if (!agentManager) return;
