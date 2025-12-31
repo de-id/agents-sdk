@@ -36,6 +36,10 @@ export enum ChatProgress {
      */
     Answer = 'answer',
     /**
+     * Audio-transcribed user message
+     */
+    Transcribe = 'transcribe',
+    /**
      * Chat was closed
      */
     Complete = 'done',
