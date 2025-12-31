@@ -1,4 +1,5 @@
 import { Agent, AgentManagerOptions, ChatProgress, StreamEvents } from '@sdk/types';
+import { Message } from '@sdk/types/entities/agents/chat';
 import { getStreamAnalyticsProps } from '@sdk/utils/analytics';
 import { AgentManagerItems } from '../agent-manager';
 import { Analytics } from '../analytics/mixpanel';
@@ -23,6 +24,26 @@ function getMessageContent(chatEventQueue: ChatEventQueue) {
     return content;
 }
 
+function handleAudioTranscribedMessage(
+    data: any,
+    items: AgentManagerItems,
+    onNewMessage: AgentManagerOptions['callbacks']['onNewMessage']
+) {
+    if (!data.content) {
+        return;
+    }
+
+    const userMessage: Message = {
+        id: data.id || `user-${Date.now()}`,
+        role: data.role,
+        content: data.content,
+        created_at: data.created_at || new Date().toISOString(),
+        transcribed: true,
+    };
+    items.messages.push(userMessage);
+    onNewMessage?.([...items.messages], 'user');
+}
+
 function processChatEvent(
     event: ChatProgress,
     data: any,
@@ -30,9 +51,30 @@ function processChatEvent(
     items: AgentManagerItems,
     onNewMessage: AgentManagerOptions['callbacks']['onNewMessage']
 ) {
+    if (event === ChatProgress.Transcribe && data.content) {
+        handleAudioTranscribedMessage(data, items, onNewMessage);
+        return;
+    }
+
+    if (!(event === ChatProgress.Partial || event === ChatProgress.Answer)) {
+        return;
+    }
+
     const lastMessage = items.messages[items.messages.length - 1];
 
-    if (!(event === ChatProgress.Partial || event === ChatProgress.Answer) || lastMessage?.role !== 'assistant') {
+    let currentMessage: Message;
+    if (lastMessage?.transcribed && lastMessage.role === 'user') {
+        const initialContent = event === ChatProgress.Answer ? data.content || '' : '';
+        currentMessage = {
+            id: data.id || `assistant-${Date.now()}`,
+            role: data.role || 'assistant',
+            content: initialContent,
+            created_at: data.created_at || new Date().toISOString(),
+        };
+        items.messages.push(currentMessage);
+    } else if (lastMessage?.role === 'assistant') {
+        currentMessage = lastMessage;
+    } else {
         return;
     }
 
@@ -46,8 +88,8 @@ function processChatEvent(
 
     const messageContent = getMessageContent(chatEventQueue);
 
-    if (lastMessage.content !== messageContent || event === ChatProgress.Answer) {
-        lastMessage.content = messageContent;
+    if (currentMessage.content !== messageContent || event === ChatProgress.Answer) {
+        currentMessage.content = messageContent;
 
         onNewMessage?.([...items.messages], event);
     }
@@ -66,9 +108,15 @@ export function createMessageEventQueue(
         clearQueue: () => (chatEventQueue = {}),
         onMessage: (event: ChatProgress | StreamEvents, data: any) => {
             if ('content' in data) {
-                processChatEvent(event as ChatProgress, data, chatEventQueue, items, options.callbacks.onNewMessage);
+                const chatEvent =
+                    event === StreamEvents.ChatAnswer
+                        ? ChatProgress.Answer
+                        : event === StreamEvents.ChatAudioTranscribed
+                          ? ChatProgress.Transcribe
+                          : (event as ChatProgress);
+                processChatEvent(chatEvent, data, chatEventQueue, items, options.callbacks.onNewMessage);
 
-                if (event === ChatProgress.Answer) {
+                if (chatEvent === ChatProgress.Answer) {
                     analytics.track('agent-message-received', {
                         messages: items.messages.length,
                         mode: items.chatMode,
