@@ -26,6 +26,7 @@ export enum AgentActivityState {
 export enum StreamEvents {
     ChatAnswer = 'chat/answer',
     ChatPartial = 'chat/partial',
+    ChatAudioTranscribed = 'chat/audio-transcribed',
     StreamDone = 'stream/done',
     StreamStarted = 'stream/started',
     StreamFailed = 'stream/error',

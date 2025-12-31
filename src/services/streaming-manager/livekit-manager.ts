@@ -263,6 +263,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     event: eventName,
                     ...data,
                 });
+            } else if (data.subject === StreamEvents.ChatAudioTranscribed) {
+                const eventName = ChatProgress.Transcribe;
+                callbacks.onMessage?.(eventName, {
+                    event: eventName,
+                    ...data,
+                });
             }
         } catch (e) {
             log('Failed to parse data channel message:', e);
