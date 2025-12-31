@@ -37,11 +37,12 @@ describe('Streaming Manager Business Flows', () => {
             const manager = await createStreamingManager(agentId, agent, options);
 
             // Verify connection API calls were made in correct order
-            expect(mockApi.createStream).toHaveBeenCalledWith(agent);
+            expect(mockApi.createStream).toHaveBeenCalledWith(agent, undefined);
             expect(mockApi.startConnection).toHaveBeenCalledWith(
                 'streamId',
                 expect.objectContaining({ type: 'answer' }),
-                'sessionId'
+                'sessionId',
+                undefined
             );
 
             // Verify stream creation callback
