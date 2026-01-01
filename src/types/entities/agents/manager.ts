@@ -36,6 +36,10 @@ export enum ChatProgress {
      */
     Answer = 'answer',
     /**
+     * Audio-transcribed user message
+     */
+    Transcribe = 'transcribe',
+    /**
      * Chat was closed
      */
     Complete = 'done',
@@ -155,6 +159,7 @@ export interface AgentManagerOptions {
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
     persistentChat?: boolean;
+    microphoneStream?: MediaStream;
 }
 
 export interface AgentManager {
@@ -199,6 +204,19 @@ export interface AgentManager {
      * Method to close all connections with agent, stream and web socket
      */
     disconnect: () => Promise<void>;
+    /**
+     * Publish a microphone stream to the data channel
+     * Can be called after connection to add microphone input
+     * @param stream The MediaStream containing the microphone audio track
+     * supported only for livekit manager
+     */
+    publishMicrophoneStream?: (stream: MediaStream) => Promise<void>;
+    /**
+     * Unpublish the currently published microphone stream
+     * Can be called after connection to remove microphone input
+     * supported only for livekit manager
+     */
+    unpublishMicrophoneStream?: () => Promise<void>;
     /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
