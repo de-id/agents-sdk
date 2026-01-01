@@ -233,6 +233,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
             return items.streamingManager.publishMicrophoneStream(stream);
         },
+        async unpublishMicrophoneStream() {
+            if (!items.streamingManager?.unpublishMicrophoneStream) {
+                throw new Error('unpublishMicrophoneStream is not available for this streaming manager');
+            }
+            return items.streamingManager.unpublishMicrophoneStream();
+        },
         async chat(userMessage: string) {
             const validateChatRequest = () => {
                 if (isChatModeWithoutChat(options.mode)) {

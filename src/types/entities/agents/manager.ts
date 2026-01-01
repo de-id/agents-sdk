@@ -212,6 +212,12 @@ export interface AgentManager {
      */
     publishMicrophoneStream?: (stream: MediaStream) => Promise<void>;
     /**
+     * Unpublish the currently published microphone stream
+     * Can be called after connection to remove microphone input
+     * supported only for livekit manager
+     */
+    unpublishMicrophoneStream?: () => Promise<void>;
+    /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
      */

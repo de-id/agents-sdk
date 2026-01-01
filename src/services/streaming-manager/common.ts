@@ -41,6 +41,13 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     publishMicrophoneStream?(stream: MediaStream): Promise<void>;
 
     /**
+     * Unpublish the currently published microphone stream
+     * Can be called after connection to remove microphone input
+     * supported only for livekit manager
+     */
+    unpublishMicrophoneStream?(): Promise<void>;
+
+    /**
      * Session identifier information, should be returned in the body of all streaming requests
      */
     sessionId: string;
