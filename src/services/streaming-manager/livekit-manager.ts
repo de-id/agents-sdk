@@ -425,6 +425,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         sendDataChannelMessage: sendTextMessage,
         sendTextMessage,
         publishMicrophoneStream,
+        unpublishMicrophoneStream,
 
         sessionId,
         streamId: sessionId,

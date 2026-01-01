@@ -9,7 +9,7 @@ import {
     StreamType,
     StreamingState,
 } from '@sdk/types';
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 
 interface UseAgentManagerOptions {
     agentId: string;
@@ -52,6 +52,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
     const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
+    const [isMicrophonePublished, setIsMicrophonePublished] = useState(false);
     const streamType = agentManager?.getStreamType();
 
     useEffect(() => {
@@ -192,10 +193,30 @@ export function useAgentManager(props: UseAgentManagerOptions) {
             if (!agentManager.publishMicrophoneStream) {
                 throw new Error('publishMicrophoneStream is not available for this streaming manager');
             }
-            return agentManager.publishMicrophoneStream(stream);
+            await agentManager.publishMicrophoneStream(stream);
+            setIsMicrophonePublished(true);
         },
         [agentManager]
     );
+
+    const unpublishMicrophoneStream = useCallback(async () => {
+        if (!agentManager) {
+            console.warn('Agent manager is not initialized yet.');
+            return;
+        }
+        if (!agentManager.unpublishMicrophoneStream) {
+            throw new Error('unpublishMicrophoneStream is not available for this streaming manager');
+        }
+        await agentManager.unpublishMicrophoneStream();
+        setIsMicrophonePublished(false);
+    }, [agentManager]);
+
+    const microphoneEnabled = useMemo(() => {
+        return (
+            agentManager?.agent?.presenter?.type === 'expressive' &&
+            typeof agentManager?.publishMicrophoneStream === 'function'
+        );
+    }, [agentManager]);
 
     return {
         connectionState,
@@ -208,5 +229,8 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         chat,
         interrupt,
         publishMicrophoneStream,
+        unpublishMicrophoneStream,
+        microphoneEnabled,
+        isMicrophonePublished,
     };
 }

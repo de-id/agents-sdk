@@ -22,17 +22,30 @@ export function App() {
 
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    const { srcObject, connectionState, messages, isSpeaking, connect, disconnect, speak, chat, interrupt, publishMicrophoneStream } =
-        useAgentManager({
-            debug,
-            agentId,
-            baseURL: didApiUrl,
-            wsURL: didSocketApiUrl,
-            mode,
-            enableAnalytics: false,
-            auth: { type: 'key', clientKey },
-            streamOptions: { streamWarmup: warmup, sessionTimeout, compatibilityMode, fluent },
-        });
+    const {
+        srcObject,
+        connectionState,
+        messages,
+        isSpeaking,
+        connect,
+        disconnect,
+        speak,
+        chat,
+        interrupt,
+        publishMicrophoneStream,
+        unpublishMicrophoneStream,
+        microphoneEnabled,
+        isMicrophonePublished,
+    } = useAgentManager({
+        debug,
+        agentId,
+        baseURL: didApiUrl,
+        wsURL: didSocketApiUrl,
+        mode,
+        enableAnalytics: false,
+        auth: { type: 'key', clientKey },
+        streamOptions: { streamWarmup: warmup, sessionTimeout, compatibilityMode, fluent },
+    });
 
     const cleanupMicrophoneStream = useCallback(() => {
         if (microphoneStreamRef.current) {
@@ -64,6 +77,51 @@ export function App() {
             console.error('Failed to enumerate audio devices:', error);
         }
     }, [selectedAudioDeviceId]);
+
+    const handleMicrophoneToggle = useCallback(
+        async (enabled: boolean) => {
+            if (connectionState !== ConnectionState.Connected) {
+                setEnableMicrophone(enabled);
+                return;
+            }
+
+            if (enabled) {
+                if (!microphoneStreamRef.current) {
+                    try {
+                        const audioConstraints: MediaStreamConstraints['audio'] = selectedAudioDeviceId
+                            ? { deviceId: { exact: selectedAudioDeviceId } }
+                            : true;
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+                        setMicrophoneStream(stream);
+                        microphoneStreamRef.current = stream;
+                    } catch (error) {
+                        console.error('Failed to get microphone access:', error);
+                        alert('Failed to access microphone. Please check permissions.');
+                        return;
+                    }
+                }
+
+                if (microphoneStreamRef.current && publishMicrophoneStream) {
+                    try {
+                        await publishMicrophoneStream(microphoneStreamRef.current);
+                        setEnableMicrophone(true);
+                    } catch (error) {
+                        console.error('Failed to publish microphone stream:', error);
+                    }
+                }
+            } else {
+                if (unpublishMicrophoneStream) {
+                    try {
+                        await unpublishMicrophoneStream();
+                        setEnableMicrophone(false);
+                    } catch (error) {
+                        console.error('Failed to unpublish microphone stream:', error);
+                    }
+                }
+            }
+        },
+        [connectionState, selectedAudioDeviceId, publishMicrophoneStream, unpublishMicrophoneStream]
+    );
 
     async function onClick() {
         if (connectionState === ConnectionState.New || connectionState === ConnectionState.Fail) {
@@ -115,8 +173,10 @@ export function App() {
         if (
             connectionState === ConnectionState.Connected &&
             enableMicrophone &&
+            microphoneEnabled &&
             publishMicrophoneStream &&
-            microphoneStreamRef.current
+            microphoneStreamRef.current &&
+            !isMicrophonePublished
         ) {
             const stream = microphoneStreamRef.current;
             publishMicrophoneStream(stream).catch(error => {
@@ -125,7 +185,7 @@ export function App() {
                 }
             });
         }
-    }, [connectionState, enableMicrophone, publishMicrophoneStream]);
+    }, [connectionState, enableMicrophone, microphoneEnabled, publishMicrophoneStream, isMicrophonePublished]);
 
     return (
         <div id="app">
@@ -190,18 +250,19 @@ export function App() {
                                 Fluent
                             </label>
 
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    name="microphone"
-                                    checked={enableMicrophone}
-                                    onChange={e => setEnableMicrophone(e.currentTarget.checked)}
-                                    disabled={connectionState === ConnectionState.Connected}
-                                />
-                                Microphone (Expressive only)
-                            </label>
+                            {microphoneEnabled && (
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        name="microphone"
+                                        checked={enableMicrophone}
+                                        onChange={e => handleMicrophoneToggle(e.currentTarget.checked)}
+                                    />
+                                    Microphone
+                                </label>
+                            )}
                         </div>
-                        {enableMicrophone && audioInputDevices.length > 0 && (
+                        {microphoneEnabled && enableMicrophone && audioInputDevices.length > 0 && (
                             <div className="input-options" style={{ marginTop: '10px' }}>
                                 <label>
                                     Audio Input Device:
