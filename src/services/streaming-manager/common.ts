@@ -33,6 +33,14 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     sendTextMessage?(payload: string): Promise<void>;
 
     /**
+     * Publish a microphone stream to the DataChannel
+     * Can be called after connection to add microphone input
+     * @param stream The MediaStream containing the microphone audio track
+     * supported only for livekit manager
+     */
+    publishMicrophoneStream?(stream: MediaStream): Promise<void>;
+
+    /**
      * Session identifier information, should be returned in the body of all streaming requests
      */
     sessionId: string;

@@ -205,6 +205,13 @@ export interface AgentManager {
      */
     disconnect: () => Promise<void>;
     /**
+     * Publish a microphone stream to the data channel
+     * Can be called after connection to add microphone input
+     * @param stream The MediaStream containing the microphone audio track
+     * supported only for livekit manager
+     */
+    publishMicrophoneStream?: (stream: MediaStream) => Promise<void>;
+    /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
      */
