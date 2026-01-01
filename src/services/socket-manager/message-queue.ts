@@ -68,7 +68,7 @@ function processChatEvent(
         currentMessage = {
             id: data.id || `assistant-${Date.now()}`,
             role: data.role || 'assistant',
-            content: initialContent,
+            content: data.content || '',
             created_at: data.created_at || new Date().toISOString(),
         };
         items.messages.push(currentMessage);
