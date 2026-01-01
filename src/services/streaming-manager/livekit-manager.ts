@@ -299,7 +299,45 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log('Track subscription failed:', { trackSid, participant, reason });
     }
 
-    async function publishMicrophoneStream(stream: MediaStream, roomInstance: Room): Promise<void> {
+    async function findPublishedMicrophoneTrack(audioTrack: MediaStreamTrack): Promise<LocalTrackPublication | null> {
+        if (!room) return null;
+
+        const { Track } = await importLiveKit();
+        const publishedTracks = room.localParticipant.audioTrackPublications;
+
+        if (publishedTracks) {
+            for (const [_, publication] of publishedTracks) {
+                if (publication.source === Track.Source.Microphone && publication.track) {
+                    const publishedTrack = publication.track;
+                    const publishedMediaTrack = publishedTrack.mediaStreamTrack;
+                    if (
+                        publishedMediaTrack === audioTrack ||
+                        (publishedMediaTrack && publishedMediaTrack.id === audioTrack.id)
+                    ) {
+                        return publication as LocalTrackPublication;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function hasDifferentMicrophoneTrackPublished(audioTrack: MediaStreamTrack): boolean {
+        if (!microphonePublication || !microphonePublication.track) {
+            return false;
+        }
+
+        const publishedMediaTrack = microphonePublication.track.mediaStreamTrack;
+        return publishedMediaTrack !== audioTrack && publishedMediaTrack?.id !== audioTrack.id;
+    }
+
+    async function publishMicrophoneStream(stream: MediaStream): Promise<void> {
+        if (!isConnected || !room) {
+            log('Room is not connected, cannot publish microphone stream');
+            throw new Error('Room is not connected');
+        }
+
         const audioTracks = stream.getAudioTracks();
         if (audioTracks.length === 0) {
             log('No audio track found in the provided MediaStream');
@@ -307,14 +345,30 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         const audioTrack = audioTracks[0];
-        log('Publishing microphone track from provided MediaStream');
+        const { Track } = await importLiveKit();
+
+        const existingPublication = await findPublishedMicrophoneTrack(audioTrack);
+        if (existingPublication) {
+            log('Microphone track is already published, skipping', {
+                trackId: audioTrack.id,
+                publishedTrackId: existingPublication.track?.mediaStreamTrack?.id,
+            });
+            microphonePublication = existingPublication;
+            return;
+        }
+
+        if (hasDifferentMicrophoneTrackPublished(audioTrack)) {
+            log('Unpublishing existing microphone track before publishing new one');
+            await unpublishMicrophoneStream();
+        }
+
+        log('Publishing microphone track from provided MediaStream', { trackId: audioTrack.id });
 
         try {
-            const { Track } = await importLiveKit();
-            microphonePublication = await roomInstance.localParticipant.publishTrack(audioTrack, {
+            microphonePublication = await room.localParticipant.publishTrack(audioTrack, {
                 source: Track.Source.Microphone,
             });
-            log('Microphone track published successfully');
+            log('Microphone track published successfully', { trackSid: microphonePublication.trackSid });
         } catch (error) {
             log('Failed to publish microphone track:', error);
             throw error;
