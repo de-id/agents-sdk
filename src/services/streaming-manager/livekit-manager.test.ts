@@ -9,6 +9,7 @@ const mockLocalParticipant = {
     publishTrack: mockPublishTrack,
     unpublishTrack: mockUnpublishTrack,
     sendText: jest.fn(),
+    audioTrackPublications: new Map(),
 };
 
 const mockRoom = {
@@ -85,18 +86,22 @@ function createMockAudioTrack(id: string = TEST_AUDIO_TRACK_ID, additionalProps:
     } as any;
 }
 
-function createMockTrack(id: string = TEST_AUDIO_TRACK_ID) {
+function createMockTrack(id: string = TEST_AUDIO_TRACK_ID, mediaStreamTrack?: MediaStreamTrack) {
     return {
         kind: 'audio',
         id,
+        mediaStreamTrack: mediaStreamTrack || createMockAudioTrack(id),
     } as any;
 }
 
 function createMockPublication(trackId: string = TEST_AUDIO_TRACK_ID, trackSid: string = TEST_TRACK_SID) {
+    const mockTrack = createMockTrack(trackId);
     return {
         trackSid,
-        track: createMockTrack(trackId),
-    };
+        track: mockTrack,
+        source: 'microphone',
+        mediaStreamTrack: createMockAudioTrack(trackId),
+    } as any;
 }
 
 function createMockStream(audioTracks: any[] = [createMockAudioTrack()]) {
@@ -138,23 +143,23 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
     });
 
     describe('Microphone Stream Publishing', () => {
-        it('should publish microphone track when microphoneStream is provided', async () => {
+        it('should publish microphone track using publishMicrophoneStream method', async () => {
             const mockAudioTrack = createMockAudioTrack();
             const mockStream = createMockStream([mockAudioTrack]);
             const mockPublication = createMockPublication();
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            options.microphoneStream = mockStream;
-
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
+
+            await manager.publishMicrophoneStream?.(mockStream);
 
             expect(mockPublishTrack).toHaveBeenCalledWith(mockAudioTrack, {
                 source: 'microphone',
             });
         });
 
-        it('should not publish microphone track when microphoneStream is not provided', async () => {
+        it('should not publish microphone track when publishMicrophoneStream is not called', async () => {
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
@@ -168,10 +173,10 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const mockPublication = createMockPublication(TEST_AUDIO_TRACK_ID);
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            options.microphoneStream = mockStream;
-
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
+
+            await manager.publishMicrophoneStream?.(mockStream);
 
             expect(mockPublishTrack).toHaveBeenCalledWith(mockAudioTrack1, {
                 source: 'microphone',
@@ -181,36 +186,30 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
     });
 
     describe('Error Handling', () => {
-        it('should log error and call onError callback on publish failure', async () => {
+        it('should throw error on publish failure', async () => {
             const mockStream = createMockStream();
             const publishError = new Error('Failed to publish track');
             mockPublishTrack.mockRejectedValue(publishError);
 
-            options.microphoneStream = mockStream;
-
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
-            expect(options.callbacks.onError).toHaveBeenCalledWith(
-                publishError,
-                expect.objectContaining({ sessionId: TEST_SESSION_ID })
-            );
+            await expect(manager.publishMicrophoneStream?.(mockStream)).rejects.toThrow('Failed to publish track');
         });
     });
 
     describe('Integration and Lifecycle', () => {
-        it('should publish track after room connects', async () => {
+        it('should publish track after room connects using publishMicrophoneStream', async () => {
             const mockStream = createMockStream();
             const mockPublication = createMockPublication();
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            options.microphoneStream = mockStream;
-
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
             expect(mockPublishTrack).not.toHaveBeenCalled();
 
             await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
 
             expect(mockPublishTrack).toHaveBeenCalled();
         });
@@ -221,10 +220,9 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             mockPublishTrack.mockResolvedValue(mockPublication);
             mockUnpublishTrack.mockResolvedValue(undefined);
 
-            options.microphoneStream = mockStream;
-
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
             await manager.disconnect();
 
             expect(mockUnpublishTrack).toHaveBeenCalledWith(mockPublication.track);
@@ -236,11 +234,10 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             mockPublishTrack.mockResolvedValue(mockPublication);
             mockUnpublishTrack.mockResolvedValue(undefined);
 
-            options.microphoneStream = mockStream;
-
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
             await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
             expect(mockPublishTrack).toHaveBeenCalledTimes(1);
 
             await manager.disconnect();
@@ -256,14 +253,14 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             mockPublishTrack.mockResolvedValue(mockPublication);
             mockUnpublishTrack.mockResolvedValue(undefined);
 
-            options.microphoneStream = mockStream;
-
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection(0);
+            await manager.publishMicrophoneStream?.(mockStream);
             await manager.disconnect();
 
             const manager2 = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection(1);
+            await manager2.publishMicrophoneStream?.(mockStream);
             await manager2.disconnect();
 
             expect(mockPublishTrack).toHaveBeenCalledTimes(2);
@@ -275,14 +272,39 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const mockPublication = createMockPublication();
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            options.microphoneStream = mockStream;
-
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
 
             mockAudioTrack.stop();
 
             await expect(manager.disconnect()).resolves.not.toThrow();
+        });
+
+        it('should allow publishing microphone stream after connection', async () => {
+            const mockStream = createMockStream();
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            // Initially no stream published
+            expect(mockPublishTrack).not.toHaveBeenCalled();
+
+            // Publish stream after connection
+            await manager.publishMicrophoneStream?.(mockStream);
+
+            expect(mockPublishTrack).toHaveBeenCalledWith(mockStream.getAudioTracks()[0], { source: 'microphone' });
+        });
+
+        it('should throw error when publishing stream before connection', async () => {
+            const mockStream = createMockStream();
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            // Try to publish before connection
+            await expect(manager.publishMicrophoneStream?.(mockStream)).rejects.toThrow('Room is not connected');
         });
     });
 });
