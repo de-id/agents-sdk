@@ -22,7 +22,7 @@ export function App() {
 
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    const { srcObject, connectionState, messages, isSpeaking, connect, disconnect, speak, chat, interrupt } =
+    const { srcObject, connectionState, messages, isSpeaking, connect, disconnect, speak, chat, interrupt, publishMicrophoneStream } =
         useAgentManager({
             debug,
             agentId,
@@ -67,8 +67,6 @@ export function App() {
 
     async function onClick() {
         if (connectionState === ConnectionState.New || connectionState === ConnectionState.Fail) {
-            let streamToPass: MediaStream | undefined = undefined;
-
             if (enableMicrophone && !microphoneStreamRef.current) {
                 try {
                     const audioConstraints: MediaStreamConstraints['audio'] = selectedAudioDeviceId
@@ -78,17 +76,14 @@ export function App() {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
                     setMicrophoneStream(stream);
                     microphoneStreamRef.current = stream;
-                    streamToPass = stream;
                 } catch (error) {
                     console.error('Failed to get microphone access:', error);
                     alert('Failed to access microphone. Please check permissions.');
                     return;
                 }
-            } else if (enableMicrophone) {
-                streamToPass = microphoneStreamRef.current || microphoneStream;
             }
 
-            await connect(streamToPass);
+            await connect();
         } else if (connectionState === ConnectionState.Connected && text) {
             await speak(text);
         }
@@ -115,6 +110,22 @@ export function App() {
             videoRef.current.srcObject = srcObject;
         }
     }, [srcObject]);
+
+    useEffect(() => {
+        if (
+            connectionState === ConnectionState.Connected &&
+            enableMicrophone &&
+            publishMicrophoneStream &&
+            microphoneStreamRef.current
+        ) {
+            const stream = microphoneStreamRef.current;
+            publishMicrophoneStream(stream).catch(error => {
+                if (error) {
+                    console.error('Failed to publish microphone stream:', error);
+                }
+            });
+        }
+    }, [connectionState, enableMicrophone, publishMicrophoneStream]);
 
     return (
         <div id="app">
