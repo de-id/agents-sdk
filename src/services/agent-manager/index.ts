@@ -227,6 +227,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 mode: items.chatMode,
             });
         },
+        async publishMicrophoneStream(stream: MediaStream) {
+            if (!items.streamingManager?.publishMicrophoneStream) {
+                throw new Error('publishMicrophoneStream is not available for this streaming manager');
+            }
+            return items.streamingManager.publishMicrophoneStream(stream);
+        },
         async chat(userMessage: string) {
             const validateChatRequest = () => {
                 if (isChatModeWithoutChat(options.mode)) {
