@@ -166,13 +166,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 log('LiveKit room connected successfully');
                 isConnected = true;
 
-                if (microphoneStream && room) {
-                    publishMicrophoneStream(microphoneStream, room).catch(error => {
-                        log('Failed to publish microphone stream:', error);
-                        callbacks.onError?.(error as Error, { sessionId });
-                    });
-                }
-
                 // During initial connection, defer the callback to ensure manager is returned first
                 if (isInitialConnection) {
                     queueMicrotask(() => {
@@ -328,14 +321,16 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function unpublishMicrophoneStream(roomInstance: Room): Promise<void> {
+    async function unpublishMicrophoneStream(): Promise<void> {
         if (!microphonePublication || !microphonePublication.track) {
             return;
         }
 
         try {
-            await roomInstance.localParticipant.unpublishTrack(microphonePublication.track);
-            log('Microphone track unpublished');
+            if (room) {
+                await room.localParticipant.unpublishTrack(microphonePublication.track);
+                log('Microphone track unpublished');
+            }
         } catch (error) {
             log('Error unpublishing microphone track:', error);
         } finally {
@@ -376,7 +371,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         async disconnect() {
             if (room) {
-                await unpublishMicrophoneStream(room);
+                await unpublishMicrophoneStream();
                 await room.disconnect();
                 room = null;
             }
@@ -388,6 +383,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         sendDataChannelMessage: sendTextMessage,
         sendTextMessage,
+        publishMicrophoneStream,
 
         sessionId,
         streamId: sessionId,
