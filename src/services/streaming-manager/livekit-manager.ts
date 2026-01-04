@@ -239,7 +239,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    function handleDataReceived(payload: Uint8Array, participant?: RemoteParticipant, _kind?: any, topic?: string): void {
+    function handleDataReceived(
+        payload: Uint8Array,
+        participant?: RemoteParticipant,
+        _kind?: any,
+        topic?: string
+    ): void {
         const message = new TextDecoder().decode(payload);
         log('Data received:', message);
 
@@ -256,7 +261,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             } else if ([StreamEvents.StreamVideoCreated, StreamEvents.StreamVideoDone].includes(subject)) {
                 const source = data?.source || participant?.identity || 'datachannel';
                 callbacks.onMessage?.(subject, {
-                    [source]: data
+                    [source]: data,
                 });
             }
         } catch (e) {
