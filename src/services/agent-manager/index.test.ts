@@ -698,6 +698,59 @@ describe('createAgentManager', () => {
         });
     });
 
+    describe('publishMicrophoneStream', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+        });
+
+        it('should publish microphone stream when available', async () => {
+            const mockStream = new MediaStream();
+            const mockPublish = jest.fn().mockResolvedValue(undefined);
+            mockStreamingManager.publishMicrophoneStream = mockPublish;
+
+            await manager.publishMicrophoneStream?.(mockStream);
+
+            expect(mockPublish).toHaveBeenCalledWith(mockStream);
+        });
+
+        it('should throw error when publishMicrophoneStream is not available', async () => {
+            mockStreamingManager.publishMicrophoneStream = undefined;
+
+            await expect(manager.publishMicrophoneStream?.(new MediaStream())).rejects.toThrow(
+                'publishMicrophoneStream is not available for this streaming manager'
+            );
+        });
+    });
+
+    describe('unpublishMicrophoneStream', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+        });
+
+        it('should unpublish microphone stream when available', async () => {
+            const mockUnpublish = jest.fn().mockResolvedValue(undefined);
+            mockStreamingManager.unpublishMicrophoneStream = mockUnpublish;
+
+            await manager.unpublishMicrophoneStream?.();
+
+            expect(mockUnpublish).toHaveBeenCalled();
+        });
+
+        it('should throw error when unpublishMicrophoneStream is not available', async () => {
+            mockStreamingManager.unpublishMicrophoneStream = undefined;
+
+            await expect(manager.unpublishMicrophoneStream?.()).rejects.toThrow(
+                'unpublishMicrophoneStream is not available for this streaming manager'
+            );
+        });
+    });
+
     describe('DirectPlayback mode', () => {
         it('should not create socket manager in DirectPlayback mode', async () => {
             const directPlaybackOptions = { ...mockOptions, mode: ChatMode.DirectPlayback };
