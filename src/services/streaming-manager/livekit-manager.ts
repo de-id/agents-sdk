@@ -259,9 +259,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     ...data,
                 });
             } else if ([StreamEvents.StreamVideoCreated, StreamEvents.StreamVideoDone].includes(subject)) {
-                const source = data?.source || participant?.identity || 'datachannel';
+                const role = data?.role || participant?.identity || 'datachannel';
                 callbacks.onMessage?.(subject, {
-                    [source]: data,
+                    [role]: data,
                 });
             }
         } catch (e) {
