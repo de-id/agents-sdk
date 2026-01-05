@@ -177,10 +177,15 @@ function connectToManager(
         try {
             let streamingManager: StreamingManager<CreateStreamOptions | CreateSessionV2Options>;
             let shouldResolveOnComplete = false;
+            const streamOptions = getAgentStreamOptions(agent, options);
+
+            analytics.enrich({
+                'stream-version': streamOptions.version.toString(),
+            });
 
             streamingManager = await createStreamingManager(
                 agent,
-                getAgentStreamOptions(agent, options),
+                streamOptions,
                 {
                     ...options,
                     analytics,

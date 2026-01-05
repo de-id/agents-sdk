@@ -14,6 +14,7 @@ import {
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
+import { createTimestampTracker } from '../analytics/timestamp-tracker';
 import { createStreamingLogger, StreamingManager } from './common';
 
 import type {
@@ -79,6 +80,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     sessionOptions: CreateSessionV2Options,
     options: StreamingManagerOptions
 ): Promise<StreamingManager<T>> {
+    const sessionReadyTimestampTracker = createTimestampTracker();
+    sessionReadyTimestampTracker.update();
+
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
     const { Room, RoomEvent, ConnectionState: LiveKitConnectionState } = await importLiveKit();
@@ -226,6 +230,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         if (track.kind === 'video') {
+            const sessionReadyLatency = sessionReadyTimestampTracker.get(true);
+            analytics.track('agent-chat', {
+                event: 'ready',
+                latency: sessionReadyLatency,
+            });
+
             callbacks.onSrcObjectReady?.(sharedMediaStream);
             callbacks.onVideoStateChange?.(StreamingState.Start);
         }

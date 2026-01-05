@@ -1,4 +1,4 @@
-function createTimestampTracker() {
+export function createTimestampTracker() {
     let timestamp = 0;
 
     return {
