@@ -239,17 +239,29 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    function handleDataReceived(payload: Uint8Array, participant?: RemoteParticipant): void {
+    function handleDataReceived(
+        payload: Uint8Array,
+        participant?: RemoteParticipant,
+        _kind?: any,
+        topic?: string
+    ): void {
         const message = new TextDecoder().decode(payload);
         log('Data received:', message);
 
         try {
             const data = JSON.parse(message);
-            if (data.subject === StreamEvents.ChatAnswer) {
+            const subject = topic || data.subject;
+
+            if (subject === StreamEvents.ChatAnswer) {
                 const eventName = ChatProgress.Answer;
                 callbacks.onMessage?.(eventName, {
                     event: eventName,
                     ...data,
+                });
+            } else if ([StreamEvents.StreamVideoCreated, StreamEvents.StreamVideoDone].includes(subject)) {
+                const role = data?.role || participant?.identity || 'datachannel';
+                callbacks.onMessage?.(subject, {
+                    [role]: data,
                 });
             }
         } catch (e) {
