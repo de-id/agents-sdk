@@ -237,7 +237,6 @@ function connectToManager(
                             );
                         },
                         onStreamReady: () => {
-                            console.log('onStreamReady');
                             const readyLatency = streamReadyTimestampTracker.get(true);
                             analytics.track('agent-chat', { event: 'ready', latency: readyLatency });
                         },
