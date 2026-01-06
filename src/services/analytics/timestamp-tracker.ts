@@ -1,4 +1,4 @@
-export function createTimestampTracker() {
+function createTimestampTracker() {
     let timestamp = 0;
 
     return {
@@ -10,3 +10,4 @@ export function createTimestampTracker() {
 
 export const latencyTimestampTracker = createTimestampTracker();
 export const interruptTimestampTracker = createTimestampTracker();
+export const streamReadyTimestampTracker = createTimestampTracker();
