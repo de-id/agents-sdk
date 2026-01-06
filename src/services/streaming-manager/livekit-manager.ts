@@ -19,12 +19,14 @@ import { createStreamingLogger, StreamingManager } from './common';
 import type {
     ConnectionQuality,
     ConnectionState as LiveKitConnectionState,
+    LocalTrackPublication,
     Participant,
     RemoteParticipant,
     RemoteTrack,
     Room,
     RoomEvent,
     SubscriptionError,
+    Track,
 } from 'livekit-client';
 
 async function importLiveKit(): Promise<{
@@ -33,6 +35,7 @@ async function importLiveKit(): Promise<{
     ConnectionState: typeof LiveKitConnectionState;
     RemoteParticipant: typeof RemoteParticipant;
     RemoteTrack: typeof RemoteTrack;
+    Track: typeof Track;
 }> {
     try {
         return await import('livekit-client');
@@ -83,12 +86,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     const { Room, RoomEvent, ConnectionState: LiveKitConnectionState } = await importLiveKit();
 
-    const { callbacks, auth, baseURL, analytics } = options;
+    const { callbacks, auth, baseURL, analytics, microphoneStream } = options;
     let room: Room | null = null;
     let isConnected = false;
     const streamType = StreamType.Fluent;
     let isInitialConnection = true;
     let sharedMediaStream: MediaStream | null = null;
+    let microphonePublication: LocalTrackPublication | null = null;
 
     room = new Room({
         adaptiveStream: false, // Must be false to use mediaStreamTrack directly
@@ -161,6 +165,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             case LiveKitConnectionState.Connected:
                 log('LiveKit room connected successfully');
                 isConnected = true;
+
                 // During initial connection, defer the callback to ensure manager is returned first
                 if (isInitialConnection) {
                     queueMicrotask(() => {
@@ -264,6 +269,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onMessage?.(subject, {
                     [role]: data,
                 });
+            } else if (subject === StreamEvents.ChatAudioTranscribed) {
+                const eventName = ChatProgress.Transcribe;
+                callbacks.onMessage?.(eventName, {
+                    event: eventName,
+                    ...data,
+                });
             }
         } catch (e) {
             log('Failed to parse data channel message:', e);
@@ -286,6 +297,99 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         reason?: SubscriptionError
     ): void {
         log('Track subscription failed:', { trackSid, participant, reason });
+    }
+
+    async function findPublishedMicrophoneTrack(audioTrack: MediaStreamTrack): Promise<LocalTrackPublication | null> {
+        if (!room) return null;
+
+        const { Track } = await importLiveKit();
+        const publishedTracks = room.localParticipant.audioTrackPublications;
+
+        if (publishedTracks) {
+            for (const [_, publication] of publishedTracks) {
+                if (publication.source === Track.Source.Microphone && publication.track) {
+                    const publishedTrack = publication.track;
+                    const publishedMediaTrack = publishedTrack.mediaStreamTrack;
+                    if (
+                        publishedMediaTrack === audioTrack ||
+                        (publishedMediaTrack && publishedMediaTrack.id === audioTrack.id)
+                    ) {
+                        return publication as LocalTrackPublication;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function hasDifferentMicrophoneTrackPublished(audioTrack: MediaStreamTrack): boolean {
+        if (!microphonePublication || !microphonePublication.track) {
+            return false;
+        }
+
+        const publishedMediaTrack = microphonePublication.track.mediaStreamTrack;
+        return publishedMediaTrack !== audioTrack && publishedMediaTrack?.id !== audioTrack.id;
+    }
+
+    async function publishMicrophoneStream(stream: MediaStream): Promise<void> {
+        if (!isConnected || !room) {
+            log('Room is not connected, cannot publish microphone stream');
+            throw new Error('Room is not connected');
+        }
+
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length === 0) {
+            log('No audio track found in the provided MediaStream');
+            return;
+        }
+
+        const audioTrack = audioTracks[0];
+        const { Track } = await importLiveKit();
+
+        const existingPublication = await findPublishedMicrophoneTrack(audioTrack);
+        if (existingPublication) {
+            log('Microphone track is already published, skipping', {
+                trackId: audioTrack.id,
+                publishedTrackId: existingPublication.track?.mediaStreamTrack?.id,
+            });
+            microphonePublication = existingPublication;
+            return;
+        }
+
+        if (hasDifferentMicrophoneTrackPublished(audioTrack)) {
+            log('Unpublishing existing microphone track before publishing new one');
+            await unpublishMicrophoneStream();
+        }
+
+        log('Publishing microphone track from provided MediaStream', { trackId: audioTrack.id });
+
+        try {
+            microphonePublication = await room.localParticipant.publishTrack(audioTrack, {
+                source: Track.Source.Microphone,
+            });
+            log('Microphone track published successfully', { trackSid: microphonePublication.trackSid });
+        } catch (error) {
+            log('Failed to publish microphone track:', error);
+            throw error;
+        }
+    }
+
+    async function unpublishMicrophoneStream(): Promise<void> {
+        if (!microphonePublication || !microphonePublication.track) {
+            return;
+        }
+
+        try {
+            if (room) {
+                await room.localParticipant.unpublishTrack(microphonePublication.track);
+                log('Microphone track unpublished');
+            }
+        } catch (error) {
+            log('Error unpublishing microphone track:', error);
+        } finally {
+            microphonePublication = null;
+        }
     }
 
     function cleanMediaStream(): void {
@@ -321,6 +425,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         async disconnect() {
             if (room) {
+                await unpublishMicrophoneStream();
                 await room.disconnect();
                 room = null;
             }
@@ -332,6 +437,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         sendDataChannelMessage: sendTextMessage,
         sendTextMessage,
+        publishMicrophoneStream,
+        unpublishMicrophoneStream,
 
         sessionId,
         streamId: sessionId,
