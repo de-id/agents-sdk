@@ -28,6 +28,7 @@ jest.mock('../../config/environment', () => ({
 jest.mock('../analytics/timestamp-tracker', () => ({
     latencyTimestampTracker: { reset: jest.fn(), update: jest.fn(), get: jest.fn(() => 1000) },
     interruptTimestampTracker: { reset: jest.fn(), update: jest.fn(), get: jest.fn(() => 500) },
+    streamReadyTimestampTracker: { reset: jest.fn(), update: jest.fn(), get: jest.fn(() => 1500) },
 }));
 
 describe('connect-to-manager', () => {
@@ -236,6 +237,7 @@ describe('connect-to-manager', () => {
         let onConnectionStateChange: (state: ConnectionState) => void;
         let onVideoStateChange: (state: StreamingState, statsReport?: any) => void;
         let onAgentActivityStateChange: (state: AgentActivityState) => void;
+        let onStreamReady: (() => void) | undefined;
 
         beforeEach(async () => {
             // Initialize callbacks to avoid undefined errors
@@ -247,6 +249,7 @@ describe('connect-to-manager', () => {
                 onConnectionStateChange = options.callbacks.onConnectionStateChange;
                 onVideoStateChange = options.callbacks.onVideoStateChange;
                 onAgentActivityStateChange = options.callbacks.onAgentActivityStateChange;
+                onStreamReady = options.callbacks.onStreamReady;
 
                 return new Promise(resolve => {
                     setTimeout(() => {
@@ -368,6 +371,20 @@ describe('connect-to-manager', () => {
                     'start',
                     ['stream-video/started']
                 );
+            });
+        });
+
+        describe('onStreamReady', () => {
+            it('should track mixpanel event with latency when stream is ready', () => {
+                const { streamReadyTimestampTracker } = require('../analytics/timestamp-tracker');
+                streamReadyTimestampTracker.get.mockReturnValue(2000);
+
+                onStreamReady?.();
+
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-chat', {
+                    event: 'ready',
+                    latency: 2000,
+                });
             });
         });
     });
