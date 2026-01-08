@@ -29,19 +29,16 @@ export async function createChat(
 
         return { chat, chatMode: chat?.chat_mode ?? chatMode };
     } catch (error: any) {
-        const errorKind = getErrorKind(error);
-        if (errorKind === 'InsufficientCreditsError') {
-            throw new Error('InsufficientCreditsError');
+        try {
+            const parsedError = JSON.parse(error.message);
+
+            if (parsedError?.kind === 'InsufficientCreditsError') {
+                throw new Error('InsufficientCreditsError');
+            }
+        } catch (e) {
+            console.error('Error parsing the error message:', e);
         }
+
         throw new Error('Cannot create new chat');
     }
 }
-
-const getErrorKind = (error: Error) => {
-    try {
-        const parsedError = JSON.parse(error.message);
-        return parsedError?.kind;
-    } catch (e) {
-        return 'UnknownError';
-    }
-};

@@ -36,7 +36,7 @@ describe('Streaming Manager Core', () => {
         it('should create streaming manager and set up peer connection', async () => {
             const manager = await createStreamingManager(agentId, agentStreamOptions, options);
 
-            expect(mockApi.createStream).toHaveBeenCalledWith(agentStreamOptions, undefined);
+            expect(mockApi.createStream).toHaveBeenCalledWith(agentStreamOptions);
             expect(manager.streamId).toBe('streamId');
             expect(manager.sessionId).toBe('sessionId');
             expect(options.callbacks.onStreamCreated).toHaveBeenCalledWith(
@@ -100,8 +100,7 @@ describe('Streaming Manager Core', () => {
             expect(mockApi.addIceCandidate).toHaveBeenCalledWith(
                 'streamId',
                 expect.objectContaining({ candidate: 'cand' }),
-                'sessionId',
-                undefined
+                'sessionId'
             );
         });
 
@@ -112,12 +111,7 @@ describe('Streaming Manager Core', () => {
 
             mockPC.onicecandidate(mockEvent);
 
-            expect(mockApi.addIceCandidate).toHaveBeenCalledWith(
-                'streamId',
-                { candidate: null },
-                'sessionId',
-                undefined
-            );
+            expect(mockApi.addIceCandidate).toHaveBeenCalledWith('streamId', { candidate: null }, 'sessionId');
         });
 
         it('should handle errors in ICE candidate handling', async () => {
@@ -307,8 +301,7 @@ describe('Streaming Manager Core', () => {
             expect(mockApi.startConnection).toHaveBeenCalledWith(
                 'streamId',
                 { type: 'answer', sdp: 'mock-sdp' },
-                'sessionId',
-                undefined
+                'sessionId'
             );
         });
 

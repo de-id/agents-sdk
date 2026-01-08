@@ -122,8 +122,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                   );
 
         const initPromise = retryOperation(
-            () =>
-                initializeStreamAndChat(
+            () => {
+                return initializeStreamAndChat(
                     agentEntity,
                     {
                         ...options,
@@ -132,15 +132,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     agentsApi,
                     analytics,
                     items.chat
-                ),
+                );
+            },
             {
                 limit: 3,
                 timeout: CONNECTION_RETRY_TIMEOUT_MS,
                 timeoutErrorMessage: 'Timeout initializing the stream',
-                shouldRetryFn: (error: any) =>
-                    error?.message !== 'Could not connect' &&
-                    error.status !== 429 &&
-                    error?.message !== 'InsufficientCreditsError',
+                // Retry on all errors except for connection errors and rate limit errors, these are already handled in client level.
+                shouldRetryFn: (error: any) => error?.message !== 'Could not connect' && error.status !== 429,
                 delayMs: 1000,
             }
         ).catch(e => {
