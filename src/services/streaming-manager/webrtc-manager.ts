@@ -264,7 +264,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     function handleStreamReadyEvent(_subject: StreamEvents.StreamReady, payload?: DataChannelPayload) {
         const streamMetadata = typeof payload === 'string' ? payload : payload?.metadata;
         streamMetadata && analytics.enrich({ streamMetadata });
-        analytics.track('agent-chat', { event: 'ready' });
+        callbacks.onStreamReady?.();
     }
 
     const dataChannelHandlers = {

@@ -64,6 +64,7 @@ export interface ManagerCallbacks {
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
     onVideoIdChange?: (videoId: string | null) => void;
     onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
+    onStreamReady?: () => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
