@@ -23,11 +23,7 @@ import {
 } from '@sdk/types';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
-import {
-    interruptTimestampTracker,
-    latencyTimestampTracker,
-    streamReadyTimestampTracker,
-} from '../analytics/timestamp-tracker';
+import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat } from '../chat';
 
 const ChatPrefix = 'cht';
@@ -176,21 +172,15 @@ function connectToManager(
     signal?: AbortSignal
 ): Promise<StreamingManager<CreateStreamOptions | CreateSessionV2Options>> {
     latencyTimestampTracker.reset();
-    streamReadyTimestampTracker.update();
 
     return new Promise(async (resolve, reject) => {
         try {
             let streamingManager: StreamingManager<CreateStreamOptions | CreateSessionV2Options>;
             let shouldResolveOnComplete = false;
-            const streamOptions = getAgentStreamOptions(agent, options);
-
-            analytics.enrich({
-                'stream-version': streamOptions.version.toString(),
-            });
 
             streamingManager = await createStreamingManager(
                 agent,
-                streamOptions,
+                getAgentStreamOptions(agent, options),
                 {
                     ...options,
                     analytics,
@@ -235,10 +225,6 @@ function connectToManager(
                                 analytics,
                                 streamingManager.streamType
                             );
-                        },
-                        onStreamReady: () => {
-                            const readyLatency = streamReadyTimestampTracker.get(true);
-                            analytics.track('agent-chat', { event: 'ready', latency: readyLatency });
                         },
                     },
                 },

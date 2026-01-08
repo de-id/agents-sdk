@@ -10,4 +10,3 @@ function createTimestampTracker() {
 
 export const latencyTimestampTracker = createTimestampTracker();
 export const interruptTimestampTracker = createTimestampTracker();
-export const streamReadyTimestampTracker = createTimestampTracker();

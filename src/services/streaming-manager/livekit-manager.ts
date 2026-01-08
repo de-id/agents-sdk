@@ -231,7 +231,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         if (track.kind === 'video') {
-            callbacks.onStreamReady?.();
             callbacks.onSrcObjectReady?.(sharedMediaStream);
             callbacks.onVideoStateChange?.(StreamingState.Start);
         }
