@@ -15,7 +15,7 @@ interface UseAgentManagerOptions {
     agentId: string;
     baseURL: string;
     wsURL: string;
-    mode: ChatMode;
+    mode?: ChatMode;
     auth: Auth;
     streamOptions?: {
         streamWarmup?: boolean;
@@ -35,7 +35,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         agentId,
         baseURL,
         wsURL,
-        mode,
+        mode = ChatMode.Functional,
         auth,
         enableAnalytics,
         externalId,
