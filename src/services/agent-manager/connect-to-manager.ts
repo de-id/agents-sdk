@@ -318,7 +318,7 @@ export async function initializeStreamAndChat(
     const { chatResult, streamingManager } = await resolveStreamAndChat();
     const { chat: newChat, chatMode } = chatResult;
 
-    if (chatMode && chatMode !== options.mode) {
+    if (chatMode && options.mode !== undefined && chatMode !== options.mode) {
         options.mode = chatMode;
         options.callbacks.onModeChange?.(chatMode);
 
