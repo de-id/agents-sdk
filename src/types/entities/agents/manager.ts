@@ -148,7 +148,7 @@ interface StreamOptions {
 export interface AgentManagerOptions {
     auth: Auth;
     callbacks: ManagerCallbacks;
-    mode: ChatMode;
+    mode?: ChatMode;
     baseURL?: string;
     wsURL?: string;
     debug?: boolean;
