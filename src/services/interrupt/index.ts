@@ -1,5 +1,12 @@
-import { CreateStreamOptions, StreamEvents, StreamInterruptPayload, StreamType } from '@sdk/types';
+import {
+    CreateSessionV2Options,
+    CreateStreamOptions,
+    StreamEvents,
+    StreamInterruptPayload,
+    StreamType,
+} from '@sdk/types';
 import { StreamingManager } from '../streaming-manager';
+import { DataChannelTopic } from '../streaming-manager/livekit-manager';
 
 export function validateInterrupt(
     streamingManager: StreamingManager<CreateStreamOptions> | undefined,
@@ -18,9 +25,10 @@ export function validateInterrupt(
         throw new Error('Interrupt only available for Fluent streams');
     }
 
-    if (!videoId) {
-        throw new Error('No active video to interrupt');
-    }
+    //TODO
+    // if (!videoId) {
+    //     throw new Error('No active video to interrupt');
+    // }
 }
 
 export async function sendInterrupt(
@@ -33,5 +41,12 @@ export async function sendInterrupt(
         timestamp: Date.now(),
     };
 
+    streamingManager.sendDataChannelMessage(JSON.stringify(payload));
+}
+
+export async function sendInterruptV2(streamingManager: StreamingManager<CreateSessionV2Options>): Promise<void> {
+    const payload = {
+        topic: DataChannelTopic.Interrupt,
+    };
     streamingManager.sendDataChannelMessage(JSON.stringify(payload));
 }

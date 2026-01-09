@@ -59,9 +59,10 @@ const internalErrorMassage = JSON.stringify({
     description: 'Stream Error',
 });
 
-enum DataChannelTopic {
+export enum DataChannelTopic {
     Chat = 'lk.chat',
     Speak = 'did.speak',
+    Interrupt = 'did.interrupt',
 }
 
 export function handleInitError(
@@ -399,6 +400,24 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
+    async function sendDataChannelMessage(payload: string) {
+        if (!isConnected || !room) {
+            log('Room is not connected for sending messages');
+            callbacks.onError?.(new Error(internalErrorMassage), {
+                sessionId,
+            });
+            return;
+        }
+
+        try {
+            const payloadObject = JSON.parse(payload);
+            await room.localParticipant.sendText(payloadObject.message, { topic: payloadObject.topic });
+        } catch (error) {
+            log('Failed to send message:', error);
+            callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
+        }
+    }
+
     async function sendTextMessage(message: string, topic: DataChannelTopic = DataChannelTopic.Chat) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
@@ -435,7 +454,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         },
 
-        sendDataChannelMessage: sendTextMessage,
+        sendDataChannelMessage,
         sendTextMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
