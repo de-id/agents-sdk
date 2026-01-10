@@ -25,10 +25,9 @@ export function validateInterrupt(
         throw new Error('Interrupt only available for Fluent streams');
     }
 
-    //TODO
-    // if (!videoId) {
-    //     throw new Error('No active video to interrupt');
-    // }
+    if (!videoId) {
+        throw new Error('No active video to interrupt');
+    }
 }
 
 export async function sendInterrupt(

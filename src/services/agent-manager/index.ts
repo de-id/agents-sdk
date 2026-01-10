@@ -488,7 +488,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
         },
         async interrupt({ type }: Interrupt) {
-            validateInterrupt(items.streamingManager, items.streamingManager?.streamType, videoId);
             const lastMessage = items.messages[items.messages.length - 1];
 
             analytics.track('agent-video-interrupt', {
@@ -502,6 +501,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             if (isStreamsV2) {
                 sendInterruptV2(items.streamingManager! as StreamingManager<CreateSessionV2Options>);
             } else {
+                validateInterrupt(items.streamingManager, items.streamingManager?.streamType, videoId);
                 sendInterrupt(items.streamingManager!, videoId!);
             }
         },
