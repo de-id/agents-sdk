@@ -419,9 +419,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     async function sendDataChannelMessage(payload: string) {
-        const parsed = JSON.parse(payload);
-        const topic = parsed.topic;
-        return sendMessage('', topic);
+        try {
+            const parsed = JSON.parse(payload);
+            const topic = parsed.topic;
+            return sendMessage('', topic);
+        } catch (error) {
+            log('Failed to send data channel message:', error);
+            callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
+        }
     }
 
     function sendTextMessage(message: string) {
