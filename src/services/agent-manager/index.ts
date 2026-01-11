@@ -59,10 +59,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const mxKey = options.mixpanelKey || mixpanelKey;
     const wsURL = options.wsURL || didSocketApiUrl;
     const baseURL = options.baseURL || didApiUrl;
+    const mode = options.mode || ChatMode.Functional;
 
     const items: AgentManagerItems = {
         messages: [],
-        chatMode: options.mode || ChatMode.Functional,
+        chatMode: mode,
     };
     const analytics = initializeAnalytics({
         token: mxKey,
@@ -112,7 +113,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         const websocketPromise =
-            options.mode === ChatMode.DirectPlayback || isStreamsV2
+            mode === ChatMode.DirectPlayback || isStreamsV2
                 ? Promise.resolve(undefined)
                 : createSocketManager(
                       options.auth,
@@ -127,6 +128,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     agentEntity,
                     {
                         ...options,
+                        mode,
                         callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId, onMessage },
                     },
                     agentsApi,
@@ -167,7 +169,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             mode: items.chatMode,
         });
 
-        changeMode(chat?.chat_mode ?? options.mode ?? ChatMode.Functional);
+        changeMode(chat?.chat_mode ?? mode);
     }
 
     async function disconnect() {
@@ -227,10 +229,22 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 mode: items.chatMode,
             });
         },
+        async publishMicrophoneStream(stream: MediaStream) {
+            if (!items.streamingManager?.publishMicrophoneStream) {
+                throw new Error('publishMicrophoneStream is not available for this streaming manager');
+            }
+            return items.streamingManager.publishMicrophoneStream(stream);
+        },
+        async unpublishMicrophoneStream() {
+            if (!items.streamingManager?.unpublishMicrophoneStream) {
+                throw new Error('unpublishMicrophoneStream is not available for this streaming manager');
+            }
+            return items.streamingManager.unpublishMicrophoneStream();
+        },
         async chat(userMessage: string) {
             const validateChatRequest = () => {
-                if (isChatModeWithoutChat(options.mode)) {
-                    throw new ValidationError(`${options.mode} is enabled, chat is disabled`);
+                if (isChatModeWithoutChat(mode)) {
+                    throw new ValidationError(`${mode} is enabled, chat is disabled`);
                 } else if (userMessage.length >= 800) {
                     throw new ValidationError('Message cannot be more than 800 characters');
                 } else if (userMessage.length === 0) {

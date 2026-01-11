@@ -33,6 +33,7 @@ export interface Message {
     context?: string;
     videoId?: string;
     interrupted?: boolean;
+    transcribed?: boolean;
 }
 
 export interface ChatPayload {

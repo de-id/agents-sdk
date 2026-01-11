@@ -26,6 +26,7 @@ export enum AgentActivityState {
 export enum StreamEvents {
     ChatAnswer = 'chat/answer',
     ChatPartial = 'chat/partial',
+    ChatAudioTranscribed = 'chat/audio-transcribed',
     StreamDone = 'stream/done',
     StreamStarted = 'stream/started',
     StreamFailed = 'stream/error',
@@ -63,6 +64,7 @@ export interface ManagerCallbacks {
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
     onVideoIdChange?: (videoId: string | null) => void;
     onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
+    onStreamReady?: () => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
@@ -117,6 +119,12 @@ export interface StreamingManagerOptions {
     debug?: boolean;
     auth: Auth;
     analytics: Analytics;
+    /**
+     * Optional MediaStream to use for microphone input.
+     * If provided, the audio track from this stream will be published to the data channel.
+     * Supported by LiveKit streaming managers.
+     */
+    microphoneStream?: MediaStream;
 }
 
 export interface SlimRTCStatsReport {

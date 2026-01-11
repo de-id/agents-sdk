@@ -9,13 +9,13 @@ import {
     StreamType,
     StreamingState,
 } from '@sdk/types';
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 
 interface UseAgentManagerOptions {
     agentId: string;
     baseURL: string;
     wsURL: string;
-    mode: ChatMode;
+    mode?: ChatMode;
     auth: Auth;
     streamOptions?: {
         streamWarmup?: boolean;
@@ -35,7 +35,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         agentId,
         baseURL,
         wsURL,
-        mode,
+        mode = ChatMode.Functional,
         auth,
         enableAnalytics,
         externalId,
@@ -52,6 +52,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
     const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
+    const [isMicrophonePublished, setIsMicrophonePublished] = useState(false);
     const streamType = agentManager?.getStreamType();
 
     useEffect(() => {
@@ -183,6 +184,40 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         }
     }, [agentManager, connectionState]);
 
+    const publishMicrophoneStream = useCallback(
+        async (stream: MediaStream) => {
+            if (!agentManager) {
+                console.warn('Agent manager is not initialized yet. Will retry when ready.');
+                return;
+            }
+            if (!agentManager.publishMicrophoneStream) {
+                throw new Error('publishMicrophoneStream is not available for this streaming manager');
+            }
+            await agentManager.publishMicrophoneStream(stream);
+            setIsMicrophonePublished(true);
+        },
+        [agentManager]
+    );
+
+    const unpublishMicrophoneStream = useCallback(async () => {
+        if (!agentManager) {
+            console.warn('Agent manager is not initialized yet.');
+            return;
+        }
+        if (!agentManager.unpublishMicrophoneStream) {
+            throw new Error('unpublishMicrophoneStream is not available for this streaming manager');
+        }
+        await agentManager.unpublishMicrophoneStream();
+        setIsMicrophonePublished(false);
+    }, [agentManager]);
+
+    const microphoneEnabled = useMemo(() => {
+        return (
+            agentManager?.agent?.presenter?.type === 'expressive' &&
+            typeof agentManager?.publishMicrophoneStream === 'function'
+        );
+    }, [agentManager]);
+
     return {
         connectionState,
         messages,
@@ -193,5 +228,9 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         speak,
         chat,
         interrupt,
+        publishMicrophoneStream,
+        unpublishMicrophoneStream,
+        microphoneEnabled,
+        isMicrophonePublished,
     };
 }
