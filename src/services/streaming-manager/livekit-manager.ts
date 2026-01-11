@@ -133,6 +133,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         .on(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged)
         .on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged)
         .on(RoomEvent.ParticipantConnected, handleParticipantConnected)
+        .on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected)
         .on(RoomEvent.TrackSubscribed, handleTrackSubscribed)
         .on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed)
         .on(RoomEvent.DataReceived, handleDataReceived)
@@ -164,7 +165,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
                 break;
             case LiveKitConnectionState.Connected:
-                log('LiveKit room connected successfully');
+                console.log('LiveKit room connected successfully');
                 isConnected = true;
 
                 // During initial connection, defer the callback to ensure manager is returned first
@@ -211,6 +212,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleParticipantConnected(participant: RemoteParticipant): void {
         log('Participant connected:', participant.identity);
+    }
+
+    function handleParticipantDisconnected(participant: RemoteParticipant): void {
+        log('Participant disconnected:', participant.identity);
+
+        // Agent left the room - treat as disconnect
+        disconnect();
     }
 
     function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
@@ -433,44 +441,48 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         return sendMessage(message, DataChannelTopic.Chat);
     }
 
+    async function disconnect() {
+        if (room) {
+            await unpublishMicrophoneStream();
+            await room.disconnect();
+        }
+        cleanMediaStream();
+        isConnected = false;
+        callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+        callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+    }
+
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
             return sendMessage(message, DataChannelTopic.Speak);
         },
 
-        async disconnect() {
-            if (room) {
-                await unpublishMicrophoneStream();
-                await room.disconnect();
-            }
-            cleanMediaStream();
-            isConnected = false;
-            callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
-            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
-        },
+        disconnect,
 
         async reconnect() {
+            console.log('reconnect, current room state:', room?.state);
             if (room?.state === LiveKitConnectionState.Connected) {
-                log('Room is already connected');
+                console.log('Room is already connected');
                 return;
             }
 
             if (!room || !url || !token) {
-                log('Cannot reconnect: missing room, URL or token');
+                console.log('Cannot reconnect: missing room, URL or token');
                 throw new Error('Cannot reconnect: session not available');
             }
 
-            log('Reconnecting to LiveKit room...');
+            console.log('Reconnecting to LiveKit room, state before connect:', room.state);
             callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
             try {
+                console.log('Calling room.connect...');
                 await room.connect(url, token);
-                log('Reconnected to LiveKit room');
+                console.log('room.connect resolved, new state:', room.state);
                 isConnected = true;
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
             } catch (error) {
-                log('Failed to reconnect:', error);
+                console.log('Failed to reconnect:', error);
                 callbacks.onConnectionStateChange?.(ConnectionState.Fail);
                 throw error;
             }
