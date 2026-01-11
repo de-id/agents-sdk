@@ -400,25 +400,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendDataChannelMessage(payload: string) {
-        if (!isConnected || !room) {
-            log('Room is not connected for sending messages');
-            callbacks.onError?.(new Error(internalErrorMassage), {
-                sessionId,
-            });
-            return;
-        }
-
-        try {
-            const payloadObject = JSON.parse(payload);
-            await room.localParticipant.sendText(payloadObject.message, { topic: payloadObject.topic });
-        } catch (error) {
-            log('Failed to send message:', error);
-            callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
-        }
-    }
-
-    async function sendTextMessage(message: string, topic: DataChannelTopic = DataChannelTopic.Chat) {
+    async function sendMessage(message: string, topic: DataChannelTopic) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(new Error(internalErrorMassage), {
@@ -436,10 +418,20 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
+    async function sendDataChannelMessage(payload: string) {
+        const parsed = JSON.parse(payload);
+        const topic = parsed.topic;
+        return sendMessage('', topic);
+    }
+
+    function sendTextMessage(message: string) {
+        return sendMessage(message, DataChannelTopic.Chat);
+    }
+
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            return sendTextMessage(message, DataChannelTopic.Speak);
+            return sendMessage(message, DataChannelTopic.Speak);
         },
 
         async disconnect() {
