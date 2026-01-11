@@ -214,6 +214,22 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
         },
         async reconnect() {
+            const streamingManager = items.streamingManager as { reconnect?: () => Promise<void> } | undefined;
+            if (isStreamsV2 && streamingManager?.reconnect) {
+                try {
+                    await streamingManager.reconnect();
+
+                    analytics.track('agent-chat', {
+                        event: 'reconnect',
+                        mode: items.chatMode,
+                    });
+                } catch (error) {
+                    await disconnect();
+                    await connect(false);
+                }
+                return;
+            }
+
             await disconnect();
             await connect(false);
 

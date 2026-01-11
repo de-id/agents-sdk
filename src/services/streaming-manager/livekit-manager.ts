@@ -82,7 +82,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     agentId: string,
     sessionOptions: CreateSessionV2Options,
     options: StreamingManagerOptions
-): Promise<StreamingManager<T>> {
+): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
     const { Room, RoomEvent, ConnectionState: LiveKitConnectionState } = await importLiveKit();
@@ -443,12 +443,37 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             if (room) {
                 await unpublishMicrophoneStream();
                 await room.disconnect();
-                room = null;
             }
             cleanMediaStream();
             isConnected = false;
-            callbacks.onConnectionStateChange?.(ConnectionState.Completed);
+            callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+        },
+
+        async reconnect() {
+            if (room?.state === LiveKitConnectionState.Connected) {
+                log('Room is already connected');
+                return;
+            }
+
+            if (!room || !url || !token) {
+                log('Cannot reconnect: missing room, URL or token');
+                throw new Error('Cannot reconnect: session not available');
+            }
+
+            log('Reconnecting to LiveKit room...');
+            callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+
+            try {
+                await room.connect(url, token);
+                log('Reconnected to LiveKit room');
+                isConnected = true;
+                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+            } catch (error) {
+                log('Failed to reconnect:', error);
+                callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+                throw error;
+            }
         },
 
         sendDataChannelMessage,
@@ -464,4 +489,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     };
 }
 
-export type LiveKitStreamingManager<T extends CreateStreamOptions> = StreamingManager<T>;
+export type LiveKitStreamingManager<T extends CreateStreamOptions> = StreamingManager<T> & {
+    reconnect(): Promise<void>;
+};
