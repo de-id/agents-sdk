@@ -5,6 +5,7 @@ import {
     ChatMode,
     ChatResponse,
     ConnectionState,
+    CreateSessionV2Options,
     CreateStreamOptions,
     Interrupt,
     Message,
@@ -26,7 +27,7 @@ import { initializeAnalytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat, getRequestHeaders } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
-import { sendInterrupt, validateInterrupt } from '../interrupt';
+import { sendInterrupt, sendInterruptV2, validateInterrupt } from '../interrupt';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
@@ -487,7 +488,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
         },
         async interrupt({ type }: Interrupt) {
-            validateInterrupt(items.streamingManager, items.streamingManager?.streamType, videoId);
             const lastMessage = items.messages[items.messages.length - 1];
 
             analytics.track('agent-video-interrupt', {
@@ -498,7 +498,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             lastMessage.interrupted = true;
             options.callbacks.onNewMessage?.([...items.messages], 'answer');
-            sendInterrupt(items.streamingManager!, videoId!);
+            if (isStreamsV2) {
+                sendInterruptV2(items.streamingManager! as StreamingManager<CreateSessionV2Options>);
+            } else {
+                validateInterrupt(items.streamingManager, items.streamingManager?.streamType, videoId);
+                sendInterrupt(items.streamingManager!, videoId!);
+            }
         },
     };
 }

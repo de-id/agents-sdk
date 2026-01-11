@@ -59,9 +59,10 @@ const internalErrorMassage = JSON.stringify({
     description: 'Stream Error',
 });
 
-enum DataChannelTopic {
+export enum DataChannelTopic {
     Chat = 'lk.chat',
     Speak = 'did.speak',
+    Interrupt = 'did.interrupt',
 }
 
 export function handleInitError(
@@ -399,7 +400,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendTextMessage(message: string, topic: DataChannelTopic = DataChannelTopic.Chat) {
+    async function sendMessage(message: string, topic: DataChannelTopic) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(new Error(internalErrorMassage), {
@@ -417,10 +418,25 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
+    async function sendDataChannelMessage(payload: string) {
+        try {
+            const parsed = JSON.parse(payload);
+            const topic = parsed.topic;
+            return sendMessage('', topic);
+        } catch (error) {
+            log('Failed to send data channel message:', error);
+            callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
+        }
+    }
+
+    function sendTextMessage(message: string) {
+        return sendMessage(message, DataChannelTopic.Chat);
+    }
+
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            return sendTextMessage(message, DataChannelTopic.Speak);
+            return sendMessage(message, DataChannelTopic.Speak);
         },
 
         async disconnect() {
@@ -435,7 +451,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         },
 
-        sendDataChannelMessage: sendTextMessage,
+        sendDataChannelMessage,
         sendTextMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
