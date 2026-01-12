@@ -165,7 +165,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
                 break;
             case LiveKitConnectionState.Connected:
-                console.log('LiveKit room connected successfully');
+                log('LiveKit room connected successfully');
                 isConnected = true;
 
                 // During initial connection, defer the callback to ensure manager is returned first
@@ -461,28 +461,55 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         disconnect,
 
         async reconnect() {
-            console.log('reconnect, current room state:', room?.state);
             if (room?.state === LiveKitConnectionState.Connected) {
-                console.log('Room is already connected');
+                log('Room is already connected');
                 return;
             }
 
             if (!room || !url || !token) {
-                console.log('Cannot reconnect: missing room, URL or token');
+                log('Cannot reconnect: missing room, URL or token');
                 throw new Error('Cannot reconnect: session not available');
             }
 
-            console.log('Reconnecting to LiveKit room, state before connect:', room.state);
+            log('Reconnecting to LiveKit room, state:', room.state);
             callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
             try {
-                console.log('Calling room.connect...');
                 await room.connect(url, token);
-                console.log('room.connect resolved, new state:', room.state);
+                log('Room reconnected');
                 isConnected = true;
+
+                // If no remote participants, wait for agent to join
+                if (room.remoteParticipants.size === 0) {
+                    log('Waiting for agent to join...');
+
+                    const agentJoined = await new Promise<boolean>(resolve => {
+                        const timeout = setTimeout(() => {
+                            room?.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+                            resolve(false);
+                        }, 5000);
+
+                        const onParticipantConnected = () => {
+                            clearTimeout(timeout);
+                            room?.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+                            resolve(true);
+                        };
+
+                        room?.on(RoomEvent.ParticipantConnected, onParticipantConnected);
+                    });
+
+                    if (!agentJoined) {
+                        log('Agent did not join within timeout');
+                        await room.disconnect();
+                        throw new Error('Agent did not rejoin the room');
+                    }
+
+                    log('Agent joined');
+                }
+
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected);
             } catch (error) {
-                console.log('Failed to reconnect:', error);
+                log('Failed to reconnect:', error);
                 callbacks.onConnectionStateChange?.(ConnectionState.Fail);
                 throw error;
             }
