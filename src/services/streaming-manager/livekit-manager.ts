@@ -82,7 +82,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     agentId: string,
     sessionOptions: CreateSessionV2Options,
     options: StreamingManagerOptions
-): Promise<StreamingManager<T>> {
+): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
     const { Room, RoomEvent, ConnectionState: LiveKitConnectionState } = await importLiveKit();
@@ -133,6 +133,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         .on(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged)
         .on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged)
         .on(RoomEvent.ParticipantConnected, handleParticipantConnected)
+        .on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected)
         .on(RoomEvent.TrackSubscribed, handleTrackSubscribed)
         .on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed)
         .on(RoomEvent.DataReceived, handleDataReceived)
@@ -211,6 +212,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleParticipantConnected(participant: RemoteParticipant): void {
         log('Participant connected:', participant.identity);
+    }
+
+    function handleParticipantDisconnected(participant: RemoteParticipant): void {
+        log('Participant disconnected:', participant.identity);
+
+        // Agent left the room - treat as disconnect
+        disconnect();
     }
 
     function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
@@ -433,22 +441,78 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         return sendMessage(message, DataChannelTopic.Chat);
     }
 
+    async function disconnect() {
+        if (room) {
+            await unpublishMicrophoneStream();
+            await room.disconnect();
+        }
+        cleanMediaStream();
+        isConnected = false;
+        callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+        callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+    }
+
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
             return sendMessage(message, DataChannelTopic.Speak);
         },
 
-        async disconnect() {
-            if (room) {
-                await unpublishMicrophoneStream();
-                await room.disconnect();
-                room = null;
+        disconnect,
+
+        async reconnect() {
+            if (room?.state === LiveKitConnectionState.Connected) {
+                log('Room is already connected');
+                return;
             }
-            cleanMediaStream();
-            isConnected = false;
-            callbacks.onConnectionStateChange?.(ConnectionState.Completed);
-            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+
+            if (!room || !url || !token) {
+                log('Cannot reconnect: missing room, URL or token');
+                throw new Error('Cannot reconnect: session not available');
+            }
+
+            log('Reconnecting to LiveKit room, state:', room.state);
+            callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+
+            try {
+                await room.connect(url, token);
+                log('Room reconnected');
+                isConnected = true;
+
+                // If no remote participants, wait for agent to join
+                if (room.remoteParticipants.size === 0) {
+                    log('Waiting for agent to join...');
+
+                    const agentJoined = await new Promise<boolean>(resolve => {
+                        const timeout = setTimeout(() => {
+                            room?.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+                            resolve(false);
+                        }, 5000);
+
+                        const onParticipantConnected = () => {
+                            clearTimeout(timeout);
+                            room?.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+                            resolve(true);
+                        };
+
+                        room?.on(RoomEvent.ParticipantConnected, onParticipantConnected);
+                    });
+
+                    if (!agentJoined) {
+                        log('Agent did not join within timeout');
+                        await room.disconnect();
+                        throw new Error('Agent did not rejoin the room');
+                    }
+
+                    log('Agent joined');
+                }
+
+                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+            } catch (error) {
+                log('Failed to reconnect:', error);
+                callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+                throw error;
+            }
         },
 
         sendDataChannelMessage,
@@ -464,4 +528,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     };
 }
 
-export type LiveKitStreamingManager<T extends CreateStreamOptions> = StreamingManager<T>;
+export type LiveKitStreamingManager<T extends CreateStreamOptions> = StreamingManager<T> & {
+    reconnect(): Promise<void>;
+};
