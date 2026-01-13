@@ -100,6 +100,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         dynacast: true,
     });
 
+    let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
+
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
 
@@ -146,6 +149,17 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     try {
         await room.connect(url, token);
         log('LiveKit room joined successfully');
+
+        trackSubscriptionTimeoutId = setTimeout(() => {
+            log('Track subscription timeout - no track subscribed within 30 seconds after connect');
+            trackSubscriptionTimeoutId = null;
+            analytics.track('connectivity-error', {
+                error: 'Track subscription timeout',
+                sessionId,
+            });
+            callbacks.onError?.(new Error('Track subscription timeout'), { sessionId });
+            disconnect();
+        }, TRACK_SUBSCRIPTION_TIMEOUT_MS);
 
         isInitialConnection = false;
     } catch (error) {
@@ -223,6 +237,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
+
+        if (trackSubscriptionTimeoutId) {
+            clearTimeout(trackSubscriptionTimeoutId);
+            trackSubscriptionTimeoutId = null;
+            log('Track subscription timeout cleared');
+        }
 
         const mediaStreamTrack = track.mediaStreamTrack;
         if (!mediaStreamTrack) {
@@ -442,6 +462,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     async function disconnect() {
+        if (trackSubscriptionTimeoutId) {
+            clearTimeout(trackSubscriptionTimeoutId);
+            trackSubscriptionTimeoutId = null;
+        }
+
         if (room) {
             await unpublishMicrophoneStream();
             await room.disconnect();
