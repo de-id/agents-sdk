@@ -33,6 +33,12 @@ function handleAudioTranscribedMessage(
         return;
     }
 
+    // Mark the last assistant message as interrupted when new user input arrives via server-side STT
+    const lastMessage = items.messages[items.messages.length - 1];
+    if (lastMessage?.role === 'assistant' && !lastMessage.interrupted) {
+        lastMessage.interrupted = true;
+    }
+
     const userMessage: Message = {
         id: data.id || `user-${Date.now()}`,
         role: data.role,
