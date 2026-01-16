@@ -52,6 +52,13 @@ export interface Agent {
     preview_url?: string;
     owner_id?: string;
     status?: AgentStatus;
+    configuration?: {
+        interrupt_enabled?: boolean;
+        session_timeout_seconds?: number;
+        morph_enabled?: boolean;
+        message_limit?: number;
+        vm_account_id?: string;
+    };
 }
 
 export type AgentPayload = Omit<
