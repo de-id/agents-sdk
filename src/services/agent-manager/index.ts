@@ -299,10 +299,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             };
 
             const sendChatRequest = async (messages: Message[], chatId: string) => {
-                // For playground mode, always use v1 path 
+                // For playground mode, always use v1 path
                 const isPlayground = items.chatMode === ChatMode.Playground;
-                const useV2Path = isStreamsV2 && !isPlayground
-                
+                const useV2Path = isStreamsV2 && !isPlayground;
+
                 const chatRequestFn = useV2Path
                     ? async () => {
                           await items.streamingManager?.sendTextMessage?.(userMessage);
