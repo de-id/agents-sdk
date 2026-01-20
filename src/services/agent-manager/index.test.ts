@@ -518,7 +518,7 @@ describe('createAgentManager', () => {
                 // Add a message to interrupt
                 await manager.chat('Hello');
 
-                await manager.interrupt({ type: 'click' });
+                manager.interrupt({ type: 'click' });
 
                 expect(validateInterrupt).toHaveBeenCalledWith(mockStreamingManager, StreamType.Legacy, null);
                 expect(sendInterrupt).toHaveBeenCalledWith(mockStreamingManager, null);
@@ -538,7 +538,7 @@ describe('createAgentManager', () => {
                     throw new Error('Interrupt validation failed');
                 });
 
-                await expect(manager.interrupt({ type: 'click' })).rejects.toThrow('Interrupt validation failed');
+                expect(() => manager.interrupt({ type: 'click' })).toThrow('Interrupt validation failed');
 
                 // Verify validateInterrupt was called
                 expect(validateInterrupt).toHaveBeenCalledWith(mockStreamingManager, StreamType.Legacy, null);
