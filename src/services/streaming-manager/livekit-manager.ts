@@ -102,6 +102,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
+    let currentActivityState: AgentActivityState = AgentActivityState.Idle;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
@@ -216,11 +217,22 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleActiveSpeakersChanged(activeSpeakers: Participant[]): void {
         log('Active speakers changed:', activeSpeakers);
-        const activeSpeaker = activeSpeakers[0];
-        if (activeSpeaker) {
+        const isLocalParticipantSpeaking = activeSpeakers.find(speaker => speaker.isLocal);
+        const isRemoteParticipantSpeaking = activeSpeakers.find(speaker => !speaker.isLocal);
+
+        if (isLocalParticipantSpeaking) {
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+
+            if (currentActivityState !== AgentActivityState.Idle) {
+                callbacks.onInterruptDetected?.({ type: 'audio' });
+                currentActivityState = AgentActivityState.Idle;
+            }
+        } else if (isRemoteParticipantSpeaking) {
+            currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
         } else {
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+            currentActivityState = AgentActivityState.Idle;
         }
     }
 
@@ -309,6 +321,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onMessage?.(eventName, {
                     event: eventName,
                     ...data,
+                });
+                // Set loading state after transcribed message is processed (similar to v1)
+                // Use queueMicrotask to ensure message is added before setting loading state
+                queueMicrotask(() => {
+                    callbacks.onAgentActivityStateChange?.(AgentActivityState.Loading);
                 });
             }
         } catch (e) {
@@ -481,6 +498,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         isConnected = false;
         callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+        currentActivityState = AgentActivityState.Idle;
     }
 
     return {
