@@ -498,10 +498,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         isConnected = false;
         callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
-
-        if (currentActivityState !== AgentActivityState.Idle) {
-            currentActivityState = AgentActivityState.Idle;
-        }
+        currentActivityState = AgentActivityState.Idle;
     }
 
     return {
