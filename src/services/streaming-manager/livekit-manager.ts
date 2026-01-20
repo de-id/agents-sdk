@@ -150,7 +150,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     callbacks.onConnectionStateChange?.(ConnectionState.New);
 
     function handleTranscriptionReceived(_segments: TranscriptionSegment[], participant?: Participant): void {
-        if(participant?.isLocal && currentActivityState === AgentActivityState.Talking) {
+        if (participant?.isLocal && currentActivityState === AgentActivityState.Talking) {
             callbacks.onInterruptDetected?.({ type: 'audio' });
             currentActivityState = AgentActivityState.Idle;
         }
@@ -227,7 +227,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log('Active speakers changed:', activeSpeakers);
         const isRemoteParticipantSpeaking = activeSpeakers.find(speaker => !speaker.isLocal);
 
-       if (isRemoteParticipantSpeaking) {
+        if (isRemoteParticipantSpeaking) {
             currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
         } else {
@@ -327,7 +327,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 queueMicrotask(() => {
                     callbacks.onAgentActivityStateChange?.(AgentActivityState.Loading);
                 });
-            } 
+            }
         } catch (e) {
             log('Failed to parse data channel message:', e);
         }
