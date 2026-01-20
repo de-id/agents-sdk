@@ -293,6 +293,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     event: eventName,
                     ...data,
                 });
+            } else if (subject === StreamEvents.ChatPartial) {
+                const eventName = ChatProgress.Partial;
+                callbacks.onMessage?.(eventName, {
+                    event: eventName,
+                    ...data,
+                });
             } else if ([StreamEvents.StreamVideoCreated, StreamEvents.StreamVideoDone].includes(subject)) {
                 const role = data?.role || participant?.identity || 'datachannel';
                 callbacks.onMessage?.(subject, {
