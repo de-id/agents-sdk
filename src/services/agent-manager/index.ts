@@ -97,6 +97,26 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         videoId = newVideoId;
     };
 
+    const interrupt = ({ type }: Interrupt) => {
+        const lastMessage = items.messages[items.messages.length - 1];
+
+        analytics.track('agent-video-interrupt', {
+            type: type || 'click',
+            video_duration_to_interrupt: interruptTimestampTracker.get(true),
+            message_duration_to_interrupt: latencyTimestampTracker.get(true),
+        });
+
+        lastMessage.interrupted = true;
+        options.callbacks.onNewMessage?.([...items.messages], 'answer');
+
+        if (isStreamsV2) {
+            sendInterruptV2(items.streamingManager! as StreamingManager<CreateSessionV2Options>);
+        } else {
+            validateInterrupt(items.streamingManager, items.streamingManager?.streamType, videoId);
+            sendInterrupt(items.streamingManager!, videoId!);
+        }
+    };
+
     const loadedTimestamp = Date.now();
     defer(() => {
         analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) }, loadedTimestamp);
@@ -129,7 +149,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     {
                         ...options,
                         mode,
-                        callbacks: { ...options.callbacks, onVideoIdChange: updateVideoId, onMessage },
+                        callbacks: {
+                            ...options.callbacks,
+                            onVideoIdChange: updateVideoId,
+                            onMessage,
+                            onInterruptDetected: interrupt,
+                        },
                     },
                     agentsApi,
                     analytics,
@@ -506,23 +531,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
             });
         },
-        async interrupt({ type }: Interrupt) {
-            const lastMessage = items.messages[items.messages.length - 1];
-
-            analytics.track('agent-video-interrupt', {
-                type: type || 'click',
-                video_duration_to_interrupt: interruptTimestampTracker.get(true),
-                message_duration_to_interrupt: latencyTimestampTracker.get(true),
-            });
-
-            lastMessage.interrupted = true;
-            options.callbacks.onNewMessage?.([...items.messages], 'answer');
-            if (isStreamsV2) {
-                sendInterruptV2(items.streamingManager! as StreamingManager<CreateSessionV2Options>);
-            } else {
-                validateInterrupt(items.streamingManager, items.streamingManager?.streamType, videoId);
-                sendInterrupt(items.streamingManager!, videoId!);
-            }
-        },
+        interrupt,
     };
 }

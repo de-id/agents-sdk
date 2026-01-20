@@ -16,6 +16,7 @@ import {
     ConnectionState,
     CreateSessionV2Options,
     CreateStreamOptions,
+    Interrupt,
     StreamEvents,
     StreamType,
     StreamingState,
@@ -165,6 +166,8 @@ type ConnectToManagerOptions = AgentManagerOptions & {
         onVideoIdChange?: (videoId: string | null) => void;
         /** Internal callback for livekit-manager data channel events */
         onMessage?: ChatProgressCallback;
+        /** Internal callback for when interrupt is detected by streaming manager */
+        onInterruptDetected?: (interrupt: Interrupt) => void;
     };
     chatId?: string;
 };

@@ -1,6 +1,7 @@
 import { Analytics } from '@sdk/services/analytics/mixpanel';
 import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/report';
 import { Auth } from '../auth';
+import { Interrupt } from '../entities';
 import { ChatProgressCallback } from '../entities/agents/manager';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
 import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
@@ -20,6 +21,7 @@ export enum ConnectivityState {
 
 export enum AgentActivityState {
     Idle = 'IDLE',
+    Loading = 'LOADING',
     Talking = 'TALKING',
 }
 
@@ -65,6 +67,7 @@ export interface ManagerCallbacks {
     onVideoIdChange?: (videoId: string | null) => void;
     onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
     onStreamReady?: () => void;
+    onInterruptDetected?: (interrupt: Interrupt) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
