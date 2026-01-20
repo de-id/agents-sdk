@@ -122,7 +122,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                       { onMessage, onError: options.callbacks.onError },
                       options.externalId
                   );
-
         const initPromise = retryOperation(
             () =>
                 initializeStreamAndChat(
@@ -300,7 +299,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             };
 
             const sendChatRequest = async (messages: Message[], chatId: string) => {
-                const chatRequestFn = isStreamsV2
+                // For playground mode, always use v1 path
+                const isPlayground = items.chatMode === ChatMode.Playground;
+                const useV2Path = isStreamsV2 && !isPlayground;
+
+                const chatRequestFn = useV2Path
                     ? async () => {
                           await items.streamingManager?.sendTextMessage?.(userMessage);
                           return Promise.resolve({} as ChatResponse);
