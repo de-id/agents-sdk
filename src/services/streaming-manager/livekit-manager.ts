@@ -27,6 +27,7 @@ import type {
     RoomEvent,
     SubscriptionError,
     Track,
+    TranscriptionSegment,
 } from 'livekit-client';
 
 async function importLiveKit(): Promise<{
@@ -142,11 +143,18 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         .on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed)
         .on(RoomEvent.DataReceived, handleDataReceived)
         .on(RoomEvent.MediaDevicesError, handleMediaDevicesError)
+        .on(RoomEvent.TranscriptionReceived, handleTranscriptionReceived)
         .on(RoomEvent.EncryptionError, handleEncryptionError)
         .on(RoomEvent.TrackSubscriptionFailed, handleTrackSubscriptionFailed);
 
     callbacks.onConnectionStateChange?.(ConnectionState.New);
 
+    function handleTranscriptionReceived(_segments: TranscriptionSegment[], participant?: Participant): void {
+        if (participant?.isLocal && currentActivityState === AgentActivityState.Talking) {
+            callbacks.onInterruptDetected?.({ type: 'audio' });
+            currentActivityState = AgentActivityState.Idle;
+        }
+    }
     try {
         await room.connect(url, token);
         log('LiveKit room joined successfully');
@@ -217,17 +225,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleActiveSpeakersChanged(activeSpeakers: Participant[]): void {
         log('Active speakers changed:', activeSpeakers);
-        const isLocalParticipantSpeaking = activeSpeakers.find(speaker => speaker.isLocal);
         const isRemoteParticipantSpeaking = activeSpeakers.find(speaker => !speaker.isLocal);
 
-        if (isLocalParticipantSpeaking) {
-            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
-
-            if (currentActivityState !== AgentActivityState.Idle) {
-                callbacks.onInterruptDetected?.({ type: 'audio' });
-                currentActivityState = AgentActivityState.Idle;
-            }
-        } else if (isRemoteParticipantSpeaking) {
+        if (isRemoteParticipantSpeaking) {
             currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
         } else {
