@@ -1,0 +1,32 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches: [main, staging, prod]
+
+jobs:
+  update-asana:
+    runs-on: ubuntu-latest
+    if: ${{ github.base_ref == 'master' || github.base_ref == 'staging' || github.base_ref == 'dev' }}
+    steps:
+      - name: Update asana ticket
+        uses: de-id/update-asana-tasks@main
+        with:
+          asana-pat: ${{ secrets.ASANA_PAT }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-bot-channel-id: ${{ secrets.SLACK_DEPLOYMENTS_CHANNEL_ID }}
+          should-update-tasks-status: false
+          is-review: true
+
+  update-asana-status-prod:
+    runs-on: ubuntu-latest
+    if: ${{ github.base_ref == 'prod' }}
+    steps:
+      - uses: de-id/update-asana-tasks@main
+        with:
+          asana-pat: ${{ secrets.ASANA_PAT }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-bot-channel-id: ${{ secrets.SLACK_DEPLOYMENTS_CHANNEL_ID }}
+          should-update-tasks-status: false
