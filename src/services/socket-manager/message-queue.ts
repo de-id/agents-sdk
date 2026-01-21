@@ -109,9 +109,16 @@ export function createMessageEventQueue(
     onStreamDone: () => void
 ) {
     let chatEventQueue: ChatEventQueue = {};
+    const clearQueue = () => (chatEventQueue = {});
+    const onNewMessage: AgentManagerOptions['callbacks']['onNewMessage'] = (messages, event) => {
+        if (event === 'user') {
+            clearQueue();
+        }
+        options.callbacks.onNewMessage?.(messages, event);
+    };
 
     return {
-        clearQueue: () => (chatEventQueue = {}),
+        clearQueue,
         onMessage: (event: ChatProgress | StreamEvents, data: any) => {
             if ('content' in data) {
                 const chatEvent =
@@ -120,7 +127,7 @@ export function createMessageEventQueue(
                         : event === StreamEvents.ChatAudioTranscribed
                           ? ChatProgress.Transcribe
                           : (event as ChatProgress);
-                processChatEvent(chatEvent, data, chatEventQueue, items, options.callbacks.onNewMessage);
+                processChatEvent(chatEvent, data, chatEventQueue, items, onNewMessage);
 
                 if (chatEvent === ChatProgress.Answer) {
                     analytics.track('agent-message-received', {

@@ -1,3 +1,8 @@
+import { TextDecoder, TextEncoder } from 'util';
+
+global.TextDecoder = TextDecoder as any;
+global.TextEncoder = TextEncoder as any;
+
 const mockDataChannel = { onopen: null, onmessage: null, send: jest.fn(), readyState: 'open' };
 
 const mockPeerConnection = {
