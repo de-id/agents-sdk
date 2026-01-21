@@ -225,15 +225,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleActiveSpeakersChanged(activeSpeakers: Participant[]): void {
         log('Active speakers changed:', activeSpeakers);
-        const isRemoteParticipantSpeaking = activeSpeakers.find(speaker => !speaker.isLocal);
-
-        if (isRemoteParticipantSpeaking) {
-            currentActivityState = AgentActivityState.Talking;
-            callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
-        } else {
-            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
-            currentActivityState = AgentActivityState.Idle;
-        }
     }
 
     function handleParticipantConnected(participant: RemoteParticipant): void {
@@ -312,6 +303,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     ...data,
                 });
             } else if ([StreamEvents.StreamVideoCreated, StreamEvents.StreamVideoDone].includes(subject)) {
+                currentActivityState =
+                    subject === StreamEvents.StreamVideoCreated ? AgentActivityState.Talking : AgentActivityState.Idle;
+                callbacks.onAgentActivityStateChange?.(currentActivityState);
+
                 const role = data?.role || participant?.identity || 'datachannel';
                 callbacks.onMessage?.(subject, {
                     [role]: data,

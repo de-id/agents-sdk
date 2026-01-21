@@ -1,5 +1,5 @@
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { CreateSessionV2Options, StreamingManagerOptions } from '../../types/index';
+import { AgentActivityState, CreateSessionV2Options, StreamEvents, StreamingManagerOptions } from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
 
 // Mock livekit-client
@@ -116,6 +116,11 @@ function getConnectionStateHandler(index?: number) {
     if (index !== undefined && calls[index]) {
         return calls[index][1];
     }
+    return calls.length > 0 ? calls[calls.length - 1][1] : undefined;
+}
+
+function getDataReceivedHandler() {
+    const calls = mockRoom.on.mock.calls.filter((call: any[]) => call[0] === 'DataReceived');
     return calls.length > 0 ? calls[calls.length - 1][1] : undefined;
 }
 
@@ -305,6 +310,53 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             // Try to publish before connection
             await expect(manager.publishMicrophoneStream?.(mockStream)).rejects.toThrow('Room is not connected');
+        });
+    });
+
+    describe('Agent Activity State Changes', () => {
+        let mockOnAgentActivityStateChange: jest.Mock;
+        let sendDataEvent: (event: StreamEvents, extraData?: object) => void;
+
+        beforeEach(async () => {
+            mockOnAgentActivityStateChange = jest.fn();
+            options.callbacks.onAgentActivityStateChange = mockOnAgentActivityStateChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            sendDataEvent = (event: StreamEvents, extraData = {}) => {
+                const payload = Buffer.from(JSON.stringify({ subject: event, ...extraData }));
+                dataHandler(payload, undefined, undefined, event);
+            };
+        });
+
+        it.each([
+            [StreamEvents.StreamVideoCreated, AgentActivityState.Talking],
+            [StreamEvents.StreamVideoDone, AgentActivityState.Idle],
+        ])('should set activity state on %s event', (event, expectedState) => {
+            sendDataEvent(event);
+
+            expect(mockOnAgentActivityStateChange).toHaveBeenCalledTimes(1);
+            expect(mockOnAgentActivityStateChange).toHaveBeenCalledWith(expectedState);
+        });
+
+        it('should set activity state to Loading on ChatAudioTranscribed event', async () => {
+            sendDataEvent(StreamEvents.ChatAudioTranscribed, { content: 'test', role: 'user' });
+
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            expect(mockOnAgentActivityStateChange).toHaveBeenCalledTimes(1);
+            expect(mockOnAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Loading);
+        });
+
+        it('should transition from Talking to Idle when video ends', () => {
+            sendDataEvent(StreamEvents.StreamVideoCreated);
+            sendDataEvent(StreamEvents.StreamVideoDone);
+
+            expect(mockOnAgentActivityStateChange).toHaveBeenCalledTimes(2);
+            expect(mockOnAgentActivityStateChange).toHaveBeenNthCalledWith(1, AgentActivityState.Talking);
+            expect(mockOnAgentActivityStateChange).toHaveBeenNthCalledWith(2, AgentActivityState.Idle);
         });
     });
 });
