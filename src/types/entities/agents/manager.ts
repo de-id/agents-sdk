@@ -49,11 +49,6 @@ export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data:
 export type ConnectionStateChangeCallback = (state: ConnectionState) => void;
 export type VideoStateChangeCallback = (state: StreamingState, data: any) => void;
 
-export type DebugMetadata = {
-    type: string;
-    [key: string]: any;
-};
-
 interface ManagerCallbacks {
     /**
      * Optional callback will be triggered each time the RTC connection changes state
@@ -79,11 +74,6 @@ interface ManagerCallbacks {
      * @param messages - array of messages
      */
     onNewMessage?(messages: Message[], type: 'answer' | 'partial' | 'user'): void;
-    /**
-     * Optional callback function that will be triggered with debug metadata when debug mode is enabled
-     * @param metadata - debug metadata object containing type and data
-     */
-    onDebugMetadata?(metadata: DebugMetadata): void;
     /**
      * Optional callback function that will be triggered each time new chat is created
      * @param chatId - id of the new chat

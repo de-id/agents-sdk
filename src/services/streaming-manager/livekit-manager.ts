@@ -308,29 +308,17 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onAgentActivityStateChange?.(currentActivityState);
 
                 const role = data?.role || participant?.identity || 'datachannel';
-
+                
+                const messageData: any = { [role]: data };
+                
                 if (options.debug && subject === StreamEvents.StreamVideoCreated && data?.metadata?.sentiment) {
-                    const sentiment = data.metadata.sentiment;
-                    callbacks.onDebugMetadata?.({
-                        type: 'sentiment',
-                        sentiment: {
-                            id: sentiment.id,
-                            name: sentiment.sentiment,
-                        },
-                    });
+                    messageData.sentiment = {
+                        id: data.metadata.sentiment.id,
+                        name: data.metadata.sentiment.sentiment
+                    };
                 }
 
-                // Clear sentiment when video completes
-                if (options.debug && subject === StreamEvents.StreamVideoDone) {
-                    callbacks.onDebugMetadata?.({
-                        type: 'sentiment',
-                        sentiment: null,
-                    });
-                }
-
-                callbacks.onMessage?.(subject, {
-                    [role]: data,
-                });
+                callbacks.onMessage?.(subject, messageData);
             } else if (subject === StreamEvents.ChatAudioTranscribed) {
                 const eventName = ChatProgress.Transcribe;
                 callbacks.onMessage?.(eventName, {
