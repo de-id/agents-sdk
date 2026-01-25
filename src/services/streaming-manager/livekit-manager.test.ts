@@ -1,5 +1,11 @@
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { AgentActivityState, CreateSessionV2Options, StreamEvents, StreamingManagerOptions } from '../../types/index';
+import {
+    AgentActivityState,
+    CreateSessionV2Options,
+    StreamEvents,
+    StreamingManagerOptions,
+    StreamingState,
+} from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
 
 // Mock livekit-client
@@ -67,6 +73,16 @@ jest.mock('../../api/streams/streamsApiV2', () => ({
 }));
 
 jest.mock('../../config/environment', () => ({ didApiUrl: 'http://test-api.com' }));
+
+// Mock createVideoStatsMonitor
+const mockVideoStatsMonitor = {
+    start: jest.fn(),
+    stop: jest.fn(),
+    getReport: jest.fn(() => ({})),
+};
+jest.mock('./stats/poll', () => ({
+    createVideoStatsMonitor: jest.fn(() => mockVideoStatsMonitor),
+}));
 
 const mockLatencyTimestampTrackerUpdate = jest.fn();
 jest.mock('../analytics/timestamp-tracker', () => ({
@@ -139,6 +155,34 @@ function getTranscriptionReceivedHandler() {
     return calls.length > 0 ? calls[calls.length - 1][1] : undefined;
 }
 
+function getTrackSubscribedHandler() {
+    const calls = mockRoom.on.mock.calls.filter((call: any[]) => call[0] === 'TrackSubscribed');
+    return calls.length > 0 ? calls[calls.length - 1][1] : undefined;
+}
+
+function getTrackUnsubscribedHandler() {
+    const calls = mockRoom.on.mock.calls.filter((call: any[]) => call[0] === 'TrackUnsubscribed');
+    return calls.length > 0 ? calls[calls.length - 1][1] : undefined;
+}
+
+function createMockVideoTrack() {
+    return {
+        kind: 'video',
+        mediaStreamTrack: {
+            kind: 'video',
+            id: 'video-track-1',
+        },
+        getRTCStatsReport: jest.fn().mockResolvedValue(new Map()),
+    } as any;
+}
+
+function createMockRemoteParticipant(identity: string = 'agent') {
+    return {
+        identity,
+        isLocal: false,
+    } as any;
+}
+
 async function simulateConnection(handlerIndex?: number) {
     const handler = getConnectionStateHandler(handlerIndex);
     if (handler) {
@@ -155,6 +199,9 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockLatencyTimestampTrackerUpdate.mockClear();
+        mockVideoStatsMonitor.start.mockClear();
+        mockVideoStatsMonitor.stop.mockClear();
+        mockVideoStatsMonitor.getReport.mockClear();
         agentId = TEST_AGENT_ID;
         sessionOptions = {
             chat_persist: true,
@@ -455,6 +502,106 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             expect(mockLatencyTimestampTrackerUpdate).not.toHaveBeenCalled();
             expect(mockOnInterruptDetected).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('Video Stats Monitor', () => {
+        it('should start video stats monitor when video track is subscribed', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const trackSubscribedHandler = getTrackSubscribedHandler();
+            const mockVideoTrack = createMockVideoTrack();
+            const mockParticipant = createMockRemoteParticipant();
+
+            trackSubscribedHandler(mockVideoTrack, {}, mockParticipant);
+
+            expect(mockVideoStatsMonitor.start).toHaveBeenCalledTimes(1);
+        });
+
+        it('should not start video stats monitor for audio tracks', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const trackSubscribedHandler = getTrackSubscribedHandler();
+            const mockAudioTrack = createMockAudioTrack();
+            (mockAudioTrack as any).mediaStreamTrack = mockAudioTrack;
+            const mockParticipant = createMockRemoteParticipant();
+
+            trackSubscribedHandler(mockAudioTrack, {}, mockParticipant);
+
+            expect(mockVideoStatsMonitor.start).not.toHaveBeenCalled();
+        });
+
+        it('should stop video stats monitor when video track is unsubscribed', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const trackSubscribedHandler = getTrackSubscribedHandler();
+            const trackUnsubscribedHandler = getTrackUnsubscribedHandler();
+            const mockVideoTrack = createMockVideoTrack();
+            const mockParticipant = createMockRemoteParticipant();
+
+            trackSubscribedHandler(mockVideoTrack, {}, mockParticipant);
+            expect(mockVideoStatsMonitor.start).toHaveBeenCalledTimes(1);
+            trackUnsubscribedHandler(mockVideoTrack, {}, mockParticipant);
+
+            expect(mockVideoStatsMonitor.stop).toHaveBeenCalledTimes(1);
+        });
+
+        it('should get report from video stats monitor when video track is unsubscribed', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            const mockReport = { duration: 1000 };
+            mockVideoStatsMonitor.getReport.mockReturnValue(mockReport);
+
+            const trackSubscribedHandler = getTrackSubscribedHandler();
+            const trackUnsubscribedHandler = getTrackUnsubscribedHandler();
+            const mockVideoTrack = createMockVideoTrack();
+            const mockParticipant = createMockRemoteParticipant();
+
+            trackSubscribedHandler(mockVideoTrack, {}, mockParticipant);
+            trackUnsubscribedHandler(mockVideoTrack, {}, mockParticipant);
+
+            expect(mockVideoStatsMonitor.getReport).toHaveBeenCalledTimes(1);
+        });
+
+        it('should call onVideoStateChange with Start when video track is subscribed', async () => {
+            const mockOnVideoStateChange = jest.fn();
+            options.callbacks.onVideoStateChange = mockOnVideoStateChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const trackSubscribedHandler = getTrackSubscribedHandler();
+            const mockVideoTrack = createMockVideoTrack();
+            const mockParticipant = createMockRemoteParticipant();
+
+            trackSubscribedHandler(mockVideoTrack, {}, mockParticipant);
+
+            expect(mockOnVideoStateChange).toHaveBeenCalledWith(StreamingState.Start);
+        });
+
+        it('should call onVideoStateChange with Stop and report when video track is unsubscribed', async () => {
+            const mockOnVideoStateChange = jest.fn();
+            options.callbacks.onVideoStateChange = mockOnVideoStateChange;
+            const mockReport = { duration: 1000 };
+            mockVideoStatsMonitor.getReport.mockReturnValue(mockReport);
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const trackSubscribedHandler = getTrackSubscribedHandler();
+            const trackUnsubscribedHandler = getTrackUnsubscribedHandler();
+            const mockVideoTrack = createMockVideoTrack();
+            const mockParticipant = createMockRemoteParticipant();
+
+            trackSubscribedHandler(mockVideoTrack, {}, mockParticipant);
+            mockOnVideoStateChange.mockClear();
+
+            trackUnsubscribedHandler(mockVideoTrack, {}, mockParticipant);
+
+            expect(mockOnVideoStateChange).toHaveBeenCalledWith(StreamingState.Stop, mockReport);
         });
     });
 });

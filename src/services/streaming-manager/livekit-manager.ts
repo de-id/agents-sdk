@@ -12,6 +12,7 @@ import {
     TransportProvider,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
+import { noop } from '@sdk/utils';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { latencyTimestampTracker } from '../analytics/timestamp-tracker';
@@ -30,6 +31,7 @@ import type {
     Track,
     TranscriptionSegment,
 } from 'livekit-client';
+import { createVideoStatsMonitor } from './stats/poll';
 
 async function importLiveKit(): Promise<{
     Room: typeof Room;
@@ -93,6 +95,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const streamType = StreamType.Fluent;
     let sharedMediaStream: MediaStream | null = null;
     let microphonePublication: LocalTrackPublication | null = null;
+    let videoStatsMonitor: ReturnType<typeof createVideoStatsMonitor> | null = null;
     // We defer Connected until video track is subscribed to align with WebRTC behavior
     let hasEmittedConnected = false;
 
@@ -262,6 +265,15 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             }
             log('CALLBACK: onVideoStateChange(Start)');
             callbacks.onVideoStateChange?.(StreamingState.Start);
+            videoStatsMonitor = createVideoStatsMonitor(
+                () => track.getRTCStatsReport(),
+                () => isConnected,
+                noop,
+                (state, _report) => {
+                    log(`Video state change: ${state}`);
+                }
+            );
+            videoStatsMonitor.start();
         }
     }
 
@@ -269,7 +281,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
 
         if (track.kind === 'video') {
-            callbacks.onVideoStateChange?.(StreamingState.Stop);
+            const report = videoStatsMonitor?.getReport();
+            videoStatsMonitor?.stop();
+            videoStatsMonitor = null;
+
+            callbacks.onVideoStateChange?.(StreamingState.Stop, report);
         }
     }
 

@@ -6,7 +6,7 @@ import {
     StreamingManagerOptions,
     TransportProvider,
 } from '../../types';
-import { createStreamingManager, StreamApiVersion } from './factory';
+import { StreamApiVersion, createStreamingManager } from './factory';
 
 const mockCreateWebRTCStreamingManager = jest.fn();
 jest.mock('./webrtc-manager', () => ({
