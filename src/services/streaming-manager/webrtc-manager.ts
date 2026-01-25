@@ -63,15 +63,19 @@ function handleLegacyStreamState({
     dataChannelSignal,
     onVideoStateChange,
     report,
+    log,
 }: {
     statsSignal?: StreamingState;
     dataChannelSignal?: StreamingState;
     onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'];
     report?: VideoRTCStatsReport;
+    log: ReturnType<typeof createStreamingLogger>;
 }) {
     if (statsSignal === StreamingState.Start && dataChannelSignal === StreamingState.Start) {
+        log('CALLBACK: onVideoStateChange(Start)');
         onVideoStateChange?.(StreamingState.Start);
     } else if (statsSignal === StreamingState.Stop && dataChannelSignal === StreamingState.Stop) {
+        log('CALLBACK: onVideoStateChange(Stop)');
         onVideoStateChange?.(StreamingState.Stop, report);
     }
 }
@@ -82,16 +86,20 @@ function handleFluentStreamState({
     onVideoStateChange,
     onAgentActivityStateChange,
     report,
+    log,
 }: {
     statsSignal?: StreamingState;
     dataChannelSignal?: StreamingState;
     onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'];
     onAgentActivityStateChange?: StreamingManagerOptions['callbacks']['onAgentActivityStateChange'];
     report?: VideoRTCStatsReport;
+    log: ReturnType<typeof createStreamingLogger>;
 }) {
     if (statsSignal === StreamingState.Start) {
+        log('CALLBACK: onVideoStateChange(Start)');
         onVideoStateChange?.(StreamingState.Start);
     } else if (statsSignal === StreamingState.Stop) {
+        log('CALLBACK: onVideoStateChange(Stop)');
         onVideoStateChange?.(StreamingState.Stop, report);
     }
 
@@ -109,6 +117,7 @@ function handleStreamState({
     onAgentActivityStateChange,
     streamType,
     report,
+    log,
 }: {
     statsSignal?: StreamingState;
     dataChannelSignal?: StreamingState;
@@ -116,9 +125,10 @@ function handleStreamState({
     onAgentActivityStateChange?: StreamingManagerOptions['callbacks']['onAgentActivityStateChange'];
     streamType: StreamType;
     report?: VideoRTCStatsReport;
+    log: ReturnType<typeof createStreamingLogger>;
 }) {
     if (streamType === StreamType.Legacy) {
-        handleLegacyStreamState({ statsSignal, dataChannelSignal, onVideoStateChange, report });
+        handleLegacyStreamState({ statsSignal, dataChannelSignal, onVideoStateChange, report, log });
     } else if (streamType === StreamType.Fluent) {
         handleFluentStreamState({
             statsSignal,
@@ -126,6 +136,7 @@ function handleStreamState({
             onVideoStateChange,
             onAgentActivityStateChange,
             report,
+            log,
         });
     }
 }
@@ -182,6 +193,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         isConnected = true;
 
         if (isDatachannelOpen) {
+            log('CALLBACK: onConnectionStateChange(Connected)');
             callbacks.onConnectionStateChange?.(ConnectionState.Connected);
         }
     };
@@ -198,6 +210,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
                 report,
                 streamType,
+                log,
             }),
         state => callbacks.onConnectivityStateChange?.(state)
     );
@@ -258,6 +271,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
             onVideoStateChange: callbacks.onVideoStateChange,
             onAgentActivityStateChange: callbacks.onAgentActivityStateChange,
             streamType,
+            log,
         });
     }
 
@@ -290,6 +304,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
 
     peerConnection.ontrack = (event: RTCTrackEvent) => {
         log('peerConnection.ontrack', event);
+        log('CALLBACK: onSrcObjectReady');
         callbacks.onSrcObjectReady?.(event.streams[0]);
     };
 
