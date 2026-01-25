@@ -49,11 +49,10 @@ export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data:
 export type ConnectionStateChangeCallback = (state: ConnectionState) => void;
 export type VideoStateChangeCallback = (state: StreamingState, data: any) => void;
 
-export type DebugMetadata =
-     {
-          type: string;
-          [key: string]: any;
-      };
+export type DebugMetadata = {
+    type: string;
+    [key: string]: any;
+};
 
 interface ManagerCallbacks {
     /**

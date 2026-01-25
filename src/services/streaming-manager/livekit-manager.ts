@@ -308,7 +308,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onAgentActivityStateChange?.(currentActivityState);
 
                 const role = data?.role || participant?.identity || 'datachannel';
-                const messageData = { [role]: data };
 
                 if (options.debug && subject === StreamEvents.StreamVideoCreated && data?.metadata?.sentiment) {
                     const sentiment = data.metadata.sentiment;
@@ -329,7 +328,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     });
                 }
 
-                callbacks.onMessage?.(subject, messageData);
+                callbacks.onMessage?.(subject, {
+                    [role]: data,
+                });
             } else if (subject === StreamEvents.ChatAudioTranscribed) {
                 const eventName = ChatProgress.Transcribe;
                 callbacks.onMessage?.(eventName, {
