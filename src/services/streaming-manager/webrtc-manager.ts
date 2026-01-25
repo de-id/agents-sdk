@@ -11,7 +11,7 @@ import {
     StreamType,
 } from '@sdk/types';
 import { createStreamingLogger, StreamingManager } from './common';
-import { pollStats } from './stats/poll';
+import { createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
 const actualRTCPC = (
@@ -198,8 +198,8 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         }
     };
 
-    const videoStatsInterval = pollStats(
-        peerConnection,
+    const videoStatsMonitor = createVideoStatsMonitor(
+        () => peerConnection.getStats(),
         getIsConnected,
         onConnected,
         (state, report) =>
@@ -214,6 +214,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
             }),
         state => callbacks.onConnectivityStateChange?.(state)
     );
+    videoStatsMonitor.start();
 
     peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         log('peerConnection.onicecandidate', event);
@@ -343,7 +344,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 if (peerConnection) {
                     if (state === ConnectionState.New) {
                         // Connection already closed
-                        clearInterval(videoStatsInterval);
+                        videoStatsMonitor.stop();
                         return;
                     }
 
@@ -363,7 +364,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 }
 
                 callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
-                clearInterval(videoStatsInterval);
+                videoStatsMonitor.stop();
             }
         },
         /**

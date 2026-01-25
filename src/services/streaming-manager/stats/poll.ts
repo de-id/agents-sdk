@@ -38,13 +38,15 @@ function createVideoStatsAnalyzer() {
     };
 }
 
-export function pollStats(
-    peerConnection: RTCPeerConnection,
+export function createVideoStatsMonitor(
+    getStats: () => Promise<RTCStatsReport | undefined>,
     getIsConnected: () => boolean,
     onConnected: () => void,
     onVideoStateChange?: (state: StreamingState, statsReport?: VideoRTCStatsReport) => void,
     onConnectivityStateChange?: (state: ConnectivityState) => void
 ) {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
     let allStats: SlimRTCStatsReport[] = [];
     let previousStats: SlimRTCStatsReport;
     let notReceivingNumIntervals = 0;
@@ -57,8 +59,12 @@ export function pollStats(
 
     const isReceivingVideoBytes = createVideoStatsAnalyzer();
 
-    return setInterval(async () => {
-        const stats = await peerConnection.getStats();
+    async function getAndAnalyzeVideoStats() {
+        const stats = await getStats();
+        if (!stats) {
+            return;
+        }
+
         const { isReceiving, avgJitterDelayInInterval, freezeCount } = isReceivingVideoBytes(stats);
         const slimStats = formatStats(stats);
 
@@ -105,5 +111,22 @@ export function pollStats(
                 isStreaming = false;
             }
         }
-    }, interval);
+    }
+
+    return {
+        start: () => {
+            if (intervalId) return;
+
+            intervalId = setInterval(getAndAnalyzeVideoStats, interval);
+        },
+        stop: () => {
+            if (!intervalId) return;
+
+            clearInterval(intervalId);
+            intervalId = null;
+        },
+        getReport: (): VideoRTCStatsReport => {
+            return createVideoStatsReport(allStats, interval, previousStats);
+        },
+    };
 }

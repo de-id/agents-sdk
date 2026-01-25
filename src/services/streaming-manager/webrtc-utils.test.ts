@@ -8,7 +8,13 @@ import { createParseDataChannelMessage, mapConnectionState } from './webrtc-mana
 
 // Mock dependencies to avoid import issues
 jest.mock('../../api/streams', () => ({ createStreamApi: jest.fn() }));
-jest.mock('./stats/poll', () => ({ pollStats: jest.fn() }));
+jest.mock('./stats/poll', () => ({
+    createVideoStatsMonitor: jest.fn(() => ({
+        start: jest.fn(),
+        stop: jest.fn(),
+        getReport: jest.fn(() => ({})),
+    })),
+}));
 jest.mock('../../config/environment', () => ({ didApiUrl: 'http://test-api.com' }));
 
 describe('Streaming Manager Utilities', () => {
