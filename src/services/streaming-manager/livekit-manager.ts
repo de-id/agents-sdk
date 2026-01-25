@@ -311,11 +311,15 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 
                 const messageData: any = { [role]: data };
                 
-                if (options.debug && subject === StreamEvents.StreamVideoCreated && data?.metadata?.sentiment) {
-                    messageData.sentiment = {
-                        id: data.metadata.sentiment.id,
-                        name: data.metadata.sentiment.sentiment
-                    };
+                if (options.debug) {
+                    if (subject === StreamEvents.StreamVideoCreated && data?.metadata?.sentiment) {
+                        messageData.sentiment = {
+                            id: data.metadata.sentiment.id,
+                            name: data.metadata.sentiment.sentiment
+                        };
+                    } else if (subject === StreamEvents.StreamVideoDone) {
+                        messageData.sentiment = null;
+                    }
                 }
 
                 callbacks.onMessage?.(subject, messageData);

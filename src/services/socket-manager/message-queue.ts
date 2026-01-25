@@ -152,7 +152,8 @@ export function createMessageEventQueue(
                     if (data.sentiment) {
                         const lastMessage = items.messages[items.messages.length - 1];
                         if (lastMessage?.role === 'assistant') {
-                            lastMessage.sentiment = data.sentiment;
+                            const updatedMessage = { ...lastMessage, sentiment: data.sentiment };
+                            items.messages[items.messages.length - 1] = updatedMessage;
                             onNewMessage?.([...items.messages], lastMessageType);
                         }
                     }
@@ -162,7 +163,9 @@ export function createMessageEventQueue(
                     if (data.sentiment === null) {
                         const lastMessage = items.messages[items.messages.length - 1];
                         if (lastMessage?.role === 'assistant') {
-                            delete lastMessage.sentiment;
+
+                            const updatedMessage = { ...lastMessage, sentiment: data.sentiment };
+                            items.messages[items.messages.length - 1] = updatedMessage;
                             onNewMessage?.([...items.messages], lastMessageType);
                         }
                     }
