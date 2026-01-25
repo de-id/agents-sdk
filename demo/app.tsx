@@ -13,7 +13,7 @@ export function App() {
     const [mode, setMode] = useState<ChatMode>(ChatMode.Functional);
     const [sessionTimeout, setSessionTimeout] = useState<number | undefined>();
     const [compatibilityMode, setCompatibilityMode] = useState<'on' | 'off' | 'auto'>();
-    const [fluent, setFluent] = useState(false);
+    const [fluent, setFluent] = useState(true);
     const [enableMicrophone, setEnableMicrophone] = useState(true);
     const [microphoneStream, setMicrophoneStream] = useState<MediaStream | undefined>(undefined);
     const microphoneStreamRef = useRef<MediaStream | undefined>(undefined);
