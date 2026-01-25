@@ -11,9 +11,14 @@ import { createWebRTCStreamingManager as createStreamingManager } from './webrtc
 const mockApi = StreamApiFactory.build();
 jest.mock('../../api/streams', () => ({ createStreamApi: jest.fn(() => mockApi) }));
 
-// Mock pollStats
+// Mock createVideoStatsMonitor
+const mockVideoStatsMonitor = {
+    start: jest.fn(),
+    stop: jest.fn(),
+    getReport: jest.fn(() => ({})),
+};
 jest.mock('./stats/poll', () => ({
-    pollStats: jest.fn(() => 123), // mock interval id
+    createVideoStatsMonitor: jest.fn(() => mockVideoStatsMonitor),
 }));
 
 // Mock other dependencies as needed
@@ -93,18 +98,14 @@ describe('Streaming Manager Disconnect', () => {
             expect(mockApi.close).toHaveBeenCalledWith('streamId', 'sessionId');
         });
 
-        it('should handle clearInterval in disconnect', async () => {
+        it('should handle videoStatsMonitor.stop in disconnect', async () => {
             const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
-            const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-
             await manager.disconnect();
 
-            expect(clearIntervalSpy).toHaveBeenCalled();
-
-            clearIntervalSpy.mockRestore();
+            expect(mockVideoStatsMonitor.stop).toHaveBeenCalled();
         });
 
         it('should handle agent activity state changes on disconnect', async () => {
@@ -130,19 +131,15 @@ describe('Streaming Manager Disconnect', () => {
             expect(mockPC.ontrack).toBeNull();
         });
 
-        it('should handle disconnect cleanup and clearInterval', async () => {
+        it('should handle disconnect cleanup and videoStatsMonitor.stop', async () => {
             const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
-            const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-
             await manager.disconnect();
 
-            expect(clearIntervalSpy).toHaveBeenCalled();
+            expect(mockVideoStatsMonitor.stop).toHaveBeenCalled();
             expect(options.callbacks.onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
-
-            clearIntervalSpy.mockRestore();
         });
 
         it('should handle srcObject cleanup in disconnect', async () => {
@@ -162,12 +159,11 @@ describe('Streaming Manager Disconnect', () => {
             mockPC.iceConnectionState = 'connected';
 
             const closeSpy = jest.spyOn(mockPC, 'close');
-            const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
 
             await manager.disconnect();
 
             expect(closeSpy).toHaveBeenCalled();
-            expect(clearIntervalSpy).toHaveBeenCalled();
+            expect(mockVideoStatsMonitor.stop).toHaveBeenCalled();
             expect(mockPC.oniceconnectionstatechange).toBeNull();
             expect(mockPC.onnegotiationneeded).toBeNull();
             expect(mockPC.onicecandidate).toBeNull();
@@ -175,7 +171,6 @@ describe('Streaming Manager Disconnect', () => {
             expect(options.callbacks.onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
 
             closeSpy.mockRestore();
-            clearIntervalSpy.mockRestore();
         });
     });
 
@@ -231,18 +226,14 @@ describe('Streaming Manager Disconnect', () => {
             expect(manager.streamId).toBe('streamId');
         });
 
-        it('should handle clearInterval on disconnect', async () => {
+        it('should handle videoStatsMonitor.stop on disconnect', async () => {
             const manager = await createStreamingManager(agentId, agentStreamOptions, options);
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
-            const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-
             await manager.disconnect();
 
-            expect(clearIntervalSpy).toHaveBeenCalled();
-
-            clearIntervalSpy.mockRestore();
+            expect(mockVideoStatsMonitor.stop).toHaveBeenCalled();
         });
 
         it('should handle complete disconnect cleanup sequence', async () => {
@@ -250,14 +241,10 @@ describe('Streaming Manager Disconnect', () => {
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
-            const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-
             await manager.disconnect();
 
-            expect(clearIntervalSpy).toHaveBeenCalled();
+            expect(mockVideoStatsMonitor.stop).toHaveBeenCalled();
             expect(options.callbacks.onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
-
-            clearIntervalSpy.mockRestore();
         });
 
         it('should execute all disconnect cleanup paths', async () => {
@@ -265,14 +252,10 @@ describe('Streaming Manager Disconnect', () => {
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'connected';
 
-            const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-
             await manager.disconnect();
 
-            expect(clearIntervalSpy).toHaveBeenCalled();
+            expect(mockVideoStatsMonitor.stop).toHaveBeenCalled();
             expect(options.callbacks.onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
-
-            clearIntervalSpy.mockRestore();
         });
     });
 

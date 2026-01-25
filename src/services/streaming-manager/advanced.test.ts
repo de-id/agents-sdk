@@ -5,7 +5,7 @@
 
 import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
-import { pollStats } from './stats/poll';
+import { createVideoStatsMonitor } from './stats/poll';
 import {
     createParseDataChannelMessage,
     createWebRTCStreamingManager as createStreamingManager,
@@ -15,9 +15,14 @@ import {
 const mockApi = StreamApiFactory.build();
 jest.mock('../../api/streams', () => ({ createStreamApi: jest.fn(() => mockApi) }));
 
-// Mock pollStats
+// Mock createVideoStatsMonitor
+const mockVideoStatsMonitor = {
+    start: jest.fn(),
+    stop: jest.fn(),
+    getReport: jest.fn(() => ({})),
+};
 jest.mock('./stats/poll', () => ({
-    pollStats: jest.fn(() => 123), // mock interval id
+    createVideoStatsMonitor: jest.fn(() => mockVideoStatsMonitor),
 }));
 
 // Mock other dependencies as needed
@@ -391,7 +396,7 @@ describe('Streaming Manager Advanced', () => {
         it('should handle connectivity state changes via pollStats', async () => {
             const manager = await createStreamingManager(agentId, agent, options);
 
-            expect(pollStats).toHaveBeenCalledWith(
+            expect(createVideoStatsMonitor).toHaveBeenCalledWith(
                 expect.anything(),
                 expect.anything(),
                 expect.anything(),
@@ -399,7 +404,7 @@ describe('Streaming Manager Advanced', () => {
                 expect.any(Function)
             );
 
-            const connectivityCallback = (pollStats as jest.Mock).mock.calls[0][4];
+            const connectivityCallback = (createVideoStatsMonitor as jest.Mock).mock.calls[0][4];
 
             connectivityCallback('test-connectivity-state');
             expect(options.callbacks.onConnectivityStateChange).toHaveBeenCalledWith('test-connectivity-state');
@@ -408,7 +413,7 @@ describe('Streaming Manager Advanced', () => {
         it('should handle pollStats return value', async () => {
             const manager = await createStreamingManager(agentId, agent, options);
 
-            expect(pollStats).toHaveBeenCalled();
+            expect(createVideoStatsMonitor).toHaveBeenCalled();
 
             expect(manager.streamId).toBe('streamId');
         });
@@ -416,7 +421,7 @@ describe('Streaming Manager Advanced', () => {
         it('should handle video stats interval management', async () => {
             const manager = await createStreamingManager(agentId, agent, options);
 
-            expect(pollStats).toHaveBeenCalledWith(
+            expect(createVideoStatsMonitor).toHaveBeenCalledWith(
                 expect.anything(),
                 expect.anything(),
                 expect.anything(),
@@ -430,7 +435,7 @@ describe('Streaming Manager Advanced', () => {
         it('should handle pollStats function execution and return', async () => {
             const manager = await createStreamingManager(agentId, agent, options);
 
-            expect(pollStats).toHaveBeenCalled();
+            expect(createVideoStatsMonitor).toHaveBeenCalled();
             expect(manager.streamId).toBe('streamId');
             expect(manager.sessionId).toBe('sessionId');
         });
