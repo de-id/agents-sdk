@@ -14,6 +14,7 @@ import {
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
+import { latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createStreamingLogger, StreamingManager } from './common';
 
 import type {
@@ -150,9 +151,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     callbacks.onConnectionStateChange?.(ConnectionState.New);
 
     function handleTranscriptionReceived(_segments: TranscriptionSegment[], participant?: Participant): void {
-        if (participant?.isLocal && currentActivityState === AgentActivityState.Talking) {
-            callbacks.onInterruptDetected?.({ type: 'audio' });
-            currentActivityState = AgentActivityState.Idle;
+        if (participant?.isLocal) {
+            latencyTimestampTracker.update();
+            if (currentActivityState === AgentActivityState.Talking) {
+                callbacks.onInterruptDetected?.({ type: 'audio' });
+                currentActivityState = AgentActivityState.Idle;
+            }
         }
     }
     try {
