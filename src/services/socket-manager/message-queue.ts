@@ -147,7 +147,7 @@ export function createMessageEventQueue(
 
                 if (event === SEvent.StreamVideoCreated) {
                     analytics.linkTrack('agent-video', props, SEvent.StreamVideoCreated, ['start']);
-                    
+
                     // Attach sentiment to the last assistant message if present
                     if (data.sentiment) {
                         const lastMessage = items.messages[items.messages.length - 1];
@@ -157,20 +157,17 @@ export function createMessageEventQueue(
                             onNewMessage?.([...items.messages], lastMessageType);
                         }
                     }
-                }
-                
-                else if (event === SEvent.StreamVideoDone) {
+                } else if (event === SEvent.StreamVideoDone) {
                     if (data.sentiment === null) {
                         const lastMessage = items.messages[items.messages.length - 1];
                         if (lastMessage?.role === 'assistant') {
-
                             const updatedMessage = { ...lastMessage, sentiment: data.sentiment };
                             items.messages[items.messages.length - 1] = updatedMessage;
                             onNewMessage?.([...items.messages], lastMessageType);
                         }
                     }
                 }
-                
+
                 if (completedEvents.includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];

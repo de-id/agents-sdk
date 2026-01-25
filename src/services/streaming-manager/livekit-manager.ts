@@ -320,14 +320,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onAgentActivityStateChange?.(currentActivityState);
 
                 const role = data?.role || participant?.identity || 'datachannel';
-                
+
                 const messageData: any = { [role]: data };
-                
+
                 if (options.debug) {
                     if (subject === StreamEvents.StreamVideoCreated && data?.metadata?.sentiment) {
                         messageData.sentiment = {
                             id: data.metadata.sentiment.id,
-                            name: data.metadata.sentiment.sentiment
+                            name: data.metadata.sentiment.sentiment,
                         };
                     } else if (subject === StreamEvents.StreamVideoDone) {
                         messageData.sentiment = null;
