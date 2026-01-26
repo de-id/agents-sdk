@@ -94,6 +94,7 @@ jobs:
           delogger -l info -m "Updated package.json version to: ${{ steps.version.outputs.version }}"
 
       - name: Publish to NPM
+        if: ${{ false }} # Disable publishing to NPM for testing purposes
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -109,7 +110,7 @@ jobs:
           fi
 
       - name: Create Git tag for production
-        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        #if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
           delogger -l info -m "Creating Git tag for production"
 
