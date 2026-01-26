@@ -34,6 +34,10 @@ export interface Message {
     videoId?: string;
     interrupted?: boolean;
     transcribed?: boolean;
+    sentiment?: {
+        id: string;
+        name: string;
+    };
 }
 
 export interface ChatPayload {
