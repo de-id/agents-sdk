@@ -78,7 +78,7 @@ export function handleInitError(
     callbacks: StreamingManagerOptions['callbacks']
 ): void {
     log('Failed to connect to LiveKit room:', error);
-    callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+    callbacks.onConnectionStateChange?.(ConnectionState.Fail, 'internal:init-error');
     callbacks.onError?.(error as Error, { sessionId: '' });
     throw error;
 }
@@ -140,7 +140,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     room.on(RoomEvent.ConnectionStateChanged, handleConnectionStateChanged)
         .on(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged)
-        .on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged)
         .on(RoomEvent.ParticipantConnected, handleParticipantConnected)
         .on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected)
         .on(RoomEvent.TrackSubscribed, handleTrackSubscribed)
@@ -172,7 +171,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 sessionId,
             });
             callbacks.onError?.(new Error('Track subscription timeout'), { sessionId });
-            disconnect();
+            disconnect('internal:track-subscription-timeout');
         }, TRACK_SUBSCRIPTION_TIMEOUT_MS);
     } catch (error) {
         handleInitError(error, log, callbacks);
@@ -187,26 +186,25 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         switch (state) {
             case LiveKitConnectionState.Connecting:
                 log('CALLBACK: onConnectionStateChange(Connecting)');
-                callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+                callbacks.onConnectionStateChange?.(ConnectionState.Connecting, 'livekit:connecting');
                 break;
             case LiveKitConnectionState.Connected:
                 log('LiveKit room connected successfully');
                 isConnected = true;
-
                 break;
             case LiveKitConnectionState.Disconnected:
                 log('LiveKit room disconnected');
                 isConnected = false;
                 hasEmittedConnected = false;
-                callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+                callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, 'livekit:disconnected');
                 break;
             case LiveKitConnectionState.Reconnecting:
                 log('LiveKit room reconnecting...');
-                callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+                callbacks.onConnectionStateChange?.(ConnectionState.Connecting, 'livekit:reconnecting');
                 break;
             case LiveKitConnectionState.SignalReconnecting:
                 log('LiveKit room signal reconnecting...');
-                callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+                callbacks.onConnectionStateChange?.(ConnectionState.Connecting, 'livekit:signal-reconnecting');
                 break;
         }
     }
@@ -218,10 +216,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    function handleActiveSpeakersChanged(activeSpeakers: Participant[]): void {
-        log('Active speakers changed:', activeSpeakers);
-    }
-
     function handleParticipantConnected(participant: RemoteParticipant): void {
         log('Participant connected:', participant.identity);
     }
@@ -230,7 +224,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log('Participant disconnected:', participant.identity);
 
         // Agent left the room - treat as disconnect
-        disconnect();
+        disconnect('livekit:participant-disconnected');
     }
 
     function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
@@ -264,7 +258,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             if (!hasEmittedConnected) {
                 hasEmittedConnected = true;
                 log('CALLBACK: onConnectionStateChange(Connected)');
-                callbacks.onConnectionStateChange?.(ConnectionState.Connected);
+                callbacks.onConnectionStateChange?.(ConnectionState.Connected, 'livekit:track-subscribed');
             }
             log('CALLBACK: onVideoStateChange(Start)');
             callbacks.onVideoStateChange?.(StreamingState.Start);
@@ -502,7 +496,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         return sendMessage(message, DataChannelTopic.Chat);
     }
 
-    async function disconnect() {
+    async function disconnect(reason: string) {
         if (trackSubscriptionTimeoutId) {
             clearTimeout(trackSubscriptionTimeoutId);
             trackSubscriptionTimeoutId = null;
@@ -510,12 +504,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         if (room) {
             await unpublishMicrophoneStream();
+            callbacks.onConnectionStateChange?.(ConnectionState.Disconnecting, reason);
             await room.disconnect();
         }
         cleanMediaStream();
         isConnected = false;
         hasEmittedConnected = false;
-        callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         currentActivityState = AgentActivityState.Idle;
     }
@@ -526,7 +520,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             return sendMessage(message, DataChannelTopic.Speak);
         },
 
-        disconnect,
+        disconnect: () => disconnect('user:disconnect'),
 
         async reconnect() {
             if (room?.state === LiveKitConnectionState.Connected) {
@@ -541,7 +535,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
             log('Reconnecting to LiveKit room, state:', room.state);
             hasEmittedConnected = false;
-            callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+            callbacks.onConnectionStateChange?.(ConnectionState.Connecting, 'user:reconnect');
 
             try {
                 await room.connect(url, token);
@@ -573,11 +567,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                         throw new Error('Agent did not rejoin the room');
                     }
 
-                    log('Agent joined');
+                    log('Agent joined, reconnection successful');
                 }
+
+                callbacks.onConnectionStateChange?.(ConnectionState.Connected, 'user:reconnect-success');
             } catch (error) {
                 log('Failed to reconnect:', error);
-                callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+                callbacks.onConnectionStateChange?.(ConnectionState.Fail, 'user:reconnect-failed');
                 throw error;
             }
         },
