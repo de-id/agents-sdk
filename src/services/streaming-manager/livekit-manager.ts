@@ -70,7 +70,7 @@ export enum DataChannelTopic {
     Interrupt = 'did.interrupt',
 }
 
-type VideoMessageData = Pick<Message, 'role' | 'sentiment'>
+type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
 
 export function handleInitError(
     error: unknown,
@@ -327,11 +327,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 const messageData: VideoMessageData = { [role]: data };
 
                 if (options.debug && data?.metadata?.sentiment) {
-                        messageData.sentiment = {
-                            id: data.metadata.sentiment.id,
-                            name: data.metadata.sentiment.sentiment,
-                        };
-              
+                    messageData.sentiment = {
+                        id: data.metadata.sentiment.id,
+                        name: data.metadata.sentiment.sentiment,
+                    };
                 }
 
                 callbacks.onMessage?.(subject, messageData);
