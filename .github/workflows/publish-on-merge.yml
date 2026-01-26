@@ -90,12 +90,6 @@ jobs:
 
       - name: Update package.json version
         run: |
-          #### fetch prod and checkout to prod branch
-          git fetch origin prod
-          git checkout prod
-          git pull origin prod
-          ####
-          
           logger -l info -m "Updating package.json version"
           jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' package.json > package.json.tmp
 
@@ -140,6 +134,7 @@ jobs:
 
       - name: Commit version bump (prod only)
         #if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        if: ${{ false }}
         run: |
           logger -l info -m "Committing version bump"
 
@@ -155,6 +150,7 @@ jobs:
 
       - name: Sync version back to main (prod only)
         # if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        if: ${{ false }}
         run: |
           logger -l info -m "Fetching latest main"
           git fetch origin main
