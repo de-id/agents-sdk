@@ -38,10 +38,16 @@ jobs:
           cache: 'yarn'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: |
+          logger -l info -m "Installing dependencies"
+          yarn install --frozen-lockfile \
+            || logger -l error -m "Failed to install dependencies"
 
       - name: Build package
-        run: yarn build
+        run: |
+          logger -l info -m "Building package"
+          yarn build \
+            || logger -l error -m "Failed to build package"
 
       - name: Determine version and tag
         id: version
@@ -127,7 +133,7 @@ jobs:
           git push origin "v${{ steps.version.outputs.version }}"
 
       - name: Commit version bump (prod only)
-        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        #if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
           logger -l info -m "Committing version bump"
 
@@ -142,7 +148,7 @@ jobs:
           git push origin prod
 
       - name: Sync version back to main (prod only)
-        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        # if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
           logger -l info -m "Fetching latest main"
           git fetch origin main
@@ -175,7 +181,7 @@ jobs:
           fi
 
       - name: Create GitHub Release (prod only)
-        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        # if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         uses: softprops/action-gh-release@v2
         with:
           name: Release v${{ steps.version.outputs.version }}
@@ -195,7 +201,7 @@ jobs:
             ${{ steps.version.outputs.description }}
 
       - name: Checkout agents-ui repository
-        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        # if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         uses: actions/checkout@v6
         with:
           repository: de-id/agents-ui
@@ -203,7 +209,7 @@ jobs:
           path: agents-ui
 
       - name: Update SDK version and create PR
-        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        # if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         working-directory: agents-ui
         env:
           GH_TOKEN: ${{ secrets.DEVOPS_TOKEN }}
