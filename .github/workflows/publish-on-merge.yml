@@ -141,6 +141,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          #### fetch prod and checkout to prod branch
+          git fetch origin prod
+          git checkout prod
+          git pull origin prod
+          ####
+
           git add package.json
 
           logger -l info -m "Committing version bump without triggering the CICD pipeline"
