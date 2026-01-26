@@ -65,6 +65,13 @@ function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions):
         : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
 }
 
+function trackConnectionStateChangeAnalytics(
+    state: ConnectionState,
+    analytics: Analytics
+) {
+    analytics.track('connection-state-change', { state });
+}
+
 function trackVideoStateChangeAnalytics(
     state: StreamingState,
     agent: Agent,
@@ -201,6 +208,8 @@ function connectToManager(
                         ...options.callbacks,
                         onConnectionStateChange: state => {
                             options.callbacks.onConnectionStateChange?.(state);
+
+                            trackConnectionStateChangeAnalytics(state, analytics);
 
                             if (state === ConnectionState.Connected) {
                                 // If manager is ready, resolve immediately
