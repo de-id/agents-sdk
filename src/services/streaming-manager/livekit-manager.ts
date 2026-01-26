@@ -69,6 +69,11 @@ export enum DataChannelTopic {
     Interrupt = 'did.interrupt',
 }
 
+interface VideoMessageData {
+    sentiment?: { id: string; name: string } | null;
+    [role: string]: unknown;
+}
+
 export function handleInitError(
     error: unknown,
     log: (message?: any, ...optionalParams: any[]) => void,
@@ -321,17 +326,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
                 const role = data?.role || participant?.identity || 'datachannel';
 
-                const messageData: any = { [role]: data };
+                const messageData: VideoMessageData = { [role]: data };
 
-                if (options.debug) {
-                    if (subject === StreamEvents.StreamVideoCreated && data?.metadata?.sentiment) {
+                if (options.debug && data?.metadata?.sentiment) {
                         messageData.sentiment = {
                             id: data.metadata.sentiment.id,
                             name: data.metadata.sentiment.sentiment,
                         };
-                    } else if (subject === StreamEvents.StreamVideoDone) {
-                        messageData.sentiment = null;
-                    }
+              
                 }
 
                 callbacks.onMessage?.(subject, messageData);

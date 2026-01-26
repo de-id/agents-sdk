@@ -157,15 +157,6 @@ export function createMessageEventQueue(
                             onNewMessage?.([...items.messages], lastMessageType);
                         }
                     }
-                } else if (event === SEvent.StreamVideoDone) {
-                    if (data.sentiment === null) {
-                        const lastMessage = items.messages[items.messages.length - 1];
-                        if (lastMessage?.role === 'assistant') {
-                            const updatedMessage = { ...lastMessage, sentiment: data.sentiment };
-                            items.messages[items.messages.length - 1] = updatedMessage;
-                            onNewMessage?.([...items.messages], lastMessageType);
-                        }
-                    }
                 }
 
                 if (completedEvents.includes(event)) {
