@@ -90,6 +90,12 @@ jobs:
 
       - name: Update package.json version
         run: |
+          #### fetch prod and checkout to prod branch
+          git fetch origin prod
+          git checkout prod
+          git pull origin prod
+          ####
+          
           logger -l info -m "Updating package.json version"
           jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' package.json > package.json.tmp
 
@@ -140,12 +146,6 @@ jobs:
           logger -l info -m "Configuring Git user"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          #### fetch prod and checkout to prod branch
-          git fetch origin prod
-          git checkout prod
-          git pull origin prod
-          ####
 
           git add package.json
 
