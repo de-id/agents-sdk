@@ -23,7 +23,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          # ref: prod
 
       - name: Setup logger
         run: |
@@ -102,7 +101,6 @@ jobs:
           logger -l info -m "Updated package.json version to: ${{ steps.version.outputs.version }}"
 
       - name: Publish to NPM
-        if: ${{ false }} # Disable publishing to NPM for testing purposes
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -118,7 +116,7 @@ jobs:
           fi
 
       - name: Create Git tag for production
-        #if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
           logger -l info -m "Creating Git tag for production"
 
@@ -133,7 +131,7 @@ jobs:
           git push origin "v${{ steps.version.outputs.version }}"
 
       - name: Commit version bump (prod only)
-        #if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         if: ${{ false }}
         run: |
           logger -l info -m "Committing version bump"
@@ -149,7 +147,7 @@ jobs:
           git push origin prod
 
       - name: Sync version back to main (prod only)
-        # if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         if: ${{ false }}
         run: |
           logger -l info -m "Fetching latest main"
@@ -183,7 +181,7 @@ jobs:
           fi
 
       - name: Create GitHub Release (prod only)
-        # if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         uses: softprops/action-gh-release@v2
         with:
           name: Release v${{ steps.version.outputs.version }}
@@ -203,7 +201,7 @@ jobs:
             ${{ steps.version.outputs.description }}
 
       - name: Checkout agents-ui repository
-        # if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         uses: actions/checkout@v6
         with:
           repository: de-id/agents-ui
@@ -211,7 +209,7 @@ jobs:
           path: agents-ui
 
       - name: Update SDK version and create PR
-        # if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         working-directory: agents-ui
         env:
           GH_TOKEN: ${{ secrets.DEVOPS_TOKEN }}
