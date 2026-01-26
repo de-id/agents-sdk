@@ -1,4 +1,5 @@
 import {
+    Agent,
     AgentManager,
     AgentManagerOptions,
     Chat,
@@ -82,6 +83,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
 
     const agentEntity = await agentsApi.getById(agent);
+    options.debug =
+        options.debug ||
+        (agentEntity as Agent & { advanced_settings?: { ui_debug_mode?: boolean } })?.advanced_settings
+            ?.ui_debug_mode;
+
     const isStreamsV2 = isStreamsV2Agent(agentEntity.presenter.type);
     analytics.enrich(getAgentInfo(agentEntity));
 
