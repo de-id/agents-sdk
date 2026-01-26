@@ -4,6 +4,7 @@ import {
     ConnectivityState,
     CreateSessionV2Options,
     CreateStreamOptions,
+    Message,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
@@ -69,10 +70,7 @@ export enum DataChannelTopic {
     Interrupt = 'did.interrupt',
 }
 
-interface VideoMessageData {
-    sentiment?: { id: string; name: string } | null;
-    [role: string]: unknown;
-}
+type VideoMessageData = Pick<Message, 'role' | 'sentiment'>
 
 export function handleInitError(
     error: unknown,
