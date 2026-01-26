@@ -132,7 +132,6 @@ jobs:
 
       - name: Commit version bump (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
-        if: ${{ false }}
         run: |
           logger -l info -m "Committing version bump"
 
@@ -148,7 +147,6 @@ jobs:
 
       - name: Sync version back to main (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
-        if: ${{ false }}
         run: |
           logger -l info -m "Fetching latest main"
           git fetch origin main
