@@ -14,29 +14,21 @@ on:
 permissions:
   contents: write
 
-env:
-  INFO_COLOR: "\033[0;32m"    # Green
-  ERROR_COLOR: "\033[0;31m"   # Red
-  RESET_COLOR: "\033[0m"      # Reset to default
-
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-
-      - name: Setup logging functions
-        run: |
-          cat >> ~/.bashrc << 'EOF'
-          log_info() { echo "${INFO_COLOR}INFO:${RESET_COLOR} $1"; }
-          log_error() { echo "${ERROR_COLOR}ERROR:${RESET_COLOR} $1"; exit 1; }
-          EOF
-          echo "BASH_ENV=~/.bashrc" >> $GITHUB_ENV
 
       - name: Checkout agents-sdk repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: prod
+
+      - name: Setup logger
+        run: |
+          sudo cp .github/scripts/logger.sh /usr/local/bin/logger
+          sudo chmod +x /usr/local/bin/logger
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -57,17 +49,17 @@ jobs:
           if [ "${{ github.ref_name }}" = "main" ]; then
             # For main branch - staging versions with run number
             BASE_VERSION=$(jq -r '.version' package.json)
-            log_info "Base version: $BASE_VERSION"
+            logger -l info -m "Base version: $BASE_VERSION"
 
             if [ "$BASE_VERSION" = "null" ]; then
-              log_error "Could not read version from package.json"
+              logger -l error -m "Could not read version from package.json"
             fi
 
             CLEAN_VERSION=$(echo "$BASE_VERSION" | sed 's/-.*$//')
             STAGING_VERSION="${CLEAN_VERSION}-staging.${{ github.run_number }}"
 
-            log_info "Clean version: $CLEAN_VERSION"
-            log_info "Staging version: $STAGING_VERSION"
+            logger -l info -m "Clean version: $CLEAN_VERSION"
+            logger -l info -m "Staging version: $STAGING_VERSION"
 
             echo "version=$STAGING_VERSION" >> $GITHUB_OUTPUT
             echo "tag=staging" >> $GITHUB_OUTPUT
@@ -75,14 +67,14 @@ jobs:
             echo "should_sync=false" >> $GITHUB_OUTPUT
           else
             # For prod branch - production versions
-            log_info "Determining production version"
+            logger -l info -m "Determining production version"
 
             # Use npm version command (official npm way to bump versions)
             NEW_VERSION=$(npm version patch --no-git-tag-version --silent)
-            log_info "New version: $NEW_VERSION"
+            logger -l info -m "New version: $NEW_VERSION"
 
             NEW_VERSION=${NEW_VERSION#v}  # Remove 'v' prefix if present
-            log_info "New version without 'v' prefix: $NEW_VERSION"
+            logger -l info -m "New version without 'v' prefix: $NEW_VERSION"
 
             echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
             echo "tag=latest" >> $GITHUB_OUTPUT
@@ -92,16 +84,16 @@ jobs:
 
       - name: Update package.json version
         run: |
-          log_info "Updating package.json version"
+          logger -l info -m "Updating package.json version"
           jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' package.json > package.json.tmp
 
           if ! jq empty package.json.tmp 4>/dev/null; then
             rm -f package.json.tmp
-            log_error "Generated invalid JSON"
+            logger -l error -m "Generated invalid JSON"
           fi
 
           mv package.json.tmp package.json
-          log_info "Updated package.json version to: ${{ steps.version.outputs.version }}"
+          logger -l info -m "Updated package.json version to: ${{ steps.version.outputs.version }}"
 
       - name: Publish to NPM
         if: ${{ false }} # Disable publishing to NPM for testing purposes
@@ -109,76 +101,76 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            log_info "🔍 DRY RUN MODE: Would publish version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
-            log_info "📦 Package would be published to: https://www.npmjs.com/package/@d-id/client-sdk/v/${{ steps.version.outputs.version }}"
-            log_info "🏷️  NPM tag would be: ${{ steps.version.outputs.tag }}"
-            log_info "✅ Dry run completed successfully - no actual publishing occurred"
+            logger -l info -m "🔍 DRY RUN MODE: Would publish version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
+            logger -l info -m "📦 Package would be published to: https://www.npmjs.com/package/@d-id/client-sdk/v/${{ steps.version.outputs.version }}"
+            logger -l info -m "🏷️  NPM tag would be: ${{ steps.version.outputs.tag }}"
+            logger -l info -m "✅ Dry run completed successfully - no actual publishing occurred"
           else
-            log_info "🚀 Publishing version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
+            logger -l info -m "🚀 Publishing version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
             npm publish --access public --tag ${{ steps.version.outputs.tag }}
-            log_info "✅ Successfully published to NPM"
+            logger -l info -m "✅ Successfully published to NPM"
           fi
 
       - name: Create Git tag for production
         #if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
-          log_info "Creating Git tag for production"
+          logger -l info -m "Creating Git tag for production"
 
-          log_info "Configuring Git user"
+          logger -l info -m "Configuring Git user"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          log_info "Creating Git tag"
+          logger -l info -m "Creating Git tag"
           git tag "v${{ steps.version.outputs.version }}"
 
-          log_info "Pushing Git tag to origin"
+          logger -l info -m "Pushing Git tag to origin"
           git push origin "v${{ steps.version.outputs.version }}"
 
       - name: Commit version bump (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
-          log_info "Committing version bump"
+          logger -l info -m "Committing version bump"
 
-          log_info "Configuring Git user"
+          logger -l info -m "Configuring Git user"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add package.json
 
-          log_info "Committing version bump without triggering the CICD pipeline"
-          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]" || log_info "No changes to commit"
+          logger -l info -m "Committing version bump without triggering the CICD pipeline"
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]" || logger -l info -m "No changes to commit"
           git push origin prod
 
       - name: Sync version back to main (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
-          log_info "Fetching latest main"
+          logger -l info -m "Fetching latest main"
           git fetch origin main
           git checkout main
           git pull origin main
 
-          log_info "Updating package.json version"
+          logger -l info -m "Updating package.json version"
           jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' package.json > package.json.tmp
 
           if ! jq empty package.json.tmp 4>/dev/null; then
             rm -f package.json.tmp
-            log_error "Generated invalid JSON"
+            logger -l error -m "Generated invalid JSON"
           fi
 
           mv package.json.tmp package.json
 
           if git diff --quiet package.json; then
-            log_info "No version changes needed"
+            logger -l info -m "No version changes needed"
           else
-            log_info "Configuring Git user"
+            logger -l info -m "Configuring Git user"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            log_info "Adding and committing package.json to main branch without triggering the CICD pipeline"
+            logger -l info -m "Adding and committing package.json to main branch without triggering the CICD pipeline"
             git add package.json
             git commit -m "chore: sync version ${{ steps.version.outputs.version }} from prod [skip ci]"
 
-            log_info "Pushing package.json to main branch"
+            logger -l info -m "Pushing package.json to main branch"
             git push origin main
           fi
 
@@ -216,31 +208,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.DEVOPS_TOKEN }}
         run: |
-          log_info "Updating SDK version in agents-ui"
+          logger -l info -m "Updating SDK version in agents-ui"
 
           jq --arg version "${{ steps.version.outputs.version }}" '.dependencies."@d-id/client-sdk" = $version' package.json > package.json.tmp
           mv package.json.tmp package.json
 
           if git diff --quiet package.json; then
-            log_info "No version changes needed in agents-ui"
+            logger -l info -m "No version changes needed in agents-ui"
             exit 0
           fi
 
-          log_info "Creating new branch"
+          logger -l info -m "Creating new branch"
           git checkout -b "chore/bump-sdk-version-${{ steps.version.outputs.version }}"
 
-          log_info "Configuring Git user"
+          logger -l info -m "Configuring Git user"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          log_info "Adding and committing package.json"
+          logger -l info -m "Adding and committing package.json"
           git add package.json
           git commit -m "chore: bump @d-id/client-sdk to v${{ steps.version.outputs.version }}"
 
-          log_info "Publishing branch to origin"
+          logger -l info -m "Publishing branch to origin"
           git push origin "chore/bump-sdk-version-${{ steps.version.outputs.version }}"
 
-          log_info "Creating PR on agents-ui repository"
+          logger -l info -m "Creating PR on agents-ui repository"
           gh pr create \
             --repo de-id/agents-ui \
             --title "chore: bump @d-id/client-sdk to v${{ steps.version.outputs.version }}" \
