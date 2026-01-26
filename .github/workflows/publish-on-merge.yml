@@ -14,13 +14,23 @@ on:
 permissions:
   contents: write
 
+env:
+  INFO_COLOR: "\033[0;32m"    # Green
+  ERROR_COLOR: "\033[0;31m"   # Red
+  RESET_COLOR: "\033[0m"      # Reset to default
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Initiate DevOps Utilities
-        uses: de-id/github-actions-devops-utilities@v1
+      - name: Setup logging functions
+        run: |
+          cat >> ~/.bashrc << 'EOF'
+          log_info() { echo "${INFO_COLOR}INFO:${RESET_COLOR} $1"; }
+          log_error() { echo "${ERROR_COLOR}ERROR:${RESET_COLOR} $1"; exit 1; }
+          EOF
+          echo "BASH_ENV=~/.bashrc" >> $GITHUB_ENV
 
       - name: Checkout agents-sdk repository
         uses: actions/checkout@v6
@@ -47,17 +57,17 @@ jobs:
           if [ "${{ github.ref_name }}" = "main" ]; then
             # For main branch - staging versions with run number
             BASE_VERSION=$(jq -r '.version' package.json)
-            delogger -l info -m "Base version: $BASE_VERSION"
+            log_info "Base version: $BASE_VERSION"
 
             if [ "$BASE_VERSION" = "null" ]; then
-              delogger -l error -m "Error: Could not read version from package.json"
+              log_error "Could not read version from package.json"
             fi
 
             CLEAN_VERSION=$(echo "$BASE_VERSION" | sed 's/-.*$//')
             STAGING_VERSION="${CLEAN_VERSION}-staging.${{ github.run_number }}"
 
-            delogger -l debug -m "Clean version: $CLEAN_VERSION"
-            delogger -l info -m "Staging version: $STAGING_VERSION"
+            log_info "Clean version: $CLEAN_VERSION"
+            log_info "Staging version: $STAGING_VERSION"
 
             echo "version=$STAGING_VERSION" >> $GITHUB_OUTPUT
             echo "tag=staging" >> $GITHUB_OUTPUT
@@ -65,14 +75,14 @@ jobs:
             echo "should_sync=false" >> $GITHUB_OUTPUT
           else
             # For prod branch - production versions
-            delogger -l info -m "Determining production version"
+            log_info "Determining production version"
 
             # Use npm version command (official npm way to bump versions)
             NEW_VERSION=$(npm version patch --no-git-tag-version --silent)
-            delogger -l info -m "New version: $NEW_VERSION"
+            log_info "New version: $NEW_VERSION"
 
             NEW_VERSION=${NEW_VERSION#v}  # Remove 'v' prefix if present
-            delogger -l info -m "New version without 'v' prefix: $NEW_VERSION"
+            log_info "New version without 'v' prefix: $NEW_VERSION"
 
             echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
             echo "tag=latest" >> $GITHUB_OUTPUT
@@ -82,16 +92,16 @@ jobs:
 
       - name: Update package.json version
         run: |
-          delogger -l info -m "Updating package.json version"
+          log_info "Updating package.json version"
           jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' package.json > package.json.tmp
 
           if ! jq empty package.json.tmp 4>/dev/null; then
             rm -f package.json.tmp
-            delogger -l error -m "Error: Generated invalid JSON"
+            log_error "Generated invalid JSON"
           fi
 
           mv package.json.tmp package.json
-          delogger -l info -m "Updated package.json version to: ${{ steps.version.outputs.version }}"
+          log_info "Updated package.json version to: ${{ steps.version.outputs.version }}"
 
       - name: Publish to NPM
         if: ${{ false }} # Disable publishing to NPM for testing purposes
@@ -99,76 +109,76 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            delogger -l info -m "🔍 DRY RUN MODE: Would publish version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
-            delogger -l info -m "📦 Package would be published to: https://www.npmjs.com/package/@d-id/client-sdk/v/${{ steps.version.outputs.version }}"
-            delogger -l info -m "🏷️  NPM tag would be: ${{ steps.version.outputs.tag }}"
-            delogger -l info -m "✅ Dry run completed successfully - no actual publishing occurred"
+            log_info "🔍 DRY RUN MODE: Would publish version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
+            log_info "📦 Package would be published to: https://www.npmjs.com/package/@d-id/client-sdk/v/${{ steps.version.outputs.version }}"
+            log_info "🏷️  NPM tag would be: ${{ steps.version.outputs.tag }}"
+            log_info "✅ Dry run completed successfully - no actual publishing occurred"
           else
-            delogger -l info -m "🚀 Publishing version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
+            log_info "🚀 Publishing version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
             npm publish --access public --tag ${{ steps.version.outputs.tag }}
-            delogger -l info -m "✅ Successfully published to NPM"
+            log_info "✅ Successfully published to NPM"
           fi
 
       - name: Create Git tag for production
         #if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
-          delogger -l info -m "Creating Git tag for production"
+          log_info "Creating Git tag for production"
 
-          delogger -l info -m "Configuring Git user"
+          log_info "Configuring Git user"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          delogger -l info -m "Creating Git tag"
+          log_info "Creating Git tag"
           git tag "v${{ steps.version.outputs.version }}"
 
-          delogger -l info -m "Pushing Git tag to origin"
+          log_info "Pushing Git tag to origin"
           git push origin "v${{ steps.version.outputs.version }}"
 
       - name: Commit version bump (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
-          delogger -l info -m "Committing version bump"
+          log_info "Committing version bump"
 
-          delogger -l info -m "Configuring Git user"
+          log_info "Configuring Git user"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add package.json
 
-          delogger -l info -m "Committing version bump without triggering the CICD pipeline"
-          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]" || delogger -l info -m "No changes to commit"
+          log_info "Committing version bump without triggering the CICD pipeline"
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]" || log_info "No changes to commit"
           git push origin prod
 
       - name: Sync version back to main (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
-          delogger -l info -m "Fetching latest main"
+          log_info "Fetching latest main"
           git fetch origin main
           git checkout main
           git pull origin main
 
-          delogger -l info -m "Updating package.json version"
+          log_info "Updating package.json version"
           jq --arg version "${{ steps.version.outputs.version }}" '.version = $version' package.json > package.json.tmp
 
           if ! jq empty package.json.tmp 4>/dev/null; then
             rm -f package.json.tmp
-            delogger -l error -m "Error: Generated invalid JSON"
+            log_error "Generated invalid JSON"
           fi
 
           mv package.json.tmp package.json
 
           if git diff --quiet package.json; then
-            delogger -l info -m "No version changes needed"
+            log_info "No version changes needed"
           else
-            delogger -l info -m "Configuring Git user"
+            log_info "Configuring Git user"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            delogger -l info -m "Adding and committing package.json to main branch without triggering the CICD pipeline"
+            log_info "Adding and committing package.json to main branch without triggering the CICD pipeline"
             git add package.json
             git commit -m "chore: sync version ${{ steps.version.outputs.version }} from prod [skip ci]"
 
-            delogger -l info -m "Pushing package.json to main branch"
+            log_info "Pushing package.json to main branch"
             git push origin main
           fi
 
@@ -206,31 +216,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.DEVOPS_TOKEN }}
         run: |
-          delogger -l info -m "Updating SDK version in agents-ui"
+          log_info "Updating SDK version in agents-ui"
 
           jq --arg version "${{ steps.version.outputs.version }}" '.dependencies."@d-id/client-sdk" = $version' package.json > package.json.tmp
           mv package.json.tmp package.json
 
           if git diff --quiet package.json; then
-            delogger -l info -m "No version changes needed in agents-ui"
+            log_info "No version changes needed in agents-ui"
             exit 0
           fi
 
-          delogger -l info -m "Creating new branch"
+          log_info "Creating new branch"
           git checkout -b "chore/bump-sdk-version-${{ steps.version.outputs.version }}"
 
-          delogger -l info -m "Configuring Git user"
+          log_info "Configuring Git user"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          delogger -l info -m "Adding and committing package.json"
+          log_info "Adding and committing package.json"
           git add package.json
           git commit -m "chore: bump @d-id/client-sdk to v${{ steps.version.outputs.version }}"
 
-          delogger -l info -m "Publishing branch to origin"
+          log_info "Publishing branch to origin"
           git push origin "chore/bump-sdk-version-${{ steps.version.outputs.version }}"
 
-          delogger -l info -m "Creating PR on agents-ui repository"
+          log_info "Creating PR on agents-ui repository"
           gh pr create \
             --repo de-id/agents-ui \
             --title "chore: bump @d-id/client-sdk to v${{ steps.version.outputs.version }}" \
