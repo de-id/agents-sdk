@@ -110,10 +110,12 @@ export function createMessageEventQueue(
 ) {
     let chatEventQueue: ChatEventQueue = {};
     const clearQueue = () => (chatEventQueue = {});
+    let lastMessageType: 'answer' | 'partial' | 'user' = 'answer';
     const onNewMessage: AgentManagerOptions['callbacks']['onNewMessage'] = (messages, event) => {
         if (event === 'user') {
             clearQueue();
         }
+        lastMessageType = event;
         options.callbacks.onNewMessage?.(messages, event);
     };
 
@@ -145,7 +147,19 @@ export function createMessageEventQueue(
 
                 if (event === SEvent.StreamVideoCreated) {
                     analytics.linkTrack('agent-video', props, SEvent.StreamVideoCreated, ['start']);
-                } else if (completedEvents.includes(event)) {
+
+                    // Attach sentiment to the last assistant message if present
+                    if (data.sentiment) {
+                        const lastMessage = items.messages[items.messages.length - 1];
+                        if (lastMessage?.role === 'assistant') {
+                            const updatedMessage = { ...lastMessage, sentiment: data.sentiment };
+                            items.messages[items.messages.length - 1] = updatedMessage;
+                            onNewMessage?.([...items.messages], lastMessageType);
+                        }
+                    }
+                }
+
+                if (completedEvents.includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
 
