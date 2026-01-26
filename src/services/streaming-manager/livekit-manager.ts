@@ -4,6 +4,7 @@ import {
     ConnectivityState,
     CreateSessionV2Options,
     CreateStreamOptions,
+    Message,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
@@ -68,6 +69,8 @@ export enum DataChannelTopic {
     Speak = 'did.speak',
     Interrupt = 'did.interrupt',
 }
+
+type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
 
 export function handleInitError(
     error: unknown,
@@ -320,9 +323,17 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onAgentActivityStateChange?.(currentActivityState);
 
                 const role = data?.role || participant?.identity || 'datachannel';
-                callbacks.onMessage?.(subject, {
-                    [role]: data,
-                });
+
+                const messageData: VideoMessageData = { [role]: data };
+
+                if (options.debug && data?.metadata?.sentiment) {
+                    messageData.sentiment = {
+                        id: data.metadata.sentiment.id,
+                        name: data.metadata.sentiment.sentiment,
+                    };
+                }
+
+                callbacks.onMessage?.(subject, messageData);
             } else if (subject === StreamEvents.ChatAudioTranscribed) {
                 const eventName = ChatProgress.Transcribe;
                 callbacks.onMessage?.(eventName, {
