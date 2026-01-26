@@ -11,9 +11,14 @@ import { createWebRTCStreamingManager as createStreamingManager } from './webrtc
 const mockApi = StreamApiFactory.build();
 jest.mock('../../api/streams', () => ({ createStreamApi: jest.fn(() => mockApi) }));
 
-// Mock pollStats
+// Mock createVideoStatsMonitor
+const mockVideoStatsMonitor = {
+    start: jest.fn(),
+    stop: jest.fn(),
+    getReport: jest.fn(() => ({})),
+};
 jest.mock('./stats/poll', () => ({
-    pollStats: jest.fn(() => 123), // mock interval id
+    createVideoStatsMonitor: jest.fn(() => mockVideoStatsMonitor),
 }));
 
 // Mock other dependencies as needed

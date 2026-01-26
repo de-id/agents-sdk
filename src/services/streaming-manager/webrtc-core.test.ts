@@ -5,16 +5,21 @@
 
 import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import { ConnectionState, CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
-import { pollStats } from './stats/poll';
+import { createVideoStatsMonitor } from './stats/poll';
 import { createWebRTCStreamingManager as createStreamingManager } from './webrtc-manager';
 
 // Mock createStreamApi
 const mockApi = StreamApiFactory.build();
 jest.mock('../../api/streams', () => ({ createStreamApi: jest.fn(() => mockApi) }));
 
-// Mock pollStats
+// Mock createVideoStatsMonitor
+const mockVideoStatsMonitor = {
+    start: jest.fn(),
+    stop: jest.fn(),
+    getReport: jest.fn(() => ({})),
+};
 jest.mock('./stats/poll', () => ({
-    pollStats: jest.fn(() => 123), // mock interval id
+    createVideoStatsMonitor: jest.fn(() => mockVideoStatsMonitor),
 }));
 
 // Mock other dependencies as needed
@@ -243,7 +248,7 @@ describe('Streaming Manager Core', () => {
             });
 
             await createStreamingManager(agentId, agentStreamOptions, options);
-            expect(pollStats).toHaveBeenCalledWith(
+            expect(createVideoStatsMonitor).toHaveBeenCalledWith(
                 expect.anything(),
                 expect.anything(),
                 expect.anything(),
@@ -358,7 +363,7 @@ describe('Streaming Manager Core', () => {
         it('should handle pollStats initialization', async () => {
             const manager = await createStreamingManager(agentId, agentStreamOptions, options);
 
-            expect(pollStats).toHaveBeenCalledWith(
+            expect(createVideoStatsMonitor).toHaveBeenCalledWith(
                 expect.anything(),
                 expect.anything(),
                 expect.anything(),
@@ -367,6 +372,32 @@ describe('Streaming Manager Core', () => {
             );
 
             expect(manager.streamId).toBe('streamId');
+        });
+
+        it('should call videoStatsMonitor.start when streaming manager is created', async () => {
+            await createStreamingManager(agentId, agentStreamOptions, options);
+
+            expect(mockVideoStatsMonitor.start).toHaveBeenCalledTimes(1);
+        });
+
+        it('should call videoStatsMonitor.stop when disconnect is called', async () => {
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
+            const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
+            mockPC.iceConnectionState = 'connected';
+
+            await manager.disconnect();
+
+            expect(mockVideoStatsMonitor.stop).toHaveBeenCalledTimes(1);
+        });
+
+        it('should call videoStatsMonitor.stop even when connection is in new state', async () => {
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
+            const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
+            mockPC.iceConnectionState = 'new';
+
+            await manager.disconnect();
+
+            expect(mockVideoStatsMonitor.stop).toHaveBeenCalledTimes(1);
         });
     });
 });
