@@ -284,7 +284,10 @@ describe('connect-to-manager', () => {
                     return new Promise(resolve => {
                         setTimeout(() => {
                             if (onConnectionStateChangeWithReason) {
-                                onConnectionStateChangeWithReason(ConnectionState.Connected, 'livekit:track-subscribed');
+                                onConnectionStateChangeWithReason(
+                                    ConnectionState.Connected,
+                                    'livekit:track-subscribed'
+                                );
                             }
                             resolve(mockStreamingManager);
                         }, 0);
@@ -295,11 +298,27 @@ describe('connect-to-manager', () => {
             });
 
             it.each([
-                [ConnectionState.Connecting, 'livekit:connecting', { state: ConnectionState.Connecting, reason: 'livekit:connecting' }],
+                [
+                    ConnectionState.Connecting,
+                    'livekit:connecting',
+                    { state: ConnectionState.Connecting, reason: 'livekit:connecting' },
+                ],
                 [ConnectionState.Connected, undefined, { state: ConnectionState.Connected }],
-                [ConnectionState.Disconnected, 'livekit:disconnected', { state: ConnectionState.Disconnected, reason: 'livekit:disconnected' }],
-                [ConnectionState.Disconnected, 'user:disconnect', { state: ConnectionState.Disconnected, reason: 'user:disconnect' }],
-                [ConnectionState.Disconnecting, 'livekit:participant-disconnected', { state: ConnectionState.Disconnecting, reason: 'livekit:participant-disconnected' }],
+                [
+                    ConnectionState.Disconnected,
+                    'livekit:disconnected',
+                    { state: ConnectionState.Disconnected, reason: 'livekit:disconnected' },
+                ],
+                [
+                    ConnectionState.Disconnected,
+                    'user:disconnect',
+                    { state: ConnectionState.Disconnected, reason: 'user:disconnect' },
+                ],
+                [
+                    ConnectionState.Disconnecting,
+                    'livekit:participant-disconnected',
+                    { state: ConnectionState.Disconnecting, reason: 'livekit:participant-disconnected' },
+                ],
             ])('should track analytics for state=%s reason=%s', (state, reason, expectedPayload) => {
                 mockAnalytics.track = jest.fn();
 

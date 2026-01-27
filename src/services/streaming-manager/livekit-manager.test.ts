@@ -679,7 +679,10 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             participantDisconnectedHandler(mockParticipant);
             await new Promise(resolve => setTimeout(resolve, ASYNC_WAIT_TIME));
 
-            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('disconnecting', 'livekit:participant-disconnected');
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith(
+                'disconnecting',
+                'livekit:participant-disconnected'
+            );
         });
 
         it('should call onConnectionStateChange with "user:disconnect" when disconnect is called', async () => {
