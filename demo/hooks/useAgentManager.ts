@@ -52,7 +52,6 @@ export function useAgentManager(props: UseAgentManagerOptions) {
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
     const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
-    const [isMicrophonePublished, setIsMicrophonePublished] = useState(false);
     const streamType = agentManager?.getStreamType();
 
     useEffect(() => {
@@ -194,7 +193,6 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                 throw new Error('publishMicrophoneStream is not available for this streaming manager');
             }
             await agentManager.publishMicrophoneStream(stream);
-            setIsMicrophonePublished(true);
         },
         [agentManager]
     );
@@ -208,7 +206,22 @@ export function useAgentManager(props: UseAgentManagerOptions) {
             throw new Error('unpublishMicrophoneStream is not available for this streaming manager');
         }
         await agentManager.unpublishMicrophoneStream();
-        setIsMicrophonePublished(false);
+    }, [agentManager]);
+
+    const muteMicrophoneStream = useCallback(async () => {
+        if (!agentManager?.muteMicrophoneStream) {
+            console.warn('muteMicrophoneStream is not available.');
+            return;
+        }
+        await agentManager.muteMicrophoneStream();
+    }, [agentManager]);
+
+    const unmuteMicrophoneStream = useCallback(async () => {
+        if (!agentManager?.unmuteMicrophoneStream) {
+            console.warn('unmuteMicrophoneStream is not available.');
+            return;
+        }
+        await agentManager.unmuteMicrophoneStream();
     }, [agentManager]);
 
     const microphoneEnabled = useMemo(() => {
@@ -230,7 +243,8 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         interrupt,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
+        muteMicrophoneStream,
+        unmuteMicrophoneStream,
         microphoneEnabled,
-        isMicrophonePublished,
     };
 }
