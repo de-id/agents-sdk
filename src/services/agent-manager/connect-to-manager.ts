@@ -65,11 +65,7 @@ function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions):
         : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
 }
 
-function trackConnectionStateChangeAnalytics(
-    state: ConnectionState,
-    reason: string | undefined,
-    analytics: Analytics
-) {
+function trackConnectionStateChangeAnalytics(state: ConnectionState, reason: string | undefined, analytics: Analytics) {
     analytics.track('connection-state-change', { state, ...(reason && { reason }) });
 }
 
