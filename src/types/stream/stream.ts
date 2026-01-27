@@ -48,6 +48,7 @@ export enum ConnectionState {
     Connecting = 'connecting',
     Closed = 'closed',
     Completed = 'completed',
+    Disconnecting = 'disconnecting',
     Disconnected = 'disconnected',
 }
 
@@ -58,7 +59,7 @@ export enum StreamType {
 
 export interface ManagerCallbacks {
     onMessage?: ChatProgressCallback;
-    onConnectionStateChange?: (state: ConnectionState) => void;
+    onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
     onError?: (error: Error, errorData: object) => void;
