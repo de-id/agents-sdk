@@ -305,7 +305,7 @@ describe('connect-to-manager', () => {
 
                 onConnectionStateChangeWithReason(state, reason);
 
-                expect(mockAnalytics.track).toHaveBeenCalledWith('connection-state-change', expectedPayload);
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-connection-state-change', expectedPayload);
             });
         });
 
