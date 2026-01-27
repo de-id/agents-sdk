@@ -712,23 +712,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connecting', 'user:reconnect');
         });
 
-        it('should call onConnectionStateChange with "user:reconnect-success" when reconnect succeeds', async () => {
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
-            await simulateConnection();
-
-            const handler = getConnectionStateHandler();
-            handler('disconnected');
-            mockOnConnectionStateChange.mockClear();
-
-            mockRoom.connect.mockResolvedValue(undefined);
-            (mockRoom as any).state = 'disconnected';
-            (mockRoom as any).remoteParticipants = { size: 1 };
-
-            await manager.reconnect();
-
-            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connected', 'user:reconnect-success');
-        });
-
         it('should call onConnectionStateChange with "user:reconnect-failed" when reconnect fails', async () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();

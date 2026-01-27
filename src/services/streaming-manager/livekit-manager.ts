@@ -569,8 +569,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
                     log('Agent joined, reconnection successful');
                 }
-
-                callbacks.onConnectionStateChange?.(ConnectionState.Connected, 'user:reconnect-success');
             } catch (error) {
                 log('Failed to reconnect:', error);
                 callbacks.onConnectionStateChange?.(ConnectionState.Fail, 'user:reconnect-failed');
