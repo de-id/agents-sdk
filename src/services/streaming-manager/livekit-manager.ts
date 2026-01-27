@@ -463,6 +463,57 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
+    async function muteMicrophoneStream(): Promise<void> {
+        if (!microphonePublication?.track) {
+            log('No microphone track to mute');
+            return;
+        }
+
+        const localTrack = microphonePublication.track as any;
+        const sender: RTCRtpSender | undefined = localTrack.sender;
+
+        if (!sender) {
+            log('No RTCRtpSender found for microphone track');
+            return;
+        }
+
+        try {
+            // Replace track with null to stop sending audio while keeping the original track alive
+            await sender.replaceTrack(null);
+            log('Microphone muted via RTCRtpSender.replaceTrack(null)');
+        } catch (error) {
+            log('Error muting microphone track:', error);
+            throw error;
+        }
+    }
+
+    async function unmuteMicrophoneStream(): Promise<void> {
+        if (!microphonePublication?.track) {
+            log('No microphone track to unmute');
+            return;
+        }
+
+        const localTrack = microphonePublication.track as any;
+        const sender: RTCRtpSender | undefined = localTrack.sender;
+        const mediaStreamTrack: MediaStreamTrack | undefined = localTrack.mediaStreamTrack;
+
+        if (!sender || !mediaStreamTrack) {
+            log('No RTCRtpSender or mediaStreamTrack found for microphone track');
+            return;
+        }
+
+        try {
+            await sender.replaceTrack(mediaStreamTrack);
+            log('Microphone unmuted via RTCRtpSender.replaceTrack(mediaStreamTrack)', {
+                trackReadyState: mediaStreamTrack.readyState,
+                trackEnabled: mediaStreamTrack.enabled,
+            });
+        } catch (error) {
+            log('Error unmuting microphone track:', error);
+            throw error;
+        }
+    }
+
     function cleanMediaStream(): void {
         if (sharedMediaStream) {
             sharedMediaStream.getTracks().forEach(track => track.stop());
@@ -587,6 +638,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         sendTextMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
+        muteMicrophoneStream,
+        unmuteMicrophoneStream,
 
         sessionId,
         streamId: sessionId,
