@@ -41,6 +41,7 @@ jest.mock('livekit-client', () => ({
         ConnectionQualityChanged: 'ConnectionQualityChanged',
         ActiveSpeakersChanged: 'ActiveSpeakersChanged',
         ParticipantConnected: 'ParticipantConnected',
+        ParticipantDisconnected: 'ParticipantDisconnected',
         TrackSubscribed: 'TrackSubscribed',
         TrackUnsubscribed: 'TrackUnsubscribed',
         DataReceived: 'DataReceived',
@@ -162,6 +163,11 @@ function getTrackSubscribedHandler() {
 
 function getTrackUnsubscribedHandler() {
     const calls = mockRoom.on.mock.calls.filter((call: any[]) => call[0] === 'TrackUnsubscribed');
+    return calls.length > 0 ? calls[calls.length - 1][1] : undefined;
+}
+
+function getParticipantDisconnectedHandler() {
+    const calls = mockRoom.on.mock.calls.filter((call: any[]) => call[0] === 'ParticipantDisconnected');
     return calls.length > 0 ? calls[calls.length - 1][1] : undefined;
 }
 
@@ -602,6 +608,138 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             trackUnsubscribedHandler(mockVideoTrack, {}, mockParticipant);
 
             expect(mockOnVideoStateChange).toHaveBeenCalledWith(StreamingState.Stop, mockReport);
+        });
+    });
+
+    describe('Connection State Change Reasons', () => {
+        let mockOnConnectionStateChange: jest.Mock;
+
+        beforeEach(() => {
+            mockOnConnectionStateChange = jest.fn();
+            options.callbacks.onConnectionStateChange = mockOnConnectionStateChange;
+        });
+
+        it('should call onConnectionStateChange with "livekit:connecting" when LiveKit emits Connecting', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const handler = getConnectionStateHandler();
+
+            handler('connecting');
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connecting', 'livekit:connecting');
+        });
+
+        it('should call onConnectionStateChange with "livekit:disconnected" when LiveKit emits Disconnected', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const handler = getConnectionStateHandler();
+
+            handler('disconnected');
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
+        });
+
+        it('should call onConnectionStateChange with "livekit:reconnecting" when LiveKit emits Reconnecting', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const handler = getConnectionStateHandler();
+
+            handler('reconnecting');
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connecting', 'livekit:reconnecting');
+        });
+
+        it('should call onConnectionStateChange with "livekit:signal-reconnecting" when LiveKit emits SignalReconnecting', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const handler = getConnectionStateHandler();
+
+            handler('signalReconnecting');
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connecting', 'livekit:signal-reconnecting');
+        });
+
+        it('should call onConnectionStateChange with "livekit:track-subscribed" when video track is subscribed', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const trackSubscribedHandler = getTrackSubscribedHandler();
+            const mockVideoTrack = createMockVideoTrack();
+            const mockParticipant = createMockRemoteParticipant();
+
+            trackSubscribedHandler(mockVideoTrack, {}, mockParticipant);
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connected', 'livekit:track-subscribed');
+        });
+
+        it('should call onConnectionStateChange with "livekit:participant-disconnected" when participant disconnects', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            mockOnConnectionStateChange.mockClear();
+
+            const participantDisconnectedHandler = getParticipantDisconnectedHandler();
+            const mockParticipant = createMockRemoteParticipant();
+
+            participantDisconnectedHandler(mockParticipant);
+            await new Promise(resolve => setTimeout(resolve, ASYNC_WAIT_TIME));
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('disconnecting', 'livekit:participant-disconnected');
+        });
+
+        it('should call onConnectionStateChange with "user:disconnect" when disconnect is called', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            mockOnConnectionStateChange.mockClear();
+
+            await manager.disconnect();
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('disconnecting', 'user:disconnect');
+        });
+
+        it('should call onConnectionStateChange with "user:reconnect" when reconnect is called', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const handler = getConnectionStateHandler();
+            handler('disconnected');
+            mockOnConnectionStateChange.mockClear();
+
+            mockRoom.connect.mockResolvedValue(undefined);
+            (mockRoom as any).state = 'disconnected';
+            (mockRoom as any).remoteParticipants = { size: 1 };
+
+            await manager.reconnect();
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connecting', 'user:reconnect');
+        });
+
+        it('should call onConnectionStateChange with "user:reconnect-success" when reconnect succeeds', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const handler = getConnectionStateHandler();
+            handler('disconnected');
+            mockOnConnectionStateChange.mockClear();
+
+            mockRoom.connect.mockResolvedValue(undefined);
+            (mockRoom as any).state = 'disconnected';
+            (mockRoom as any).remoteParticipants = { size: 1 };
+
+            await manager.reconnect();
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connected', 'user:reconnect-success');
+        });
+
+        it('should call onConnectionStateChange with "user:reconnect-failed" when reconnect fails', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const handler = getConnectionStateHandler();
+            handler('disconnected');
+            mockOnConnectionStateChange.mockClear();
+
+            mockRoom.connect.mockRejectedValue(new Error('Connection failed'));
+            (mockRoom as any).state = 'disconnected';
+
+            await expect(manager.reconnect()).rejects.toThrow('Connection failed');
+
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('fail', 'user:reconnect-failed');
         });
     });
 });

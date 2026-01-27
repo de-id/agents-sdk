@@ -272,6 +272,43 @@ describe('connect-to-manager', () => {
             });
         });
 
+        describe('onConnectionStateChange analytics', () => {
+            let onConnectionStateChangeWithReason: (state: ConnectionState, reason?: string) => void;
+
+            beforeEach(async () => {
+                jest.clearAllMocks();
+
+                (createStreamingManager as jest.Mock).mockImplementation((agent, streamOptions, options) => {
+                    onConnectionStateChangeWithReason = options.callbacks.onConnectionStateChange;
+
+                    return new Promise(resolve => {
+                        setTimeout(() => {
+                            if (onConnectionStateChangeWithReason) {
+                                onConnectionStateChangeWithReason(ConnectionState.Connected, 'livekit:track-subscribed');
+                            }
+                            resolve(mockStreamingManager);
+                        }, 0);
+                    });
+                });
+
+                await initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics);
+            });
+
+            it.each([
+                [ConnectionState.Connecting, 'livekit:connecting', { state: ConnectionState.Connecting, reason: 'livekit:connecting' }],
+                [ConnectionState.Connected, undefined, { state: ConnectionState.Connected }],
+                [ConnectionState.Disconnected, 'livekit:disconnected', { state: ConnectionState.Disconnected, reason: 'livekit:disconnected' }],
+                [ConnectionState.Disconnected, 'user:disconnect', { state: ConnectionState.Disconnected, reason: 'user:disconnect' }],
+                [ConnectionState.Disconnecting, 'livekit:participant-disconnected', { state: ConnectionState.Disconnecting, reason: 'livekit:participant-disconnected' }],
+            ])('should track analytics for state=%s reason=%s', (state, reason, expectedPayload) => {
+                mockAnalytics.track = jest.fn();
+
+                onConnectionStateChangeWithReason(state, reason);
+
+                expect(mockAnalytics.track).toHaveBeenCalledWith('connection-state-change', expectedPayload);
+            });
+        });
+
         describe('onVideoStateChange', () => {
             it('should handle video state change for legacy stream', () => {
                 const statsReport = { duration: 5000, bitrate: 1000 };
