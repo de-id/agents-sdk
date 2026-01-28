@@ -18,10 +18,17 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate GitHub App Token
+        uses: actions/create-github-app-token@v2
+        id: generate_token
+        with:
+          app-id: ${{ secrets.AGENTS_SDK_AUTOMATIONS_APP_ID }}
+          private-key: ${{ secrets.AGENTS_SDK_AUTOMATIONS_PRIVATE_KEY }}
 
       - name: Checkout agents-sdk repository
         uses: actions/checkout@v6
         with:
+          token: ${{ steps.generate_token.outputs.token }}
           fetch-depth: 0
 
       - name: Setup logger
@@ -203,14 +210,14 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: de-id/agents-ui
-          token: ${{ secrets.DEVOPS_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
           path: agents-ui
 
       - name: Update SDK version and create PR
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         working-directory: agents-ui
         env:
-          GH_TOKEN: ${{ secrets.DEVOPS_TOKEN }}
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           logger -l info -m "Updating SDK version in agents-ui"
 
