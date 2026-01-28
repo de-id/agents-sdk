@@ -293,11 +293,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         topic?: string
     ): void {
         const message = new TextDecoder().decode(payload);
-        log('Data received:', message);
 
         try {
             const data = JSON.parse(message);
             const subject = topic || data.subject;
+            log('Data received:', { subject, data });
 
             if (subject === StreamEvents.ChatAnswer) {
                 const eventName = ChatProgress.Answer;
@@ -311,14 +311,23 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     event: eventName,
                     ...data,
                 });
-            } else if ([StreamEvents.StreamVideoCreated, StreamEvents.StreamVideoDone].includes(subject)) {
+            } else if (
+                [
+                    StreamEvents.StreamVideoCreated,
+                    StreamEvents.StreamVideoDone,
+                    StreamEvents.StreamVideoError,
+                    StreamEvents.StreamVideoRejected,
+                ].includes(subject)
+            ) {
                 currentActivityState =
                     subject === StreamEvents.StreamVideoCreated ? AgentActivityState.Talking : AgentActivityState.Idle;
                 callbacks.onAgentActivityStateChange?.(currentActivityState);
 
-                const role = data?.role || participant?.identity || 'datachannel';
+                const { role: providedRole, status: providedStatus, ...payload } = data;
 
-                const messageData: VideoMessageData = { [role]: data };
+                const role = providedRole ?? participant?.identity ?? 'datachannel';
+                const status = providedStatus ?? subject.split('/').pop() ?? 'unknown';
+                const messageData: VideoMessageData = { [role]: { ...payload, status } };
 
                 if (options.debug && data?.metadata?.sentiment) {
                     messageData.sentiment = {
