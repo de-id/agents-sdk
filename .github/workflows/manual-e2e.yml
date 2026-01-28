@@ -32,6 +32,13 @@ jobs:
           path: agents-sdk
           ref: ${{ github.event.inputs.sdk_branch }}
 
+      - name: Generate GitHub App Token
+        uses: actions/create-github-app-token@v2
+        id: generate_token
+        with:
+          app-id: ${{ secrets.AGENTS_SDK_AUTOMATIONS_APP_ID }}
+          private-key: ${{ secrets.AGENTS_SDK_AUTOMATIONS_PRIVATE_KEY }}
+
       - name: Setup Node.js for SDK
         uses: actions/setup-node@v4
         with:
@@ -61,7 +68,7 @@ jobs:
           repository: de-id/agents-ui
           ref: ${{ github.event.inputs.ui_branch }}
           path: agents-ui
-          token: ${{ secrets.DEVOPS_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Set github environment variables
         uses: rlespinasse/github-slug-action@v4

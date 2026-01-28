@@ -21,6 +21,13 @@ jobs:
       ENV: prod
 
     steps:
+      - name: Generate GitHub App Token
+        uses: actions/create-github-app-token@v2
+        id: generate_token
+        with:
+          app-id: ${{ secrets.AGENTS_SDK_AUTOMATIONS_APP_ID }}
+          private-key: ${{ secrets.AGENTS_SDK_AUTOMATIONS_PRIVATE_KEY }}
+
       - name: Checkout agents-ui production branch
         uses: actions/checkout@v4
         with:
@@ -29,7 +36,7 @@ jobs:
           path: agents-ui
           fetch-depth: 0
           lfs: true
-          token: ${{ secrets.DEVOPS_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Set github environment variables
         uses: rlespinasse/github-slug-action@v4
