@@ -24,6 +24,10 @@ jobs:
         with:
           app-id: ${{ secrets.AGENTS_SDK_AUTOMATIONS_APP_ID }}
           private-key: ${{ secrets.AGENTS_SDK_AUTOMATIONS_PRIVATE_KEY }}
+          owner: de-id
+          repositories: |
+            agents-sdk
+            agents-ui
 
       - name: Checkout agents-sdk repository
         uses: actions/checkout@v6
@@ -150,7 +154,10 @@ jobs:
 
           logger -l info -m "Committing version bump without triggering the CICD pipeline"
           git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]" || logger -l info -m "No changes to commit"
-          git push origin prod
+
+          logger -l info -m "Force push into prod branch"
+          git push origin prod --force \
+            || logger -l error -m "Failed to update package.json file in prod branch"
 
       - name: Sync version back to main (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'

@@ -1,67 +1,67 @@
 {
-    "name": "@d-id/client-sdk",
-    "private": false,
-    "version": "1.1.37",
-    "type": "module",
-    "description": "d-id client sdk",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/de-id/agents-sdk"
-    },
-    "keywords": [
-        "d-id",
-        "sdk",
-        "client-sdk"
-    ],
-    "license": "MIT",
-    "author": "d-id",
-    "files": [
-        "dist/*"
-    ],
-    "main": "./dist/index.umd.cjs",
-    "module": "./dist/index.js",
-    "types": "./dist/src/index.d.ts",
-    "scripts": {
-        "dev": "vite",
-        "build": "node ./infra/build.js -m production",
-        "build:dev": "node ./infra/build.js -m development",
-        "dev:prod": "export NODE_ENV=production && vite --mode production",
-        "deploy:prod": "node ./infra/deploy.js --version beta",
-        "preview": "vite preview",
-        "test-build": "node .infra/build.js -m development",
-        "build:docs": "typedoc",
-        "test": "jest",
-        "test:watch": "jest --watch",
-        "test:ci": "jest --watchAll=false --passWithNoTests --verbose=false",
-        "type-check": "tsc --noEmit",
-        "lint": "prettier --check \"src/**/*.{ts,tsx,js,jsx}\"",
-        "lint:fix": "prettier --write \"src/**/*.{ts,tsx,js,jsx}\"",
-        "ci:test": "yarn type-check && yarn test:ci"
-    },
-    "dependencies": {
-        "livekit-client": "^2.0.0"
-    },
-    "devDependencies": {
-        "@preact/preset-vite": "^2.8.1",
-        "@trivago/prettier-plugin-sort-imports": "^4.3.0",
-        "@types/jest": "^30.0.0",
-        "@types/node": "^22.15.0",
-        "@types/rosie": "^0.0.45",
-        "commander": "^11.1.0",
-        "glob": "^10.3.10",
-        "jest": "^29.7.0",
-        "jest-environment-jsdom": "^29.7.0",
-        "preact": "^10.19.6",
-        "prettier": "^3.2.5",
-        "prettier-plugin-organize-imports": "^3.2.4",
-        "rosie": "^2.1.1",
-        "string-length": "^4.0.2",
-        "string-width": "^4.2.3",
-        "strip-ansi": "^6.0.1",
-        "ts-jest": "^29.4.1",
-        "typedoc": "^0.25.7",
-        "typescript": "^5.3.3",
-        "vite": "^5.1.4",
-        "vite-plugin-dts": "^3.7.3"
-    }
+  "name": "@d-id/client-sdk",
+  "private": false,
+  "version": "1.1.46",
+  "type": "module",
+  "description": "d-id client sdk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/de-id/agents-sdk"
+  },
+  "keywords": [
+    "d-id",
+    "sdk",
+    "client-sdk"
+  ],
+  "license": "MIT",
+  "author": "d-id",
+  "files": [
+    "dist/*"
+  ],
+  "main": "./dist/index.umd.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "node ./infra/build.js -m production",
+    "build:dev": "node ./infra/build.js -m development",
+    "dev:prod": "export NODE_ENV=production && vite --mode production",
+    "deploy:prod": "node ./infra/deploy.js --version beta",
+    "preview": "vite preview",
+    "test-build": "node .infra/build.js -m development",
+    "build:docs": "typedoc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --watchAll=false --passWithNoTests --verbose=false",
+    "type-check": "tsc --noEmit",
+    "lint": "prettier --check \"src/**/*.{ts,tsx,js,jsx}\"",
+    "lint:fix": "prettier --write \"src/**/*.{ts,tsx,js,jsx}\"",
+    "ci:test": "yarn type-check && yarn test:ci"
+  },
+  "dependencies": {
+    "livekit-client": "^2.0.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.8.1",
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.15.0",
+    "@types/rosie": "^0.0.45",
+    "commander": "^11.1.0",
+    "glob": "^10.3.10",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "preact": "^10.19.6",
+    "prettier": "^3.2.5",
+    "prettier-plugin-organize-imports": "^3.2.4",
+    "rosie": "^2.1.1",
+    "string-length": "^4.0.2",
+    "string-width": "^4.2.3",
+    "strip-ansi": "^6.0.1",
+    "ts-jest": "^29.4.1",
+    "typedoc": "^0.25.7",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4",
+    "vite-plugin-dts": "^3.7.3"
+  }
 }
