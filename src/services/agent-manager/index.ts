@@ -287,6 +287,18 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
             return items.streamingManager.unpublishMicrophoneStream();
         },
+        async muteMicrophoneStream() {
+            if (!items.streamingManager?.muteMicrophoneStream) {
+                throw new Error('muteMicrophoneStream is not available for this streaming manager');
+            }
+            return items.streamingManager.muteMicrophoneStream();
+        },
+        async unmuteMicrophoneStream() {
+            if (!items.streamingManager?.unmuteMicrophoneStream) {
+                throw new Error('unmuteMicrophoneStream is not available for this streaming manager');
+            }
+            return items.streamingManager.unmuteMicrophoneStream();
+        },
         async chat(userMessage: string) {
             const validateChatRequest = () => {
                 if (isChatModeWithoutChat(mode)) {
