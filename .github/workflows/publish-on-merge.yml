@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Run in dry-run mode (no actual publishing)'
+        description: "Run in dry-run mode (no actual publishing)"
         required: false
         default: false
         type: boolean
@@ -44,8 +44,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'yarn'
+          registry-url: "https://registry.npmjs.org"
+          cache: "yarn"
 
       - name: Install dependencies
         run: |
@@ -236,6 +236,9 @@ jobs:
             exit 0
           fi
 
+          logger -l info -m "Installing dependencies to update yarn.lock"
+          yarn install
+
           logger -l info -m "Creating new branch"
           git checkout -b "chore/bump-sdk-version-${{ steps.version.outputs.version }}"
 
@@ -243,8 +246,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          logger -l info -m "Adding and committing package.json"
-          git add package.json
+          logger -l info -m "Adding and committing package.json and yarn.lock"
+          git add package.json yarn.lock
           git commit -m "chore: bump @d-id/client-sdk to v${{ steps.version.outputs.version }}"
 
           logger -l info -m "Publishing branch to origin"
