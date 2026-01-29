@@ -33,6 +33,7 @@ import type {
     TranscriptionSegment,
 } from 'livekit-client';
 import { createVideoStatsMonitor } from './stats/poll';
+import { VideoRTCStatsReport } from './stats/report';
 
 async function importLiveKit(): Promise<{
     Room: typeof Room;
@@ -227,6 +228,16 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         disconnect('livekit:participant-disconnected');
     }
 
+    function onVideoStateStart() {
+        log('CALLBACK: onVideoStateChange(Start)');
+        callbacks.onVideoStateChange?.(StreamingState.Start);
+    }
+
+    function onVideoStateEnd(report?: VideoRTCStatsReport) {
+        log('CALLBACK: onVideoStateChange(Stop)');
+        callbacks.onVideoStateChange?.(StreamingState.Stop, report);
+    }
+
     function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
@@ -260,14 +271,17 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 log('CALLBACK: onConnectionStateChange(Connected)');
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected, 'livekit:track-subscribed');
             }
-            log('CALLBACK: onVideoStateChange(Start)');
-            callbacks.onVideoStateChange?.(StreamingState.Start);
             videoStatsMonitor = createVideoStatsMonitor(
                 () => track.getRTCStatsReport(),
                 () => isConnected,
                 noop,
-                (state, _report) => {
+                (state, report) => {
                     log(`Video state change: ${state}`);
+                    if (state === StreamingState.Start) {
+                        onVideoStateStart();
+                    } else if (state === StreamingState.Stop) {
+                        onVideoStateEnd(report);
+                    }
                 }
             );
             videoStatsMonitor.start();
@@ -279,10 +293,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         if (track.kind === 'video') {
             const report = videoStatsMonitor?.getReport();
+            onVideoStateEnd(report);
             videoStatsMonitor?.stop();
             videoStatsMonitor = null;
-
-            callbacks.onVideoStateChange?.(StreamingState.Stop, report);
         }
     }
 
