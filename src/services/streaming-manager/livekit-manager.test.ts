@@ -563,6 +563,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             const mockVideoTrack = createMockVideoTrack();
             getTrackSubscribedHandler()(mockVideoTrack, {}, createMockRemoteParticipant());
+            mockVideoStatsMonitor.invokeStateChange(StreamingState.Start);
             onVideoStateChange.mockClear();
             mockVideoStatsMonitor.getReport.mockClear();
 
@@ -597,11 +598,33 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
             getTrackSubscribedHandler()(createMockVideoTrack(), {}, createMockRemoteParticipant());
+            mockVideoStatsMonitor.invokeStateChange(StreamingState.Start);
 
             onVideoStateChange.mockClear();
             mockVideoStatsMonitor.invokeStateChange(StreamingState.Stop, report);
 
             expect(mockVideoStatsMonitor.getReport).not.toHaveBeenCalled();
+            expect(onVideoStateChange).toHaveBeenCalledTimes(1);
+            expect(onVideoStateChange).toHaveBeenCalledWith(StreamingState.Stop, report);
+        });
+
+        it('should not call onVideoStateChange(Stop) twice when monitor Stop and track unsubscribed both occur', async () => {
+            const onVideoStateChange = jest.fn();
+            const report = { duration: 1000 };
+            options.callbacks.onVideoStateChange = onVideoStateChange;
+            mockVideoStatsMonitor.getReport.mockReturnValue(report);
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const mockVideoTrack = createMockVideoTrack();
+            getTrackSubscribedHandler()(mockVideoTrack, {}, createMockRemoteParticipant());
+            mockVideoStatsMonitor.invokeStateChange(StreamingState.Start);
+            onVideoStateChange.mockClear();
+
+            mockVideoStatsMonitor.invokeStateChange(StreamingState.Stop, report);
+            getTrackUnsubscribedHandler()(mockVideoTrack, {}, createMockRemoteParticipant());
+
             expect(onVideoStateChange).toHaveBeenCalledTimes(1);
             expect(onVideoStateChange).toHaveBeenCalledWith(StreamingState.Stop, report);
         });

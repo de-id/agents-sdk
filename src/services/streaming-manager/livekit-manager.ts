@@ -100,6 +100,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let sharedMediaStream: MediaStream | null = null;
     let microphonePublication: LocalTrackPublication | null = null;
     let videoStatsMonitor: ReturnType<typeof createVideoStatsMonitor> | null = null;
+    let videoStreamingState: StreamingState | null = null;
     // We defer Connected until video track is subscribed to align with WebRTC behavior
     let hasEmittedConnected = false;
 
@@ -228,13 +229,23 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         disconnect('livekit:participant-disconnected');
     }
 
-    function onVideoStateStart() {
+    function handleVideoStarted() {
+        if (videoStreamingState !== null && videoStreamingState !== StreamingState.Stop) {
+            return;
+        }
+
         log('CALLBACK: onVideoStateChange(Start)');
+        videoStreamingState = StreamingState.Start;
         callbacks.onVideoStateChange?.(StreamingState.Start);
     }
 
-    function onVideoStateEnd(report?: VideoRTCStatsReport) {
+    function handleVideoStopped(report?: VideoRTCStatsReport) {
+        if (videoStreamingState !== StreamingState.Start) {
+            return;
+        }
+
         log('CALLBACK: onVideoStateChange(Stop)');
+        videoStreamingState = StreamingState.Stop;
         callbacks.onVideoStateChange?.(StreamingState.Stop, report);
     }
 
@@ -278,9 +289,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 (state, report) => {
                     log(`Video state change: ${state}`);
                     if (state === StreamingState.Start) {
-                        onVideoStateStart();
+                        handleVideoStarted();
                     } else if (state === StreamingState.Stop) {
-                        onVideoStateEnd(report);
+                        handleVideoStopped(report);
                     }
                 }
             );
@@ -292,8 +303,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
 
         if (track.kind === 'video') {
-            const report = videoStatsMonitor?.getReport();
-            onVideoStateEnd(report);
+            handleVideoStopped(videoStatsMonitor?.getReport());
             videoStatsMonitor?.stop();
             videoStatsMonitor = null;
         }
