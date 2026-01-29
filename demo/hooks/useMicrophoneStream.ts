@@ -58,13 +58,11 @@ export function useMicrophoneStream(options: UseMicrophoneStreamOptions) {
     }, []);
 
     const acquireStream = useCallback(async (deviceId?: string) => {
-        // If stream already exists and is live, reuse it
         if (streamRef.current && streamRef.current.getAudioTracks()[0]?.readyState === 'live') {
             return streamRef.current;
         }
 
         try {
-            // If no device specified, find a real microphone
             let effectiveDeviceId = deviceId;
             if (!effectiveDeviceId) {
                 effectiveDeviceId = await findRealMicrophoneDevice();
@@ -180,14 +178,17 @@ export function useMicrophoneStream(options: UseMicrophoneStreamOptions) {
         isPublishingRef.current = true;
 
         try {
-            // Acquire stream if not already acquired
             let currentStream = streamRef.current;
-            if (!currentStream) {
-                console.log('[useMicrophoneStream] No existing stream, acquiring new one');
+            let track = currentStream?.getAudioTracks()[0];
+
+            // Check if stream exists and track is still live
+            if (!currentStream || !track || track.readyState === 'ended') {
+                console.log('[useMicrophoneStream] Stream missing or track ended, acquiring fresh stream');
+                streamRef.current = undefined;
                 currentStream = await acquireStream(selectedDeviceId);
+                track = currentStream.getAudioTracks()[0];
             }
 
-            const track = currentStream.getAudioTracks()[0];
             console.log('[useMicrophoneStream] Publishing stream', {
                 streamId: currentStream.id,
                 trackId: track?.id,
