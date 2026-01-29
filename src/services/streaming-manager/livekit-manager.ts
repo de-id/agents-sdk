@@ -90,7 +90,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 ): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
-    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState } = await importLiveKit();
+    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, Track } = await importLiveKit();
 
     const { callbacks, auth, baseURL, analytics, microphoneStream } = options;
     let room: Room | null = null;
@@ -293,11 +293,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         topic?: string
     ): void {
         const message = new TextDecoder().decode(payload);
-        log('Data received:', message);
 
         try {
             const data = JSON.parse(message);
             const subject = topic || data.subject;
+            log('Data received:', { subject, data });
 
             if (subject === StreamEvents.ChatAnswer) {
                 const eventName = ChatProgress.Answer;
@@ -311,14 +311,23 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     event: eventName,
                     ...data,
                 });
-            } else if ([StreamEvents.StreamVideoCreated, StreamEvents.StreamVideoDone].includes(subject)) {
+            } else if (
+                [
+                    StreamEvents.StreamVideoCreated,
+                    StreamEvents.StreamVideoDone,
+                    StreamEvents.StreamVideoError,
+                    StreamEvents.StreamVideoRejected,
+                ].includes(subject)
+            ) {
                 currentActivityState =
                     subject === StreamEvents.StreamVideoCreated ? AgentActivityState.Talking : AgentActivityState.Idle;
                 callbacks.onAgentActivityStateChange?.(currentActivityState);
 
-                const role = data?.role || participant?.identity || 'datachannel';
+                const { role: providedRole, status: providedStatus, ...payload } = data;
 
-                const messageData: VideoMessageData = { [role]: data };
+                const role = providedRole ?? participant?.identity ?? 'datachannel';
+                const status = providedStatus ?? subject.split('/').pop() ?? 'unknown';
+                const messageData: VideoMessageData = { [role]: { ...payload, status } };
 
                 if (options.debug && data?.metadata?.sentiment) {
                     messageData.sentiment = {
@@ -363,10 +372,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log('Track subscription failed:', { trackSid, participant, reason });
     }
 
-    async function findPublishedMicrophoneTrack(audioTrack: MediaStreamTrack): Promise<LocalTrackPublication | null> {
+    function findPublishedMicrophoneTrack(audioTrack: MediaStreamTrack): LocalTrackPublication | null {
         if (!room) return null;
 
-        const { Track } = await importLiveKit();
         const publishedTracks = room.localParticipant.audioTrackPublications;
 
         if (publishedTracks) {
@@ -409,9 +417,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         const audioTrack = audioTracks[0];
-        const { Track } = await importLiveKit();
 
-        const existingPublication = await findPublishedMicrophoneTrack(audioTrack);
+        const existingPublication = findPublishedMicrophoneTrack(audioTrack);
         if (existingPublication) {
             log('Microphone track is already published, skipping', {
                 trackId: audioTrack.id,
