@@ -90,7 +90,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 ): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
-    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState } = await importLiveKit();
+    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, Track } = await importLiveKit();
 
     const { callbacks, auth, baseURL, analytics, microphoneStream } = options;
     let room: Room | null = null;
@@ -372,10 +372,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log('Track subscription failed:', { trackSid, participant, reason });
     }
 
-    async function findPublishedMicrophoneTrack(audioTrack: MediaStreamTrack): Promise<LocalTrackPublication | null> {
+    function findPublishedMicrophoneTrack(audioTrack: MediaStreamTrack): LocalTrackPublication | null {
         if (!room) return null;
 
-        const { Track } = await importLiveKit();
         const publishedTracks = room.localParticipant.audioTrackPublications;
 
         if (publishedTracks) {
@@ -418,9 +417,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         const audioTrack = audioTracks[0];
-        const { Track } = await importLiveKit();
 
-        const existingPublication = await findPublishedMicrophoneTrack(audioTrack);
+        const existingPublication = findPublishedMicrophoneTrack(audioTrack);
         if (existingPublication) {
             log('Microphone track is already published, skipping', {
                 trackId: audioTrack.id,
