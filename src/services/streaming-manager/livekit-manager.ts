@@ -230,7 +230,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     function handleVideoStarted() {
-        if (videoStreamingState !== null && videoStreamingState !== StreamingState.Stop) {
+        if (videoStreamingState === StreamingState.Start) {
             return;
         }
 
@@ -240,7 +240,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     function handleVideoStopped(report?: VideoRTCStatsReport) {
-        if (videoStreamingState !== StreamingState.Start) {
+        if (videoStreamingState === StreamingState.Stop) {
             return;
         }
 
