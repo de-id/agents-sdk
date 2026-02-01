@@ -33,6 +33,7 @@ import type {
     TranscriptionSegment,
 } from 'livekit-client';
 import { createVideoStatsMonitor } from './stats/poll';
+import { VideoRTCStatsReport } from './stats/report';
 
 async function importLiveKit(): Promise<{
     Room: typeof Room;
@@ -99,6 +100,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let sharedMediaStream: MediaStream | null = null;
     let microphonePublication: LocalTrackPublication | null = null;
     let videoStatsMonitor: ReturnType<typeof createVideoStatsMonitor> | null = null;
+    let videoStreamingState: StreamingState | null = null;
     // We defer Connected until video track is subscribed to align with WebRTC behavior
     let hasEmittedConnected = false;
 
@@ -227,6 +229,26 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         disconnect('livekit:participant-disconnected');
     }
 
+    function handleVideoStarted() {
+        if (videoStreamingState === StreamingState.Start) {
+            return;
+        }
+
+        log('CALLBACK: onVideoStateChange(Start)');
+        videoStreamingState = StreamingState.Start;
+        callbacks.onVideoStateChange?.(StreamingState.Start);
+    }
+
+    function handleVideoStopped(report?: VideoRTCStatsReport) {
+        if (videoStreamingState === StreamingState.Stop) {
+            return;
+        }
+
+        log('CALLBACK: onVideoStateChange(Stop)');
+        videoStreamingState = StreamingState.Stop;
+        callbacks.onVideoStateChange?.(StreamingState.Stop, report);
+    }
+
     function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
@@ -260,14 +282,17 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 log('CALLBACK: onConnectionStateChange(Connected)');
                 callbacks.onConnectionStateChange?.(ConnectionState.Connected, 'livekit:track-subscribed');
             }
-            log('CALLBACK: onVideoStateChange(Start)');
-            callbacks.onVideoStateChange?.(StreamingState.Start);
             videoStatsMonitor = createVideoStatsMonitor(
                 () => track.getRTCStatsReport(),
                 () => isConnected,
                 noop,
-                (state, _report) => {
+                (state, report) => {
                     log(`Video state change: ${state}`);
+                    if (state === StreamingState.Start) {
+                        handleVideoStarted();
+                    } else if (state === StreamingState.Stop) {
+                        handleVideoStopped(report);
+                    }
                 }
             );
             videoStatsMonitor.start();
@@ -278,11 +303,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
 
         if (track.kind === 'video') {
-            const report = videoStatsMonitor?.getReport();
+            handleVideoStopped(videoStatsMonitor?.getReport());
             videoStatsMonitor?.stop();
             videoStatsMonitor = null;
-
-            callbacks.onVideoStateChange?.(StreamingState.Stop, report);
         }
     }
 
