@@ -70,7 +70,6 @@ function processChatEvent(
 
     let currentMessage: Message;
     if (lastMessage?.transcribed && lastMessage.role === 'user') {
-        const initialContent = event === ChatProgress.Answer ? data.content || '' : '';
         currentMessage = {
             id: data.id || `assistant-${Date.now()}`,
             role: data.role || 'assistant',
@@ -139,11 +138,12 @@ export function createMessageEventQueue(
                 }
             } else {
                 const SEvent = StreamEvents;
+                event = event as StreamEvents;
+
                 const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
                 const failedEvents = [SEvent.StreamFailed, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
-                const props = getStreamAnalyticsProps(data, agentEntity, { mode: items.chatMode });
-
-                event = event as StreamEvents;
+                const status = data.status || event.split('/').pop() || 'unknown';
+                const props = getStreamAnalyticsProps(data, agentEntity, { status, mode: items.chatMode });
 
                 if (event === SEvent.StreamVideoCreated) {
                     analytics.linkTrack('agent-video', props, SEvent.StreamVideoCreated, ['start']);
