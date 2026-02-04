@@ -348,7 +348,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
                 const messageData: VideoMessageData = { ...data };
 
-
                 if (options.debug && data?.metadata?.sentiment) {
                     messageData.sentiment = {
                         id: data.metadata.sentiment.id,
