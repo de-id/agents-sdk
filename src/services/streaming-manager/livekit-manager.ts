@@ -346,11 +346,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     subject === StreamEvents.StreamVideoCreated ? AgentActivityState.Talking : AgentActivityState.Idle;
                 callbacks.onAgentActivityStateChange?.(currentActivityState);
 
-                const { role: providedRole, status: providedStatus, ...payload } = data;
-
-                const role = providedRole ?? participant?.identity ?? 'datachannel';
-                const status = providedStatus ?? subject.split('/').pop() ?? 'unknown';
-                const messageData: VideoMessageData = { [role]: { ...payload, status } };
+                const messageData: VideoMessageData = { ...data };
 
                 if (options.debug && data?.metadata?.sentiment) {
                     messageData.sentiment = {
