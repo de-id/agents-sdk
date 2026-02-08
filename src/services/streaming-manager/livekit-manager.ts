@@ -346,7 +346,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     subject === StreamEvents.StreamVideoCreated ? AgentActivityState.Talking : AgentActivityState.Idle;
                 callbacks.onAgentActivityStateChange?.(currentActivityState);
 
-                const messageData: VideoMessageData = { ...data };
+                const rtt = videoStatsMonitor?.getReport()?.webRTCStats?.avgRtt ?? 0;
+                const downstreamNetworkLatency = rtt > 0 ? Math.round((rtt / 2) * 1000) : 0;
+                const messageData: VideoMessageData = { ...data, downstreamNetworkLatency };
 
                 if (options.debug && data?.metadata?.sentiment) {
                     messageData.sentiment = {
