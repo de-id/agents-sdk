@@ -48,6 +48,20 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     unpublishMicrophoneStream?(): Promise<void>;
 
     /**
+     * Mute the currently published microphone stream
+     * Fast operation that keeps the track published but stops sending audio
+     * supported only for livekit manager
+     */
+    muteMicrophoneStream?(): Promise<void>;
+
+    /**
+     * Unmute the currently published microphone stream
+     * Fast operation that resumes sending audio on the published track
+     * supported only for livekit manager
+     */
+    unmuteMicrophoneStream?(): Promise<void>;
+
+    /**
      * Session identifier information, should be returned in the body of all streaming requests
      */
     sessionId: string;
