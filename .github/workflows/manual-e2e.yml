@@ -27,10 +27,14 @@ jobs:
 
     steps:
       - name: Checkout SDK branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: agents-sdk
           ref: ${{ github.event.inputs.sdk_branch }}
+          owner: de-id
+          repositories: |
+            agents-sdk
+            agents-ui
 
       - name: Generate GitHub App Token
         uses: actions/create-github-app-token@v2
@@ -63,7 +67,7 @@ jobs:
           echo "SDK_PACKAGE=$(ls *.tgz)" >> $GITHUB_ENV
 
       - name: Checkout agents-ui branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: de-id/agents-ui
           ref: ${{ github.event.inputs.ui_branch }}
