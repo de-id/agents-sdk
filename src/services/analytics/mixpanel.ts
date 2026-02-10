@@ -90,10 +90,7 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                 }),
             };
 
-            fetch(mixpanelUrl, {
-                ...options,
-                keepalive: true,
-            }).catch(err => console.error('Analytics tracking error:', err));
+            fetch(mixpanelUrl, options).catch(err => console.error('Analytics tracking error:', err));
 
             return Promise.resolve();
         },
