@@ -34,11 +34,11 @@ interface MixpanelEvents {
     [mixpanelEvent: string]: MixpanelEvent;
 }
 
-let mixpanelEvents: MixpanelEvents = {};
 const mixpanelUrl = 'https://api-js.mixpanel.com/track/?verbose=1&ip=1';
 
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
+    const mixpanelEvents: MixpanelEvents = {};
 
     return {
         token: config.token || 'testKey',
