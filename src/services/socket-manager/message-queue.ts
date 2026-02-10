@@ -133,6 +133,7 @@ export function createMessageEventQueue(
 
                 if (chatEvent === ChatProgress.Answer) {
                     analytics.track('agent-message-received', {
+                        content: data.content,
                         messages: items.messages.length,
                         mode: items.chatMode,
                     });
