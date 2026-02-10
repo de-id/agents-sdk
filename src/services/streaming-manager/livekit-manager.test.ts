@@ -126,11 +126,18 @@ function createMockAudioTrack(id: string = TEST_AUDIO_TRACK_ID, additionalProps:
     } as any;
 }
 
+function createMockSender() {
+    return {
+        replaceTrack: jest.fn().mockResolvedValue(undefined),
+    } as any;
+}
+
 function createMockTrack(id: string = TEST_AUDIO_TRACK_ID, mediaStreamTrack?: MediaStreamTrack) {
     return {
         kind: 'audio',
         id,
         mediaStreamTrack: mediaStreamTrack || createMockAudioTrack(id),
+        sender: createMockSender(),
     } as any;
 }
 
@@ -392,6 +399,106 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             // Try to publish before connection
             await expect(manager.publishMicrophoneStream?.(mockStream)).rejects.toThrow('Room is not connected');
+        });
+    });
+
+    describe('Microphone Stream Mute/Unmute', () => {
+        it('should mute microphone track by replacing with null via RTCRtpSender', async () => {
+            const mockAudioTrack = createMockAudioTrack();
+            const mockStream = createMockStream([mockAudioTrack]);
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await manager.publishMicrophoneStream?.(mockStream);
+            await manager.muteMicrophoneStream?.();
+
+            expect(mockPublication.track.sender.replaceTrack).toHaveBeenCalledWith(null);
+        });
+
+        it('should unmute microphone track by replacing with mediaStreamTrack via RTCRtpSender', async () => {
+            const mockAudioTrack = createMockAudioTrack();
+            const mockStream = createMockStream([mockAudioTrack]);
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await manager.publishMicrophoneStream?.(mockStream);
+            await manager.muteMicrophoneStream?.();
+            await manager.unmuteMicrophoneStream?.();
+
+            // First call is mute (null), second call is unmute (track.mediaStreamTrack)
+            expect(mockPublication.track.sender.replaceTrack).toHaveBeenCalledTimes(2);
+            expect(mockPublication.track.sender.replaceTrack).toHaveBeenLastCalledWith(mockPublication.track.mediaStreamTrack);
+        });
+
+        it('should not throw when muting without published track', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await expect(manager.muteMicrophoneStream?.()).resolves.not.toThrow();
+        });
+
+        it('should not throw when unmuting without published track', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await expect(manager.unmuteMicrophoneStream?.()).resolves.not.toThrow();
+        });
+
+        it('should throw error when mute fails', async () => {
+            const mockAudioTrack = createMockAudioTrack();
+            const mockStream = createMockStream([mockAudioTrack]);
+            const mockPublication = createMockPublication();
+            mockPublication.track.sender.replaceTrack = jest.fn().mockRejectedValue(new Error('Mute failed'));
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await manager.publishMicrophoneStream?.(mockStream);
+            await expect(manager.muteMicrophoneStream?.()).rejects.toThrow('Mute failed');
+        });
+
+        it('should throw error when unmute fails', async () => {
+            const mockAudioTrack = createMockAudioTrack();
+            const mockStream = createMockStream([mockAudioTrack]);
+            const mockPublication = createMockPublication();
+            // First call (mute) succeeds, second call (unmute) fails
+            mockPublication.track.sender.replaceTrack = jest.fn()
+                .mockResolvedValueOnce(undefined)
+                .mockRejectedValueOnce(new Error('Unmute failed'));
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await manager.publishMicrophoneStream?.(mockStream);
+            await manager.muteMicrophoneStream?.();
+            await expect(manager.unmuteMicrophoneStream?.()).rejects.toThrow('Unmute failed');
+        });
+
+        it('should allow multiple mute/unmute cycles', async () => {
+            const mockAudioTrack = createMockAudioTrack();
+            const mockStream = createMockStream([mockAudioTrack]);
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await manager.publishMicrophoneStream?.(mockStream);
+            await manager.muteMicrophoneStream?.();
+            await manager.unmuteMicrophoneStream?.();
+            await manager.muteMicrophoneStream?.();
+            await manager.unmuteMicrophoneStream?.();
+
+            // 2 mutes (null) + 2 unmutes (original track) = 4 calls
+            expect(mockPublication.track.sender.replaceTrack).toHaveBeenCalledTimes(4);
         });
     });
 
