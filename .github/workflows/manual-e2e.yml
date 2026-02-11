@@ -86,7 +86,7 @@ jobs:
         working-directory: agents-ui
         run: |
           if [ -f .npmrc.template ]; then
-            sed "s/\$NPM_AUTH_TOKEN/${{ secrets.NPM_TOKEN }}/g" .npmrc.template > .npmrc
+            sed "s/\$NPM_AUTH_TOKEN/${{ secrets.NPM_PACKAGE_UPLOAD_TOKEN }}/g" .npmrc.template > .npmrc
           fi
 
       - name: Install local SDK build in agents-ui

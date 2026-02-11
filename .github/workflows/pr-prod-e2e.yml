@@ -52,12 +52,12 @@ jobs:
 
       - name: Render .npmrc for agents-ui
         working-directory: agents-ui
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_UPLOAD_TOKEN }}
         run: |
           if [ -f .npmrc.template ]; then
             envsubst < .npmrc.template > .npmrc
           fi
-        env:
-          NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Install staging SDK version
         working-directory: agents-ui

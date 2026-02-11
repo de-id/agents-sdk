@@ -113,7 +113,7 @@ jobs:
 
       - name: Publish to NPM
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_UPLOAD_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             logger -l info -m "🔍 DRY RUN MODE: Would publish version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
