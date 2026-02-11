@@ -12,7 +12,6 @@ on:
         type: boolean
 
 permissions:
-  id-token: write # Use for genenrate OIDC token to upload to NpmJS
   contents: write
 
 jobs:
@@ -114,7 +113,7 @@ jobs:
 
       - name: Publish to NPM
         env:
-          NODE_AUTH_TOKEN: "" # Clear default auth token for OIDC usage - it will use the OIDC token of the github action insead
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             logger -l info -m "🔍 DRY RUN MODE: Would publish version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
