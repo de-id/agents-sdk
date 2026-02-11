@@ -12,7 +12,6 @@ on:
         type: boolean
 
 permissions:
-  id-token: write # Use for genenrate OIDC token to upload to NpmJS
   contents: write
 
 jobs:
@@ -42,7 +41,7 @@ jobs:
           sudo chmod +x /usr/local/bin/logger
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           registry-url: "https://registry.npmjs.org"
@@ -113,6 +112,8 @@ jobs:
           logger -l info -m "Updated package.json version to: ${{ steps.version.outputs.version }}"
 
       - name: Publish to NPM
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_UPLOAD_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             logger -l info -m "🔍 DRY RUN MODE: Would publish version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
