@@ -27,9 +27,13 @@ jobs:
         with:
           app-id: ${{ secrets.AGENTS_SDK_AUTOMATIONS_APP_ID }}
           private-key: ${{ secrets.AGENTS_SDK_AUTOMATIONS_PRIVATE_KEY }}
+          owner: de-id
+          repositories: |
+            agents-sdk
+            agents-ui
 
       - name: Checkout agents-ui production branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: de-id/agents-ui
           ref: prod
