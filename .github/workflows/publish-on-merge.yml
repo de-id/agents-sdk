@@ -42,7 +42,7 @@ jobs:
           sudo chmod +x /usr/local/bin/logger
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           registry-url: "https://registry.npmjs.org"
@@ -113,8 +113,8 @@ jobs:
           logger -l info -m "Updated package.json version to: ${{ steps.version.outputs.version }}"
 
       - name: Publish to NPM
-        env:
-          NODE_AUTH_TOKEN: "" # Clear default auth token for OIDC usage - it will use the OIDC token of the github action insead
+        #env:
+        #  NODE_AUTH_TOKEN: "" # Clear default auth token for OIDC usage - it will use the OIDC token of the github action insead
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             logger -l info -m "🔍 DRY RUN MODE: Would publish version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
