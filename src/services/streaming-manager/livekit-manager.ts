@@ -35,6 +35,8 @@ import type {
 import { createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
+const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
+
 async function importLiveKit(): Promise<{
     Room: typeof Room;
     RoomEvent: typeof RoomEvent;
@@ -93,7 +95,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, Track } = await importLiveKit();
 
-    const { callbacks, auth, baseURL, analytics, microphoneStream } = options;
+    const { callbacks, auth, baseURL, analytics } = options;
     let room: Room | null = null;
     let isConnected = false;
     const streamType = StreamType.Fluent;
@@ -110,7 +112,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     });
 
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
@@ -166,7 +167,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log('LiveKit room joined successfully');
 
         trackSubscriptionTimeoutId = setTimeout(() => {
-            log('Track subscription timeout - no track subscribed within 30 seconds after connect');
+            log(
+                `Track subscription timeout - no track subscribed within ${TRACK_SUBSCRIPTION_TIMEOUT_MS / 1000} seconds after connect`
+            );
             trackSubscriptionTimeoutId = null;
             analytics.track('connectivity-error', {
                 error: 'Track subscription timeout',
@@ -252,12 +255,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function handleTrackSubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track subscribed: ${track.kind} from ${participant.identity}`);
 
-        if (trackSubscriptionTimeoutId) {
-            clearTimeout(trackSubscriptionTimeoutId);
-            trackSubscriptionTimeoutId = null;
-            log('Track subscription timeout cleared');
-        }
-
         const mediaStreamTrack = track.mediaStreamTrack;
         if (!mediaStreamTrack) {
             log(`No mediaStreamTrack available for ${track.kind}`);
@@ -289,6 +286,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 (state, report) => {
                     log(`Video state change: ${state}`);
                     if (state === StreamingState.Start) {
+                        if (trackSubscriptionTimeoutId) {
+                            clearTimeout(trackSubscriptionTimeoutId);
+                            trackSubscriptionTimeoutId = null;
+                            log('Track subscription timeout cleared');
+                        }
                         handleVideoStarted();
                     } else if (state === StreamingState.Stop) {
                         handleVideoStopped(report);
