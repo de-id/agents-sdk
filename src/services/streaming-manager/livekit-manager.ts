@@ -93,7 +93,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, Track } = await importLiveKit();
 
-    const { callbacks, auth, baseURL, analytics, microphoneStream } = options;
+    const { callbacks, auth, baseURL, analytics } = options;
     let room: Room | null = null;
     let isConnected = false;
     const streamType = StreamType.Fluent;
