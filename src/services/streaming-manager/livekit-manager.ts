@@ -101,6 +101,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const streamType = StreamType.Fluent;
     let sharedMediaStream: MediaStream | null = null;
     let microphonePublication: LocalTrackPublication | null = null;
+    let cameraPublication: LocalTrackPublication | null = null;
+    let isPublishingMicrophone = false;
+    let isPublishingCamera = false;
     let videoStatsMonitor: ReturnType<typeof createVideoStatsMonitor> | null = null;
     let videoStreamingState: StreamingState | null = null;
     // We defer Connected until video track is subscribed to align with WebRTC behavior
@@ -201,6 +204,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 log('LiveKit room disconnected');
                 isConnected = false;
                 hasEmittedConnected = false;
+                microphonePublication = null;
+                cameraPublication = null;
                 callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, 'livekit:disconnected');
                 break;
             case LiveKitConnectionState.Reconnecting:
@@ -395,42 +400,39 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         log('Track subscription failed:', { trackSid, participant, reason });
     }
 
-    function findPublishedMicrophoneTrack(audioTrack: MediaStreamTrack): LocalTrackPublication | null {
-        if (!room) return null;
-
-        const publishedTracks = room.localParticipant.audioTrackPublications;
-
-        if (publishedTracks) {
-            for (const [_, publication] of publishedTracks) {
-                if (publication.source === Track.Source.Microphone && publication.track) {
-                    const publishedTrack = publication.track;
-                    const publishedMediaTrack = publishedTrack.mediaStreamTrack;
-                    if (
-                        publishedMediaTrack === audioTrack ||
-                        (publishedMediaTrack && publishedMediaTrack.id === audioTrack.id)
-                    ) {
-                        return publication as LocalTrackPublication;
-                    }
+    function findPublishedTrack(
+        track: MediaStreamTrack,
+        source: Track.Source,
+        publications: Map<string, LocalTrackPublication>
+    ): LocalTrackPublication | null {
+        for (const [_, publication] of publications) {
+            if (publication.source === source && publication.track) {
+                const publishedMediaTrack = publication.track.mediaStreamTrack;
+                if (publishedMediaTrack === track || publishedMediaTrack?.id === track.id) {
+                    return publication as LocalTrackPublication;
                 }
             }
         }
-
         return null;
     }
 
-    function hasDifferentMicrophoneTrackPublished(audioTrack: MediaStreamTrack): boolean {
-        if (!microphonePublication || !microphonePublication.track) {
+    function hasDifferentTrackPublished(track: MediaStreamTrack, publication: LocalTrackPublication | null): boolean {
+        if (!publication || !publication.track) {
             return false;
         }
-
-        const publishedMediaTrack = microphonePublication.track.mediaStreamTrack;
-        return publishedMediaTrack !== audioTrack && publishedMediaTrack?.id !== audioTrack.id;
+        const publishedMediaTrack = publication.track.mediaStreamTrack;
+        return publishedMediaTrack !== track && publishedMediaTrack?.id !== track.id;
     }
 
     async function publishMicrophoneStream(stream: MediaStream): Promise<void> {
         if (!isConnected || !room) {
             log('Room is not connected, cannot publish microphone stream');
             throw new Error('Room is not connected');
+        }
+
+        if (isPublishingMicrophone) {
+            log('Microphone publish already in progress, skipping');
+            return;
         }
 
         const audioTracks = stream.getAudioTracks();
@@ -441,7 +443,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         const audioTrack = audioTracks[0];
 
-        const existingPublication = findPublishedMicrophoneTrack(audioTrack);
+        const existingPublication = findPublishedTrack(
+            audioTrack,
+            Track.Source.Microphone,
+            room.localParticipant.audioTrackPublications
+        );
         if (existingPublication) {
             log('Microphone track is already published, skipping', {
                 trackId: audioTrack.id,
@@ -451,13 +457,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             return;
         }
 
-        if (hasDifferentMicrophoneTrackPublished(audioTrack)) {
+        if (hasDifferentTrackPublished(audioTrack, microphonePublication)) {
             log('Unpublishing existing microphone track before publishing new one');
             await unpublishMicrophoneStream();
         }
 
         log('Publishing microphone track from provided MediaStream', { trackId: audioTrack.id });
 
+        isPublishingMicrophone = true;
         try {
             microphonePublication = await room.localParticipant.publishTrack(audioTrack, {
                 source: Track.Source.Microphone,
@@ -466,6 +473,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         } catch (error) {
             log('Failed to publish microphone track:', error);
             throw error;
+        } finally {
+            isPublishingMicrophone = false;
         }
     }
 
@@ -476,13 +485,84 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         try {
             if (room) {
-                await room.localParticipant.unpublishTrack(microphonePublication.track);
+                await room.localParticipant.unpublishTrack(microphonePublication.track, false);
                 log('Microphone track unpublished');
             }
         } catch (error) {
             log('Error unpublishing microphone track:', error);
         } finally {
             microphonePublication = null;
+        }
+    }
+
+    async function publishCameraStream(stream: MediaStream): Promise<void> {
+        if (!isConnected || !room) {
+            log('Room is not connected, cannot publish camera stream');
+            throw new Error('Room is not connected');
+        }
+
+        if (isPublishingCamera) {
+            log('Camera publish already in progress, skipping');
+            return;
+        }
+
+        const videoTracks = stream.getVideoTracks();
+        if (videoTracks.length === 0) {
+            throw new Error('No video track found in the provided MediaStream');
+        }
+
+        const videoTrack = videoTracks[0];
+
+        const existingPublication = findPublishedTrack(
+            videoTrack,
+            Track.Source.Camera,
+            room.localParticipant.videoTrackPublications
+        );
+
+        if (existingPublication) {
+            log('Camera track is already published, skipping', {
+                trackId: videoTrack.id,
+                publishedTrackId: existingPublication.track?.mediaStreamTrack?.id,
+            });
+            cameraPublication = existingPublication;
+            return;
+        }
+
+        if (hasDifferentTrackPublished(videoTrack, cameraPublication)) {
+            log('Unpublishing existing camera track before publishing new one');
+            await unpublishCameraStream();
+        }
+
+        log('Publishing camera track from provided MediaStream', { trackId: videoTrack.id });
+
+        isPublishingCamera = true;
+        try {
+            cameraPublication = await room.localParticipant.publishTrack(videoTrack, {
+                source: Track.Source.Camera,
+            });
+            log('Camera track published successfully', { trackSid: cameraPublication.trackSid });
+        } catch (error) {
+            log('Failed to publish camera track:', error);
+            throw error;
+        } finally {
+            isPublishingCamera = false;
+        }
+    }
+
+    async function unpublishCameraStream(): Promise<void> {
+        if (!cameraPublication || !cameraPublication.track) {
+            return;
+        }
+
+        try {
+            if (room) {
+                await room.localParticipant.unpublishTrack(cameraPublication.track, false);
+                log('Camera track unpublished');
+            }
+        } catch (error) {
+            log('Error unpublishing camera track:', error);
+        } finally {
+            cameraPublication = null;
         }
     }
 
@@ -533,8 +613,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         if (room) {
-            await unpublishMicrophoneStream();
             callbacks.onConnectionStateChange?.(ConnectionState.Disconnecting, reason);
+            await Promise.all([unpublishMicrophoneStream(), unpublishCameraStream()]);
             await room.disconnect();
         }
         cleanMediaStream();
@@ -610,6 +690,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         sendTextMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
+        publishCameraStream,
+        unpublishCameraStream,
 
         sessionId,
         streamId: sessionId,

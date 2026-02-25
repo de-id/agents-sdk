@@ -48,6 +48,20 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     unpublishMicrophoneStream?(): Promise<void>;
 
     /**
+     * Publish a camera video stream to the LiveKit room.
+     * Can be called after connection to enable vision.
+     * supported only for livekit manager
+     */
+    publishCameraStream?(stream: MediaStream): Promise<void>;
+
+    /**
+     * Unpublish the currently published camera stream.
+     * Can be called after connection to disable vision.
+     * supported only for livekit manager
+     */
+    unpublishCameraStream?(): Promise<void>;
+
+    /**
      * Session identifier information, should be returned in the body of all streaming requests
      */
     sessionId: string;

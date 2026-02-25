@@ -20,7 +20,15 @@ export function App() {
     const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string>('');
 
+    const [isCameraOn, setIsCameraOn] = useState(false);
+    const [cameraStream, setCameraStream] = useState<MediaStream | undefined>(undefined);
+    const [videoInputDevices, setVideoInputDevices] = useState<MediaDeviceInfo[]>([]);
+    const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState<string>('');
+    const cameraStreamRef = useRef<MediaStream | undefined>(undefined);
+    const hasSetDefaultVideoDevice = useRef(false);
+
     const videoRef = useRef<HTMLVideoElement>(null);
+    const cameraPreviewRef = useRef<HTMLVideoElement>(null);
 
     const {
         srcObject,
@@ -36,6 +44,10 @@ export function App() {
         unpublishMicrophoneStream,
         microphoneEnabled,
         isMicrophonePublished,
+        publishCameraStream,
+        unpublishCameraStream,
+        isCameraPublished,
+        cameraEnabled,
     } = useAgentManager({
         debug,
         agentId,
@@ -54,6 +66,68 @@ export function App() {
             setMicrophoneStream(undefined);
         }
     }, []);
+
+    const cleanupCameraStream = useCallback(() => {
+        if (cameraStreamRef.current) {
+            cameraStreamRef.current.getTracks().forEach(track => track.stop());
+            cameraStreamRef.current = undefined;
+            setCameraStream(undefined);
+            hasSetDefaultVideoDevice.current = false;
+        }
+    }, []);
+
+    const handleDisconnect = useCallback(async () => {
+        try {
+            await disconnect();
+        } finally {
+            cleanupCameraStream();
+            setIsCameraOn(false);
+        }
+    }, [disconnect, cleanupCameraStream]);
+
+    const updateVideoDevices = useCallback(async () => {
+        try {
+            const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            tempStream.getTracks().forEach(track => track.stop());
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoInputs = devices.filter(device => device.kind === 'videoinput');
+            setVideoInputDevices(videoInputs);
+            if (videoInputs.length > 0 && !hasSetDefaultVideoDevice.current) {
+                hasSetDefaultVideoDevice.current = true;
+                setSelectedVideoDeviceId(videoInputs[0].deviceId);
+            }
+        } catch (error) {
+            console.error('Failed to enumerate video devices:', error);
+        }
+    }, []);
+
+    const handleCameraToggle = useCallback(
+        async (enabled: boolean) => {
+            if (enabled) {
+                try {
+                    const videoConstraints: MediaStreamConstraints['video'] = selectedVideoDeviceId
+                        ? { deviceId: { exact: selectedVideoDeviceId } }
+                        : true;
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
+                    cameraStreamRef.current = stream;
+                    setCameraStream(stream);
+                } catch (error) {
+                    console.error('Failed to get camera access:', error);
+                    alert('Failed to access camera. Please check permissions.');
+                    return;
+                }
+            } else {
+                try {
+                    await unpublishCameraStream();
+                } catch (error) {
+                    console.error('Failed to unpublish camera stream:', error);
+                }
+                cleanupCameraStream();
+            }
+            setIsCameraOn(enabled);
+        },
+        [selectedVideoDeviceId, unpublishCameraStream, cleanupCameraStream]
+    );
 
     const updateAudioDevices = useCallback(async () => {
         try {
@@ -164,6 +238,36 @@ export function App() {
     }, [enableMicrophone, updateAudioDevices]);
 
     useEffect(() => {
+        return cleanupCameraStream;
+    }, [cleanupCameraStream]);
+
+    useEffect(() => {
+        if (cameraPreviewRef.current) {
+            cameraPreviewRef.current.srcObject = cameraStream ?? null;
+        }
+    }, [cameraStream]);
+
+    useEffect(() => {
+        if (isCameraOn) {
+            updateVideoDevices();
+        }
+    }, [isCameraOn, updateVideoDevices]);
+
+    useEffect(() => {
+        if (
+            connectionState === ConnectionState.Connected &&
+            isCameraOn &&
+            publishCameraStream &&
+            cameraStreamRef.current &&
+            !isCameraPublished
+        ) {
+            publishCameraStream(cameraStreamRef.current).catch(error => {
+                console.error('Failed to publish camera stream:', error);
+            });
+        }
+    }, [connectionState, isCameraOn, publishCameraStream, isCameraPublished]);
+
+    useEffect(() => {
         if (srcObject && videoRef.current) {
             videoRef.current.srcObject = srcObject;
         }
@@ -225,7 +329,7 @@ export function App() {
                             Interrupt
                         </button>
 
-                        <button onClick={disconnect} disabled={connectionState !== ConnectionState.Connected}>
+                        <button onClick={handleDisconnect} disabled={connectionState !== ConnectionState.Connected}>
                             Close Connection
                         </button>
 
@@ -261,6 +365,18 @@ export function App() {
                                     Microphone
                                 </label>
                             )}
+
+                            {cameraEnabled && (
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        name="camera"
+                                        checked={isCameraOn}
+                                        onChange={e => handleCameraToggle(e.currentTarget.checked)}
+                                    />
+                                    Camera
+                                </label>
+                            )}
                         </div>
                         {microphoneEnabled && enableMicrophone && audioInputDevices.length > 0 && (
                             <div className="input-options" style={{ marginTop: '10px' }}>
@@ -279,6 +395,33 @@ export function App() {
                                     </select>
                                 </label>
                             </div>
+                        )}
+                        {isCameraOn && videoInputDevices.length > 0 && (
+                            <div className="input-options" style={{ marginTop: '10px' }}>
+                                <label>
+                                    Camera Device:
+                                    <select
+                                        value={selectedVideoDeviceId}
+                                        onChange={e => setSelectedVideoDeviceId(e.currentTarget.value)}
+                                        disabled={connectionState === ConnectionState.Connected}
+                                        style={{ marginLeft: '10px', minWidth: '200px' }}>
+                                        {videoInputDevices.map(device => (
+                                            <option key={device.deviceId} value={device.deviceId}>
+                                                {device.label || `Camera ${device.deviceId.substring(0, 8)}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
+                        )}
+                        {isCameraOn && (
+                            <video
+                                ref={cameraPreviewRef}
+                                className="camera-preview"
+                                autoPlay
+                                playsInline
+                                muted
+                            />
                         )}
                     </fieldset>
                 </div>

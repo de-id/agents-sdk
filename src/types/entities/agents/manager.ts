@@ -218,6 +218,18 @@ export interface AgentManager {
      */
     unpublishMicrophoneStream?: () => Promise<void>;
     /**
+     * Publish a camera video stream to the LiveKit room.
+     * Can be called after connection to enable vision.
+     * supported only for livekit manager
+     */
+    publishCameraStream?: (stream: MediaStream) => Promise<void>;
+    /**
+     * Unpublish the currently published camera stream.
+     * Can be called after connection to disable vision.
+     * supported only for livekit manager
+     */
+    unpublishCameraStream?: () => Promise<void>;
+    /**
      * Method to send a chat message to existing chat with the agent
      * @param messages
      */

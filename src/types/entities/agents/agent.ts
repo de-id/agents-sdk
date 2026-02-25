@@ -32,12 +32,17 @@ export enum AgentStatus {
     Ready = 'ready',
 }
 
+export interface Vision {
+    enabled: boolean;
+}
+
 export interface Agent {
     id: string;
     username?: string;
     presenter: Presenter;
     llm?: LLM;
     knowledge?: Knowledge;
+    vision?: Vision;
     use_case?: string;
     tags?: string[];
     chats?: number;
