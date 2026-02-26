@@ -37,6 +37,11 @@ import { VideoRTCStatsReport } from './stats/report';
 
 const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
 
+interface TrackPublishState {
+    isPublishing: boolean;
+    publication: LocalTrackPublication | null;
+}
+
 async function importLiveKit(): Promise<{
     Room: typeof Room;
     RoomEvent: typeof RoomEvent;
@@ -100,10 +105,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let isConnected = false;
     const streamType = StreamType.Fluent;
     let sharedMediaStream: MediaStream | null = null;
-    let microphonePublication: LocalTrackPublication | null = null;
-    let cameraPublication: LocalTrackPublication | null = null;
-    let isPublishingMicrophone = false;
-    let isPublishingCamera = false;
+    const microphoneState: TrackPublishState = { isPublishing: false, publication: null };
+    const cameraState: TrackPublishState = { isPublishing: false, publication: null };
     let videoStatsMonitor: ReturnType<typeof createVideoStatsMonitor> | null = null;
     let videoStreamingState: StreamingState | null = null;
     // We defer Connected until video track is subscribed to align with WebRTC behavior
@@ -204,8 +207,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 log('LiveKit room disconnected');
                 isConnected = false;
                 hasEmittedConnected = false;
-                microphonePublication = null;
-                cameraPublication = null;
+                microphoneState.publication = null;
+                cameraState.publication = null;
                 callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, 'livekit:disconnected');
                 break;
             case LiveKitConnectionState.Reconnecting:
@@ -416,154 +419,108 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         return null;
     }
 
-    function hasDifferentTrackPublished(track: MediaStreamTrack, publication: LocalTrackPublication | null): boolean {
-        if (!publication || !publication.track) {
-            return false;
+    async function publishTrackStream(
+        state: TrackPublishState,
+        stream: MediaStream,
+        getTracks: (stream: MediaStream) => MediaStreamTrack[],
+        source: Track.Source,
+        getPublications: () => Map<string, LocalTrackPublication>,
+        unpublishFn: () => Promise<void>
+    ): Promise<void> {
+        if (!isConnected || !room) {
+            log(`Room is not connected, cannot publish ${source} stream`);
+            throw new Error('Room is not connected');
         }
-        const publishedMediaTrack = publication.track.mediaStreamTrack;
-        return publishedMediaTrack !== track && publishedMediaTrack?.id !== track.id;
+
+        if (state.isPublishing) {
+            log(`${source} publish already in progress, skipping`);
+            return;
+        }
+
+        const tracks = getTracks(stream);
+        if (tracks.length === 0) {
+            throw new Error(`No ${source} track found in the provided MediaStream`);
+        }
+
+        const track = tracks[0];
+
+        const existingPublication = findPublishedTrack(track, source, getPublications());
+        if (existingPublication) {
+            log(`${source} track is already published, skipping`, {
+                trackId: track.id,
+                publishedTrackId: existingPublication.track?.mediaStreamTrack?.id,
+            });
+            state.publication = existingPublication;
+            return;
+        }
+
+        if (state.publication?.track) {
+            const publishedMediaTrack = state.publication.track.mediaStreamTrack;
+            if (publishedMediaTrack !== track && publishedMediaTrack?.id !== track.id) {
+                log(`Unpublishing existing ${source} track before publishing new one`);
+                await unpublishFn();
+            }
+        }
+
+        log(`Publishing ${source} track from provided MediaStream`, { trackId: track.id });
+
+        state.isPublishing = true;
+        try {
+            state.publication = await room.localParticipant.publishTrack(track, { source });
+            log(`${source} track published successfully`, { trackSid: state.publication.trackSid });
+        } catch (error) {
+            log(`Failed to publish ${source} track:`, error);
+            throw error;
+        } finally {
+            state.isPublishing = false;
+        }
+    }
+
+    async function unpublishTrackStream(state: TrackPublishState, label: string): Promise<void> {
+        if (!state.publication || !state.publication.track) {
+            return;
+        }
+
+        try {
+            if (room) {
+                await room.localParticipant.unpublishTrack(state.publication.track, false);
+                log(`${label} track unpublished`);
+            }
+        } catch (error) {
+            log(`Error unpublishing ${label} track:`, error);
+        } finally {
+            state.publication = null;
+        }
     }
 
     async function publishMicrophoneStream(stream: MediaStream): Promise<void> {
-        if (!isConnected || !room) {
-            log('Room is not connected, cannot publish microphone stream');
-            throw new Error('Room is not connected');
-        }
-
-        if (isPublishingMicrophone) {
-            log('Microphone publish already in progress, skipping');
-            return;
-        }
-
-        const audioTracks = stream.getAudioTracks();
-        if (audioTracks.length === 0) {
-            log('No audio track found in the provided MediaStream');
-            return;
-        }
-
-        const audioTrack = audioTracks[0];
-
-        const existingPublication = findPublishedTrack(
-            audioTrack,
+        return publishTrackStream(
+            microphoneState,
+            stream,
+            s => s.getAudioTracks(),
             Track.Source.Microphone,
-            room.localParticipant.audioTrackPublications
+            () => room!.localParticipant.audioTrackPublications,
+            unpublishMicrophoneStream
         );
-        if (existingPublication) {
-            log('Microphone track is already published, skipping', {
-                trackId: audioTrack.id,
-                publishedTrackId: existingPublication.track?.mediaStreamTrack?.id,
-            });
-            microphonePublication = existingPublication;
-            return;
-        }
-
-        if (hasDifferentTrackPublished(audioTrack, microphonePublication)) {
-            log('Unpublishing existing microphone track before publishing new one');
-            await unpublishMicrophoneStream();
-        }
-
-        log('Publishing microphone track from provided MediaStream', { trackId: audioTrack.id });
-
-        isPublishingMicrophone = true;
-        try {
-            microphonePublication = await room.localParticipant.publishTrack(audioTrack, {
-                source: Track.Source.Microphone,
-            });
-            log('Microphone track published successfully', { trackSid: microphonePublication.trackSid });
-        } catch (error) {
-            log('Failed to publish microphone track:', error);
-            throw error;
-        } finally {
-            isPublishingMicrophone = false;
-        }
     }
 
     async function unpublishMicrophoneStream(): Promise<void> {
-        if (!microphonePublication || !microphonePublication.track) {
-            return;
-        }
-
-        try {
-            if (room) {
-                await room.localParticipant.unpublishTrack(microphonePublication.track, false);
-                log('Microphone track unpublished');
-            }
-        } catch (error) {
-            log('Error unpublishing microphone track:', error);
-        } finally {
-            microphonePublication = null;
-        }
+        return unpublishTrackStream(microphoneState, 'Microphone');
     }
 
     async function publishCameraStream(stream: MediaStream): Promise<void> {
-        if (!isConnected || !room) {
-            log('Room is not connected, cannot publish camera stream');
-            throw new Error('Room is not connected');
-        }
-
-        if (isPublishingCamera) {
-            log('Camera publish already in progress, skipping');
-            return;
-        }
-
-        const videoTracks = stream.getVideoTracks();
-        if (videoTracks.length === 0) {
-            throw new Error('No video track found in the provided MediaStream');
-        }
-
-        const videoTrack = videoTracks[0];
-
-        const existingPublication = findPublishedTrack(
-            videoTrack,
+        return publishTrackStream(
+            cameraState,
+            stream,
+            s => s.getVideoTracks(),
             Track.Source.Camera,
-            room.localParticipant.videoTrackPublications
+            () => room!.localParticipant.videoTrackPublications,
+            unpublishCameraStream
         );
-
-        if (existingPublication) {
-            log('Camera track is already published, skipping', {
-                trackId: videoTrack.id,
-                publishedTrackId: existingPublication.track?.mediaStreamTrack?.id,
-            });
-            cameraPublication = existingPublication;
-            return;
-        }
-
-        if (hasDifferentTrackPublished(videoTrack, cameraPublication)) {
-            log('Unpublishing existing camera track before publishing new one');
-            await unpublishCameraStream();
-        }
-
-        log('Publishing camera track from provided MediaStream', { trackId: videoTrack.id });
-
-        isPublishingCamera = true;
-        try {
-            cameraPublication = await room.localParticipant.publishTrack(videoTrack, {
-                source: Track.Source.Camera,
-            });
-            log('Camera track published successfully', { trackSid: cameraPublication.trackSid });
-        } catch (error) {
-            log('Failed to publish camera track:', error);
-            throw error;
-        } finally {
-            isPublishingCamera = false;
-        }
     }
 
     async function unpublishCameraStream(): Promise<void> {
-        if (!cameraPublication || !cameraPublication.track) {
-            return;
-        }
-
-        try {
-            if (room) {
-                await room.localParticipant.unpublishTrack(cameraPublication.track, false);
-                log('Camera track unpublished');
-            }
-        } catch (error) {
-            log('Error unpublishing camera track:', error);
-        } finally {
-            cameraPublication = null;
-        }
+        return unpublishTrackStream(cameraState, 'Camera');
     }
 
     function cleanMediaStream(): void {
