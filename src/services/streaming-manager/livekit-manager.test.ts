@@ -16,6 +16,7 @@ const mockLocalParticipant = {
     unpublishTrack: mockUnpublishTrack,
     sendText: jest.fn(),
     audioTrackPublications: new Map(),
+    videoTrackPublications: new Map(),
 };
 
 const mockRoom = {
@@ -31,6 +32,7 @@ const mockRoomConstructor = jest.fn().mockImplementation(() => mockRoom);
 const mockTrack = {
     Source: {
         Microphone: 'microphone',
+        Camera: 'camera',
     },
 };
 
@@ -113,6 +115,9 @@ const TEST_AGENT_ID = 'agent123';
 const TEST_TRACK_SID = 'track-sid-123';
 const TEST_AUDIO_TRACK_ID = 'audio-track-1';
 const TEST_AUDIO_TRACK_ID_2 = 'audio-track-2';
+const TEST_VIDEO_TRACK_ID = 'video-track-1';
+const TEST_VIDEO_TRACK_ID_2 = 'video-track-2';
+const TEST_CAMERA_TRACK_SID = 'camera-track-sid-123';
 const ASYNC_WAIT_TIME = 10;
 
 // Helper functions to create mock objects
@@ -148,6 +153,36 @@ function createMockStream(audioTracks: any[] = [createMockAudioTrack()]) {
     const stream = new MediaStream(audioTracks);
     (stream as any).getAudioTracks = jest.fn(() => audioTracks);
     (stream as any).getTracks = jest.fn(() => audioTracks);
+    return stream;
+}
+
+function createMockCameraTrack(id: string = TEST_VIDEO_TRACK_ID, additionalProps: any = {}) {
+    return {
+        kind: 'video',
+        id,
+        enabled: true,
+        stop: jest.fn(),
+        ...additionalProps,
+    } as any;
+}
+
+function createMockCameraPublication(trackId: string = TEST_VIDEO_TRACK_ID, trackSid: string = TEST_CAMERA_TRACK_SID) {
+    const track = {
+        kind: 'video',
+        id: trackId,
+        mediaStreamTrack: createMockCameraTrack(trackId),
+    } as any;
+    return {
+        trackSid,
+        track,
+        source: 'camera',
+    } as any;
+}
+
+function createMockCameraStream(videoTracks: any[] = [createMockCameraTrack()]) {
+    const stream = new MediaStream(videoTracks);
+    (stream as any).getVideoTracks = jest.fn(() => videoTracks);
+    (stream as any).getTracks = jest.fn(() => videoTracks);
     return stream;
 }
 
@@ -221,6 +256,8 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         mockVideoStatsMonitor.start.mockClear();
         mockVideoStatsMonitor.stop.mockClear();
         mockVideoStatsMonitor.getReport.mockClear();
+        mockLocalParticipant.audioTrackPublications = new Map();
+        mockLocalParticipant.videoTrackPublications = new Map();
         agentId = TEST_AGENT_ID;
         sessionOptions = {
             chat_persist: true,
@@ -312,7 +349,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             await manager.publishMicrophoneStream?.(mockStream);
             await manager.disconnect();
 
-            expect(mockUnpublishTrack).toHaveBeenCalledWith(mockPublication.track);
+            expect(mockUnpublishTrack).toHaveBeenCalledWith(mockPublication.track, false);
         });
 
         it('should handle track publication lifecycle correctly', async () => {
@@ -746,5 +783,322 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             expect(mockOnConnectionStateChange).toHaveBeenCalledWith('fail', 'user:reconnect-failed');
         });
+    });
+});
+
+describe('LiveKit Streaming Manager - Camera Stream', () => {
+    let agentId: string;
+    let sessionOptions: CreateSessionV2Options;
+    let options: StreamingManagerOptions;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRoom.connect.mockResolvedValue(undefined);
+        mockRoom.prepareConnection.mockResolvedValue(undefined);
+        mockRoom.disconnect.mockResolvedValue(undefined);
+        mockRoom.on.mockReturnThis();
+        mockLocalParticipant.audioTrackPublications = new Map();
+        mockLocalParticipant.videoTrackPublications = new Map();
+        agentId = TEST_AGENT_ID;
+        sessionOptions = {
+            chat_persist: true,
+            transport_provider: 'livekit' as any,
+        };
+        options = StreamingManagerOptionsFactory.build();
+    });
+
+    describe('Camera Stream Publishing', () => {
+        it('should publish camera track using publishCameraStream', async () => {
+            // ARRANGE:
+            const mockVideoTrack = createMockCameraTrack();
+            const mockStream = createMockCameraStream([mockVideoTrack]);
+            const mockPublication = createMockCameraPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            // ACT:
+            await manager.publishCameraStream?.(mockStream);
+
+            // ASSERT:
+            expect(mockPublishTrack).toHaveBeenCalledWith(mockVideoTrack, {
+                source: 'camera',
+            });
+        });
+
+        it('should throw error when no video track in stream', async () => {
+            // ARRANGE:
+            const emptyStream = createMockCameraStream([]);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            // ACT + ASSERT:
+            await expect(manager.publishCameraStream?.(emptyStream)).rejects.toThrow(
+                'No camera track found in the provided MediaStream'
+            );
+        });
+
+        it('should throw error when publishing camera before connection', async () => {
+            // ARRANGE:
+            const mockStream = createMockCameraStream();
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            // ACT + ASSERT:
+            await expect(manager.publishCameraStream?.(mockStream)).rejects.toThrow('Room is not connected');
+        });
+
+        it('should throw error on camera publish failure', async () => {
+            // ARRANGE:
+            const mockStream = createMockCameraStream();
+            mockPublishTrack.mockRejectedValue(new Error('Failed to publish camera'));
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            // ACT + ASSERT:
+            await expect(manager.publishCameraStream?.(mockStream)).rejects.toThrow('Failed to publish camera');
+        });
+
+        it('should skip when same camera track is already published', async () => {
+            // ARRANGE:
+            const mockVideoTrack = createMockCameraTrack();
+            const mockStream = createMockCameraStream([mockVideoTrack]);
+            const mockPublication = createMockCameraPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            mockLocalParticipant.videoTrackPublications.set('pub-1', {
+                source: 'camera',
+                track: { mediaStreamTrack: mockVideoTrack },
+            });
+
+            // ACT:
+            await manager.publishCameraStream?.(mockStream);
+
+            // ASSERT:
+            expect(mockPublishTrack).not.toHaveBeenCalled();
+        });
+
+        it('should unpublish existing camera track before publishing a different one', async () => {
+            // ARRANGE:
+            const firstTrack = createMockCameraTrack(TEST_VIDEO_TRACK_ID);
+            const firstStream = createMockCameraStream([firstTrack]);
+            const firstPublication = createMockCameraPublication(TEST_VIDEO_TRACK_ID);
+            mockPublishTrack.mockResolvedValue(firstPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishCameraStream?.(firstStream);
+
+            const secondTrack = createMockCameraTrack(TEST_VIDEO_TRACK_ID_2);
+            const secondStream = createMockCameraStream([secondTrack]);
+            const secondPublication = createMockCameraPublication(TEST_VIDEO_TRACK_ID_2);
+            mockPublishTrack.mockResolvedValue(secondPublication);
+
+            // ACT:
+            await manager.publishCameraStream?.(secondStream);
+
+            // ASSERT:
+            expect(mockUnpublishTrack).toHaveBeenCalledWith(firstPublication.track, false);
+            expect(mockPublishTrack).toHaveBeenCalledTimes(2);
+            expect(mockPublishTrack).toHaveBeenLastCalledWith(secondTrack, { source: 'camera' });
+        });
+    });
+
+    describe('Camera Unpublish', () => {
+        it('should unpublish camera track on disconnect', async () => {
+            // ARRANGE:
+            const mockStream = createMockCameraStream();
+            const mockPublication = createMockCameraPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+            mockUnpublishTrack.mockResolvedValue(undefined);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishCameraStream?.(mockStream);
+
+            // ACT:
+            await manager.disconnect();
+
+            // ASSERT:
+            expect(mockUnpublishTrack).toHaveBeenCalledWith(mockPublication.track, false);
+        });
+
+        it('should not fail when unpublishing camera without prior publish', async () => {
+            // ARRANGE:
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            // ACT:
+            await manager.unpublishCameraStream?.();
+
+            // ASSERT:
+            expect(mockUnpublishTrack).not.toHaveBeenCalled();
+        });
+
+        it('should handle explicit unpublish via unpublishCameraStream', async () => {
+            // ARRANGE:
+            const mockStream = createMockCameraStream();
+            const mockPublication = createMockCameraPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+            mockUnpublishTrack.mockResolvedValue(undefined);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishCameraStream?.(mockStream);
+
+            // ACT:
+            await manager.unpublishCameraStream?.();
+
+            // ASSERT:
+            expect(mockUnpublishTrack).toHaveBeenCalledWith(mockPublication.track, false);
+        });
+    });
+
+    describe('Concurrent Publish Guard', () => {
+        it('should skip camera publish when already in progress', async () => {
+            // ARRANGE:
+            const mockStream = createMockCameraStream();
+            let resolvePublish: (value: any) => void;
+            const slowPublish = new Promise(resolve => {
+                resolvePublish = resolve;
+            });
+            mockPublishTrack.mockReturnValue(slowPublish);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            // ACT:
+            const firstPublish = manager.publishCameraStream?.(mockStream);
+            const secondPublish = manager.publishCameraStream?.(mockStream);
+
+            resolvePublish!(createMockCameraPublication());
+            await firstPublish;
+            await secondPublish;
+
+            // ASSERT:
+            expect(mockPublishTrack).toHaveBeenCalledTimes(1);
+        });
+
+        it('should skip microphone publish when already in progress', async () => {
+            // ARRANGE:
+            const mockStream = createMockStream();
+            let resolvePublish: (value: any) => void;
+            const slowPublish = new Promise(resolve => {
+                resolvePublish = resolve;
+            });
+            mockPublishTrack.mockReturnValue(slowPublish);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            // ACT:
+            const firstPublish = manager.publishMicrophoneStream?.(mockStream);
+            const secondPublish = manager.publishMicrophoneStream?.(mockStream);
+
+            resolvePublish!(createMockPublication());
+            await firstPublish;
+            await secondPublish;
+
+            // ASSERT:
+            expect(mockPublishTrack).toHaveBeenCalledTimes(1);
+        });
+    });
+});
+
+describe('LiveKit Streaming Manager - Disconnect Behavior', () => {
+    let agentId: string;
+    let sessionOptions: CreateSessionV2Options;
+    let options: StreamingManagerOptions;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRoom.connect.mockResolvedValue(undefined);
+        mockRoom.prepareConnection.mockResolvedValue(undefined);
+        mockRoom.disconnect.mockResolvedValue(undefined);
+        mockRoom.on.mockReturnThis();
+        mockLocalParticipant.audioTrackPublications = new Map();
+        mockLocalParticipant.videoTrackPublications = new Map();
+        agentId = TEST_AGENT_ID;
+        sessionOptions = {
+            chat_persist: true,
+            transport_provider: 'livekit' as any,
+        };
+        options = StreamingManagerOptionsFactory.build();
+    });
+
+    it('should unpublish both mic and camera on disconnect', async () => {
+        // ARRANGE:
+        const micStream = createMockStream();
+        const micPub = createMockPublication();
+        const camStream = createMockCameraStream();
+        const camPub = createMockCameraPublication();
+        mockPublishTrack.mockResolvedValueOnce(micPub).mockResolvedValueOnce(camPub);
+        mockUnpublishTrack.mockResolvedValue(undefined);
+
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        await simulateConnection();
+        await manager.publishMicrophoneStream?.(micStream);
+        await manager.publishCameraStream?.(camStream);
+
+        // ACT:
+        await manager.disconnect();
+
+        // ASSERT:
+        expect(mockUnpublishTrack).toHaveBeenCalledWith(micPub.track, false);
+        expect(mockUnpublishTrack).toHaveBeenCalledWith(camPub.track, false);
+    });
+
+    it('should allow re-publishing camera after disconnect and reconnect', async () => {
+        // ARRANGE:
+        const camStream = createMockCameraStream();
+        const camPub = createMockCameraPublication();
+        mockPublishTrack.mockResolvedValue(camPub);
+        mockUnpublishTrack.mockResolvedValue(undefined);
+
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        await simulateConnection(0);
+        await manager.publishCameraStream?.(camStream);
+        await manager.disconnect();
+
+        // ACT:
+        const manager2 = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        await simulateConnection(1);
+        await manager2.publishCameraStream?.(camStream);
+
+        // ASSERT:
+        expect(mockPublishTrack).toHaveBeenCalledTimes(2);
+    });
+
+    it('should null out publication refs on unexpected disconnect via connection state handler', async () => {
+        // ARRANGE:
+        const micStream = createMockStream();
+        const micPub = createMockPublication();
+        const camStream = createMockCameraStream();
+        const camPub = createMockCameraPublication();
+        mockPublishTrack.mockResolvedValueOnce(micPub).mockResolvedValueOnce(camPub);
+        mockUnpublishTrack.mockResolvedValue(undefined);
+
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        await simulateConnection();
+        await manager.publishMicrophoneStream?.(micStream);
+        await manager.publishCameraStream?.(camStream);
+        mockUnpublishTrack.mockClear();
+
+        // ACT:
+        const handler = getConnectionStateHandler();
+        handler('disconnected');
+
+        // After unexpected disconnect, calling disconnect again should NOT
+        // try to unpublish (publications were already nulled)
+        await manager.disconnect();
+
+        // ASSERT:
+        expect(mockUnpublishTrack).not.toHaveBeenCalled();
     });
 });

@@ -751,6 +751,59 @@ describe('createAgentManager', () => {
         });
     });
 
+    describe('publishCameraStream', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+        });
+
+        it('should publish camera stream when available', async () => {
+            const mockStream = new MediaStream();
+            const mockPublish = jest.fn().mockResolvedValue(undefined);
+            mockStreamingManager.publishCameraStream = mockPublish;
+
+            await manager.publishCameraStream?.(mockStream);
+
+            expect(mockPublish).toHaveBeenCalledWith(mockStream);
+        });
+
+        it('should throw error when publishCameraStream is not available', async () => {
+            mockStreamingManager.publishCameraStream = undefined;
+
+            await expect(manager.publishCameraStream?.(new MediaStream())).rejects.toThrow(
+                'publishCameraStream is not available for this streaming manager'
+            );
+        });
+    });
+
+    describe('unpublishCameraStream', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+        });
+
+        it('should unpublish camera stream when available', async () => {
+            const mockUnpublish = jest.fn().mockResolvedValue(undefined);
+            mockStreamingManager.unpublishCameraStream = mockUnpublish;
+
+            await manager.unpublishCameraStream?.();
+
+            expect(mockUnpublish).toHaveBeenCalled();
+        });
+
+        it('should throw error when unpublishCameraStream is not available', async () => {
+            mockStreamingManager.unpublishCameraStream = undefined;
+
+            await expect(manager.unpublishCameraStream?.()).rejects.toThrow(
+                'unpublishCameraStream is not available for this streaming manager'
+            );
+        });
+    });
+
     describe('DirectPlayback mode', () => {
         it('should not create socket manager in DirectPlayback mode', async () => {
             const directPlaybackOptions = { ...mockOptions, mode: ChatMode.DirectPlayback };

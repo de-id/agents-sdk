@@ -53,6 +53,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
     const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
     const [isMicrophonePublished, setIsMicrophonePublished] = useState(false);
+    const [isCameraPublished, setIsCameraPublished] = useState(false);
     const streamType = agentManager?.getStreamType();
 
     useEffect(() => {
@@ -80,6 +81,8 @@ export function useAgentManager(props: UseAgentManagerOptions) {
 
                         if (state !== ConnectionState.Connected) {
                             setAgentManager(null);
+                            setIsMicrophonePublished(false);
+                            setIsCameraPublished(false);
                         }
                     },
                     onVideoStateChange(state) {
@@ -131,6 +134,8 @@ export function useAgentManager(props: UseAgentManagerOptions) {
             setSrcObject(null);
             setConnectionState(ConnectionState.New);
             setMessages([]);
+            setIsMicrophonePublished(false);
+            setIsCameraPublished(false);
         }
     }, [agentManager]);
 
@@ -211,11 +216,42 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         setIsMicrophonePublished(false);
     }, [agentManager]);
 
+    const publishCameraStream = useCallback(
+        async (stream: MediaStream) => {
+            if (!agentManager) {
+                console.warn('Agent manager is not initialized yet. Will retry when ready.');
+                return;
+            }
+            if (!agentManager.publishCameraStream) {
+                throw new Error('publishCameraStream is not available for this streaming manager');
+            }
+            await agentManager.publishCameraStream(stream);
+            setIsCameraPublished(true);
+        },
+        [agentManager]
+    );
+
+    const unpublishCameraStream = useCallback(async () => {
+        if (!agentManager) {
+            console.warn('Agent manager is not initialized yet.');
+            return;
+        }
+        if (!agentManager.unpublishCameraStream) {
+            throw new Error('unpublishCameraStream is not available for this streaming manager');
+        }
+        await agentManager.unpublishCameraStream();
+        setIsCameraPublished(false);
+    }, [agentManager]);
+
     const microphoneEnabled = useMemo(() => {
         return (
             agentManager?.agent?.presenter?.type === 'expressive' &&
             typeof agentManager?.publishMicrophoneStream === 'function'
         );
+    }, [agentManager]);
+
+    const cameraEnabled = useMemo(() => {
+        return !!agentManager?.agent?.vision?.enabled && typeof agentManager?.publishCameraStream === 'function';
     }, [agentManager]);
 
     return {
@@ -232,5 +268,9 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         unpublishMicrophoneStream,
         microphoneEnabled,
         isMicrophonePublished,
+        publishCameraStream,
+        unpublishCameraStream,
+        isCameraPublished,
+        cameraEnabled,
     };
 }

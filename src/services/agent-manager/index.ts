@@ -287,6 +287,18 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
             return items.streamingManager.unpublishMicrophoneStream();
         },
+        async publishCameraStream(stream: MediaStream) {
+            if (!items.streamingManager?.publishCameraStream) {
+                throw new Error('publishCameraStream is not available for this streaming manager');
+            }
+            return items.streamingManager.publishCameraStream(stream);
+        },
+        async unpublishCameraStream() {
+            if (!items.streamingManager?.unpublishCameraStream) {
+                throw new Error('unpublishCameraStream is not available for this streaming manager');
+            }
+            return items.streamingManager.unpublishCameraStream();
+        },
         async chat(userMessage: string) {
             const validateChatRequest = () => {
                 if (isChatModeWithoutChat(mode)) {
