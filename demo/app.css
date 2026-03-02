@@ -165,6 +165,16 @@ input[type='text'][placeholder='Chat Mode (Functional | Conversational)']:focus 
     background-color: black;
 }
 
+.camera-preview {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 8px;
+    background-color: #000;
+    border: 1px solid #444;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
 .animated {
     border: 2px solid #ffcc00;
 }
