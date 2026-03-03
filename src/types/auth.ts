@@ -3,11 +3,7 @@ export interface BearerToken {
     token: string;
 }
 
-export interface BasicAuth {
-    type: 'basic';
-    username: string;
-    password: string;
-}
+export type BasicAuth = { type: 'basic'; token: string } | { type: 'basic'; username: string; password: string };
 export interface ClientKeyAuth {
     type: 'key';
     clientKey: string;

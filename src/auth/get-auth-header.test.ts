@@ -106,6 +106,14 @@ describe('getAuthHeader', () => {
 
             expect(result).toBe('Basic ' + btoa('user:pass'));
         });
+
+        it('should return pre-encoded token without double-encoding', () => {
+            const preEncodedToken = btoa('user:pass');
+            const auth: Auth = { type: 'basic', token: preEncodedToken };
+            const result = getAuthHeader(auth);
+
+            expect(result).toBe(`Basic ${preEncodedToken}`);
+        });
     });
 
     describe('Client-Key auth', () => {
