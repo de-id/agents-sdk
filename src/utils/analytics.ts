@@ -1,5 +1,5 @@
 import { Agent } from '@sdk/types/index';
-import { getAgentType } from './agent';
+import { getAgentType, getPresenterIdentifier, getPresenterType } from './agent';
 
 export function getAnalyticsInfo(agent: Agent) {
     const mobileOrDesktop = () => {
@@ -38,6 +38,8 @@ export function getAgentInfo(agent: Agent) {
 
     return {
         agentType: getAgentType(agent.presenter),
+        presenterType: getPresenterType(agent.presenter),
+        presenter: getPresenterIdentifier(agent.presenter),
         owner_id: agent.owner_id ?? '',
         promptVersion: agent.llm?.prompt_version,
         behavior: {

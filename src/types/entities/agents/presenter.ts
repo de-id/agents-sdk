@@ -30,4 +30,5 @@ export interface ClipPresenter extends BasePresenter {
 
 export interface ExpresivePresenter extends BasePresenter {
     type: 'expressive';
+    presenter_id: string;
 }
