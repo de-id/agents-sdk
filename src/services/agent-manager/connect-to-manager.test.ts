@@ -596,6 +596,7 @@ describe('connect-to-manager', () => {
                 ...mockAgent,
                 presenter: {
                     type: 'expressive' as const,
+                    presenter_id: 'expressive-presenter-123',
                     voice: { type: Providers.Microsoft, voice_id: 'voice-123' },
                 },
             };

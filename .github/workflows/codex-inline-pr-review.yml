@@ -1,4 +1,4 @@
-name: Codex PR Review
+name: Codex Inline PR Review
 permissions:
   contents: read
   pull-requests: write
@@ -10,7 +10,7 @@ on:
     
 jobs:
   codex-pr-review:
-    uses: de-id/cicd-shared/.github/workflows/codex-pr-review.yaml@main
+    uses: de-id/cicd-shared/.github/workflows/codex-inline-pr-review.yaml@main
     secrets: inherit
 
 

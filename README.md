@@ -13,6 +13,12 @@ The D-ID Agents SDK provides a seamless integration pathway for embedding your c
 
 With a streamlined and user-friendly workflow, you can easily harness the capabilities of the D-ID Agents and Streams API right out of the box.
 
+The SDK supports three avatar types:
+
+- **Talks (V2)** — Photo-based presenters using WebRTC streaming.
+- **Clips (V3)** — Pre-built presenter avatars using WebRTC streaming.
+- **Expressives (V4)** — Next-generation avatars using LiveKit-based streaming, supporting microphone input and always-on fluent mode.
+
 **Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/reference/agents-overview) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
 
 ## ✴️ Getting Started
@@ -25,7 +31,7 @@ Follow these steps:
 2. Create a new Agent with the required options - Image, voice, etc.
 3. In the [Agents gallery](https://studio.d-id.com/agents), hover with your mouse over the created Agent, then click on the `[...]` button
 4. Click on `</> Embed` button
-5. Set the list of allowed domains for your Agent, for example: `http://localhost`  
+5. Set the list of allowed domains for your Agent, for example: `http://localhost`
    This is an additional security measurement: your Agent can be accessed only from the domains allowed by you.
 6. In the code snippet section, fetch the `data-client-key` and the `data-agent-id`, these will be used later to access your Agent.
 
@@ -46,11 +52,11 @@ In your front-end application,
 1. Import the Agents SDK library
 2. Paste the `data-agent-id` obtained in the prerequisites step in the `agentId` variable
 3. Paste the `data-client-key` obtained in the prerequisites step in the `auth.clientKey` variable
-4. Define an object called `callbacks`.  
+4. Define an object called `callbacks`.
    This will be explained in the [Usage section](#➤-%EF%B8%8F-callback-functions) in this guide.
-5. Define an object called `streamOptions` [optional]  
+5. Define an object called `streamOptions` [optional — v2/v3 avatars only]
    This will be explained in the [Usage section](#➤-%EF%B8%8F-stream-options) in this guide.
-6. Create an instance of the `createAgentManger` object called `agentManager` with the values created above.  
+6. Create an instance of the `createAgentManger` object called `agentManager` with the values created above.
    This will be explained later in the [Usage section](#➤-%EF%B8%8F-agent-manager) in this guide.
 
 Example:
@@ -68,7 +74,7 @@ let auth = { type: 'key', clientKey: 'Z3123asdaczxSXSAasdcxzcashDY6MGSASFsafxSDd
 // 4. Define the SDK callbacks functions in this object
 const callbacks = {};
 
-// 5. Define the Stream Options object (Optional)
+// 5. Define the Stream Options object (Optional — v2/v3 avatars only)
 let streamOptions = { compatibilityMode: 'auto', streamWarmup: true };
 
 //....Rest of the APP's code here....//
@@ -86,21 +92,21 @@ let agentManager = await sdk.createAgentManager(agentId, { auth, callbacks, stre
 
 The `agentManager` object created during initialization has several built-in parameters that might come in handy.
 
--   **`agentManager.agent`**  
-    Displaying all of the Agent's saved information (Same as the following [endpoint](/reference/getagent))
--   **`agentManager.starterMessages`**  
-    Displaying the Agent's defined Starter Messages.
+- **`agentManager.agent`**
+  Displaying all of the Agent's saved information (Same as the following [endpoint](/reference/getagent))
+- **`agentManager.starterMessages`**
+  Displaying the Agent's defined Starter Messages.
 
 #### **Built-in Methods**
 
 The `agentManager` object created during initialization has several built-in methods that allow you to interact with your Agent.
 
--   **`agentManager.connect()`**  
-    Method to create a new connection with an Agent (new WebRTC connection, web-socket, new Agent chat ID)
+- **`agentManager.connect()`**
+  Method to create a new connection with an Agent (new WebRTC connection, web-socket, new Agent chat ID)
 
--   **`agentManager.speak({type, input})`**  
-     Method to make your Agent stream back a video based on a text or audio file.  
-     (Similar to [Talks Streams](https://docs.d-id.com/reference/talks-streams-overview) / [Clips Streams API](https://docs.d-id.com/reference/clips-streams-overview))
+- **`agentManager.speak({type, input})`**
+  Method to make your Agent stream back a video based on a text or audio file.
+  (Similar to [Talks Streams](https://docs.d-id.com/reference/talks-streams-overview) / [Clips Streams API](https://docs.d-id.com/reference/clips-streams-overview))
 
     ```javascript Text - JavaScript
     let speak = agentManager.speak({
@@ -118,30 +124,51 @@ The `agentManager` object created during initialization has several built-in met
     )
     ```
 
--   **`agentManager.chat(string)`**  
-     Method to send a message to your Agent and get a streamed video based on its answer (LLM)
+- **`agentManager.chat(string)`**
+  Method to send a message to your Agent and get a streamed video based on its answer (LLM)
 
     ```javascript JavaScript
     let chat = agentManager.chat('What is the distance to the moon?');
     ```
 
--   **`agentManager.rate(messageID, score)`**  
-    Method to rate the Agent's answer in the chat - for future analytics and insights.
+- **`agentManager.rate(messageID, score)`**
+  Method to rate the Agent's answer in the chat - for future analytics and insights.
 
--   **`agentManager.reconnect()`**  
-    Method to reconnect to the Agent when the session expires and continue the conversation on the same chat ID.
+- **`agentManager.reconnect()`**
+  Method to reconnect to the Agent when the session expires and continue the conversation on the same chat ID.
 
--   **`agentManager.disconnect()`**  
-    Method to close the existing connection and chat with the Agent.
+- **`agentManager.disconnect()`**
+  Method to close the existing connection and chat with the Agent.
+
+- **`agentManager.interrupt(interrupt)`**
+  Method to interrupt the current video stream mid-playback.
+  Supported for Fluent streams (V3 Pro Avatars) and all Expressive (V4) agents.
+
+- **`agentManager.publishMicrophoneStream(stream)`**
+  **Supported only with Expressive (V4) agents.**
+  Method to publish a microphone audio track to the session. Call after `connect()` to enable voice input.
+
+  ```javascript
+  const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  await agentManager.publishMicrophoneStream(micStream);
+  ```
+
+- **`agentManager.unpublishMicrophoneStream()`**
+  **Supported only with Expressive (V4) agents.**
+  Method to stop and remove the currently published microphone track from the session.
+
+  ```javascript
+  await agentManager.unpublishMicrophoneStream();
+  ```
 
 ### ➤ ✴️ Callback Functions
 
 Callback functions enable you to manage various events throughout the SDK lifecycle. Each function is linked to one or more methods within the built-in `agentManager` and triggers automatically to handle specific events efficiently
 
--   **`onSrcObjectReady(value)`:**  
-    [**MANDATORY for using the SDK**] - Linking the Streamed video and audio to the HTML element.  
-    The `value` of this callback function is passed to the HTML video element in the following function.  
-    Triggered when `agentManager.connect(), agentManager.reconnect(), agentManager.disconnect()` are called.
+- **`onSrcObjectReady(value)`:**
+  [**MANDATORY for using the SDK**] - Linking the Streamed video and audio to the HTML element.
+  The `value` of this callback function is passed to the HTML video element in the following function.
+  Triggered when `agentManager.connect(), agentManager.reconnect(), agentManager.disconnect()` are called.
 
     ```javascript
      onSrcObjectReady(value) {
@@ -151,9 +178,9 @@ Callback functions enable you to manage various events throughout the SDK lifecy
       }
     ```
 
--   **`onVideoStateChange(state)`:**  
-    Displaying the state of the streamed video, used for switching the HTML element's source between the idle and streamed videos.  
-    Triggered when `agentManager.chat() and agentManager.speak()` are called.
+- **`onVideoStateChange(state)`:**
+  Displaying the state of the streamed video, used for switching the HTML element's source between the idle and streamed videos.
+  Triggered when `agentManager.chat() and agentManager.speak()` are called.
 
     ```javascript
     onVideoStateChange(state) {
@@ -170,9 +197,9 @@ Callback functions enable you to manage various events throughout the SDK lifecy
     }
     ```
 
--   **`onConnectionStateChange(state):`**  
-    Displaying the different connection states with the Agent's WebRTC stream connection  
-    Triggered when `agentManager.connect(), agentManager.reconnect(), agentManager.disconnect()` are called.
+- **`onConnectionStateChange(state):`**
+  Displaying the different connection states with the Agent's WebRTC stream connection
+  Triggered when `agentManager.connect(), agentManager.reconnect(), agentManager.disconnect()` are called.
 
     ```javascript
     onConnectionStateChange(state) {
@@ -187,10 +214,10 @@ Callback functions enable you to manage various events throughout the SDK lifecy
     state: ['new', 'fail', 'connecting', 'connected', 'disconnected', 'closed'];
     ```
 
--   **`onNewMessage(messages, type)`:**  
-    Displaying the chat messages array when a new message is sent to the chat.  
-    `type`: `answer` indicates the full answer replied in the streamed video.  
-    `role`: `user`, `assistant`(Agent)
+- **`onNewMessage(messages, type)`:**
+  Displaying the chat messages array when a new message is sent to the chat.
+  `type`: `answer` indicates the full answer replied in the streamed video.
+  `role`: `user`, `assistant`(Agent)
 
     Triggered when `agentManager.chat()` is called:
 
@@ -227,8 +254,21 @@ Callback functions enable you to manage various events throughout the SDK lifecy
     ];
     ```
 
--   **`onError(error, errorData)`:**  
-     Throwing an error and displaying the error message when things go badly.
+- **`onConnectivityStateChange(state)`:**
+  Triggered when the user's internet connectivity state changes, estimated by real-time bitrate.
+
+    ```javascript
+    onConnectivityStateChange(state) {
+        console.log("onConnectivityStateChange(): ", state)
+    }
+    ```
+
+    ```javascript Example Values
+    state: ['STRONG', 'WEAK', 'UNKNOWN'];
+    ```
+
+- **`onError(error, errorData)`:**
+  Throwing an error and displaying the error message when things go badly.
 
     ```javascript
     onError(error, errorData) {
@@ -236,33 +276,41 @@ Callback functions enable you to manage various events throughout the SDK lifecy
     }
     ```
 
-### ➤ ✴️ Stream Options
+### ➤ ✴️ Stream Options (v2/v3 avatars only)
 
-- **`compatibilityMode`**:  
-  Defines the video codec to be used in the stream.  
-  When set to `"on"`: VP8 will be used.  
-  When set to `"off"`: H264 will be used  
-  When set to `"auto"` - the codec will be selected according to the browser [Default]  
+> **Note:** `streamOptions` apply only to Talks (V2) and Clips (V3) agents. Expressive (V4) avatars manage transport settings automatically and do not use these options.
+
+- **`compatibilityMode`**:
+  Defines the video codec to be used in the stream.
+  When set to `"on"`: VP8 will be used.
+  When set to `"off"`: H264 will be used
+  When set to `"auto"` - the codec will be selected according to the browser [Default]
   <br />
-- **`streamWarmup`**:  
-  Allowed values:  
-  `true` -  warmup video will be streamed when the connection is established.  
-  `false` - no warmup video [Default]  
+- **`streamWarmup`**:
+  Allowed values:
+  `true` - warmup video will be streamed when the connection is established.
+  `false` - no warmup video [Default]
   <br />
-- **`sessionTimeout`**:  
-  **Can only be used with proper permissions**  
-  Maximum duration (in seconds) between messages before the session times out.  
-  Max value: `300`  
+- **`sessionTimeout`**:
+  **Can only be used with proper permissions**
+  Maximum duration (in seconds) between messages before the session times out.
+  Max value: `300`
   <br />
-- **`outputResolution`**:  
-  **Supported only with Talk presenters (photo-based).**  
-  The output resolution sets the maximum height or width pixels of the streamed video.  
-  When resolution is not configured, it defaults to the agent output resolution.  
+- **`outputResolution`**:
+  **Supported only with Talk presenters (photo-based).**
+  The output resolution sets the maximum height or width pixels of the streamed video.
+  When resolution is not configured, it defaults to the agent output resolution.
   Allowed values: `150 - 1080`
+
+- **`fluent`**:
+  **Supported with Agents created with V3 Pro Avatars. Always enabled for V4 Avatars.**
+  Allowed values:
+  `true` - Fluent streaming (one video for Idle/Talking states)
+  `false` - Legacy streaming mode (2 video elements)
 
 ## ✴️ See it in Action
 
-Explore our demo repository on GitHub to see the Agents SDK in action!  
+Explore our demo repository on GitHub to see the Agents SDK in action!
 This repository features a sample project crafted in Vanilla JavaScript and Vite, utilizing the Agents SDK to help you get started swiftly.
 
 [GitHub Demo Repository](https://github.com/de-id/Agents-SDK-Demo)
