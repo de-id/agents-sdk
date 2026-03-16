@@ -83,6 +83,7 @@ describe('createStreamingManager', () => {
         const agent = AgentFactory.build({
             presenter: {
                 type: 'expressive',
+                presenter_id: 'expressive-presenter-123',
                 voice: {
                     type: Providers.Microsoft,
                     voice_id: 'voice-123',
@@ -105,6 +106,7 @@ describe('createStreamingManager', () => {
         const agent = AgentFactory.build({
             presenter: {
                 type: 'expressive',
+                presenter_id: 'expressive-presenter-123',
                 voice: {
                     type: Providers.Microsoft,
                     voice_id: 'voice-123',
