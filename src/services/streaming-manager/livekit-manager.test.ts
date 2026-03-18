@@ -194,6 +194,9 @@ function getConnectionStateHandler(index?: number) {
     return calls.length > 0 ? calls[calls.length - 1][1] : undefined;
 }
 
+function createDataChannelPayload(data: any): Uint8Array {
+    return Buffer.from(JSON.stringify(data));
+}
 function getDataReceivedHandler() {
     const calls = mockRoom.on.mock.calls.filter((call: any[]) => call[0] === 'DataReceived');
     return calls.length > 0 ? calls[calls.length - 1][1] : undefined;
@@ -1100,5 +1103,335 @@ describe('LiveKit Streaming Manager - Disconnect Behavior', () => {
 
         // ASSERT:
         expect(mockUnpublishTrack).not.toHaveBeenCalled();
+    });
+});
+
+describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
+    let agentId: string;
+    let sessionOptions: CreateSessionV2Options;
+    let options: StreamingManagerOptions;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRoom.connect.mockResolvedValue(undefined);
+        mockRoom.prepareConnection.mockResolvedValue(undefined);
+        mockRoom.disconnect.mockResolvedValue(undefined);
+        mockRoom.on.mockReturnThis();
+        mockLocalParticipant.audioTrackPublications = new Map();
+        mockLocalParticipant.videoTrackPublications = new Map();
+        agentId = TEST_AGENT_ID;
+        sessionOptions = {
+            chat_persist: true,
+            transport_provider: 'livekit' as any,
+        };
+        options = StreamingManagerOptionsFactory.build();
+    });
+
+    describe('Enum values', () => {
+        it('should have correct StreamEvents enum values for tool events', () => {
+            // ASSERT:
+            expect(StreamEvents.ToolCalling).toBe('tool/calling');
+            expect(StreamEvents.ToolResult).toBe('tool/result');
+        });
+
+        it('should have correct AgentActivityState enum value for ToolActive', () => {
+            // ASSERT:
+            expect(AgentActivityState.ToolActive).toBe('tool_active');
+        });
+    });
+
+    describe('handleDataReceived - tool/calling', () => {
+        it('should transition to ToolActive and call onToolEvent on tool/calling', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            const onToolEvent = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const payload = createDataChannelPayload({
+                subject: StreamEvents.ToolCalling,
+                execution_id: 'exec-123',
+                tool_name: 'get_weather',
+                arguments: { location: 'Tel Aviv' },
+                created_at: new Date().toISOString(),
+            });
+
+            // ACT:
+            dataHandler(payload);
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
+            expect(onToolEvent).toHaveBeenCalledWith(
+                StreamEvents.ToolCalling,
+                expect.objectContaining({
+                    execution_id: 'exec-123',
+                    tool_name: 'get_weather',
+                })
+            );
+        });
+    });
+
+    describe('handleDataReceived - tool/result', () => {
+        it('should call onToolEvent but not change state on tool/result', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            const onToolEvent = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // First trigger tool/calling to set ToolActive
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCalling,
+                    execution_id: 'exec-123',
+                    tool_name: 'get_weather',
+                    arguments: {},
+                    created_at: new Date().toISOString(),
+                })
+            );
+            onAgentActivityStateChange.mockClear();
+
+            const toolResultPayload = createDataChannelPayload({
+                subject: StreamEvents.ToolResult,
+                execution_id: 'exec-123',
+                tool_name: 'get_weather',
+                success: true,
+                duration_ms: 500,
+                error_message: null,
+                created_at: new Date().toISOString(),
+            });
+
+            // ACT:
+            dataHandler(toolResultPayload);
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).not.toHaveBeenCalled();
+            expect(onToolEvent).toHaveBeenCalledWith(
+                StreamEvents.ToolResult,
+                expect.objectContaining({
+                    execution_id: 'exec-123',
+                    success: true,
+                })
+            );
+        });
+    });
+
+    describe('handleDataReceived - stream-video/done with interruptible', () => {
+        it('should transition to Idle on stream-video/done when interruptible is true', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // Set ToolActive state first
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCalling,
+                    execution_id: 'exec-123',
+                    tool_name: 'test',
+                    arguments: {},
+                    created_at: new Date().toISOString(),
+                })
+            );
+            onAgentActivityStateChange.mockClear();
+
+            const streamVideoDonePayload = createDataChannelPayload({
+                subject: StreamEvents.StreamVideoDone,
+                metadata: { interruptible: true },
+            });
+
+            // ACT:
+            dataHandler(streamVideoDonePayload);
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
+        });
+
+        it('should transition to Idle on stream-video/done when interruptible is absent (default true)', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // Set ToolActive state first
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCalling,
+                    execution_id: 'exec-123',
+                    tool_name: 'test',
+                    arguments: {},
+                    created_at: new Date().toISOString(),
+                })
+            );
+            onAgentActivityStateChange.mockClear();
+
+            const streamVideoDonePayload = createDataChannelPayload({
+                subject: StreamEvents.StreamVideoDone,
+            });
+
+            // ACT:
+            dataHandler(streamVideoDonePayload);
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
+        });
+
+        it('should stay in ToolActive on stream-video/done when interruptible is false', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // Set ToolActive state first
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCalling,
+                    execution_id: 'exec-123',
+                    tool_name: 'test',
+                    arguments: {},
+                    created_at: new Date().toISOString(),
+                })
+            );
+            onAgentActivityStateChange.mockClear();
+
+            const streamVideoDonePayload = createDataChannelPayload({
+                subject: StreamEvents.StreamVideoDone,
+                metadata: { interruptible: false },
+            });
+
+            // ACT:
+            dataHandler(streamVideoDonePayload);
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('Chained tools', () => {
+        it('should stay ToolActive across multiple tool calls until final stream-video/done', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            const onToolEvent = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            const dataHandler = getDataReceivedHandler();
+
+            // ACT:
+            // First tool cycle
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCalling,
+                    execution_id: 'exec-1',
+                    tool_name: 'tool1',
+                    arguments: {},
+                    created_at: new Date().toISOString(),
+                })
+            );
+
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolResult,
+                    execution_id: 'exec-1',
+                    tool_name: 'tool1',
+                    success: true,
+                    duration_ms: 100,
+                    created_at: new Date().toISOString(),
+                })
+            );
+
+            // interruptible: false = more tools coming
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.StreamVideoDone,
+                    metadata: { interruptible: false },
+                })
+            );
+
+            // Second tool cycle
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCalling,
+                    execution_id: 'exec-2',
+                    tool_name: 'tool2',
+                    arguments: {},
+                    created_at: new Date().toISOString(),
+                })
+            );
+
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolResult,
+                    execution_id: 'exec-2',
+                    tool_name: 'tool2',
+                    success: true,
+                    duration_ms: 200,
+                    created_at: new Date().toISOString(),
+                })
+            );
+
+            // interruptible: true = tool chain complete
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.StreamVideoDone,
+                    metadata: { interruptible: true },
+                })
+            );
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
+            expect(onAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.Idle);
+            expect(onToolEvent).toHaveBeenCalledTimes(4);
+        });
+    });
+
+    describe('No regression - sessions without tools', () => {
+        it('should handle stream-video/done without metadata (backwards compatible)', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            const onMessage = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+            options.callbacks.onMessage = onMessage;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // Regular session without any tool events
+            const payload = createDataChannelPayload({
+                subject: StreamEvents.StreamVideoDone,
+            });
+
+            // ACT:
+            dataHandler(payload);
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
+            expect(onMessage).toHaveBeenCalled();
+        });
     });
 });

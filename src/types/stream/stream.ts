@@ -23,6 +23,7 @@ export enum AgentActivityState {
     Idle = 'IDLE',
     Loading = 'LOADING',
     Talking = 'TALKING',
+    ToolActive = 'tool_active',
 }
 
 export enum StreamEvents {
@@ -39,6 +40,8 @@ export enum StreamEvents {
     StreamVideoDone = 'stream-video/done',
     StreamVideoError = 'stream-video/error',
     StreamVideoRejected = 'stream-video/rejected',
+    ToolCalling = 'tool/calling',
+    ToolResult = 'tool/result',
 }
 
 export enum ConnectionState {
@@ -69,6 +72,10 @@ export interface ManagerCallbacks {
     onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
     onStreamReady?: () => void;
     onInterruptDetected?: (interrupt: Interrupt) => void;
+    onToolEvent?: (
+        event: StreamEvents.ToolCalling | StreamEvents.ToolResult,
+        data: ToolCallingPayload | ToolResultPayload
+    ) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
@@ -178,4 +185,21 @@ export interface StreamInterruptPayload {
     type: StreamEvents.StreamInterrupt;
     videoId: string;
     timestamp: number;
+}
+
+export interface ToolCallingPayload {
+    execution_id: string;
+    tool_name: string;
+    arguments: Record<string, unknown>;
+    created_at: string;
+}
+
+export interface ToolResultPayload {
+    execution_id: string;
+    tool_name: string;
+    success: boolean;
+    duration_ms: number;
+    result?: unknown;
+    error_message?: string | null;
+    created_at: string;
 }
