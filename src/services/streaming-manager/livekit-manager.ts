@@ -10,6 +10,8 @@ import {
     StreamingManagerOptions,
     StreamingState,
     StreamType,
+    ToolCallingPayload,
+    ToolResultPayload,
     TransportProvider,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
@@ -18,6 +20,7 @@ import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createStreamingLogger, StreamingManager } from './common';
+import { chatEventMap } from './data-channel-handlers';
 
 import type {
     ConnectionQuality,
@@ -119,6 +122,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
+    let currentInterruptible = true;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
@@ -319,6 +323,84 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
+    function handleChatEvents(subject: string, data: any): void {
+        const eventName = chatEventMap[subject];
+        if (!eventName) return;
+
+        callbacks.onMessage?.(eventName, { event: eventName, ...data });
+    }
+
+    /**
+     * ToolActive state transitions:
+     * - tool/calling -> sets ToolActive
+     * - stream-video/done with interruptible: true -> sets Idle
+     * - stream-video/done with interruptible: false -> stays ToolActive (more tools coming)
+     */
+    function handleToolEvents(subject: string, data: any): void {
+        if (subject === StreamEvents.ToolCalling) {
+            currentActivityState = AgentActivityState.ToolActive;
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
+            callbacks.onToolEvent?.(StreamEvents.ToolCalling, data as ToolCallingPayload);
+            return;
+        }
+
+        if (subject === StreamEvents.ToolResult) {
+            callbacks.onToolEvent?.(StreamEvents.ToolResult, data as ToolResultPayload);
+        }
+    }
+
+    function handleVideoActivityState(subject: string, data: any): void {
+        currentInterruptible = data.metadata?.interruptible !== false;
+        callbacks.onInterruptibleChange?.(currentInterruptible);
+
+        if (subject === StreamEvents.StreamVideoCreated) {
+            currentActivityState = AgentActivityState.Talking;
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
+            return;
+        }
+
+        if (currentInterruptible) {
+            currentActivityState = AgentActivityState.Idle;
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+        }
+    }
+
+    function handleVideoEvents(subject: string, data: any): void {
+        const rtt = videoStatsMonitor?.getReport()?.webRTCStats?.avgRtt ?? 0;
+        const downstreamNetworkLatency = rtt > 0 ? Math.round((rtt / 2) * 1000) : 0;
+        const messageData: VideoMessageData = { ...data, downstreamNetworkLatency };
+
+        if (options.debug && data?.metadata?.sentiment) {
+            messageData.sentiment = {
+                id: data.metadata.sentiment.id,
+                name: data.metadata.sentiment.sentiment,
+            };
+        }
+
+        callbacks.onMessage?.(subject as StreamEvents, messageData);
+        handleVideoActivityState(subject, data);
+    }
+
+    function handleTranscriptionEvents(_: string, data: any): void {
+        callbacks.onMessage?.(ChatProgress.Transcribe, { event: ChatProgress.Transcribe, ...data });
+        queueMicrotask(() => {
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.Loading);
+        });
+    }
+
+    type DataChannelHandler = (subject: string, data: any) => void;
+    const dataChannelHandlers: Record<string, DataChannelHandler> = {
+        [StreamEvents.ChatAnswer]: handleChatEvents,
+        [StreamEvents.ChatPartial]: handleChatEvents,
+        [StreamEvents.ToolCalling]: handleToolEvents,
+        [StreamEvents.ToolResult]: handleToolEvents,
+        [StreamEvents.StreamVideoCreated]: handleVideoEvents,
+        [StreamEvents.StreamVideoDone]: handleVideoEvents,
+        [StreamEvents.StreamVideoError]: handleVideoEvents,
+        [StreamEvents.StreamVideoRejected]: handleVideoEvents,
+        [StreamEvents.ChatAudioTranscribed]: handleTranscriptionEvents,
+    };
+
     function handleDataReceived(
         payload: Uint8Array,
         participant?: RemoteParticipant,
@@ -330,56 +412,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         try {
             const data = JSON.parse(message);
             const subject = topic || data.subject;
+
             log('Data received:', { subject, data });
 
-            if (subject === StreamEvents.ChatAnswer) {
-                const eventName = ChatProgress.Answer;
-                callbacks.onMessage?.(eventName, {
-                    event: eventName,
-                    ...data,
-                });
-            } else if (subject === StreamEvents.ChatPartial) {
-                const eventName = ChatProgress.Partial;
-                callbacks.onMessage?.(eventName, {
-                    event: eventName,
-                    ...data,
-                });
-            } else if (
-                [
-                    StreamEvents.StreamVideoCreated,
-                    StreamEvents.StreamVideoDone,
-                    StreamEvents.StreamVideoError,
-                    StreamEvents.StreamVideoRejected,
-                ].includes(subject)
-            ) {
-                currentActivityState =
-                    subject === StreamEvents.StreamVideoCreated ? AgentActivityState.Talking : AgentActivityState.Idle;
-                callbacks.onAgentActivityStateChange?.(currentActivityState);
+            if (!subject) return;
 
-                const rtt = videoStatsMonitor?.getReport()?.webRTCStats?.avgRtt ?? 0;
-                const downstreamNetworkLatency = rtt > 0 ? Math.round((rtt / 2) * 1000) : 0;
-                const messageData: VideoMessageData = { ...data, downstreamNetworkLatency };
-
-                if (options.debug && data?.metadata?.sentiment) {
-                    messageData.sentiment = {
-                        id: data.metadata.sentiment.id,
-                        name: data.metadata.sentiment.sentiment,
-                    };
-                }
-
-                callbacks.onMessage?.(subject, messageData);
-            } else if (subject === StreamEvents.ChatAudioTranscribed) {
-                const eventName = ChatProgress.Transcribe;
-                callbacks.onMessage?.(eventName, {
-                    event: eventName,
-                    ...data,
-                });
-                // Set loading state after transcribed message is processed (similar to v1)
-                // Use queueMicrotask to ensure message is added before setting loading state
-                queueMicrotask(() => {
-                    callbacks.onAgentActivityStateChange?.(AgentActivityState.Loading);
-                });
-            }
+            const handler = dataChannelHandlers[subject];
+            handler?.(subject, data);
         } catch (e) {
             log('Failed to parse data channel message:', e);
         }
@@ -654,6 +693,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         streamId: sessionId,
         streamType,
         interruptAvailable: true,
+        isInterruptible: currentInterruptible,
         triggersAvailable: false,
     };
 }

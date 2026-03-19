@@ -397,6 +397,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
 
         streamType,
         interruptAvailable: interruptAvailable ?? false,
+        isInterruptible: true,
         triggersAvailable: triggersAvailable ?? false,
     };
 }
