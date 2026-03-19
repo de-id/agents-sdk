@@ -198,7 +198,6 @@ export interface ToolCallingPayload {
 export interface ToolResultPayload {
     execution_id: string;
     tool_name: string;
-    success: boolean;
     duration_ms: number;
     result?: unknown;
     error_message?: string | null;
