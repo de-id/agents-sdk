@@ -351,6 +351,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleVideoActivityState(subject: string, data: any): void {
         currentInterruptible = data.metadata?.interruptible !== false;
+        callbacks.onInterruptibleChange?.(currentInterruptible);
 
         if (subject === StreamEvents.StreamVideoCreated) {
             currentActivityState = AgentActivityState.Talking;

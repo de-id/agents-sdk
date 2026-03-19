@@ -114,6 +114,11 @@ interface ManagerCallbacks {
         event: StreamEvents.ToolCalling | StreamEvents.ToolResult,
         data: ToolCallingPayload | ToolResultPayload
     ) => void;
+    /**
+     * Optional callback function that will be triggered when the interruptible state changes
+     * @param interruptible - Whether the agent can be interrupted by the user
+     */
+    onInterruptibleChange?: StreamManagerCallbacks['onInterruptibleChange'];
 }
 
 interface StreamOptions {

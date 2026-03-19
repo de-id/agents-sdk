@@ -76,6 +76,7 @@ export interface ManagerCallbacks {
         event: StreamEvents.ToolCalling | StreamEvents.ToolResult,
         data: ToolCallingPayload | ToolResultPayload
     ) => void;
+    onInterruptibleChange?: (interruptible: boolean) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;
