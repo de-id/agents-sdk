@@ -11,3 +11,12 @@ function createTimestampTracker() {
 export const latencyTimestampTracker = createTimestampTracker();
 export const interruptTimestampTracker = createTimestampTracker();
 export const streamReadyTimestampTracker = createTimestampTracker();
+
+export const sttLatencyStore = (() => {
+    let value: number | undefined;
+    return {
+        set: (v: number | undefined) => { value = v; },
+        get: () => value,
+        reset: () => { value = undefined; },
+    };
+})();
