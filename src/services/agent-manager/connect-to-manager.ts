@@ -111,12 +111,9 @@ function trackAgentActivityAnalytics(
     latency?: number
 ) {
     if (state === StreamingState.Start) {
-        analytics.linkTrack(
-            'agent-video',
-            { event: 'start', latency, 'stream-type': streamType },
-            'start',
-            [StreamEvents.StreamVideoCreated]
-        );
+        analytics.linkTrack('agent-video', { event: 'start', latency, 'stream-type': streamType }, 'start', [
+            StreamEvents.StreamVideoCreated,
+        ]);
     } else if (state === StreamingState.Stop) {
         analytics.linkTrack(
             'agent-video',
@@ -234,7 +231,7 @@ function connectToManager(
 
                             if (state === AgentActivityState.Talking) {
                                 interruptTimestampTracker.update();
-                                pendingStartTrack = (latency) => {
+                                pendingStartTrack = latency => {
                                     trackAgentActivityAnalytics(
                                         StreamingState.Start,
                                         agent,
@@ -255,7 +252,7 @@ function connectToManager(
                                 );
                             }
                         },
-                        onFirstAudioDetected: (latency) => {
+                        onFirstAudioDetected: latency => {
                             pendingStartTrack?.(latency);
                         },
                         onStreamReady: () => {
