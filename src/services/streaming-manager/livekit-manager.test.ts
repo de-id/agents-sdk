@@ -99,6 +99,10 @@ jest.mock('./stats/poll', () => ({
             };
         }
     ),
+    createAudioStatsDetector: jest.fn(() => ({
+        arm: jest.fn(),
+        destroy: jest.fn(),
+    })),
 }));
 
 const mockLatencyTimestampTrackerUpdate = jest.fn();
