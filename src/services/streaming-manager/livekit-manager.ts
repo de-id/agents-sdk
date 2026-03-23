@@ -288,7 +288,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 () => track.getRTCStatsReport(),
                 () => {
                     const clientLatency = latencyTimestampTracker.get(true);
-                    const latency = clientLatency > 0 ? clientLatency + (sttLatencyStore.get() ?? 0) : undefined;
+                    const sttLatency = sttLatencyStore.get();
+                    let networkLatency = 0;
+                    if (sttLatency) {
+                        const rtt = videoStatsMonitor?.getReport()?.webRTCStats?.avgRtt ?? 0;
+                        networkLatency = rtt > 0 ? Math.round(rtt * 1000) : 0;
+                    }
+                    const latency = clientLatency > 0 ? clientLatency + (sttLatency ?? 0) + networkLatency : undefined;
                     callbacks.onFirstAudioDetected?.(latency);
                 }
             );
