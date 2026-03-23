@@ -18,7 +18,7 @@ import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
-import { latencyTimestampTracker } from '../analytics/timestamp-tracker';
+import { latencyTimestampTracker, sttLatencyStore } from '../analytics/timestamp-tracker';
 import { createStreamingLogger, StreamingManager } from './common';
 import { chatEventMap } from './data-channel-handlers';
 
@@ -35,7 +35,7 @@ import type {
     Track,
     TranscriptionSegment,
 } from 'livekit-client';
-import { createVideoStatsMonitor } from './stats/poll';
+import { createAudioStatsDetector, createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
 const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
@@ -111,6 +111,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const microphoneState: TrackPublishState = { isPublishing: false, publication: null };
     const cameraState: TrackPublishState = { isPublishing: false, publication: null };
     let videoStatsMonitor: ReturnType<typeof createVideoStatsMonitor> | null = null;
+    let audioStatsDetector: ReturnType<typeof createAudioStatsDetector> | null = null;
     let videoStreamingState: StreamingState | null = null;
     // We defer Connected until video track is subscribed to align with WebRTC behavior
     let hasEmittedConnected = false;
@@ -282,6 +283,23 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             log(`Added ${track.kind} track to shared MediaStream`);
         }
 
+        if (track.kind === 'audio') {
+            audioStatsDetector = createAudioStatsDetector(
+                () => track.getRTCStatsReport(),
+                () => {
+                    const clientLatency = latencyTimestampTracker.get(true);
+                    const sttLatency = sttLatencyStore.get();
+                    let networkLatency = 0;
+                    if (sttLatency) {
+                        const rtt = videoStatsMonitor?.getReport()?.webRTCStats?.avgRtt ?? 0;
+                        networkLatency = rtt > 0 ? Math.round(rtt * 1000) : 0;
+                    }
+                    const latency = clientLatency > 0 ? clientLatency + (sttLatency ?? 0) + networkLatency : undefined;
+                    callbacks.onFirstAudioDetected?.(latency);
+                }
+            );
+        }
+
         if (track.kind === 'video') {
             callbacks.onStreamReady?.();
             log('CALLBACK: onSrcObjectReady');
@@ -315,6 +333,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleTrackUnsubscribed(track: RemoteTrack, publication: any, participant: RemoteParticipant): void {
         log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
+
+        if (track.kind === 'audio') {
+            audioStatsDetector?.destroy();
+            audioStatsDetector = null;
+        }
 
         if (track.kind === 'video') {
             handleVideoStopped(videoStatsMonitor?.getReport());
@@ -356,6 +379,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (subject === StreamEvents.StreamVideoCreated) {
             currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
+            sttLatencyStore.set(data?.stt?.latency);
+            audioStatsDetector?.arm();
             return;
         }
 
@@ -607,6 +632,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             clearTimeout(trackSubscriptionTimeoutId);
             trackSubscriptionTimeoutId = null;
         }
+
+        audioStatsDetector?.destroy();
+        audioStatsDetector = null;
 
         if (room) {
             callbacks.onConnectionStateChange?.(ConnectionState.Disconnecting, reason);
