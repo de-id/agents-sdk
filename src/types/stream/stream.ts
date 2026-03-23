@@ -23,7 +23,7 @@ export enum AgentActivityState {
     Idle = 'IDLE',
     Loading = 'LOADING',
     Talking = 'TALKING',
-    ToolActive = 'tool_active',
+    ToolActive = 'TOOL_ACTIVE',
 }
 
 export enum StreamEvents {
