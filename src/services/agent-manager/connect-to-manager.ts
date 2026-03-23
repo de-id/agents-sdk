@@ -191,6 +191,7 @@ function connectToManager(
             });
 
             let pendingStartTrack: ((latency?: number) => void) | null = null;
+            const isExpressive = agent.presenter.type === 'expressive';
 
             streamingManager = await createStreamingManager(
                 agent,
@@ -241,6 +242,9 @@ function connectToManager(
                                     );
                                     pendingStartTrack = null;
                                 };
+                                if (!isExpressive) {
+                                    pendingStartTrack(latencyTimestampTracker.get(true));
+                                }
                             } else {
                                 interruptTimestampTracker.reset();
                                 pendingStartTrack = null;
