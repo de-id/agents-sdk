@@ -1136,7 +1136,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
         it('should have correct AgentActivityState enum value for ToolActive', () => {
             // ASSERT:
-            expect(AgentActivityState.ToolActive).toBe('tool_active');
+            expect(AgentActivityState.ToolActive).toBe('TOOL_ACTIVE');
         });
     });
 
