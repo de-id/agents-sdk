@@ -15,8 +15,8 @@ export const streamReadyTimestampTracker = createTimestampTracker();
 export const sttLatencyStore = (() => {
     let value: number | undefined;
     return {
-        set: (v: number | undefined) => {
-            value = v;
+        set: (newValue: number | undefined) => {
+            value = newValue;
         },
         get: () => value,
         reset: () => {
