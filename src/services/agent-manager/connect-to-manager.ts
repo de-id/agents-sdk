@@ -34,7 +34,9 @@ import { createChat } from '../chat';
 const ChatPrefix = 'cht';
 function getAgentStreamV2Options(): CreateSessionV2Options {
     return {
-        transport_provider: TransportProvider.Livekit,
+        transport: {
+            provider: TransportProvider.Livekit,
+        },
     };
 }
 

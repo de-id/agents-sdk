@@ -5,6 +5,7 @@ import {
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
+    TransportProvider,
 } from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
 
@@ -268,7 +269,9 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         agentId = TEST_AGENT_ID;
         sessionOptions = {
             chat_persist: true,
-            transport_provider: 'livekit' as any,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
         };
         options = StreamingManagerOptionsFactory.build();
     });
@@ -809,7 +812,9 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
         agentId = TEST_AGENT_ID;
         sessionOptions = {
             chat_persist: true,
-            transport_provider: 'livekit' as any,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
         };
         options = StreamingManagerOptionsFactory.build();
     });
@@ -1034,7 +1039,9 @@ describe('LiveKit Streaming Manager - Disconnect Behavior', () => {
         agentId = TEST_AGENT_ID;
         sessionOptions = {
             chat_persist: true,
-            transport_provider: 'livekit' as any,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
         };
         options = StreamingManagerOptionsFactory.build();
     });
@@ -1126,7 +1133,9 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
         agentId = TEST_AGENT_ID;
         sessionOptions = {
             chat_persist: true,
-            transport_provider: 'livekit' as any,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
         };
         options = StreamingManagerOptionsFactory.build();
     });
