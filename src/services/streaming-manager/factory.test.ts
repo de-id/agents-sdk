@@ -92,7 +92,9 @@ describe('createStreamingManager', () => {
         });
 
         const v2StreamOptions: CreateSessionV2Options = {
-            transport_provider: TransportProvider.Livekit,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
             chat_persist: true,
         };
 
@@ -115,7 +117,9 @@ describe('createStreamingManager', () => {
         });
 
         const v2StreamOptions: CreateSessionV2Options = {
-            transport_provider: TransportProvider.Livekit,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
             chat_persist: true,
         };
 

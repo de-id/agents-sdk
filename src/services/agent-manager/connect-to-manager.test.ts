@@ -611,7 +611,9 @@ describe('connect-to-manager', () => {
                 expressiveAgent,
                 {
                     version: StreamApiVersion.V2,
-                    transport_provider: TransportProvider.Livekit,
+                    transport: {
+                        provider: TransportProvider.Livekit,
+                    },
                 },
                 expect.not.objectContaining({
                     chatId: expect.anything(),

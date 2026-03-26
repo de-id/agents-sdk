@@ -3,7 +3,9 @@ export enum TransportProvider {
 }
 
 export interface CreateSessionV2Options {
-    transport_provider: TransportProvider.Livekit;
+    transport: {
+        provider: TransportProvider.Livekit;
+    };
     chat_persist?: boolean;
 }
 
