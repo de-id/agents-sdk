@@ -12,7 +12,6 @@ import {
     StreamType,
     ToolCallingPayload,
     ToolResultPayload,
-    TransportProvider,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
