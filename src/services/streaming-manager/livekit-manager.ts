@@ -297,7 +297,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                         latency !== undefined && serviceLatency !== undefined
                             ? latency - serviceLatency
                             : undefined;
-                    callbacks.onFirstAudioDetected?.(latency, networkLatency);
+                    callbacks.onFirstAudioDetected?.({ latency, networkLatency });
                 }
             );
         }
