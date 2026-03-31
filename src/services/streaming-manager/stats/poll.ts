@@ -12,9 +12,14 @@ function findInboundRtpReport(stats: RTCStatsReport, kind: 'audio' | 'video'): a
 
 const AUDIO_STATS_POLL_INTERVAL_MS = 10;
 
+export interface AudioArmContext {
+    sttLatency?: number;
+    serviceLatency?: number;
+}
+
 export function createAudioStatsDetector(
     getStats: () => Promise<RTCStatsReport | undefined>,
-    onFirstAudioDetected: () => void
+    onFirstAudioDetected: (context: AudioArmContext) => void
 ) {
     let armed = false;
     let baselined = false;
@@ -22,6 +27,7 @@ export function createAudioStatsDetector(
     let armTime = 0;
     let prevTotalAudioEnergy = 0;
     let prevTotalSamplesReceived = 0;
+    let armContext: AudioArmContext = {};
 
     async function poll() {
         if (!armed) return;
@@ -57,7 +63,7 @@ export function createAudioStatsDetector(
 
             if (samplesDelta > 0 && energyDelta > 0) {
                 armed = false;
-                onFirstAudioDetected();
+                onFirstAudioDetected(armContext);
                 return;
             }
         } catch {
@@ -70,7 +76,8 @@ export function createAudioStatsDetector(
     }
 
     return {
-        arm() {
+        arm(context: AudioArmContext = {}) {
+            armContext = context;
             armed = true;
             baselined = false;
             armTime = performance.now();

@@ -237,7 +237,7 @@ describe('connect-to-manager', () => {
         let onConnectionStateChange: (state: ConnectionState) => void;
         let onVideoStateChange: (state: StreamingState, statsReport?: any) => void;
         let onAgentActivityStateChange: (state: AgentActivityState) => void;
-        let onFirstAudioDetected: ((latency?: number) => void) | undefined;
+        let onFirstAudioDetected: ((metrics: { latency?: number; networkLatency?: number }) => void) | undefined;
         let onStreamReady: (() => void) | undefined;
 
         beforeEach(async () => {
@@ -388,7 +388,7 @@ describe('connect-to-manager', () => {
         describe('onAgentActivityStateChange', () => {
             it('should handle agent talking state', () => {
                 onAgentActivityStateChange(AgentActivityState.Talking);
-                onFirstAudioDetected?.(1000);
+                onFirstAudioDetected?.({ latency: 1000 });
 
                 expect(mockOptions.callbacks.onAgentActivityStateChange).toHaveBeenCalledWith(
                     AgentActivityState.Talking
@@ -420,7 +420,7 @@ describe('connect-to-manager', () => {
 
             it('should handle agent talking state with analytics', () => {
                 onAgentActivityStateChange(AgentActivityState.Talking);
-                onFirstAudioDetected?.(1000);
+                onFirstAudioDetected?.({ latency: 1000 });
 
                 expect(mockOptions.callbacks.onAgentActivityStateChange).toHaveBeenCalledWith(
                     AgentActivityState.Talking
