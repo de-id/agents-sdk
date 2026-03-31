@@ -10,6 +10,7 @@ import {
     AgentActivityState,
     AgentManagerOptions,
     AgentsAPI,
+    AudioDetectionMetrics,
     Chat,
     ChatMode,
     ChatProgressCallback,
@@ -21,7 +22,6 @@ import {
     StreamType,
     StreamingState,
     TransportProvider,
-    AudioDetectionMetrics,
 } from '@sdk/types';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
@@ -235,7 +235,7 @@ function connectToManager(
 
                             if (state === AgentActivityState.Talking) {
                                 interruptTimestampTracker.update();
-                                pendingStartTrack = (metrics) => {
+                                pendingStartTrack = metrics => {
                                     trackAgentActivityAnalytics(
                                         StreamingState.Start,
                                         agent,
@@ -259,7 +259,7 @@ function connectToManager(
                                 );
                             }
                         },
-                        onFirstAudioDetected: (metrics) => {
+                        onFirstAudioDetected: metrics => {
                             pendingStartTrack?.(metrics);
                         },
                         onStreamReady: () => {
