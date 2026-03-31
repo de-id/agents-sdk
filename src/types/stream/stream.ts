@@ -77,7 +77,7 @@ export interface ManagerCallbacks {
         data: ToolCallingPayload | ToolResultPayload
     ) => void;
     onInterruptibleChange?: (interruptible: boolean) => void;
-    onFirstAudioDetected?: (latency?: number) => void;
+    onFirstAudioDetected?: (latency?: number, networkLatency?: number) => void;
 }
 
 export type ManagerCallbackKeys = keyof ManagerCallbacks;

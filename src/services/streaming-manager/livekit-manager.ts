@@ -17,7 +17,7 @@ import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
-import { latencyTimestampTracker, sttLatencyStore } from '../analytics/timestamp-tracker';
+import { latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createStreamingLogger, StreamingManager } from './common';
 import { chatEventMap } from './data-channel-handlers';
 
@@ -285,16 +285,19 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (track.kind === 'audio') {
             audioStatsDetector = createAudioStatsDetector(
                 () => track.getRTCStatsReport(),
-                () => {
+                ({ sttLatency, serviceLatency }) => {
                     const clientLatency = latencyTimestampTracker.get(true);
-                    const sttLatency = sttLatencyStore.get();
-                    let networkLatency = 0;
+                    let rttLatency = 0;
                     if (sttLatency) {
                         const rtt = videoStatsMonitor?.getReport()?.webRTCStats?.avgRtt ?? 0;
-                        networkLatency = rtt > 0 ? Math.round(rtt * 1000) : 0;
+                        rttLatency = rtt > 0 ? Math.round(rtt * 1000) : 0;
                     }
-                    const latency = clientLatency > 0 ? clientLatency + (sttLatency ?? 0) + networkLatency : undefined;
-                    callbacks.onFirstAudioDetected?.(latency);
+                    const latency = clientLatency > 0 ? clientLatency + (sttLatency ?? 0) + rttLatency : undefined;
+                    const networkLatency =
+                        latency !== undefined && serviceLatency !== undefined
+                            ? latency - serviceLatency
+                            : undefined;
+                    callbacks.onFirstAudioDetected?.(latency, networkLatency);
                 }
             );
         }
@@ -378,8 +381,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (subject === StreamEvents.StreamVideoCreated) {
             currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
-            sttLatencyStore.set(data?.stt?.latency);
-            audioStatsDetector?.arm();
+            audioStatsDetector?.arm({
+                sttLatency: data?.stt?.latency,
+                serviceLatency: data?.serviceLatency,
+            });
             return;
         }
 
