@@ -85,5 +85,4 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * Whether the current stream segment can be interrupted by the user
      */
     isInterruptible: boolean;
-
 };
