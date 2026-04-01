@@ -86,8 +86,4 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      */
     isInterruptible: boolean;
 
-    /**
-     * Whether triggers functionality is available for this stream
-     */
-    triggersAvailable: boolean;
 };
