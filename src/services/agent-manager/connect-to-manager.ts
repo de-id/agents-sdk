@@ -10,6 +10,7 @@ import {
     AgentActivityState,
     AgentManagerOptions,
     AgentsAPI,
+    AudioDetectionMetrics,
     Chat,
     ChatMode,
     ChatProgressCallback,
@@ -110,10 +111,10 @@ function trackAgentActivityAnalytics(
     agent: Agent,
     analytics: Analytics,
     streamType: StreamType,
-    latency?: number
+    metrics?: AudioDetectionMetrics
 ) {
     if (state === StreamingState.Start) {
-        analytics.linkTrack('agent-video', { event: 'start', latency, 'stream-type': streamType }, 'start', [
+        analytics.linkTrack('agent-video', { event: 'start', ...metrics, 'stream-type': streamType }, 'start', [
             StreamEvents.StreamVideoCreated,
         ]);
     } else if (state === StreamingState.Stop) {
@@ -168,7 +169,7 @@ type ConnectToManagerOptions = AgentManagerOptions & {
         onMessage?: ChatProgressCallback;
         /** Internal callback for when interrupt is detected by streaming manager */
         onInterruptDetected?: (interrupt: Interrupt) => void;
-        onFirstAudioDetected?: (latency?: number) => void;
+        onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
     };
     chatId?: string;
 };
@@ -192,7 +193,7 @@ function connectToManager(
                 'stream-version': streamOptions.version.toString(),
             });
 
-            let pendingStartTrack: ((latency?: number) => void) | null = null;
+            let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
             const isExpressive = agent.presenter.type === 'expressive';
 
             streamingManager = await createStreamingManager(
@@ -234,18 +235,18 @@ function connectToManager(
 
                             if (state === AgentActivityState.Talking) {
                                 interruptTimestampTracker.update();
-                                pendingStartTrack = latency => {
+                                pendingStartTrack = metrics => {
                                     trackAgentActivityAnalytics(
                                         StreamingState.Start,
                                         agent,
                                         analytics,
                                         streamingManager.streamType,
-                                        latency
+                                        metrics
                                     );
                                     pendingStartTrack = null;
                                 };
                                 if (!isExpressive) {
-                                    pendingStartTrack(latencyTimestampTracker.get(true));
+                                    pendingStartTrack({ latency: latencyTimestampTracker.get(true) });
                                 }
                             } else {
                                 interruptTimestampTracker.reset();
@@ -258,8 +259,8 @@ function connectToManager(
                                 );
                             }
                         },
-                        onFirstAudioDetected: latency => {
-                            pendingStartTrack?.(latency);
+                        onFirstAudioDetected: metrics => {
+                            pendingStartTrack?.(metrics);
                         },
                         onStreamReady: () => {
                             const readyLatency = streamReadyTimestampTracker.get(true);
