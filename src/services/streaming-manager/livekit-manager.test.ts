@@ -283,7 +283,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const mockPublication = createMockPublication();
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             await manager.publishMicrophoneStream?.(mockStream);
@@ -294,7 +294,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should not publish microphone track when publishMicrophoneStream is not called', async () => {
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             expect(mockPublishTrack).not.toHaveBeenCalled();
@@ -307,7 +307,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const mockPublication = createMockPublication(TEST_AUDIO_TRACK_ID);
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             await manager.publishMicrophoneStream?.(mockStream);
@@ -325,7 +325,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const publishError = new Error('Failed to publish track');
             mockPublishTrack.mockRejectedValue(publishError);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             await expect(manager.publishMicrophoneStream?.(mockStream)).rejects.toThrow('Failed to publish track');
@@ -338,7 +338,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const mockPublication = createMockPublication();
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
 
             expect(mockPublishTrack).not.toHaveBeenCalled();
 
@@ -354,7 +354,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             mockPublishTrack.mockResolvedValue(mockPublication);
             mockUnpublishTrack.mockResolvedValue(undefined);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             await manager.publishMicrophoneStream?.(mockStream);
             await manager.disconnect();
@@ -368,7 +368,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             mockPublishTrack.mockResolvedValue(mockPublication);
             mockUnpublishTrack.mockResolvedValue(undefined);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
 
             await simulateConnection();
             await manager.publishMicrophoneStream?.(mockStream);
@@ -387,12 +387,12 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             mockPublishTrack.mockResolvedValue(mockPublication);
             mockUnpublishTrack.mockResolvedValue(undefined);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection(0);
             await manager.publishMicrophoneStream?.(mockStream);
             await manager.disconnect();
 
-            const manager2 = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager2 = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection(1);
             await manager2.publishMicrophoneStream?.(mockStream);
             await manager2.disconnect();
@@ -406,7 +406,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const mockPublication = createMockPublication();
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             await manager.publishMicrophoneStream?.(mockStream);
 
@@ -420,7 +420,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const mockPublication = createMockPublication();
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             // Initially no stream published
@@ -435,7 +435,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         it('should throw error when publishing stream before connection', async () => {
             const mockStream = createMockStream();
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
 
             // Try to publish before connection
             await expect(manager.publishMicrophoneStream?.(mockStream)).rejects.toThrow('Room is not connected');
@@ -450,7 +450,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             mockOnAgentActivityStateChange = jest.fn();
             options.callbacks.onAgentActivityStateChange = mockOnAgentActivityStateChange;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const dataHandler = getDataReceivedHandler();
@@ -498,7 +498,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             mockOnInterruptDetected = jest.fn();
             options.callbacks.onInterruptDetected = mockOnInterruptDetected;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             transcriptionHandler = getTranscriptionReceivedHandler();
@@ -573,7 +573,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
     describe('Video Stats Monitor', () => {
         it('should start video stats monitor when video track is subscribed', async () => {
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const trackSubscribedHandler = getTrackSubscribedHandler();
@@ -586,7 +586,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should not start video stats monitor for audio tracks', async () => {
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const trackSubscribedHandler = getTrackSubscribedHandler();
@@ -605,7 +605,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             options.callbacks.onVideoStateChange = onVideoStateChange;
             mockVideoStatsMonitor.getReport.mockReturnValue(report);
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const mockVideoTrack = createMockVideoTrack();
@@ -626,7 +626,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const onVideoStateChange = jest.fn();
             options.callbacks.onVideoStateChange = onVideoStateChange;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             getTrackSubscribedHandler()(createMockVideoTrack(), {}, createMockRemoteParticipant());
 
@@ -642,7 +642,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const report = { duration: 1000 };
             options.callbacks.onVideoStateChange = onVideoStateChange;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             getTrackSubscribedHandler()(createMockVideoTrack(), {}, createMockRemoteParticipant());
             mockVideoStatsMonitor.invokeStateChange(StreamingState.Start);
@@ -661,7 +661,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             options.callbacks.onVideoStateChange = onVideoStateChange;
             mockVideoStatsMonitor.getReport.mockReturnValue(report);
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const mockVideoTrack = createMockVideoTrack();
@@ -686,7 +686,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should call onConnectionStateChange with "livekit:connecting" when LiveKit emits Connecting', async () => {
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             const handler = getConnectionStateHandler();
 
             handler('connecting');
@@ -695,7 +695,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should call onConnectionStateChange with "livekit:disconnected" when LiveKit emits Disconnected', async () => {
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             const handler = getConnectionStateHandler();
 
             handler('disconnected');
@@ -704,7 +704,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should call onConnectionStateChange with "livekit:reconnecting" when LiveKit emits Reconnecting', async () => {
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             const handler = getConnectionStateHandler();
 
             handler('reconnecting');
@@ -713,7 +713,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should call onConnectionStateChange with "livekit:signal-reconnecting" when LiveKit emits SignalReconnecting', async () => {
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             const handler = getConnectionStateHandler();
 
             handler('signalReconnecting');
@@ -722,7 +722,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should call onConnectionStateChange with "livekit:track-subscribed" when video track is subscribed', async () => {
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const trackSubscribedHandler = getTrackSubscribedHandler();
@@ -735,7 +735,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should call onConnectionStateChange with "livekit:participant-disconnected" when participant disconnects', async () => {
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             mockOnConnectionStateChange.mockClear();
 
@@ -752,7 +752,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should call onConnectionStateChange with "user:disconnect" when disconnect is called', async () => {
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             mockOnConnectionStateChange.mockClear();
 
@@ -762,7 +762,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should call onConnectionStateChange with "user:reconnect" when reconnect is called', async () => {
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const handler = getConnectionStateHandler();
@@ -779,7 +779,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should call onConnectionStateChange with "user:reconnect-failed" when reconnect fails', async () => {
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const handler = getConnectionStateHandler();
@@ -827,7 +827,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             const mockPublication = createMockCameraPublication();
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             // ACT:
@@ -843,7 +843,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             // ARRANGE:
             const emptyStream = createMockCameraStream([]);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             // ACT + ASSERT:
@@ -856,7 +856,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             // ARRANGE:
             const mockStream = createMockCameraStream();
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
 
             // ACT + ASSERT:
             await expect(manager.publishCameraStream?.(mockStream)).rejects.toThrow('Room is not connected');
@@ -867,7 +867,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             const mockStream = createMockCameraStream();
             mockPublishTrack.mockRejectedValue(new Error('Failed to publish camera'));
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             // ACT + ASSERT:
@@ -881,7 +881,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             const mockPublication = createMockCameraPublication();
             mockPublishTrack.mockResolvedValue(mockPublication);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             mockLocalParticipant.videoTrackPublications.set('pub-1', {
@@ -903,7 +903,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             const firstPublication = createMockCameraPublication(TEST_VIDEO_TRACK_ID);
             mockPublishTrack.mockResolvedValue(firstPublication);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             await manager.publishCameraStream?.(firstStream);
 
@@ -930,7 +930,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             mockPublishTrack.mockResolvedValue(mockPublication);
             mockUnpublishTrack.mockResolvedValue(undefined);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             await manager.publishCameraStream?.(mockStream);
 
@@ -943,7 +943,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
 
         it('should not fail when unpublishing camera without prior publish', async () => {
             // ARRANGE:
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             // ACT:
@@ -960,7 +960,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             mockPublishTrack.mockResolvedValue(mockPublication);
             mockUnpublishTrack.mockResolvedValue(undefined);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             await manager.publishCameraStream?.(mockStream);
 
@@ -982,7 +982,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             });
             mockPublishTrack.mockReturnValue(slowPublish);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             // ACT:
@@ -1006,7 +1006,7 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             });
             mockPublishTrack.mockReturnValue(slowPublish);
 
-            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             // ACT:
@@ -1055,7 +1055,7 @@ describe('LiveKit Streaming Manager - Disconnect Behavior', () => {
         mockPublishTrack.mockResolvedValueOnce(micPub).mockResolvedValueOnce(camPub);
         mockUnpublishTrack.mockResolvedValue(undefined);
 
-        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
         await simulateConnection();
         await manager.publishMicrophoneStream?.(micStream);
         await manager.publishCameraStream?.(camStream);
@@ -1075,13 +1075,13 @@ describe('LiveKit Streaming Manager - Disconnect Behavior', () => {
         mockPublishTrack.mockResolvedValue(camPub);
         mockUnpublishTrack.mockResolvedValue(undefined);
 
-        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
         await simulateConnection(0);
         await manager.publishCameraStream?.(camStream);
         await manager.disconnect();
 
         // ACT:
-        const manager2 = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        const manager2 = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
         await simulateConnection(1);
         await manager2.publishCameraStream?.(camStream);
 
@@ -1098,7 +1098,7 @@ describe('LiveKit Streaming Manager - Disconnect Behavior', () => {
         mockPublishTrack.mockResolvedValueOnce(micPub).mockResolvedValueOnce(camPub);
         mockUnpublishTrack.mockResolvedValue(undefined);
 
-        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
         await simulateConnection();
         await manager.publishMicrophoneStream?.(micStream);
         await manager.publishCameraStream?.(camStream);
@@ -1161,7 +1161,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
             options.callbacks.onToolEvent = onToolEvent;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const dataHandler = getDataReceivedHandler();
@@ -1196,7 +1196,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
             options.callbacks.onToolEvent = onToolEvent;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const dataHandler = getDataReceivedHandler();
@@ -1244,7 +1244,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             const onAgentActivityStateChange = jest.fn();
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const dataHandler = getDataReceivedHandler();
@@ -1278,7 +1278,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             const onAgentActivityStateChange = jest.fn();
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const dataHandler = getDataReceivedHandler();
@@ -1311,7 +1311,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             const onAgentActivityStateChange = jest.fn();
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const dataHandler = getDataReceivedHandler();
@@ -1349,7 +1349,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
             options.callbacks.onToolEvent = onToolEvent;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
             const dataHandler = getDataReceivedHandler();
 
@@ -1429,7 +1429,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
             options.callbacks.onMessage = onMessage;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await createLiveKitStreamingManager(agentId, sessionOptions, options, true);
             await simulateConnection();
 
             const dataHandler = getDataReceivedHandler();
