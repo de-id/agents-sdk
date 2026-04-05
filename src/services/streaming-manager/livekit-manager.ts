@@ -96,7 +96,8 @@ export function handleInitError(
 export async function createLiveKitStreamingManager<T extends CreateSessionV2Options>(
     agentId: string,
     sessionOptions: CreateSessionV2Options,
-    options: StreamingManagerOptions
+    options: StreamingManagerOptions,
+    interruptEnabled: boolean
 ): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
@@ -722,7 +723,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         sessionId,
         streamId: sessionId,
         streamType,
-        interruptAvailable: true,
+        interruptAvailable: interruptEnabled,
         isInterruptible: currentInterruptible,
         triggersAvailable: false,
     };

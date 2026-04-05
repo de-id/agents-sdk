@@ -37,7 +37,8 @@ export async function createStreamingManager(
             switch (createStreamOptions.transport.provider) {
                 case TransportProvider.Livekit:
                     const { createLiveKitStreamingManager } = await import('./livekit-manager');
-                    return createLiveKitStreamingManager(agentId, createStreamOptions, options);
+                    const interruptEnabled = agent.advanced_settings?.interrupt_enabled !== false;
+                    return createLiveKitStreamingManager(agentId, createStreamOptions, options, interruptEnabled);
                 default:
                     throw new Error(`Unsupported transport provider: ${createStreamOptions.transport.provider}`);
             }

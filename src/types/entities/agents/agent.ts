@@ -36,6 +36,15 @@ export interface Vision {
     enabled: boolean;
 }
 
+export interface AgentAdvancedSettings {
+    interrupt_enabled?: boolean;
+    session_timeout_seconds?: number;
+    morph_enabled?: boolean;
+    message_limit?: number;
+    vm_account_id?: string;
+    ui_debug_mode?: boolean;
+}
+
 export interface Agent {
     id: string;
     username?: string;
@@ -49,6 +58,7 @@ export interface Agent {
     greetings?: string[];
     access?: 'private' | 'pending-public' | 'unlisted' | 'rejected' | 'public';
     metadata?: { plan: PlanGroup | UserPlan };
+    advanced_settings?: AgentAdvancedSettings;
 
     preview_name?: string;
     preview_description?: string;
