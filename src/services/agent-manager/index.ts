@@ -5,6 +5,7 @@ import {
     Chat,
     ChatMode,
     ChatResponse,
+    ClientToolHandler,
     ConnectionState,
     CreateSessionV2Options,
     CreateStreamOptions,
@@ -128,6 +129,43 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
     };
 
+    const clientToolHandlers = new Map<string, ClientToolHandler>();
+
+    function createRpcHandler(toolName: string) {
+        return async (data: { payload: string }): Promise<string> => {
+            const handler = clientToolHandlers.get(toolName);
+            if (!handler) {
+                throw new Error(`No handler registered for client tool: ${toolName}`);
+            }
+            try {
+                const args = JSON.parse(data.payload);
+                return await handler(args);
+            } catch (error) {
+                throw new Error(`Client tool "${toolName}" failed: ${(error as Error).message}`);
+            }
+        };
+    }
+
+    function flushClientToolsToRoom() {
+        for (const [name] of clientToolHandlers) {
+            items.streamingManager?.unregisterRpcMethod?.(name);
+            items.streamingManager?.registerRpcMethod?.(name, createRpcHandler(name));
+        }
+    }
+
+    function registerClientTool(name: string, handler: ClientToolHandler): void {
+        const isNew = !clientToolHandlers.has(name);
+        clientToolHandlers.set(name, handler);
+        if (isNew) {
+            items.streamingManager?.registerRpcMethod?.(name, createRpcHandler(name));
+        }
+    }
+
+    function unregisterClientTool(name: string): void {
+        clientToolHandlers.delete(name);
+        items.streamingManager?.unregisterRpcMethod?.(name);
+    }
+
     const loadedTimestamp = Date.now();
     defer(() => {
         analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) }, loadedTimestamp);
@@ -196,6 +234,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.streamingManager = streamingManager;
         items.socketManager = socketManager;
         items.chat = chat;
+
+        flushClientToolsToRoom();
 
         firstConnection = false;
 
@@ -554,5 +594,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
         },
         interrupt,
+        registerClientTool,
+        unregisterClientTool,
     };
 }
