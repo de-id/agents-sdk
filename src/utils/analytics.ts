@@ -54,7 +54,7 @@ export function getAgentInfo(agent: Agent) {
         maxResponseLength: promptCustomization?.max_response_length,
         agentId: agent.id,
         access: agent.access,
-        name: agent.preview_name,
+        agentName: agent.preview_name,
         ...(agent.access === 'public' ? { from: 'agent-template' } : {}),
     };
 }
