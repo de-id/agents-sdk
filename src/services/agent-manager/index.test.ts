@@ -511,6 +511,7 @@ describe('createAgentManager', () => {
 
         describe('interrupt', () => {
             beforeEach(async () => {
+                mockStreamingManager.interruptAvailable = true;
                 await manager.connect();
             });
 
