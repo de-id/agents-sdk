@@ -170,7 +170,6 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         session_id,
         fluent,
         interrupt_enabled: interruptAvailable,
-        triggers_enabled: triggersAvailable,
     } = await createStream(streamOptions, signal);
     callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id: session_id as string, agent_id: agentId });
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
@@ -398,7 +397,6 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         streamType,
         interruptAvailable: interruptAvailable ?? false,
         isInterruptible: true,
-        triggersAvailable: triggersAvailable ?? false,
     };
 }
 
