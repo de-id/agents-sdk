@@ -39,7 +39,6 @@ export interface ICreateStreamRequestResponse extends StickyRequest {
     ice_servers: IceServer[];
     fluent?: boolean;
     interrupt_enabled?: boolean;
-    triggers_enabled?: boolean;
 }
 
 export interface IceCandidate {

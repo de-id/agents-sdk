@@ -725,7 +725,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         streamType,
         interruptAvailable: interruptEnabled,
         isInterruptible: currentInterruptible,
-        triggersAvailable: false,
     };
 }
 
