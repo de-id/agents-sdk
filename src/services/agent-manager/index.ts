@@ -104,6 +104,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     };
 
     const interrupt = ({ type }: Interrupt) => {
+        if (!items.streamingManager?.interruptAvailable) {
+            return;
+        }
         if (!items.streamingManager?.isInterruptible) return;
 
         const lastMessage = items.messages[items.messages.length - 1];

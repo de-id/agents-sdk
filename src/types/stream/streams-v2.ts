@@ -13,4 +13,5 @@ export interface CreateSessionV2Response {
     id: string;
     session_url: string;
     session_token: string;
+    interrupt_enabled: boolean;
 }
