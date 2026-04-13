@@ -34,9 +34,19 @@ import { createChat } from '../chat';
 
 const ChatPrefix = 'cht';
 function getAgentStreamV2Options(): CreateSessionV2Options {
+    const livekitUrl = import.meta.env.VITE_LIVEKIT_URL;
+    const livekitApiKey = import.meta.env.VITE_LIVEKIT_API_KEY;
+    const livekitApiSecret = import.meta.env.VITE_LIVEKIT_API_SECRET;
+
+    const credentials =
+        livekitUrl && livekitApiKey && livekitApiSecret
+            ? { url: livekitUrl, api_key: livekitApiKey, api_secret: livekitApiSecret }
+            : undefined;
+
     return {
         transport: {
             provider: TransportProvider.Livekit,
+            credentials,
         },
     };
 }
