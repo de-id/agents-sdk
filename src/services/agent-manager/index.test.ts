@@ -743,12 +743,10 @@ describe('createAgentManager', () => {
             expect(mockUnpublish).toHaveBeenCalled();
         });
 
-        it('should throw error when unpublishMicrophoneStream is not available', async () => {
+        it('should no-op when unpublishMicrophoneStream is not available', async () => {
             mockStreamingManager.unpublishMicrophoneStream = undefined;
 
-            await expect(manager.unpublishMicrophoneStream?.()).rejects.toThrow(
-                'unpublishMicrophoneStream is not available for this streaming manager'
-            );
+            await expect(manager.unpublishMicrophoneStream?.()).resolves.toBeUndefined();
         });
     });
 
@@ -796,12 +794,10 @@ describe('createAgentManager', () => {
             expect(mockUnpublish).toHaveBeenCalled();
         });
 
-        it('should throw error when unpublishCameraStream is not available', async () => {
+        it('should no-op when unpublishCameraStream is not available', async () => {
             mockStreamingManager.unpublishCameraStream = undefined;
 
-            await expect(manager.unpublishCameraStream?.()).rejects.toThrow(
-                'unpublishCameraStream is not available for this streaming manager'
-            );
+            await expect(manager.unpublishCameraStream?.()).resolves.toBeUndefined();
         });
     });
 
