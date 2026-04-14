@@ -288,7 +288,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async unpublishMicrophoneStream() {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
-                throw new Error('unpublishMicrophoneStream is not available for this streaming manager');
+                return;
             }
             return items.streamingManager.unpublishMicrophoneStream();
         },
@@ -300,7 +300,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async unpublishCameraStream() {
             if (!items.streamingManager?.unpublishCameraStream) {
-                throw new Error('unpublishCameraStream is not available for this streaming manager');
+                return;
             }
             return items.streamingManager.unpublishCameraStream();
         },
