@@ -194,6 +194,8 @@ export interface StreamInterruptPayload {
     timestamp: number;
 }
 
+export type ClientToolHandler = (args: Record<string, unknown>) => Promise<string>;
+
 export interface ToolCallingPayload {
     execution_id: string;
     tool_name: string;

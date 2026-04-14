@@ -129,6 +129,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     let token: string | undefined;
     let url: string | undefined;
+    let interruptEnabled = true;
 
     try {
         const streamResponse = await streamApi.createStream({
@@ -136,11 +137,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             chat_persist: sessionOptions.chat_persist ?? true,
         });
 
-        const { id, session_token, session_url } = streamResponse;
+        const { id, session_token, session_url, interrupt_enabled } = streamResponse;
         callbacks.onStreamCreated?.({ session_id: id, stream_id: id, agent_id: agentId });
         sessionId = id;
         token = session_token;
         url = session_url;
+        interruptEnabled = interrupt_enabled ?? true;
 
         await room.prepareConnection(url, token);
     } catch (error) {
@@ -719,12 +721,18 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         publishCameraStream,
         unpublishCameraStream,
 
+        registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {
+            room?.registerRpcMethod(method, handler);
+        },
+        unregisterRpcMethod(method: string) {
+            room?.unregisterRpcMethod(method);
+        },
+
         sessionId,
         streamId: sessionId,
         streamType,
-        interruptAvailable: true,
+        interruptAvailable: interruptEnabled,
         isInterruptible: currentInterruptible,
-        triggersAvailable: false,
     };
 }
 

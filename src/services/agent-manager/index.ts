@@ -5,6 +5,7 @@ import {
     Chat,
     ChatMode,
     ChatResponse,
+    ClientToolHandler,
     ConnectionState,
     CreateSessionV2Options,
     CreateStreamOptions,
@@ -104,6 +105,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     };
 
     const interrupt = ({ type }: Interrupt) => {
+        if (!items.streamingManager?.interruptAvailable) {
+            return;
+        }
         if (!items.streamingManager?.isInterruptible) return;
 
         const lastMessage = items.messages[items.messages.length - 1];
@@ -124,6 +128,43 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             sendInterrupt(items.streamingManager!, videoId!);
         }
     };
+
+    const clientToolHandlers = new Map<string, ClientToolHandler>();
+
+    function createRpcHandler(toolName: string) {
+        return async (data: { payload: string }): Promise<string> => {
+            const handler = clientToolHandlers.get(toolName);
+            if (!handler) {
+                throw new Error(`No handler registered for client tool: ${toolName}`);
+            }
+            try {
+                const args = JSON.parse(data.payload);
+                return await handler(args);
+            } catch (error) {
+                throw new Error(`Client tool "${toolName}" failed: ${(error as Error).message}`);
+            }
+        };
+    }
+
+    function flushClientToolsToRoom() {
+        for (const [name] of clientToolHandlers) {
+            items.streamingManager?.unregisterRpcMethod?.(name);
+            items.streamingManager?.registerRpcMethod?.(name, createRpcHandler(name));
+        }
+    }
+
+    function registerClientTool(name: string, handler: ClientToolHandler): void {
+        const isNew = !clientToolHandlers.has(name);
+        clientToolHandlers.set(name, handler);
+        if (isNew) {
+            items.streamingManager?.registerRpcMethod?.(name, createRpcHandler(name));
+        }
+    }
+
+    function unregisterClientTool(name: string): void {
+        clientToolHandlers.delete(name);
+        items.streamingManager?.unregisterRpcMethod?.(name);
+    }
 
     const loadedTimestamp = Date.now();
     defer(() => {
@@ -194,6 +235,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.socketManager = socketManager;
         items.chat = chat;
 
+        flushClientToolsToRoom();
+
         firstConnection = false;
 
         analytics.enrich({
@@ -232,7 +275,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
         getIsInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
-        getIsTriggersAvailable: () => items.streamingManager?.triggersAvailable ?? false,
         starterMessages: agentEntity.knowledge?.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,
@@ -286,7 +328,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async unpublishMicrophoneStream() {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
-                throw new Error('unpublishMicrophoneStream is not available for this streaming manager');
+                return;
             }
             return items.streamingManager.unpublishMicrophoneStream();
         },
@@ -298,7 +340,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async unpublishCameraStream() {
             if (!items.streamingManager?.unpublishCameraStream) {
-                throw new Error('unpublishCameraStream is not available for this streaming manager');
+                return;
             }
             return items.streamingManager.unpublishCameraStream();
         },
@@ -552,5 +594,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
         },
         interrupt,
+        registerClientTool,
+        unregisterClientTool,
     };
 }

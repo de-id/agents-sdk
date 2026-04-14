@@ -2,6 +2,7 @@ import { STTTokenResponse } from '@sdk/types';
 import { Auth } from '@sdk/types/auth';
 import {
     AgentActivityState,
+    ClientToolHandler,
     CompatibilityMode,
     ConnectionState,
     ConnectivityState,
@@ -195,11 +196,6 @@ export interface AgentManager {
     getIsInterruptAvailable: () => boolean;
 
     /**
-     * Get if the stream supports triggers
-     */
-    getIsTriggersAvailable: () => boolean;
-
-    /**
      * Array of starter messages that will be sent to the agent when the chat starts
      */
     starterMessages: string[];
@@ -284,4 +280,18 @@ export interface AgentManager {
      * Only available for Fluent streams and when there's an active video to interrupt
      */
     interrupt: (interrupt: Interrupt) => void;
+
+    /**
+     * Register a handler for a client tool. When the agent's LLM calls this tool,
+     * the handler executes on the client and returns the result to the LLM.
+     * @param name - Tool name (must match the tool name defined in the agent config)
+     * @param handler - Async function receiving args, must return a JSON string (max 15KiB)
+     */
+    registerClientTool: (name: string, handler: ClientToolHandler) => void;
+
+    /**
+     * Remove a previously registered client tool handler.
+     * @param name - Tool name to unregister
+     */
+    unregisterClientTool: (name: string) => void;
 }
