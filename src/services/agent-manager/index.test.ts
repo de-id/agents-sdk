@@ -832,4 +832,75 @@ describe('createAgentManager', () => {
             });
         });
     });
+
+    describe('registerClientTool', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            mockStreamingManager.registerRpcMethod = jest.fn();
+            mockStreamingManager.unregisterRpcMethod = jest.fn();
+            manager = await createAgentManager('agent-123', mockOptions);
+        });
+
+        it('should register tool and call registerRpcMethod after connect', async () => {
+            const handler = jest.fn().mockResolvedValue('result');
+
+            await manager.connect();
+            manager.registerClientTool('testTool', handler);
+
+            expect(mockStreamingManager.registerRpcMethod).toHaveBeenCalledWith('testTool', expect.any(Function));
+        });
+
+        it('should buffer tool registration before connect and flush on connect', async () => {
+            const handler = jest.fn().mockResolvedValue('result');
+
+            manager.registerClientTool('testTool', handler);
+            expect(mockStreamingManager.registerRpcMethod).not.toHaveBeenCalled();
+
+            await manager.connect();
+            expect(mockStreamingManager.registerRpcMethod).toHaveBeenCalledWith('testTool', expect.any(Function));
+        });
+
+        it('should not call registerRpcMethod twice for same tool name', async () => {
+            const handler1 = jest.fn().mockResolvedValue('result1');
+            const handler2 = jest.fn().mockResolvedValue('result2');
+
+            await manager.connect();
+            manager.registerClientTool('testTool', handler1);
+            manager.registerClientTool('testTool', handler2);
+
+            expect(mockStreamingManager.registerRpcMethod).toHaveBeenCalledTimes(1);
+        });
+
+        it('should unregister tool from map and room', async () => {
+            const handler = jest.fn().mockResolvedValue('result');
+
+            await manager.connect();
+            manager.registerClientTool('testTool', handler);
+            manager.unregisterClientTool('testTool');
+
+            expect(mockStreamingManager.unregisterRpcMethod).toHaveBeenCalledWith('testTool');
+        });
+
+        it('should invoke latest handler when RPC is called after re-registration', async () => {
+            const handler1 = jest.fn().mockResolvedValue('result1');
+            const handler2 = jest.fn().mockResolvedValue('result2');
+
+            await manager.connect();
+            manager.registerClientTool('testTool', handler1);
+
+            // Get the RPC handler that was registered
+            const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
+
+            // Re-register with new handler (same name — only updates Map)
+            manager.registerClientTool('testTool', handler2);
+
+            // Invoke the RPC handler — should use handler2 from Map
+            const result = await rpcHandler({ payload: '{"key": "val"}' });
+
+            expect(handler1).not.toHaveBeenCalled();
+            expect(handler2).toHaveBeenCalledWith({ key: 'val' });
+            expect(result).toBe('result2');
+        });
+    });
 });

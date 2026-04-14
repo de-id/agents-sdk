@@ -85,4 +85,17 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * Whether the current stream segment can be interrupted by the user
      */
     isInterruptible: boolean;
+
+    /**
+     * Register an RPC method handler on the LiveKit room.
+     * Used internally by the agent-manager for client tool delegation.
+     * supported only for livekit manager
+     */
+    registerRpcMethod?(method: string, handler: (data: any) => Promise<string>): void;
+
+    /**
+     * Unregister a previously registered RPC method.
+     * supported only for livekit manager
+     */
+    unregisterRpcMethod?(method: string): void;
 };

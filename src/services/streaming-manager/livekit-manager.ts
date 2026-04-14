@@ -721,6 +721,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         publishCameraStream,
         unpublishCameraStream,
 
+        registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {
+            room?.registerRpcMethod(method, handler);
+        },
+        unregisterRpcMethod(method: string) {
+            room?.unregisterRpcMethod(method);
+        },
+
         sessionId,
         streamId: sessionId,
         streamType,
