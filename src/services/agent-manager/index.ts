@@ -7,20 +7,23 @@ import {
     ChatResponse,
     ConnectionState,
     CreateSessionV2Options,
+    CreateSessionV2Response,
     CreateStreamOptions,
     Interrupt,
     Message,
     StreamScript,
     SupportedStreamScript,
+    VideoType,
 } from '../../types';
 
 import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
 import { ChatCreationFailed, ValidationError } from '@sdk/errors';
-import { getRandom } from '@sdk/utils';
-import { isStreamsV2Agent } from '@sdk/utils/agent';
+import { getRandom, noop } from '@sdk/utils';
+import { buildCreateSessionV2Options, isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
 import { createAgentsApi } from '../../api/agents';
+import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { defer } from '../../utils/defer';
 import { retryOperation } from '../../utils/retry-operation';
@@ -32,6 +35,8 @@ import { sendInterrupt, sendInterruptV2, validateInterrupt } from '../interrupt'
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
+import { createStreamingLogger } from '../streaming-manager/common';
+import { disposePreCreatedSession } from '../streaming-manager/livekit-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 export interface AgentManagerItems {
@@ -81,8 +86,39 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     });
 
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
+    const log = createStreamingLogger(options.debug || false, 'AgentManager');
+    const shouldParallelizeInit = options.avatarType === VideoType.Expressive;
 
-    const agentEntity = await agentsApi.getById(agent);
+    let agentEntity: Agent;
+    let preCreatedSession: CreateSessionV2Response | undefined;
+
+    if (shouldParallelizeInit) {
+        const streamApi = createStreamApiV2(options.auth, baseURL, agent, options.callbacks.onError);
+        const [agentResult, sessionResult] = await Promise.allSettled([
+            agentsApi.getById(agent),
+            streamApi.createStream(buildCreateSessionV2Options()),
+        ]);
+
+        if (agentResult.status === 'rejected') {
+            if (sessionResult.status === 'fulfilled') {
+                disposePreCreatedSession(sessionResult.value, log).catch(noop);
+            }
+            throw agentResult.reason;
+        }
+        agentEntity = agentResult.value;
+
+        if (sessionResult.status === 'rejected') {
+            log('Parallel session creation failed, falling back to sequential:', sessionResult.reason);
+        } else if (isStreamsV2Agent(agentEntity.presenter.type)) {
+            preCreatedSession = sessionResult.value;
+        } else {
+            log('avatarType mismatch - fetched agent is not V2; disposing unused session');
+            disposePreCreatedSession(sessionResult.value, log).catch(noop);
+        }
+    } else {
+        agentEntity = await agentsApi.getById(agent);
+    }
+
     options.debug =
         options.debug ||
         (agentEntity as Agent & { advanced_settings?: { ui_debug_mode?: boolean } })?.advanced_settings?.ui_debug_mode;
@@ -138,6 +174,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         latencyTimestampTracker.reset();
 
+        const sessionForThisConnect = preCreatedSession;
+        preCreatedSession = undefined;
+
         if (newChat && !firstConnection) {
             delete items.chat;
 
@@ -169,7 +208,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     },
                     agentsApi,
                     analytics,
-                    items.chat
+                    items.chat,
+                    sessionForThisConnect
                 ),
             {
                 limit: 3,
@@ -211,6 +251,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     async function disconnect() {
         items.socketManager?.disconnect();
         await items.streamingManager?.disconnect();
+
+        if (preCreatedSession) {
+            const session = preCreatedSession;
+            preCreatedSession = undefined;
+            disposePreCreatedSession(session, log).catch(noop);
+        }
 
         delete items.streamingManager;
         delete items.socketManager;

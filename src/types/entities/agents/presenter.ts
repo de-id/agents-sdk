@@ -1,19 +1,18 @@
 import { ExtendedTextToSpeechProviders } from '@sdk/types/voice/tts';
 import { Rect } from '../../face-rect';
-
-export type videoType = 'talk' | 'clip' | 'expressive';
+import { VideoType } from '../video';
 
 export type Presenter = TalkPresenter | ClipPresenter | ExpresivePresenter;
 
 export interface BasePresenter {
-    type: videoType;
+    type: VideoType;
     voice?: ExtendedTextToSpeechProviders & { language?: string };
     idle_video?: string;
     thumbnail?: string;
 }
 
 export interface TalkPresenter extends BasePresenter {
-    type: 'talk';
+    type: VideoType.Talk;
     source_url: string;
     driver_url?: string;
     stitch?: boolean;
@@ -21,7 +20,7 @@ export interface TalkPresenter extends BasePresenter {
 }
 
 export interface ClipPresenter extends BasePresenter {
-    type: 'clip';
+    type: VideoType.Clip;
     driver_id: string;
     background?: string;
     presenter_id: string;
@@ -29,6 +28,6 @@ export interface ClipPresenter extends BasePresenter {
 }
 
 export interface ExpresivePresenter extends BasePresenter {
-    type: 'expressive';
+    type: VideoType.Expressive;
     presenter_id: string;
 }

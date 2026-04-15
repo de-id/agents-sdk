@@ -1,6 +1,7 @@
 import {
     Agent,
     CreateSessionV2Options,
+    CreateSessionV2Response,
     CreateStreamOptions,
     StreamingManagerOptions,
     TransportProvider,
@@ -17,10 +18,17 @@ export type ExtendedStreamOptions =
     | ({ version: StreamApiVersion.V1 } & CreateStreamOptions)
     | ({ version: StreamApiVersion.V2 } & CreateSessionV2Options);
 
+/**
+ * Internal options that extend public StreamingManagerOptions with implementation details.
+ */
+export interface InternalStreamingManagerOptions extends StreamingManagerOptions {
+    preCreatedSession?: CreateSessionV2Response;
+}
+
 export async function createStreamingManager(
     agent: Agent,
     streamOptions: ExtendedStreamOptions,
-    options: StreamingManagerOptions,
+    options: InternalStreamingManagerOptions,
     signal?: AbortSignal
 ): Promise<StreamingManager<CreateStreamOptions | CreateSessionV2Options>> {
     const agentId = agent.id;

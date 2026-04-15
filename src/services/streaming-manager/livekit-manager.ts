@@ -3,6 +3,7 @@ import {
     ConnectionState,
     ConnectivityState,
     CreateSessionV2Options,
+    CreateSessionV2Response,
     CreateStreamOptions,
     Message,
     PayloadType,
@@ -15,11 +16,13 @@ import {
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
+import { buildCreateSessionV2Options } from '@sdk/utils/agent';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createStreamingLogger, StreamingManager } from './common';
 import { chatEventMap } from './data-channel-handlers';
+import { InternalStreamingManagerOptions } from './factory';
 
 import type {
     ConnectionQuality,
@@ -93,10 +96,36 @@ export function handleInitError(
     throw error;
 }
 
+/**
+ * Best-effort disposal of a pre-created V2 session that is no longer needed.
+ *
+ * The V2 streams API has no DELETE endpoint. To force the server to release
+ * the session immediately (rather than wait for its TTL), we connect to the
+ * LiveKit room with the session token and disconnect right away. Failures are
+ * swallowed - the server will reap the session via TTL as a fallback.
+ *
+ * @param session - The session returned from `createStream` that went unused.
+ * @param log - Debug-gated logger.
+ */
+export async function disposePreCreatedSession(
+    session: CreateSessionV2Response,
+    log: (message?: any, ...optionalParams: any[]) => void
+): Promise<void> {
+    try {
+        const { Room } = await importLiveKit();
+        const room = new Room();
+        await room.connect(session.session_url, session.session_token);
+        await room.disconnect();
+        log('Disposed unused pre-created session', { sessionId: session.id });
+    } catch (error) {
+        log('Failed to dispose pre-created session (will expire server-side):', error);
+    }
+}
+
 export async function createLiveKitStreamingManager<T extends CreateSessionV2Options>(
     agentId: string,
     sessionOptions: CreateSessionV2Options,
-    options: StreamingManagerOptions
+    options: InternalStreamingManagerOptions
 ): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
@@ -132,10 +161,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let interruptEnabled = true;
 
     try {
-        const streamResponse = await streamApi.createStream({
-            transport: sessionOptions.transport,
-            chat_persist: sessionOptions.chat_persist ?? true,
-        });
+        let streamResponse: CreateSessionV2Response;
+        if (options.preCreatedSession) {
+            log('Using pre-created session (parallel init)');
+            streamResponse = options.preCreatedSession;
+        } else {
+            streamResponse = await streamApi.createStream(buildCreateSessionV2Options(sessionOptions.chat_persist));
+        }
 
         const { id, session_token, session_url, interrupt_enabled } = streamResponse;
         callbacks.onStreamCreated?.({ session_id: id, stream_id: id, agent_id: agentId });

@@ -5,6 +5,7 @@ import {
     Providers,
     StreamingManagerOptions,
     TransportProvider,
+    VideoType,
 } from '../../types';
 import { StreamApiVersion, createStreamingManager } from './factory';
 
@@ -35,7 +36,7 @@ describe('createStreamingManager', () => {
     it('calls to createWebRTCStreamingManager when agent presenter type is talk', async () => {
         const agent = AgentFactory.build({
             presenter: {
-                type: 'talk',
+                type: VideoType.Talk,
                 source_url: 'https://example.com/presenter',
                 voice: {
                     type: Providers.Microsoft,
@@ -58,7 +59,7 @@ describe('createStreamingManager', () => {
     it('calls to createWebRTCStreamingManager when agent presenter type is clip', async () => {
         const agent = AgentFactory.build({
             presenter: {
-                type: 'clip',
+                type: VideoType.Clip,
                 driver_id: 'driver-123',
                 presenter_id: 'presenter-123',
                 voice: {
@@ -82,7 +83,7 @@ describe('createStreamingManager', () => {
     it('calls to createLiveKitStreamingManager when agent presenter type is expressive', async () => {
         const agent = AgentFactory.build({
             presenter: {
-                type: 'expressive',
+                type: VideoType.Expressive,
                 presenter_id: 'expressive-presenter-123',
                 voice: {
                     type: Providers.Microsoft,
@@ -107,7 +108,7 @@ describe('createStreamingManager', () => {
     it('passes microphoneStream to createLiveKitStreamingManager when provided', async () => {
         const agent = AgentFactory.build({
             presenter: {
-                type: 'expressive',
+                type: VideoType.Expressive,
                 presenter_id: 'expressive-presenter-123',
                 voice: {
                     type: Providers.Microsoft,

@@ -10,6 +10,7 @@ import {
     StreamingState,
     StreamType,
     TransportProvider,
+    VideoType,
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
@@ -51,7 +52,7 @@ describe('connect-to-manager', () => {
             id: 'agent-123',
             name: 'Test Agent',
             presenter: {
-                type: 'clip',
+                type: VideoType.Clip,
                 driver_id: 'driver-123',
                 presenter_id: 'presenter-123',
                 is_greenscreen: true,
@@ -372,7 +373,7 @@ describe('connect-to-manager', () => {
             });
 
             it('should handle video state with non-clip presenter', () => {
-                mockAgent.presenter.type = 'talk';
+                mockAgent.presenter.type = VideoType.Talk;
 
                 onVideoStateChange(StreamingState.Stop);
 
@@ -596,10 +597,10 @@ describe('connect-to-manager', () => {
 
     describe('Streams V2 Support', () => {
         it('should use CreateStreamV2Options for expressive agents', async () => {
-            const expressiveAgent = {
+            const expressiveAgent: Agent = {
                 ...mockAgent,
                 presenter: {
-                    type: 'expressive' as const,
+                    type: VideoType.Expressive,
                     presenter_id: 'expressive-presenter-123',
                     voice: { type: Providers.Microsoft, voice_id: 'voice-123' },
                 },
@@ -614,6 +615,7 @@ describe('connect-to-manager', () => {
                     transport: {
                         provider: TransportProvider.Livekit,
                     },
+                    chat_persist: true,
                 },
                 expect.not.objectContaining({
                     chatId: expect.anything(),

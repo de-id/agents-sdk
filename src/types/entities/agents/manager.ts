@@ -14,6 +14,7 @@ import {
 } from '@sdk/types/stream';
 import { SupportedStreamScript } from '@sdk/types/stream-script';
 import type { ManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
+import { VideoType } from '../video';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity } from './chat';
 
@@ -176,6 +177,10 @@ export interface AgentManagerOptions {
     initialMessages?: Message[];
     persistentChat?: boolean;
     microphoneStream?: MediaStream;
+    /**
+     * Optional avatar type hint, e.g. expressive
+     */
+    avatarType?: VideoType;
 }
 
 export interface AgentManager {

@@ -16,14 +16,15 @@ import {
     ChatProgressCallback,
     ConnectionState,
     CreateSessionV2Options,
+    CreateSessionV2Response,
     CreateStreamOptions,
     Interrupt,
     StreamEvents,
     StreamType,
     StreamingState,
-    TransportProvider,
+    VideoType,
 } from '@sdk/types';
-import { isStreamsV2Agent } from '@sdk/utils/agent';
+import { buildCreateSessionV2Options, isStreamsV2Agent } from '@sdk/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
 import {
     interruptTimestampTracker,
@@ -33,12 +34,9 @@ import {
 import { createChat } from '../chat';
 
 const ChatPrefix = 'cht';
+
 function getAgentStreamV2Options(): CreateSessionV2Options {
-    return {
-        transport: {
-            provider: TransportProvider.Livekit,
-        },
-    };
+    return buildCreateSessionV2Options();
 }
 
 function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStreamOptions {
@@ -98,8 +96,8 @@ function trackVideoStreamAnalytics(
     } else if (state === StreamingState.Stop) {
         analytics.track('stream-session', {
             event: 'stop',
-            is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-            background: agent.presenter.type === 'clip' && agent.presenter.background,
+            is_greenscreen: agent.presenter.type === VideoType.Clip && agent.presenter.is_greenscreen,
+            background: agent.presenter.type === VideoType.Clip && agent.presenter.background,
             'stream-type': streamType,
             ...statsReport,
         });
@@ -122,8 +120,8 @@ function trackAgentActivityAnalytics(
             'agent-video',
             {
                 event: 'stop',
-                is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-                background: agent.presenter.type === 'clip' && agent.presenter.background,
+                is_greenscreen: agent.presenter.type === VideoType.Clip && agent.presenter.is_greenscreen,
+                background: agent.presenter.type === VideoType.Clip && agent.presenter.background,
                 'stream-type': streamType,
             },
             'done',
@@ -151,8 +149,8 @@ function trackLegacyVideoAnalytics(
             'agent-video',
             {
                 event: 'stop',
-                is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-                background: agent.presenter.type === 'clip' && agent.presenter.background,
+                is_greenscreen: agent.presenter.type === VideoType.Clip && agent.presenter.is_greenscreen,
+                background: agent.presenter.type === VideoType.Clip && agent.presenter.background,
                 'stream-type': streamType,
                 ...statsReport,
             },
@@ -174,11 +172,25 @@ type ConnectToManagerOptions = AgentManagerOptions & {
     chatId?: string;
 };
 
+/**
+ * Creates a streaming manager for the given agent and resolves once the
+ * underlying stream is `Connected`.
+ *
+ * @param agent - The agent entity to stream.
+ * @param options - Connect-time options plus internal callbacks.
+ * @param analytics - The analytics client for tracking connection events.
+ * @param signal - Optional AbortSignal. Only honored on the V1 path.
+ * @param preCreatedSession - Optional V2 session already created upstream (via
+ *   the parallel-init optimization). When provided, the LiveKit manager reuses
+ *   it instead of calling `createStream` again. Ignored on the V1 path.
+ * @returns A streaming manager ready for use.
+ */
 function connectToManager(
     agent: Agent,
     options: ConnectToManagerOptions,
     analytics: Analytics,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    preCreatedSession?: CreateSessionV2Response
 ): Promise<StreamingManager<CreateStreamOptions | CreateSessionV2Options>> {
     latencyTimestampTracker.reset();
     streamReadyTimestampTracker.update();
@@ -194,7 +206,7 @@ function connectToManager(
             });
 
             let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
-            const isExpressive = agent.presenter.type === 'expressive';
+            const isExpressive = agent.presenter.type === VideoType.Expressive;
 
             streamingManager = await createStreamingManager(
                 agent,
@@ -202,6 +214,7 @@ function connectToManager(
                 {
                     ...options,
                     analytics,
+                    preCreatedSession,
                     callbacks: {
                         ...options.callbacks,
                         onConnectionStateChange: (state, reason) => {
@@ -280,16 +293,34 @@ function connectToManager(
     });
 }
 
+/**
+ * Initializes both the streaming manager and the chat for an agent.
+ *
+ * For V2 agents, the chat is synthesized from the session id and no chat API
+ * call is made. For V1 agents, the stream connect and chat creation run in
+ * parallel with shared abort semantics on failure.
+ *
+ * @param agent - The agent entity to connect to.
+ * @param options - Connect-time options including callbacks.
+ * @param agentsApi - The agents API client (used for V1 chat creation).
+ * @param analytics - The analytics client.
+ * @param chat - Optional existing chat to resume (V1 only).
+ * @param preCreatedSession - Optional V2 session created upstream via the
+ *   parallel-init optimization. Forwarded to the LiveKit manager for reuse.
+ *   Consumed once by the caller.
+ * @returns The streaming manager and the resolved chat.
+ */
 export async function initializeStreamAndChat(
     agent: Agent,
     options: ConnectToManagerOptions,
     agentsApi: AgentsAPI,
     analytics: Analytics,
-    chat?: Chat
+    chat?: Chat,
+    preCreatedSession?: CreateSessionV2Response
 ): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions | CreateSessionV2Options> }> {
     const resolveStreamAndChat = async () => {
         if (isStreamsV2Agent(agent.presenter.type)) {
-            const streamingManager = await connectToManager(agent, options, analytics);
+            const streamingManager = await connectToManager(agent, options, analytics, undefined, preCreatedSession);
             const chatId = `${ChatPrefix}_${streamingManager.sessionId}`;
             const now = new Date().toISOString();
 

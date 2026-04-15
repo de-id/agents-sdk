@@ -1,6 +1,6 @@
 import { Factory } from 'rosie';
 
-import { Agent, Providers } from '../../types';
+import { Agent, Providers, VideoType } from '../../types';
 
 export const AgentFactory = new Factory<Agent>().attrs({
     id: 'agent-123',
@@ -11,7 +11,7 @@ export const AgentFactory = new Factory<Agent>().attrs({
         provider: 'pinecone' as const,
     },
     presenter: {
-        type: 'talk' as const,
+        type: VideoType.Talk,
         source_url: 'https://example.com/presenter',
         voice: {
             type: Providers.Microsoft,

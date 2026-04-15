@@ -1,4 +1,4 @@
-import { Agent } from '@sdk/types/index';
+import { Agent, VideoType } from '@sdk/types/index';
 import { getAgentType, getPresenterIdentifier, getPresenterType } from './agent';
 
 export function getAnalyticsInfo(agent: Agent) {
@@ -71,7 +71,7 @@ export function getStreamAnalyticsProps(data: any, agent: Agent, additionalProps
         ...baseProps,
         llm: { ...baseProps.llm, template },
         script: { ...baseProps.script, provider: { ...baseProps?.script?.provider, language } },
-        stitch: agent?.presenter.type === 'talk' ? agent?.presenter?.stitch : undefined,
+        stitch: agent?.presenter.type === VideoType.Talk ? agent?.presenter?.stitch : undefined,
         ...additionalProps,
     };
 

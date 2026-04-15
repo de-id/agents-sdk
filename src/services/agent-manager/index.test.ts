@@ -1,4 +1,5 @@
 import { createAgentsApi } from '../../api/agents';
+import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import {
     AgentFactory,
     AgentManagerOptionsFactory,
@@ -8,18 +9,29 @@ import {
     SocketManagerFactory,
     StreamingManagerFactory,
 } from '../../test-utils/factories';
-import { Agent, AgentManager, AgentManagerOptions, ChatMode, ConnectionState, StreamType } from '../../types';
+import {
+    Agent,
+    AgentManager,
+    AgentManagerOptions,
+    ChatMode,
+    ConnectionState,
+    StreamType,
+    TransportProvider,
+    VideoType,
+} from '../../types';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
 import { sendInterrupt, validateInterrupt } from '../interrupt';
 import { createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
+import { disposePreCreatedSession } from '../streaming-manager/livekit-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 import { createAgentManager } from './index';
 
 // Mock all dependencies
 jest.mock('../../api/agents');
+jest.mock('../../api/streams/streamsApiV2');
 jest.mock('../analytics/mixpanel');
 jest.mock('../socket-manager');
 jest.mock('./connect-to-manager');
@@ -27,6 +39,9 @@ jest.mock('../socket-manager/message-queue');
 jest.mock('../chat/intial-messages');
 jest.mock('../chat');
 jest.mock('../interrupt');
+jest.mock('../streaming-manager/livekit-manager', () => ({
+    disposePreCreatedSession: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../../utils/retry-operation', () => ({ retryOperation: jest.fn(fn => fn()) }));
 jest.mock('../../utils', () => ({ getRandom: jest.fn(() => 'random-id-123') }));
 jest.mock('../../utils/chat', () => ({
@@ -149,6 +164,150 @@ describe('createAgentManager', () => {
 
             expect(getInitialMessages).toHaveBeenCalledWith(customOptions.initialMessages);
             expect(mockOptions.callbacks.onNewMessage).toHaveBeenCalledWith(initialMessages, 'answer');
+        });
+    });
+
+    describe('Parallel initialization (avatarType)', () => {
+        const mockSessionResponse = {
+            id: 'session-123',
+            session_url: 'wss://livekit.test',
+            session_token: 'token-abc',
+            interrupt_enabled: true,
+        };
+        let mockCreateStream: jest.Mock;
+
+        beforeEach(() => {
+            mockCreateStream = jest.fn().mockResolvedValue(mockSessionResponse);
+            (createStreamApiV2 as jest.Mock).mockReturnValue({ createStream: mockCreateStream });
+            (disposePreCreatedSession as jest.Mock).mockClear().mockResolvedValue(undefined);
+
+            const expressiveAgent = { ...mockAgent, presenter: { type: VideoType.Expressive, presenter_id: 'p-1' } };
+            mockAgentsApi.getById = jest.fn().mockResolvedValue(expressiveAgent);
+        });
+
+        it('should run agent retrieval and session creation in parallel when avatarType is expressive', async () => {
+            const options = { ...mockOptions, avatarType: VideoType.Expressive };
+
+            await createAgentManager('agent-123', options);
+
+            expect(createStreamApiV2).toHaveBeenCalledWith(
+                options.auth,
+                'https://api.d-id.com',
+                'agent-123',
+                options.callbacks.onError
+            );
+            expect(mockAgentsApi.getById).toHaveBeenCalledWith('agent-123');
+        });
+
+        it('should call createStream with the canonical V2 payload', async () => {
+            const options = { ...mockOptions, avatarType: VideoType.Expressive };
+
+            await createAgentManager('agent-123', options);
+
+            expect(mockCreateStream).toHaveBeenCalledWith({
+                transport: { provider: TransportProvider.Livekit },
+                chat_persist: true,
+            });
+        });
+
+        it('should NOT trigger parallel session creation when avatarType is not expressive', async () => {
+            const options = { ...mockOptions, avatarType: VideoType.Talk };
+
+            await createAgentManager('agent-123', options);
+
+            expect(createStreamApiV2).not.toHaveBeenCalled();
+        });
+
+        it('should NOT trigger parallel session creation when avatarType is omitted', async () => {
+            await createAgentManager('agent-123', mockOptions);
+
+            expect(createStreamApiV2).not.toHaveBeenCalled();
+        });
+
+        it('should pass the pre-created session to initializeStreamAndChat on first connect', async () => {
+            const options = { ...mockOptions, avatarType: VideoType.Expressive };
+            const manager = await createAgentManager('agent-123', options);
+
+            await manager.connect();
+
+            expect(initializeStreamAndChat).toHaveBeenCalledWith(
+                expect.any(Object),
+                expect.any(Object),
+                expect.any(Object),
+                expect.any(Object),
+                undefined,
+                mockSessionResponse
+            );
+        });
+
+        it('should NOT reuse the pre-created session on subsequent connect calls (consume-once)', async () => {
+            const options = { ...mockOptions, avatarType: VideoType.Expressive };
+            const manager = await createAgentManager('agent-123', options);
+
+            await manager.connect();
+            await manager.disconnect();
+            await manager.connect();
+
+            const firstCall = (initializeStreamAndChat as jest.Mock).mock.calls[0];
+            const secondCall = (initializeStreamAndChat as jest.Mock).mock.calls[1];
+            expect(firstCall).toHaveLength(6);
+            expect(firstCall[5]).toEqual(mockSessionResponse);
+            expect(secondCall[5]).toBeUndefined();
+        });
+
+        it('should fall back to sequential flow when parallel session creation fails', async () => {
+            const error = new Error('Session creation failed');
+            mockCreateStream.mockRejectedValue(error);
+            const options = { ...mockOptions, avatarType: VideoType.Expressive };
+
+            const manager = await createAgentManager('agent-123', options);
+            await manager.connect();
+
+            const callArgs = (initializeStreamAndChat as jest.Mock).mock.calls[0];
+            expect(callArgs).toHaveLength(6);
+            expect(callArgs[5]).toBeUndefined();
+            expect(disposePreCreatedSession).not.toHaveBeenCalled();
+        });
+
+        it('should propagate agent retrieval errors even when session creation was in flight', async () => {
+            const agentError = new Error('Agent not found');
+            mockAgentsApi.getById = jest.fn().mockRejectedValue(agentError);
+            const options = { ...mockOptions, avatarType: VideoType.Expressive };
+
+            await expect(createAgentManager('agent-123', options)).rejects.toThrow('Agent not found');
+        });
+
+        it('should dispose the pre-created session when agent retrieval fails', async () => {
+            const agentError = new Error('Agent not found');
+            mockAgentsApi.getById = jest.fn().mockRejectedValue(agentError);
+            const options = { ...mockOptions, avatarType: VideoType.Expressive };
+
+            await expect(createAgentManager('agent-123', options)).rejects.toThrow('Agent not found');
+
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(disposePreCreatedSession).toHaveBeenCalledWith(mockSessionResponse, expect.any(Function));
+        });
+
+        it('should dispose the pre-created session when fetched agent is not V2', async () => {
+            const talkAgent = { ...mockAgent, presenter: { type: VideoType.Talk, source_url: 'x' } };
+            mockAgentsApi.getById = jest.fn().mockResolvedValue(talkAgent);
+            const options = { ...mockOptions, avatarType: VideoType.Expressive };
+
+            const manager = await createAgentManager('agent-123', options);
+
+            expect(disposePreCreatedSession).toHaveBeenCalledWith(mockSessionResponse, expect.any(Function));
+            await manager.connect();
+            const callArgs = (initializeStreamAndChat as jest.Mock).mock.calls[0];
+            expect(callArgs[5]).toBeUndefined();
+        });
+
+        it('should dispose the pre-created session when disconnect is called before connect', async () => {
+            const options = { ...mockOptions, avatarType: VideoType.Expressive };
+            const manager = await createAgentManager('agent-123', options);
+
+            await manager.disconnect();
+
+            expect(disposePreCreatedSession).toHaveBeenCalledWith(mockSessionResponse, expect.any(Function));
         });
     });
 

@@ -7,7 +7,7 @@ import {
     StreamingState,
     TransportProvider,
 } from '../../types/index';
-import { createLiveKitStreamingManager } from './livekit-manager';
+import { createLiveKitStreamingManager, disposePreCreatedSession } from './livekit-manager';
 
 // Mock livekit-client
 const mockPublishTrack = jest.fn();
@@ -1445,6 +1445,49 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
             expect(onMessage).toHaveBeenCalled();
+        });
+    });
+
+    describe('disposePreCreatedSession', () => {
+        beforeEach(() => {
+            mockRoom.connect.mockClear().mockResolvedValue(undefined);
+            mockRoom.disconnect.mockClear().mockResolvedValue(undefined);
+            mockRoomConstructor.mockClear();
+        });
+
+        it('should connect and immediately disconnect to force server cleanup', async () => {
+            const session = {
+                id: 'session-xyz',
+                session_url: 'wss://livekit.test',
+                session_token: 'token-xyz',
+                interrupt_enabled: true,
+            };
+            const log = jest.fn();
+
+            await disposePreCreatedSession(session, log);
+
+            expect(mockRoomConstructor).toHaveBeenCalled();
+            expect(mockRoom.connect).toHaveBeenCalledWith('wss://livekit.test', 'token-xyz');
+            expect(mockRoom.disconnect).toHaveBeenCalled();
+            expect(log).toHaveBeenCalledWith('Disposed unused pre-created session', { sessionId: 'session-xyz' });
+        });
+
+        it('should swallow errors and log instead of throwing', async () => {
+            const connectError = new Error('Connection refused');
+            mockRoom.connect.mockRejectedValueOnce(connectError);
+            const session = {
+                id: 'session-xyz',
+                session_url: 'wss://livekit.test',
+                session_token: 'token-xyz',
+                interrupt_enabled: true,
+            };
+            const log = jest.fn();
+
+            await expect(disposePreCreatedSession(session, log)).resolves.toBeUndefined();
+            expect(log).toHaveBeenCalledWith(
+                'Failed to dispose pre-created session (will expire server-side):',
+                connectError
+            );
         });
     });
 });
