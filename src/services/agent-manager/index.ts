@@ -19,6 +19,7 @@ import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
 import { ChatCreationFailed, ValidationError } from '@sdk/errors';
 import { getRandom } from '@sdk/utils';
+import { parseMessageParts } from '@sdk/utils/content-parser';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
 import { createAgentsApi } from '../../api/agents';
@@ -439,6 +440,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'user',
                     content: userMessage,
+                    parts: parseMessageParts(userMessage),
                     created_at: new Date(latencyTimestampTracker.update()).toISOString(),
                 });
 
@@ -451,6 +453,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'assistant',
                     content: response.result || '',
+                    parts: parseMessageParts(response.result || ''),
                     created_at: new Date().toISOString(),
                     context: response.context,
                     matches: response.matches,
@@ -568,6 +571,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'assistant',
                     content: script.input,
+                    parts: parseMessageParts(script.input),
                     created_at: new Date().toISOString(),
                 });
                 options.callbacks.onNewMessage?.([...items.messages], 'answer');
