@@ -1,16 +1,16 @@
 import { MessagePart } from '@sdk/types/entities/agents/chat';
 
 // Video thumbnail syntax: [![alt](thumbnail-url)](video-url)
-const VIDEO_THUMBNAIL_RE = /\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)/g;
+const VIDEO_THUMBNAIL_RE = /\[!\[([^\[\]]*)\]\(([^)\s]+)\)\]\(([^)\s]+)\)/g;
 
 // Standard markdown image: ![alt](url)
-const IMAGE_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
+const IMAGE_RE = /!\[([^\[\]]*)\]\(([^)\s]+)\)/g;
 
 // Standard markdown link: [label](url) — but NOT images (no leading !)
-const MD_LINK_RE = /(?<!!)\[([^\]]+)\]\(([^)]+)\)/g;
+const MD_LINK_RE = /(?<!!)\[([^\[\]]+)\]\(([^)\s]+)\)/g;
 
 // HTML anchor: <a href="url">label</a>
-const HTML_LINK_RE = /<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
+const HTML_LINK_RE = /<a\s+href="([^"]*)"[^>]*?>([^<]*)<\/a>/gi;
 
 interface MatchEntry {
     index: number;
