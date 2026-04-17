@@ -40,9 +40,7 @@ export function parseMessageParts(content: string): MessagePart[] {
     // 2. Markdown images: ![alt](url) — skip those already consumed by video thumbnails
     IMAGE_RE.lastIndex = 0;
     while ((m = IMAGE_RE.exec(content)) !== null) {
-        const overlaps = matches.some(
-            entry => m!.index >= entry.index && m!.index < entry.index + entry.length
-        );
+        const overlaps = matches.some(entry => m!.index >= entry.index && m!.index < entry.index + entry.length);
         if (!overlaps) {
             const src = m[2];
             const part: MessagePart = { type: 'image', src, alt: m[1] };
@@ -56,9 +54,7 @@ export function parseMessageParts(content: string): MessagePart[] {
     // 3. Markdown links: [label](url) — skip those already consumed
     MD_LINK_RE.lastIndex = 0;
     while ((m = MD_LINK_RE.exec(content)) !== null) {
-        const overlaps = matches.some(
-            entry => m!.index >= entry.index && m!.index < entry.index + entry.length
-        );
+        const overlaps = matches.some(entry => m!.index >= entry.index && m!.index < entry.index + entry.length);
         if (!overlaps) {
             matches.push({
                 index: m.index,
@@ -71,9 +67,7 @@ export function parseMessageParts(content: string): MessagePart[] {
     // 4. HTML links: <a href="url">label</a> — skip those already consumed
     HTML_LINK_RE.lastIndex = 0;
     while ((m = HTML_LINK_RE.exec(content)) !== null) {
-        const overlaps = matches.some(
-            entry => m!.index >= entry.index && m!.index < entry.index + entry.length
-        );
+        const overlaps = matches.some(entry => m!.index >= entry.index && m!.index < entry.index + entry.length);
         if (!overlaps) {
             matches.push({
                 index: m.index,

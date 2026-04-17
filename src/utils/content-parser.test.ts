@@ -21,9 +21,7 @@ describe('parseMessageParts', () => {
     describe('markdown images', () => {
         it('should parse a markdown image', () => {
             const result = parseMessageParts('![alt text](https://example.com/image.png)');
-            expect(result).toEqual([
-                { type: 'image', src: 'https://example.com/image.png', alt: 'alt text' },
-            ]);
+            expect(result).toEqual([{ type: 'image', src: 'https://example.com/image.png', alt: 'alt text' }]);
         });
 
         it('should detect GIF images with mimeType', () => {
@@ -35,17 +33,22 @@ describe('parseMessageParts', () => {
 
         it('should handle image with empty alt text', () => {
             const result = parseMessageParts('![](https://example.com/image.jpg)');
-            expect(result).toEqual([
-                { type: 'image', src: 'https://example.com/image.jpg', alt: '' },
-            ]);
+            expect(result).toEqual([{ type: 'image', src: 'https://example.com/image.jpg', alt: '' }]);
         });
     });
 
     describe('markdown video (thumbnail syntax)', () => {
         it('should parse video with thumbnail syntax [![alt](thumb)](video)', () => {
-            const result = parseMessageParts('[![video title](https://example.com/thumb.jpg)](https://example.com/video.mp4)');
+            const result = parseMessageParts(
+                '[![video title](https://example.com/thumb.jpg)](https://example.com/video.mp4)'
+            );
             expect(result).toEqual([
-                { type: 'video', src: 'https://example.com/video.mp4', alt: 'video title', thumbnail: 'https://example.com/thumb.jpg' },
+                {
+                    type: 'video',
+                    src: 'https://example.com/video.mp4',
+                    alt: 'video title',
+                    thumbnail: 'https://example.com/thumb.jpg',
+                },
             ]);
         });
     });
@@ -53,18 +56,14 @@ describe('parseMessageParts', () => {
     describe('markdown links', () => {
         it('should parse a markdown link', () => {
             const result = parseMessageParts('[click here](https://example.com)');
-            expect(result).toEqual([
-                { type: 'link', href: 'https://example.com', label: 'click here' },
-            ]);
+            expect(result).toEqual([{ type: 'link', href: 'https://example.com', label: 'click here' }]);
         });
     });
 
     describe('HTML links', () => {
         it('should parse an HTML anchor tag', () => {
             const result = parseMessageParts('<a href="https://example.com">Visit</a>');
-            expect(result).toEqual([
-                { type: 'link', href: 'https://example.com', label: 'Visit' },
-            ]);
+            expect(result).toEqual([{ type: 'link', href: 'https://example.com', label: 'Visit' }]);
         });
     });
 
@@ -79,7 +78,8 @@ describe('parseMessageParts', () => {
         });
 
         it('should parse multiple different part types in order', () => {
-            const content = 'Check this out: ![img](https://example.com/img.png)\nAnd visit [our site](https://example.com)';
+            const content =
+                'Check this out: ![img](https://example.com/img.png)\nAnd visit [our site](https://example.com)';
             const result = parseMessageParts(content);
             expect(result).toEqual([
                 { type: 'text', text: 'Check this out: ' },
