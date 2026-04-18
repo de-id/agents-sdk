@@ -73,10 +73,7 @@ function processChatEvent(
     // assistant messages in a row) is signalled by an answer event whose `id` differs from the
     // last assistant message. Without this branch, the SDK overwrites the previous message.
     const isNewAssistantMessage =
-        event === ChatProgress.Answer &&
-        data.id &&
-        lastMessage?.role === 'assistant' &&
-        lastMessage.id !== data.id;
+        event === ChatProgress.Answer && data.id && lastMessage?.role === 'assistant' && lastMessage.id !== data.id;
 
     let currentMessage: Message;
     if (lastMessage?.transcribed && lastMessage.role === 'user') {
