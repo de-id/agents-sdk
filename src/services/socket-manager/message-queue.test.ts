@@ -190,6 +190,48 @@ describe('createMessageEventQueue', () => {
         });
     });
 
+    describe('first assistant turn (greeting)', () => {
+        it('creates an assistant message when partials arrive with no prior messages', () => {
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            onMessage(ChatProgress.Partial, { content: 'Hello', sequence: 0 });
+            onMessage(ChatProgress.Partial, { content: ' there', sequence: 1 });
+            onMessage(ChatProgress.Answer, { content: 'Hello there!' });
+
+            expect(mockItems.messages).toHaveLength(1);
+            expect(mockItems.messages[0]).toMatchObject({
+                role: 'assistant',
+                content: 'Hello there!',
+            });
+            expect(mockOnNewMessage).toHaveBeenCalled();
+        });
+
+        it('streams partials live for a greeting before the final answer', () => {
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            onMessage(ChatProgress.Partial, { content: 'Hel', sequence: 0 });
+            onMessage(ChatProgress.Partial, { content: 'lo', sequence: 1 });
+
+            expect(mockItems.messages).toHaveLength(1);
+            expect(mockItems.messages[0]).toMatchObject({ role: 'assistant', content: 'Hello' });
+            expect(mockOnNewMessage).toHaveBeenCalled();
+            const lastCall = mockOnNewMessage.mock.calls[mockOnNewMessage.mock.calls.length - 1];
+            expect(lastCall[1]).toBe(ChatProgress.Partial);
+        });
+    });
+
     describe('clearQueue function', () => {
         it('should expose clearQueue for external use', () => {
             const { clearQueue } = createMessageEventQueue(
