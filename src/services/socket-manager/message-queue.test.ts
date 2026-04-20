@@ -354,5 +354,29 @@ describe('createMessageEventQueue', () => {
             expect(assistantMessages).toHaveLength(1);
             expect(assistantMessages[0].content).toBe('Hello World');
         });
+
+        it('should append a new assistant message when partials arrive with a different id', () => {
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            onMessage(ChatProgress.Partial, { id: 'assistant-1', content: 'first ', sequence: 0 });
+            onMessage(ChatProgress.Partial, { id: 'assistant-1', content: 'message', sequence: 1 });
+            onMessage(ChatProgress.Answer, { id: 'assistant-1', content: 'first message' });
+
+            onMessage(ChatProgress.Partial, { id: 'assistant-2', content: 'second ', sequence: 0 });
+            onMessage(ChatProgress.Partial, { id: 'assistant-2', content: 'message', sequence: 1 });
+            onMessage(ChatProgress.Answer, { id: 'assistant-2', content: 'second message' });
+
+            const assistantMessages = mockItems.messages.filter(m => m.role === 'assistant');
+            expect(assistantMessages).toHaveLength(2);
+            expect(assistantMessages[0].content).toBe('first message');
+            expect(assistantMessages[1].content).toBe('second message');
+            expect(assistantMessages[1].content).not.toContain('first');
+        });
     });
 });
