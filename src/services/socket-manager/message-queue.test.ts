@@ -274,4 +274,106 @@ describe('createMessageEventQueue', () => {
             expect(lastMessage.content).toBe('Fresh');
         });
     });
+
+    describe('message parts population', () => {
+        it('should populate parts on partial messages', () => {
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            // Start with an existing assistant message so partials update it
+            mockItems.messages.push({
+                id: 'assistant-1',
+                role: 'assistant',
+                content: '',
+                created_at: new Date().toISOString(),
+            });
+
+            onMessage(ChatProgress.Partial, { content: 'Hello ![img](https://example.com/pic.png)', sequence: 0 });
+
+            const lastCall = mockOnNewMessage.mock.calls[mockOnNewMessage.mock.calls.length - 1];
+            const lastMessage = lastCall[0][lastCall[0].length - 1];
+            expect(lastMessage.parts).toEqual([
+                { type: 'text', text: 'Hello ' },
+                { type: 'image', src: 'https://example.com/pic.png', alt: 'img' },
+            ]);
+        });
+
+        it('should populate parts on answer messages', () => {
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            mockItems.messages.push({
+                id: 'user-1',
+                role: 'user',
+                content: 'test',
+                created_at: new Date().toISOString(),
+                transcribed: true,
+            });
+
+            onMessage(ChatProgress.Answer, { content: 'Check [this](https://example.com)' });
+
+            const lastCall = mockOnNewMessage.mock.calls[mockOnNewMessage.mock.calls.length - 1];
+            const lastMessage = lastCall[0][lastCall[0].length - 1];
+            expect(lastMessage.parts).toEqual([
+                { type: 'text', text: 'Check ' },
+                { type: 'link', href: 'https://example.com', label: 'this' },
+            ]);
+        });
+
+        it('should populate parts for plain text content', () => {
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            mockItems.messages.push({
+                id: 'user-1',
+                role: 'user',
+                content: 'test',
+                created_at: new Date().toISOString(),
+                transcribed: true,
+            });
+
+            onMessage(ChatProgress.Answer, { content: 'Just plain text' });
+
+            const lastCall = mockOnNewMessage.mock.calls[mockOnNewMessage.mock.calls.length - 1];
+            const lastMessage = lastCall[0][lastCall[0].length - 1];
+            expect(lastMessage.parts).toEqual([{ type: 'text', text: 'Just plain text' }]);
+        });
+
+        it('should populate parts on transcribed user messages', () => {
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            onMessage(ChatProgress.Transcribe, {
+                content: 'Hello there',
+                role: 'user',
+                id: 'user-transcribed-1',
+            });
+
+            const lastCall = mockOnNewMessage.mock.calls[mockOnNewMessage.mock.calls.length - 1];
+            const lastMessage = lastCall[0][lastCall[0].length - 1];
+            expect(lastMessage.role).toBe('user');
+            expect(lastMessage.transcribed).toBe(true);
+            expect(lastMessage.parts).toEqual([{ type: 'text', text: 'Hello there' }]);
+        });
+    });
 });

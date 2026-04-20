@@ -1,6 +1,7 @@
 import { Agent, AgentManagerOptions, ChatProgress, StreamEvents } from '@sdk/types';
 import { Message } from '@sdk/types/entities/agents/chat';
 import { getStreamAnalyticsProps } from '@sdk/utils/analytics';
+import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
 import { AgentManagerItems } from '../agent-manager';
 import { Analytics } from '../analytics/mixpanel';
 
@@ -43,6 +44,7 @@ function handleAudioTranscribedMessage(
         id: data.id || `user-${Date.now()}`,
         role: data.role,
         content: data.content,
+        parts: parseMessagePartsMemo(data.content),
         created_at: data.created_at || new Date().toISOString(),
         transcribed: true,
     };
@@ -95,6 +97,7 @@ function processChatEvent(
 
     if (currentMessage.content !== messageContent || event === ChatProgress.Answer) {
         currentMessage.content = messageContent;
+        currentMessage.parts = parseMessagePartsMemo(messageContent);
 
         onNewMessage?.([...items.messages], event);
     }
