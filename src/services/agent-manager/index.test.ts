@@ -140,7 +140,7 @@ describe('createAgentManager', () => {
 
         it('should handle initial messages correctly', async () => {
             const initialMessages = [
-                { id: '1', role: 'user' as const, content: 'Hello', created_at: new Date().toISOString() },
+                { id: '1', role: 'user' as const, content: 'Hello', parts: [], created_at: new Date().toISOString() },
             ];
             (getInitialMessages as jest.Mock).mockReturnValue(initialMessages);
 
@@ -297,6 +297,30 @@ describe('createAgentManager', () => {
                 });
             });
 
+            it('should populate parts on user message', async () => {
+                const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
+                mockCallback.mockClear();
+
+                await manager.chat('Hello, how are you?');
+
+                // First call is the user message
+                const [userMessages] = mockCallback.mock.calls[0];
+                const userMsg = userMessages[userMessages.length - 1];
+                expect(userMsg.parts).toEqual([{ type: 'text', text: 'Hello, how are you?' }]);
+            });
+
+            it('should populate parts on assistant response message', async () => {
+                const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
+                mockCallback.mockClear();
+
+                await manager.chat('Hello, how are you?');
+
+                // Second call is the answer
+                const [answerMessages] = mockCallback.mock.calls[1];
+                const assistantMsg = answerMessages[answerMessages.length - 1];
+                expect(assistantMsg.parts).toEqual([{ type: 'text', text: 'Agent response' }]);
+            });
+
             it('should validate chat request - empty message', async () => {
                 await expect(manager.chat('')).rejects.toThrow('Message cannot be empty');
             });
@@ -445,6 +469,17 @@ describe('createAgentManager', () => {
                 expect(lastMessage.content).toBe(textInput);
                 expect(lastMessage.id).toBeDefined();
                 expect(lastMessage.created_at).toBeDefined();
+            });
+
+            it('should populate parts on speak message', async () => {
+                const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
+                mockCallback.mockClear();
+
+                await manager.speak('Hello from speak');
+
+                const [messages] = mockCallback.mock.calls[0];
+                const lastMessage = messages[messages.length - 1];
+                expect(lastMessage.parts).toEqual([{ type: 'text', text: 'Hello from speak' }]);
             });
 
             it('should trigger onNewMessage with script object', async () => {
