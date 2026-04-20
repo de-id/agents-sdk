@@ -140,7 +140,7 @@ describe('createAgentManager', () => {
 
         it('should handle initial messages correctly', async () => {
             const initialMessages = [
-                { id: '1', role: 'user' as const, content: 'Hello', created_at: new Date().toISOString() },
+                { id: '1', role: 'user' as const, content: 'Hello', parts: [], created_at: new Date().toISOString() },
             ];
             (getInitialMessages as jest.Mock).mockReturnValue(initialMessages);
 

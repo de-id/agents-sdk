@@ -51,6 +51,7 @@ describe('createMessageEventQueue', () => {
                 id: 'user-1',
                 role: 'user',
                 content: 'first question',
+                parts: [],
                 created_at: new Date().toISOString(),
                 transcribed: true,
             });
@@ -86,6 +87,7 @@ describe('createMessageEventQueue', () => {
                 id: 'user-1',
                 role: 'user',
                 content: 'test',
+                parts: [],
                 created_at: new Date().toISOString(),
                 transcribed: true,
             });
@@ -111,6 +113,7 @@ describe('createMessageEventQueue', () => {
                 id: 'user-1',
                 role: 'user',
                 content: 'test',
+                parts: [],
                 created_at: new Date().toISOString(),
                 transcribed: true,
             });
@@ -137,6 +140,7 @@ describe('createMessageEventQueue', () => {
                 id: 'user-1',
                 role: 'user',
                 content: 'test',
+                parts: [],
                 created_at: new Date().toISOString(),
                 transcribed: true,
             });
@@ -164,6 +168,7 @@ describe('createMessageEventQueue', () => {
                 id: 'user-1',
                 role: 'user',
                 content: 'first message',
+                parts: [],
                 created_at: new Date().toISOString(),
                 transcribed: true,
             });
@@ -258,6 +263,7 @@ describe('createMessageEventQueue', () => {
                 id: 'user-1',
                 role: 'user',
                 content: 'test',
+                parts: [],
                 created_at: new Date().toISOString(),
                 transcribed: true,
             });
@@ -290,6 +296,7 @@ describe('createMessageEventQueue', () => {
                 id: 'assistant-1',
                 role: 'assistant',
                 content: '',
+                parts: [],
                 created_at: new Date().toISOString(),
             });
 
@@ -316,6 +323,7 @@ describe('createMessageEventQueue', () => {
                 id: 'user-1',
                 role: 'user',
                 content: 'test',
+                parts: [],
                 created_at: new Date().toISOString(),
                 transcribed: true,
             });
@@ -343,6 +351,7 @@ describe('createMessageEventQueue', () => {
                 id: 'user-1',
                 role: 'user',
                 content: 'test',
+                parts: [],
                 created_at: new Date().toISOString(),
                 transcribed: true,
             });
