@@ -34,7 +34,7 @@ export interface Message {
     id: string;
     role?: 'system' | 'assistant' | 'user' | 'function' | 'tool';
     content: string;
-    parts?: MessagePart[];
+    parts: MessagePart[];
     created_at?: string;
     matches?: ChatResponse['matches'];
     context?: string;
