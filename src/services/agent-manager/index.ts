@@ -21,7 +21,7 @@ import { ChatCreationFailed, ValidationError } from '@sdk/errors';
 import { getRandom } from '@sdk/utils';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
-import { parseMessageParts } from '@sdk/utils/content-parser';
+import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { defer } from '../../utils/defer';
@@ -440,7 +440,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'user',
                     content: userMessage,
-                    parts: parseMessageParts(userMessage),
+                    parts: parseMessagePartsMemo(userMessage),
                     created_at: new Date(latencyTimestampTracker.update()).toISOString(),
                 });
 
@@ -453,7 +453,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'assistant',
                     content: response.result || '',
-                    parts: parseMessageParts(response.result || ''),
+                    parts: parseMessagePartsMemo(response.result || ''),
                     created_at: new Date().toISOString(),
                     context: response.context,
                     matches: response.matches,
@@ -571,7 +571,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'assistant',
                     content: script.input,
-                    parts: parseMessageParts(script.input),
+                    parts: parseMessagePartsMemo(script.input),
                     created_at: new Date().toISOString(),
                 });
                 options.callbacks.onNewMessage?.([...items.messages], 'answer');
