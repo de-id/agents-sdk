@@ -69,8 +69,9 @@ function processChatEvent(
     const lastMessage = items.messages[items.messages.length - 1];
 
     let currentMessage: Message;
-    if (lastMessage?.transcribed && lastMessage.role === 'user') {
-        const initialContent = event === ChatProgress.Answer ? data.content || '' : '';
+    if (lastMessage?.role === 'assistant') {
+        currentMessage = lastMessage;
+    } else if (!lastMessage || (lastMessage.transcribed && lastMessage.role === 'user')) {
         currentMessage = {
             id: data.id || `assistant-${Date.now()}`,
             role: data.role || 'assistant',
@@ -78,8 +79,6 @@ function processChatEvent(
             created_at: data.created_at || new Date().toISOString(),
         };
         items.messages.push(currentMessage);
-    } else if (lastMessage?.role === 'assistant') {
-        currentMessage = lastMessage;
     } else {
         return;
     }
