@@ -57,7 +57,8 @@ function processChatEvent(
     data: any,
     chatEventQueue: ChatEventQueue,
     items: AgentManagerItems,
-    onNewMessage: AgentManagerOptions['callbacks']['onNewMessage']
+    onNewMessage: AgentManagerOptions['callbacks']['onNewMessage'],
+    clearQueue: () => void
 ) {
     if (event === ChatProgress.Transcribe && data.content) {
         handleAudioTranscribedMessage(data, items, onNewMessage);
@@ -70,10 +71,21 @@ function processChatEvent(
 
     const lastMessage = items.messages[items.messages.length - 1];
 
+    // A new assistant message within the same turn (e.g. after a client tool call, or several
+    // assistant messages in a row) is signalled by a chat event whose `id` differs from the
+    // last assistant message. The new message typically starts with `Partial` events and ends
+    // with `Answer`, so both branches must detect the id change — otherwise the SDK overwrites
+    // the previous message on the first partial of the new one.
+    const isNewAssistantMessage = data.id && lastMessage?.role === 'assistant' && lastMessage.id !== data.id;
+
     let currentMessage: Message;
-    if (lastMessage?.role === 'assistant') {
+    if (lastMessage?.role === 'assistant' && !isNewAssistantMessage) {
         currentMessage = lastMessage;
-    } else if (!lastMessage || (lastMessage.transcribed && lastMessage.role === 'user')) {
+    } else if (!lastMessage || (lastMessage.transcribed && lastMessage.role === 'user') || isNewAssistantMessage) {
+        if (isNewAssistantMessage) {
+            // Reset the streaming buffer so the next message does not inherit the previous one's content.
+            clearQueue();
+        }
         currentMessage = {
             id: data.id || `assistant-${Date.now()}`,
             role: data.role || 'assistant',
@@ -132,7 +144,7 @@ export function createMessageEventQueue(
                         : event === StreamEvents.ChatAudioTranscribed
                           ? ChatProgress.Transcribe
                           : (event as ChatProgress);
-                processChatEvent(chatEvent, data, chatEventQueue, items, onNewMessage);
+                processChatEvent(chatEvent, data, chatEventQueue, items, onNewMessage, clearQueue);
 
                 if (chatEvent === ChatProgress.Answer) {
                     analytics.track('agent-message-received', {
