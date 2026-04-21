@@ -1,6 +1,7 @@
 import { Agent, AgentManagerOptions, ChatProgress, StreamEvents } from '@sdk/types';
 import { Message } from '@sdk/types/entities/agents/chat';
 import { getStreamAnalyticsProps } from '@sdk/utils/analytics';
+import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
 import { AgentManagerItems } from '../agent-manager';
 import { Analytics } from '../analytics/mixpanel';
 
@@ -43,6 +44,7 @@ function handleAudioTranscribedMessage(
         id: data.id || `user-${Date.now()}`,
         role: data.role,
         content: data.content,
+        parts: parseMessagePartsMemo(data.content),
         created_at: data.created_at || new Date().toISOString(),
         transcribed: true,
     };
@@ -69,17 +71,17 @@ function processChatEvent(
     const lastMessage = items.messages[items.messages.length - 1];
 
     let currentMessage: Message;
-    if (lastMessage?.transcribed && lastMessage.role === 'user') {
-        const initialContent = event === ChatProgress.Answer ? data.content || '' : '';
+    if (lastMessage?.role === 'assistant') {
+        currentMessage = lastMessage;
+    } else if (!lastMessage || (lastMessage.transcribed && lastMessage.role === 'user')) {
         currentMessage = {
             id: data.id || `assistant-${Date.now()}`,
             role: data.role || 'assistant',
             content: data.content || '',
+            parts: [],
             created_at: data.created_at || new Date().toISOString(),
         };
         items.messages.push(currentMessage);
-    } else if (lastMessage?.role === 'assistant') {
-        currentMessage = lastMessage;
     } else {
         return;
     }
@@ -96,6 +98,7 @@ function processChatEvent(
 
     if (currentMessage.content !== messageContent || event === ChatProgress.Answer) {
         currentMessage.content = messageContent;
+        currentMessage.parts = parseMessagePartsMemo(messageContent);
 
         onNewMessage?.([...items.messages], event);
     }
