@@ -362,10 +362,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
      * - stream-video/done with interruptible: false -> stays ToolActive (more tools coming)
      */
     function handleToolEvents(subject: string, data: any): void {
-        if (subject === StreamEvents.ToolCalling) {
+        if (subject === StreamEvents.ToolCalling || subject === StreamEvents.ToolCallStarted) {
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
-            callbacks.onToolEvent?.(StreamEvents.ToolCalling, data as ToolCallingPayload);
+
+            if (subject === StreamEvents.ToolCalling) {
+                callbacks.onToolEvent?.(StreamEvents.ToolCalling, data as ToolCallingPayload);
+            }
             return;
         }
 
@@ -423,6 +426,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         [StreamEvents.ChatPartial]: handleChatEvents,
         [StreamEvents.ToolCalling]: handleToolEvents,
         [StreamEvents.ToolResult]: handleToolEvents,
+        [StreamEvents.ToolCallStarted]: handleToolEvents,
+        [StreamEvents.ToolCallDone]: handleToolEvents,
+        [StreamEvents.ToolCallError]: handleToolEvents,
         [StreamEvents.StreamVideoCreated]: handleVideoEvents,
         [StreamEvents.StreamVideoDone]: handleVideoEvents,
         [StreamEvents.StreamVideoError]: handleVideoEvents,

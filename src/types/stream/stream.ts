@@ -42,6 +42,9 @@ export enum StreamEvents {
     StreamVideoRejected = 'stream-video/rejected',
     ToolCalling = 'tool/calling',
     ToolResult = 'tool/result',
+    ToolCallStarted = 'tool-call/started',
+    ToolCallDone = 'tool-call/done',
+    ToolCallError = 'tool-call/error',
 }
 
 export enum ConnectionState {
