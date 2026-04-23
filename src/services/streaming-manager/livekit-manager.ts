@@ -10,8 +10,9 @@ import {
     StreamingManagerOptions,
     StreamingState,
     StreamType,
-    ToolCallingPayload,
-    ToolResultPayload,
+    ToolCallDonePayload,
+    ToolCallErrorPayload,
+    ToolCallStartedPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
@@ -357,20 +358,25 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     /**
      * ToolActive state transitions:
-     * - tool/calling -> sets ToolActive
+     * - tool-call/started -> sets ToolActive
      * - stream-video/done with interruptible: true -> sets Idle
      * - stream-video/done with interruptible: false -> stays ToolActive (more tools coming)
      */
     function handleToolEvents(subject: string, data: any): void {
-        if (subject === StreamEvents.ToolCalling) {
+        if (subject === StreamEvents.ToolCallStarted) {
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
-            callbacks.onToolEvent?.(StreamEvents.ToolCalling, data as ToolCallingPayload);
+            callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, data as ToolCallStartedPayload);
             return;
         }
 
-        if (subject === StreamEvents.ToolResult) {
-            callbacks.onToolEvent?.(StreamEvents.ToolResult, data as ToolResultPayload);
+        if (subject === StreamEvents.ToolCallDone) {
+            callbacks.onToolEvent?.(StreamEvents.ToolCallDone, data as ToolCallDonePayload);
+            return;
+        }
+
+        if (subject === StreamEvents.ToolCallError) {
+            callbacks.onToolEvent?.(StreamEvents.ToolCallError, data as ToolCallErrorPayload);
         }
     }
 
@@ -421,8 +427,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const dataChannelHandlers: Record<string, DataChannelHandler> = {
         [StreamEvents.ChatAnswer]: handleChatEvents,
         [StreamEvents.ChatPartial]: handleChatEvents,
-        [StreamEvents.ToolCalling]: handleToolEvents,
-        [StreamEvents.ToolResult]: handleToolEvents,
+        [StreamEvents.ToolCallStarted]: handleToolEvents,
+        [StreamEvents.ToolCallDone]: handleToolEvents,
+        [StreamEvents.ToolCallError]: handleToolEvents,
         [StreamEvents.StreamVideoCreated]: handleVideoEvents,
         [StreamEvents.StreamVideoDone]: handleVideoEvents,
         [StreamEvents.StreamVideoError]: handleVideoEvents,
