@@ -323,9 +323,8 @@ describe('createMessageEventQueue', () => {
             );
 
             onMessage(ChatProgress.Answer, { id: 'assistant-1', content: "ok, i'll book a meeting" });
-            // ToolCalling / ToolResult events are dispatched via a separate callback and do not
-            // touch messages; simulating that gap here means the next answer event arrives with
-            // a fresh id.
+            // Tool-call events are dispatched via a separate path and do not touch messages;
+            // simulating that gap here means the next answer event arrives with a fresh id.
             onMessage(ChatProgress.Answer, { id: 'assistant-2', content: 'i booked a meeting for you' });
 
             expect(mockItems.messages.map(m => m.content)).toEqual([

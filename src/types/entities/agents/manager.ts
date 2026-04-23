@@ -10,8 +10,6 @@ import {
     StreamEvents,
     StreamType,
     StreamingState,
-    ToolCallingPayload,
-    ToolResultPayload,
 } from '@sdk/types/stream';
 import { SupportedStreamScript } from '@sdk/types/stream-script';
 import type { ManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
@@ -106,15 +104,6 @@ interface ManagerCallbacks {
      * @param stream - object containing stream_id, session_id and agent_id
      */
     onStreamCreated?: StreamManagerCallbacks['onStreamCreated'];
-    /**
-     * Optional callback function that will be triggered when tool events occur during the call
-     * @param event - The tool event type (tool/calling or tool/result)
-     * @param data - The tool event payload
-     */
-    onToolEvent?: (
-        event: StreamEvents.ToolCalling | StreamEvents.ToolResult,
-        data: ToolCallingPayload | ToolResultPayload
-    ) => void;
     /**
      * Optional callback function that will be triggered when the interruptible state changes
      * @param interruptible - Whether the agent can be interrupted by the user

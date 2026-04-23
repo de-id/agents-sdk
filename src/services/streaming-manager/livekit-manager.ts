@@ -10,8 +10,6 @@ import {
     StreamingManagerOptions,
     StreamingState,
     StreamType,
-    ToolCallingPayload,
-    ToolResultPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
@@ -357,23 +355,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     /**
      * ToolActive state transitions:
-     * - tool/calling -> sets ToolActive
+     * - tool-call/started -> sets ToolActive
      * - stream-video/done with interruptible: true -> sets Idle
      * - stream-video/done with interruptible: false -> stays ToolActive (more tools coming)
      */
-    function handleToolEvents(subject: string, data: any): void {
-        if (subject === StreamEvents.ToolCalling || subject === StreamEvents.ToolCallStarted) {
+    function handleToolEvents(subject: string, _data: any): void {
+        if (subject === StreamEvents.ToolCallStarted) {
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
-
-            if (subject === StreamEvents.ToolCalling) {
-                callbacks.onToolEvent?.(StreamEvents.ToolCalling, data as ToolCallingPayload);
-            }
-            return;
-        }
-
-        if (subject === StreamEvents.ToolResult) {
-            callbacks.onToolEvent?.(StreamEvents.ToolResult, data as ToolResultPayload);
         }
     }
 
@@ -424,8 +413,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const dataChannelHandlers: Record<string, DataChannelHandler> = {
         [StreamEvents.ChatAnswer]: handleChatEvents,
         [StreamEvents.ChatPartial]: handleChatEvents,
-        [StreamEvents.ToolCalling]: handleToolEvents,
-        [StreamEvents.ToolResult]: handleToolEvents,
         [StreamEvents.ToolCallStarted]: handleToolEvents,
         [StreamEvents.ToolCallDone]: handleToolEvents,
         [StreamEvents.ToolCallError]: handleToolEvents,
