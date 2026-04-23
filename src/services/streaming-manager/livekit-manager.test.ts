@@ -1148,10 +1148,12 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
     });
 
     describe('handleDataReceived - tool-call/started', () => {
-        it('should transition to ToolActive on tool-call/started', async () => {
+        it('should transition to ToolActive and forward payload via onToolEvent on tool-call/started', async () => {
             // ARRANGE:
             const onAgentActivityStateChange = jest.fn();
+            const onToolEvent = jest.fn();
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+            options.callbacks.onToolEvent = onToolEvent;
 
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
@@ -1161,8 +1163,9 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 subject: StreamEvents.ToolCallStarted,
                 call_id: 'call-123',
                 name: 'get_weather',
-                interruptible: false,
-                timestamp: Date.now(),
+                input: { location: 'Tel Aviv' },
+                output: {},
+                timestamp: new Date().toISOString(),
             });
 
             // ACT:
@@ -1170,6 +1173,118 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
             // ASSERT:
             expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
+            expect(onToolEvent).toHaveBeenCalledWith(
+                StreamEvents.ToolCallStarted,
+                expect.objectContaining({
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                })
+            );
+        });
+    });
+
+    describe('handleDataReceived - tool-call/done', () => {
+        it('should forward payload via onToolEvent without changing activity state', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            const onToolEvent = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // Set ToolActive first so we can verify done doesn't touch it
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+            onAgentActivityStateChange.mockClear();
+
+            const donePayload = createDataChannelPayload({
+                subject: StreamEvents.ToolCallDone,
+                call_id: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: { temp: 22 },
+                duration_ms: 500,
+                extra: {},
+                timestamp: new Date().toISOString(),
+            });
+
+            // ACT:
+            dataHandler(donePayload);
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).not.toHaveBeenCalled();
+            expect(onToolEvent).toHaveBeenCalledWith(
+                StreamEvents.ToolCallDone,
+                expect.objectContaining({
+                    call_id: 'call-123',
+                    output: { temp: 22 },
+                    duration_ms: 500,
+                })
+            );
+        });
+    });
+
+    describe('handleDataReceived - tool-call/error', () => {
+        it('should forward payload via onToolEvent without changing activity state', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            const onToolEvent = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+            onAgentActivityStateChange.mockClear();
+
+            const errorPayload = createDataChannelPayload({
+                subject: StreamEvents.ToolCallError,
+                call_id: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: {},
+                duration_ms: 120,
+                extra: { message: 'upstream timeout' },
+                timestamp: new Date().toISOString(),
+            });
+
+            // ACT:
+            dataHandler(errorPayload);
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).not.toHaveBeenCalled();
+            expect(onToolEvent).toHaveBeenCalledWith(
+                StreamEvents.ToolCallError,
+                expect.objectContaining({
+                    call_id: 'call-123',
+                    extra: { message: 'upstream timeout' },
+                })
+            );
         });
     });
 
@@ -1190,8 +1305,9 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     subject: StreamEvents.ToolCallStarted,
                     call_id: 'call-123',
                     name: 'test',
-                    interruptible: false,
-                    timestamp: Date.now(),
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
             onAgentActivityStateChange.mockClear();
@@ -1224,8 +1340,9 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     subject: StreamEvents.ToolCallStarted,
                     call_id: 'call-123',
                     name: 'test',
-                    interruptible: false,
-                    timestamp: Date.now(),
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
             onAgentActivityStateChange.mockClear();
@@ -1257,8 +1374,9 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     subject: StreamEvents.ToolCallStarted,
                     call_id: 'call-123',
                     name: 'test',
-                    interruptible: false,
-                    timestamp: Date.now(),
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
             onAgentActivityStateChange.mockClear();
@@ -1293,8 +1411,9 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     subject: StreamEvents.ToolCallStarted,
                     call_id: 'call-1',
                     name: 'tool1',
-                    interruptible: false,
-                    timestamp: Date.now(),
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
 
@@ -1312,8 +1431,9 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     subject: StreamEvents.ToolCallStarted,
                     call_id: 'call-2',
                     name: 'tool2',
-                    interruptible: false,
-                    timestamp: Date.now(),
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
 

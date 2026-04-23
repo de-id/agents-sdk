@@ -105,6 +105,12 @@ interface ManagerCallbacks {
      */
     onStreamCreated?: StreamManagerCallbacks['onStreamCreated'];
     /**
+     * Optional callback function that will be triggered when tool-call events occur during the call
+     * (tool-call/started, tool-call/done, tool-call/error).
+     * The payload shape is discriminated by the event argument.
+     */
+    onToolEvent?: StreamManagerCallbacks['onToolEvent'];
+    /**
      * Optional callback function that will be triggered when the interruptible state changes
      * @param interruptible - Whether the agent can be interrupted by the user
      */

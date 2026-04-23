@@ -73,6 +73,7 @@ export interface ManagerCallbacks {
     onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
     onStreamReady?: () => void;
     onInterruptDetected?: (interrupt: Interrupt) => void;
+    onToolEvent?: ToolEventCallback;
     onInterruptibleChange?: (interruptible: boolean) => void;
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
@@ -192,3 +193,39 @@ export interface StreamInterruptPayload {
 }
 
 export type ClientToolHandler = (args: Record<string, unknown>) => Promise<string>;
+
+export interface ToolCallStartedPayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    timestamp: string;
+}
+
+export interface ToolCallDonePayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    duration_ms: number;
+    extra: Record<string, unknown>;
+    timestamp: string;
+}
+
+export interface ToolCallErrorPayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    duration_ms: number;
+    extra: Record<string, unknown>;
+    timestamp: string;
+}
+
+export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
+
+export type ToolEventCallback = {
+    (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
+    (event: StreamEvents.ToolCallDone, data: ToolCallDonePayload): void;
+    (event: StreamEvents.ToolCallError, data: ToolCallErrorPayload): void;
+};
