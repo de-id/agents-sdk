@@ -585,16 +585,20 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     async function replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void> {
         if (!isConnected || !room) {
+            log('Cannot replace microphone track: room is not connected');
             throw new Error('Room is not connected');
         }
         if (track.kind !== 'audio') {
-            throw new Error('replaceMicrophoneTrack requires an audio track');
+            log('Cannot replace microphone track: not an audio track', { kind: track.kind });
+            throw new Error('Microphone track must be an audio track');
         }
         if (microphoneState.isPublishing) {
-            throw new Error('Microphone publish in progress, cannot replace');
+            log('Cannot replace microphone track: publish in progress');
+            throw new Error('Microphone publish in progress');
         }
         const pub = microphoneState.publication;
         if (!pub || !pub.track) {
+            log('Cannot replace microphone track: no publication to replace');
             throw new Error('No microphone publication to replace');
         }
         try {

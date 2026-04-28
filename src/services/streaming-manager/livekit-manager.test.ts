@@ -474,7 +474,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const videoTrack = createMockCameraTrack();
 
             await expect(manager.replaceMicrophoneTrack?.(videoTrack)).rejects.toThrow(
-                'replaceMicrophoneTrack requires an audio track'
+                'Microphone track must be an audio track'
             );
             expect(mockPublication.track.replaceTrack).not.toHaveBeenCalled();
         });
@@ -494,7 +494,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
 
             await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow(
-                'Microphone publish in progress, cannot replace'
+                'Microphone publish in progress'
             );
 
             resolvePublish!(createMockPublication());

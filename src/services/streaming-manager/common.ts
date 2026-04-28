@@ -50,8 +50,9 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     /**
      * Replace the currently published microphone MediaStreamTrack without
      * unpublishing. Preserves the LiveKit publication (SSRC, trackSid) so the
-     * server sees continuous audio. Rejects if no publication exists — caller
-     * should fall back to `publishMicrophoneStream` in that case.
+     * server sees continuous audio. Resolves once LiveKit has switched the
+     * underlying RTCRtpSender's track. Rejects if no publication exists —
+     * caller should fall back to `publishMicrophoneStream` in that case.
      *
      * Only implemented by the LiveKit streaming manager.
      */
