@@ -170,7 +170,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (participant?.isLocal) {
             latencyTimestampTracker.update();
             if (currentActivityState === AgentActivityState.Talking) {
-                callbacks.onInterruptDetected?.({ type: 'audio' });
                 currentActivityState = AgentActivityState.Idle;
             }
         }
