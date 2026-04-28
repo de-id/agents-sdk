@@ -333,6 +333,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
             return items.streamingManager.unpublishMicrophoneStream();
         },
+        async replaceMicrophoneTrack(track: MediaStreamTrack) {
+            if (!items.streamingManager?.replaceMicrophoneTrack) {
+                throw new Error('replaceMicrophoneTrack is not available for this streaming manager');
+            }
+            return items.streamingManager.replaceMicrophoneTrack(track);
+        },
         async publishCameraStream(stream: MediaStream) {
             if (!items.streamingManager?.publishCameraStream) {
                 throw new Error('publishCameraStream is not available for this streaming manager');

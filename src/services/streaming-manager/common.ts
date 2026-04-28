@@ -48,6 +48,16 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     unpublishMicrophoneStream?(): Promise<void>;
 
     /**
+     * Replace the currently published microphone MediaStreamTrack without
+     * unpublishing. Preserves the LiveKit publication (SSRC, trackSid) so the
+     * server sees continuous audio. Rejects if no publication exists — caller
+     * should fall back to `publishMicrophoneStream` in that case.
+     *
+     * Only implemented by the LiveKit streaming manager.
+     */
+    replaceMicrophoneTrack?(track: MediaStreamTrack): Promise<void>;
+
+    /**
      * Publish a camera video stream to the LiveKit room.
      * Can be called after connection to enable vision.
      * supported only for livekit manager

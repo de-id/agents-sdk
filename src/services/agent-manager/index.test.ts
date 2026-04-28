@@ -785,6 +785,34 @@ describe('createAgentManager', () => {
         });
     });
 
+    describe('replaceMicrophoneTrack', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+        });
+
+        it('should replace microphone track when available', async () => {
+            const mockTrack = { kind: 'audio', id: 'audio-track-1' } as unknown as MediaStreamTrack;
+            const mockReplace = jest.fn().mockResolvedValue(undefined);
+            mockStreamingManager.replaceMicrophoneTrack = mockReplace;
+
+            await manager.replaceMicrophoneTrack?.(mockTrack);
+
+            expect(mockReplace).toHaveBeenCalledWith(mockTrack);
+        });
+
+        it('should throw error when replaceMicrophoneTrack is not available', async () => {
+            mockStreamingManager.replaceMicrophoneTrack = undefined;
+            const mockTrack = { kind: 'audio', id: 'audio-track-1' } as unknown as MediaStreamTrack;
+
+            await expect(manager.replaceMicrophoneTrack?.(mockTrack)).rejects.toThrow(
+                'replaceMicrophoneTrack is not available for this streaming manager'
+            );
+        });
+    });
+
     describe('publishCameraStream', () => {
         let manager: AgentManager;
 

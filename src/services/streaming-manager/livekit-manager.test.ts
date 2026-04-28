@@ -146,6 +146,7 @@ function createMockTrack(id: string = TEST_AUDIO_TRACK_ID, mediaStreamTrack?: Me
 
 function createMockPublication(trackId: string = TEST_AUDIO_TRACK_ID, trackSid: string = TEST_TRACK_SID) {
     const mockTrack = createMockTrack(trackId);
+    (mockTrack as any).replaceTrack = jest.fn().mockResolvedValue(mockTrack);
     return {
         trackSid,
         track: mockTrack,
@@ -439,6 +440,103 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             // Try to publish before connection
             await expect(manager.publishMicrophoneStream?.(mockStream)).rejects.toThrow('Room is not connected');
+        });
+    });
+
+    describe('Microphone Stream Replacement', () => {
+        it('should throw when room is not connected', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+
+            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow('Room is not connected');
+        });
+
+        it('should throw when there is no microphone publication', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+
+            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow(
+                'No microphone publication to replace'
+            );
+        });
+
+        it('should throw when given a non-audio track', async () => {
+            const mockStream = createMockStream();
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
+
+            const videoTrack = createMockCameraTrack();
+
+            await expect(manager.replaceMicrophoneTrack?.(videoTrack)).rejects.toThrow(
+                'replaceMicrophoneTrack requires an audio track'
+            );
+            expect(mockPublication.track.replaceTrack).not.toHaveBeenCalled();
+        });
+
+        it('should throw when a publish is already in progress', async () => {
+            const mockStream = createMockStream();
+            let resolvePublish: (value: any) => void;
+            const slowPublish = new Promise(resolve => {
+                resolvePublish = resolve;
+            });
+            mockPublishTrack.mockReturnValue(slowPublish);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const publishPromise = manager.publishMicrophoneStream?.(mockStream);
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+
+            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow(
+                'Microphone publish in progress, cannot replace'
+            );
+
+            resolvePublish!(createMockPublication());
+            await publishPromise;
+        });
+
+        it('should call publication.track.replaceTrack and not unpublish/publish', async () => {
+            const mockStream = createMockStream();
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
+
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+            mockPublishTrack.mockClear();
+            mockUnpublishTrack.mockClear();
+
+            await manager.replaceMicrophoneTrack?.(newTrack);
+
+            expect(mockPublication.track.replaceTrack).toHaveBeenCalledTimes(1);
+            expect(mockPublication.track.replaceTrack).toHaveBeenCalledWith(newTrack);
+            expect(mockUnpublishTrack).not.toHaveBeenCalled();
+            expect(mockPublishTrack).not.toHaveBeenCalled();
+        });
+
+        it('should throw after disconnect clears the microphone publication', async () => {
+            const mockStream = createMockStream();
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
+
+            const handler = getConnectionStateHandler();
+            handler('disconnected');
+
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+
+            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow('Room is not connected');
+            expect(mockPublication.track.replaceTrack).not.toHaveBeenCalled();
         });
     });
 
