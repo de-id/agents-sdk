@@ -40,8 +40,9 @@ export enum StreamEvents {
     StreamVideoDone = 'stream-video/done',
     StreamVideoError = 'stream-video/error',
     StreamVideoRejected = 'stream-video/rejected',
-    ToolCalling = 'tool/calling',
-    ToolResult = 'tool/result',
+    ToolCallStarted = 'tool-call/started',
+    ToolCallDone = 'tool-call/done',
+    ToolCallError = 'tool-call/error',
 }
 
 export enum ConnectionState {
@@ -72,10 +73,7 @@ export interface ManagerCallbacks {
     onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
     onStreamReady?: () => void;
     onInterruptDetected?: (interrupt: Interrupt) => void;
-    onToolEvent?: (
-        event: StreamEvents.ToolCalling | StreamEvents.ToolResult,
-        data: ToolCallingPayload | ToolResultPayload
-    ) => void;
+    onToolEvent?: ToolEventCallback;
     onInterruptibleChange?: (interruptible: boolean) => void;
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
@@ -196,18 +194,38 @@ export interface StreamInterruptPayload {
 
 export type ClientToolHandler = (args: Record<string, unknown>) => Promise<string>;
 
-export interface ToolCallingPayload {
-    execution_id: string;
-    tool_name: string;
-    arguments: Record<string, unknown>;
-    created_at: string;
+export interface ToolCallStartedPayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    timestamp: string;
 }
 
-export interface ToolResultPayload {
-    execution_id: string;
-    tool_name: string;
+export interface ToolCallDonePayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
     duration_ms: number;
-    result?: unknown;
-    error_message?: string | null;
-    created_at: string;
+    extra: Record<string, unknown>;
+    timestamp: string;
 }
+
+export interface ToolCallErrorPayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    duration_ms: number;
+    extra: Record<string, unknown>;
+    timestamp: string;
+}
+
+export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
+
+export type ToolEventCallback = {
+    (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
+    (event: StreamEvents.ToolCallDone, data: ToolCallDonePayload): void;
+    (event: StreamEvents.ToolCallError, data: ToolCallErrorPayload): void;
+};
