@@ -203,7 +203,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                             ...options.callbacks,
                             onVideoIdChange: updateVideoId,
                             onMessage,
-                            onInterruptDetected: interrupt,
                         },
                     },
                     agentsApi,
