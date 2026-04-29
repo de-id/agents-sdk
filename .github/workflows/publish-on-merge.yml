@@ -51,10 +51,16 @@ jobs:
 
       - name: Upgrade NPM
         env:
-          NPM_DIR: /opt/hostedtoolcache/node/${{ steps.setup-node.outputs.node-version }}/x64/lib/node_modules/npm
+          NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
           NPM_VERSION: 11.5.1
         run: |
-          which npm
+          NODE_VERSION_STRIPED=${NODE_VERSION#v}
+          NPM_DIR="/opt/hostedtoolcache/node/$NODE_VERSION_STRIPED/x64/lib/node_modules/npm"
+
+          logger -l debug -m "NODE_VERSION_STRIPED: $NODE_VERSION_STRIPED"
+          logger -l debug -m "NPM_DIR: $NPM_DIR"
+          logger -l debug -m "NPM_VERSION: $NPM_VERSION"
+
           logger -l info -m "Upgrading NPM to version: $NPM_VERSION"
           curl -fsSL https://registry.npmjs.org/npm/-/npm-$NPM_VERSION.tgz | tar -xz --strip-components=1 -C "$NPM_DIR" \
             || logger -l error -m "Failed to upgrade NPM"
