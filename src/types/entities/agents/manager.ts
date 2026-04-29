@@ -225,6 +225,16 @@ export interface AgentManager {
      */
     unpublishMicrophoneStream?: () => Promise<void>;
     /**
+     * Replace the live microphone track on the current publication without
+     * unpublishing. Preserves the LiveKit publication (SSRC, trackSid) so the
+     * server sees continuous audio across mic device swaps. Resolves once
+     * LiveKit has switched the underlying RTCRtpSender's track.
+     * Rejects if there is no active publication — callers should fall back to
+     * `publishMicrophoneStream` in that case.
+     * Supported only for the LiveKit streaming manager.
+     */
+    replaceMicrophoneTrack?: (track: MediaStreamTrack) => Promise<void>;
+    /**
      * Publish a camera video stream to the LiveKit room.
      * Can be called after connection to enable vision.
      * supported only for livekit manager

@@ -86,6 +86,7 @@ describe('connect-to-manager', () => {
                 onSrcObjectReady: jest.fn(),
                 onNewMessage: jest.fn(),
                 onNewChat: jest.fn(),
+                onToolEvent: jest.fn(),
             },
         };
 
@@ -239,6 +240,7 @@ describe('connect-to-manager', () => {
         let onAgentActivityStateChange: (state: AgentActivityState) => void;
         let onFirstAudioDetected: ((metrics: { latency?: number; networkLatency?: number }) => void) | undefined;
         let onStreamReady: (() => void) | undefined;
+        let onToolEvent: ((event: StreamEvents, data: any) => void) | undefined;
 
         beforeEach(async () => {
             // Initialize callbacks to avoid undefined errors
@@ -252,6 +254,7 @@ describe('connect-to-manager', () => {
                 onAgentActivityStateChange = options.callbacks.onAgentActivityStateChange;
                 onFirstAudioDetected = options.callbacks.onFirstAudioDetected;
                 onStreamReady = options.callbacks.onStreamReady;
+                onToolEvent = options.callbacks.onToolEvent;
 
                 return new Promise(resolve => {
                     setTimeout(() => {
@@ -445,6 +448,79 @@ describe('connect-to-manager', () => {
                     event: 'ready',
                     latency: 2000,
                 });
+            });
+        });
+
+        describe('onToolEvent', () => {
+            const startedPayload = {
+                call_id: 'call-1',
+                name: 'lookup',
+                input: { q: 'hello' },
+                output: {},
+                timestamp: '2026-04-28T00:00:00Z',
+            };
+            const donePayload = {
+                ...startedPayload,
+                output: { result: 'ok' },
+                duration_ms: 123,
+                extra: { region: 'eu' },
+            };
+            const errorPayload = {
+                ...donePayload,
+                extra: { reason: 'timeout', code: 504 },
+            };
+
+            beforeEach(() => {
+                (mockAnalytics.track as jest.Mock).mockClear();
+            });
+
+            it('forwards started event to user callback and tracks agent-tool-call', () => {
+                onToolEvent?.(StreamEvents.ToolCallStarted, startedPayload as any);
+
+                expect(mockOptions.callbacks.onToolEvent).toHaveBeenCalledWith(
+                    StreamEvents.ToolCallStarted,
+                    startedPayload
+                );
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-tool-call', {
+                    event: 'started',
+                    call_id: 'call-1',
+                    name: 'lookup',
+                });
+            });
+
+            it('tracks done event with duration_ms and extra_keys count', () => {
+                onToolEvent?.(StreamEvents.ToolCallDone, donePayload as any);
+
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-tool-call', {
+                    event: 'done',
+                    call_id: 'call-1',
+                    name: 'lookup',
+                    duration_ms: 123,
+                    extra_keys: 1,
+                });
+            });
+
+            it('tracks error event with duration_ms and extra_keys count', () => {
+                onToolEvent?.(StreamEvents.ToolCallError, errorPayload as any);
+
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-tool-call', {
+                    event: 'error',
+                    call_id: 'call-1',
+                    name: 'lookup',
+                    duration_ms: 123,
+                    extra_keys: 2,
+                });
+            });
+
+            it('handles missing extra map by emitting extra_keys=0', () => {
+                const { extra: _extra, ...donePayloadWithoutExtra } = donePayload;
+
+                onToolEvent?.(StreamEvents.ToolCallDone, donePayloadWithoutExtra as any);
+
+                expect(mockAnalytics.track).toHaveBeenCalledWith(
+                    'agent-tool-call',
+                    expect.objectContaining({ extra_keys: 0 })
+                );
             });
         });
     });

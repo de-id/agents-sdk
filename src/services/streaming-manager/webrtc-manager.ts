@@ -4,10 +4,12 @@ import {
     AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
+    Interrupt,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
+    StreamInterruptPayload,
     StreamType,
 } from '@sdk/types';
 import { createStreamingLogger, StreamingManager } from './common';
@@ -246,7 +248,9 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         }
     };
 
+    let currentVideoId: string | null = null;
     const handleStreamVideoIdChange = (videoId: string | null) => {
+        currentVideoId = videoId;
         callbacks.onVideoIdChange?.(videoId);
     };
 
@@ -320,6 +324,23 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     await startConnection(streamIdFromServer, sessionClientAnswer, session_id, signal);
     log('start connection OK');
 
+    function sendDataChannelMessage(payload: string) {
+        if (!isConnected || pcDataChannel.readyState !== 'open') {
+            log('Data channel is not ready for sending messages');
+            callbacks.onError?.(new Error('Data channel is not ready for sending messages'), {
+                streamId: streamIdFromServer,
+            });
+            return;
+        }
+
+        try {
+            pcDataChannel.send(payload);
+        } catch (e: any) {
+            log('Error sending data channel message', e);
+            callbacks.onError?.(e, { streamId: streamIdFromServer });
+        }
+    }
+
     return {
         /**
          * Method to send request to server to get clip or talk depend on you payload
@@ -366,25 +387,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 videoStatsMonitor.stop();
             }
         },
-        /**
-         * Method to send data channel messages to the server
-         */
-        sendDataChannelMessage(payload: string) {
-            if (!isConnected || pcDataChannel.readyState !== 'open') {
-                log('Data channel is not ready for sending messages');
-                callbacks.onError?.(new Error('Data channel is not ready for sending messages'), {
-                    streamId: streamIdFromServer,
-                });
-                return;
-            }
-
-            try {
-                pcDataChannel.send(payload);
-            } catch (e: any) {
-                log('Error sending data channel message', e);
-                callbacks.onError?.(e, { streamId: streamIdFromServer });
-            }
-        },
+        sendDataChannelMessage,
         /**
          * Session identifier information, should be returned in the body of all streaming requests
          */
@@ -397,6 +400,25 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         streamType,
         interruptAvailable: interruptAvailable ?? false,
         isInterruptible: true,
+
+        interrupt(_type: Interrupt['type']) {
+            if (!interruptAvailable) {
+                throw new Error('Interrupt is not enabled for this stream');
+            }
+            if (streamType !== StreamType.Fluent) {
+                throw new Error('Interrupt only available for Fluent streams');
+            }
+            if (!currentVideoId) {
+                throw new Error('No active video to interrupt');
+            }
+
+            const payload: StreamInterruptPayload = {
+                type: StreamEvents.StreamInterrupt,
+                videoId: currentVideoId,
+                timestamp: Date.now(),
+            };
+            sendDataChannelMessage(JSON.stringify(payload));
+        },
     };
 }
 
