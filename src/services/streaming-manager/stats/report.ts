@@ -77,19 +77,22 @@ function extractAnomalies(stats: AnalyticsRTCStatsReport[]): AnalyticsRTCStatsRe
 export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
     let codec = '';
     let currRtt: number = 0;
+    let videoInboundRtp: RTCInboundRtpStreamStats | null = null;
+    const codecIdToMime = new Map<string, string>();
 
+    // RTCStatsReport iteration order is not guaranteed across browsers.
+    // Walk the full report once to collect codec/rtt/inbound-rtp before returning,
+    // otherwise we may return before the codec entry is seen and emit codec=''.
     for (const report of stats.values()) {
-        if (report && report.type === 'codec' && report.mimeType.startsWith('video')) {
-            codec = report.mimeType.split('/')[1];
-        }
-        if (report && report.type === 'candidate-pair') {
-            const rtt = report.currentRoundTripTime;
-            const candidatePair = report as any;
-            const isNominated = candidatePair.nominated === true;
+        if (!report) continue;
 
-            // Prioritize RTT from the nominated candidate-pair (the active connection path).
-            // This ensures we capture the actual network latency being used, not just any candidate.
-            // Only update if we have a valid positive RTT value to avoid overwriting with invalid data.
+        if (report.type === 'codec' && report.mimeType?.startsWith('video')) {
+            codecIdToMime.set(report.id, report.mimeType.split('/')[1]);
+        } else if (report.type === 'candidate-pair') {
+            const rtt = report.currentRoundTripTime;
+            const isNominated = (report as any).nominated === true;
+            // Prefer RTT from the nominated candidate-pair (the active connection path).
+            // Fall back to the first valid pair only until a nominated value arrives.
             if (rtt > 0) {
                 if (isNominated) {
                     currRtt = rtt;
@@ -97,30 +100,44 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
                     currRtt = rtt;
                 }
             }
-        }
-        if (report && report.type === 'inbound-rtp' && report.kind === 'video') {
-            return {
-                codec,
-                rtt: currRtt,
-                timestamp: report.timestamp,
-                bytesReceived: report.bytesReceived,
-                packetsReceived: report.packetsReceived,
-                packetsLost: report.packetsLost,
-                framesDropped: report.framesDropped,
-                framesDecoded: report.framesDecoded,
-                jitter: report.jitter,
-                jitterBufferDelay: report.jitterBufferDelay,
-                jitterBufferEmittedCount: report.jitterBufferEmittedCount,
-                avgJitterDelayInInterval: report.jitterBufferDelay / report.jitterBufferEmittedCount,
-                frameWidth: report.frameWidth,
-                frameHeight: report.frameHeight,
-                framesPerSecond: report.framesPerSecond,
-                freezeCount: report.freezeCount,
-                freezeDuration: report.totalFreezesDuration,
-            } as SlimRTCStatsReport;
+        } else if (report.type === 'inbound-rtp' && report.kind === 'video') {
+            videoInboundRtp = report as RTCInboundRtpStreamStats;
         }
     }
-    return {} as SlimRTCStatsReport;
+
+    if (!videoInboundRtp) {
+        return {} as SlimRTCStatsReport;
+    }
+
+    // WebRTC marks every numeric field optional, but SlimRTCStatsReport expects
+    // required values. Single boundary cast avoids per-field null checks below.
+    const inbound = videoInboundRtp as Required<RTCInboundRtpStreamStats>;
+
+    if (inbound.codecId && codecIdToMime.has(inbound.codecId)) {
+        codec = codecIdToMime.get(inbound.codecId)!;
+    } else if (codecIdToMime.size > 0) {
+        codec = codecIdToMime.values().next().value ?? '';
+    }
+
+    return {
+        codec,
+        rtt: currRtt,
+        timestamp: inbound.timestamp,
+        bytesReceived: inbound.bytesReceived,
+        packetsReceived: inbound.packetsReceived,
+        packetsLost: inbound.packetsLost,
+        framesDropped: inbound.framesDropped,
+        framesDecoded: inbound.framesDecoded,
+        jitter: inbound.jitter,
+        jitterBufferDelay: inbound.jitterBufferDelay,
+        jitterBufferEmittedCount: inbound.jitterBufferEmittedCount,
+        avgJitterDelayInInterval: inbound.jitterBufferDelay / inbound.jitterBufferEmittedCount,
+        frameWidth: inbound.frameWidth,
+        frameHeight: inbound.frameHeight,
+        framesPerSecond: inbound.framesPerSecond,
+        freezeCount: inbound.freezeCount,
+        freezeDuration: (inbound as { totalFreezesDuration: number }).totalFreezesDuration,
+    } as SlimRTCStatsReport;
 }
 
 export function createVideoStatsReport(
