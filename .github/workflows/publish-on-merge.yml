@@ -66,6 +66,7 @@ jobs:
             || logger -l error -m "Failed to upgrade NPM"
 
           logger -l info -m "Upgrade NPM succeeded"
+          npm --version
 
       - name: Install dependencies
         run: |
