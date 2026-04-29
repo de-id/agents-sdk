@@ -54,8 +54,10 @@ jobs:
           # from @npmcli/arborist), so npm install -g itself fails. Bypass by
           # extracting the npm 11.5.1 tarball directly from the registry.
           NPM_DIR=$(node -e "const p=require('path');process.stdout.write(p.join(p.dirname(p.dirname(process.execPath)),'lib','node_modules','npm'))")
+          echo $NPM_DIR
           curl -fsSL https://registry.npmjs.org/npm/-/npm-11.5.1.tgz | tar -xz --strip-components=1 -C "$NPM_DIR"
           npm --version
+          exit
 
       - name: Install dependencies
         run: |
