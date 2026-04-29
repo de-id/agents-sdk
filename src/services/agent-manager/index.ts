@@ -313,27 +313,33 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 mode: items.chatMode,
             });
         },
-        async publishMicrophoneStream(stream: MediaStream) {
+        publishMicrophoneStream(stream: MediaStream): Promise<void> {
             if (!items.streamingManager?.publishMicrophoneStream) {
-                throw new Error('publishMicrophoneStream is not available for this streaming manager');
+                return Promise.reject(new Error('publishMicrophoneStream is not available for this streaming manager'));
             }
             return items.streamingManager.publishMicrophoneStream(stream);
         },
-        async unpublishMicrophoneStream() {
+        unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
-                return;
+                return Promise.resolve();
             }
             return items.streamingManager.unpublishMicrophoneStream();
         },
-        async publishCameraStream(stream: MediaStream) {
+        replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void> {
+            if (!items.streamingManager?.replaceMicrophoneTrack) {
+                return Promise.reject(new Error('replaceMicrophoneTrack is not available for this streaming manager'));
+            }
+            return items.streamingManager.replaceMicrophoneTrack(track);
+        },
+        publishCameraStream(stream: MediaStream): Promise<void> {
             if (!items.streamingManager?.publishCameraStream) {
-                throw new Error('publishCameraStream is not available for this streaming manager');
+                return Promise.reject(new Error('publishCameraStream is not available for this streaming manager'));
             }
             return items.streamingManager.publishCameraStream(stream);
         },
-        async unpublishCameraStream() {
+        unpublishCameraStream(): Promise<void> {
             if (!items.streamingManager?.unpublishCameraStream) {
-                return;
+                return Promise.resolve();
             }
             return items.streamingManager.unpublishCameraStream();
         },

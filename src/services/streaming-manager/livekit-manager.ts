@@ -583,6 +583,33 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         return unpublishTrackStream(microphoneState, 'Microphone');
     }
 
+    async function replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void> {
+        if (!isConnected || !room) {
+            log('Cannot replace microphone track: room is not connected');
+            throw new Error('Room is not connected');
+        }
+        if (track.kind !== 'audio') {
+            log('Cannot replace microphone track: not an audio track', { kind: track.kind });
+            throw new Error('Microphone track must be an audio track');
+        }
+        if (microphoneState.isPublishing) {
+            log('Cannot replace microphone track: publish in progress');
+            throw new Error('Microphone publish in progress');
+        }
+        const pub = microphoneState.publication;
+        if (!pub || !pub.track) {
+            log('Cannot replace microphone track: no publication to replace');
+            throw new Error('No microphone publication to replace');
+        }
+        try {
+            microphoneState.isPublishing = true;
+            await pub.track.replaceTrack(track);
+            log('Microphone track replaced', { trackId: track.id, trackSid: pub.trackSid });
+        } finally {
+            microphoneState.isPublishing = false;
+        }
+    }
+
     async function publishCameraStream(stream: MediaStream): Promise<void> {
         return publishTrackStream(
             cameraState,
@@ -725,6 +752,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         sendTextMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
+        replaceMicrophoneTrack,
         publishCameraStream,
         unpublishCameraStream,
 
