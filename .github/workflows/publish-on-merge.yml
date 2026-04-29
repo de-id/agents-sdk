@@ -49,6 +49,8 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: "yarn"
 
+      # npm Trusted Publisher requires CLI >= 11.5.1 for OIDC token exchange.
+      # Bypass the broken arborist in the cached Node 22 image by extracting the tarball directly.
       - name: Upgrade NPM
         env:
           NODE_VERSION: ${{ steps.setup-node.outputs.node-version }}
@@ -66,7 +68,6 @@ jobs:
             || logger -l error -m "Failed to upgrade NPM"
 
           logger -l info -m "Upgrade NPM succeeded"
-          npm --version
 
       - name: Install dependencies
         run: |
