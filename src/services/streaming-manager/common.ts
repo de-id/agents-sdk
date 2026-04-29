@@ -1,4 +1,4 @@
-import { CreateSessionV2Options, CreateStreamOptions, PayloadType, StreamType } from '@sdk/types';
+import { CreateSessionV2Options, CreateStreamOptions, Interrupt, PayloadType, StreamType } from '@sdk/types';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');
@@ -85,6 +85,14 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * Whether the current stream segment can be interrupted by the user
      */
     isInterruptible: boolean;
+
+    /**
+     * Send an interrupt for the current stream segment.
+     * Each implementation owns the validation/transport details (e.g. V1
+     * sends a `stream/interrupt` payload over the data channel; V2 sends
+     * `did.interrupt` and ignores `text` interrupts to avoid races).
+     */
+    interrupt(type: Interrupt['type']): void;
 
     /**
      * Register an RPC method handler on the LiveKit room.
