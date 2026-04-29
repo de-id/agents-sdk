@@ -4,6 +4,7 @@ import {
     ConnectivityState,
     CreateSessionV2Options,
     CreateStreamOptions,
+    Interrupt,
     Message,
     PayloadType,
     StreamEvents,
@@ -170,7 +171,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (participant?.isLocal) {
             latencyTimestampTracker.update();
             if (currentActivityState === AgentActivityState.Talking) {
-                callbacks.onInterruptDetected?.({ type: 'audio' });
                 currentActivityState = AgentActivityState.Idle;
             }
         }
@@ -755,6 +755,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         replaceMicrophoneTrack,
         publishCameraStream,
         unpublishCameraStream,
+
+        interrupt(type: Interrupt['type']) {
+            // Skip text interrupts for V2/expressive: the orchestrator does not
+            // cancel the in-flight LLM token stream, and an extra interrupt while
+            // a previous one is still settling causes races.
+            if (type === 'text') return;
+            sendDataChannelMessage(JSON.stringify({ topic: DataChannelTopic.Interrupt }));
+        },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {
             room?.registerRpcMethod(method, handler);

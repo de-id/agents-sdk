@@ -18,14 +18,13 @@ export function getExternalId(externalId?: string): string {
     return key;
 }
 
-let sessionKey = getRandom();
 export function getAuthHeader(auth: Auth, externalId?: string) {
     if (auth.type === 'bearer') {
         return `Bearer ${auth.token}`;
     } else if (auth.type === 'basic') {
         return `Basic ${'token' in auth ? auth.token : btoa(`${auth.username}:${auth.password}`)}`;
     } else if (auth.type === 'key') {
-        return `Client-Key ${auth.clientKey}.${getExternalId(externalId)}_${sessionKey}`;
+        return `Client-Key ${auth.clientKey}.${getExternalId(externalId)}`;
     } else {
         throw new Error(`Unknown auth type: ${auth}`);
     }

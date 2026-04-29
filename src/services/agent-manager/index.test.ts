@@ -12,7 +12,6 @@ import { Agent, AgentManager, AgentManagerOptions, ChatMode, ConnectionState, St
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
-import { sendInterrupt, validateInterrupt } from '../interrupt';
 import { createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { initializeStreamAndChat } from './connect-to-manager';
@@ -26,7 +25,6 @@ jest.mock('./connect-to-manager');
 jest.mock('../socket-manager/message-queue');
 jest.mock('../chat/intial-messages');
 jest.mock('../chat');
-jest.mock('../interrupt');
 jest.mock('../../utils/retry-operation', () => ({ retryOperation: jest.fn(fn => fn()) }));
 jest.mock('../../utils', () => ({ getRandom: jest.fn(() => 'random-id-123') }));
 jest.mock('../../utils/chat', () => ({
@@ -82,8 +80,6 @@ describe('createAgentManager', () => {
         (createMessageEventQueue as jest.Mock).mockReturnValue({ onMessage: jest.fn(), clearQueue: jest.fn() });
         (getInitialMessages as jest.Mock).mockReturnValue([]);
         (createChat as jest.Mock).mockResolvedValue({ chat: mockChat });
-        (validateInterrupt as jest.Mock).mockReturnValue(undefined);
-        (sendInterrupt as jest.Mock).mockReturnValue(undefined);
     });
 
     describe('createAgentManager', () => {
@@ -556,8 +552,7 @@ describe('createAgentManager', () => {
 
                 manager.interrupt({ type: 'click' });
 
-                expect(validateInterrupt).toHaveBeenCalledWith(mockStreamingManager, StreamType.Legacy, null);
-                expect(sendInterrupt).toHaveBeenCalledWith(mockStreamingManager, null);
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-video-interrupt', {
                     type: 'click',
                     video_duration_to_interrupt: expect.any(Number),
@@ -569,18 +564,15 @@ describe('createAgentManager', () => {
                 // Add a message to interrupt
                 await manager.chat('Hello');
 
-                // Mock validateInterrupt to throw an error
-                (validateInterrupt as jest.Mock).mockImplementationOnce(() => {
+                // Mock streamingManager.interrupt to throw a validation error
+                (mockStreamingManager.interrupt as jest.Mock).mockImplementationOnce(() => {
                     throw new Error('Interrupt validation failed');
                 });
 
                 expect(() => manager.interrupt({ type: 'click' })).toThrow('Interrupt validation failed');
 
-                // Verify validateInterrupt was called
-                expect(validateInterrupt).toHaveBeenCalledWith(mockStreamingManager, StreamType.Legacy, null);
-
-                // Verify sendInterrupt was not called due to validation failure
-                expect(sendInterrupt).not.toHaveBeenCalled();
+                // Verify streamingManager.interrupt was called
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
             });
         });
 

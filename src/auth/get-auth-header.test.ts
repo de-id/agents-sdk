@@ -128,7 +128,7 @@ describe('getAuthHeader', () => {
             const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
             const result = getAuthHeader(auth);
 
-            expect(result).toBe('Client-Key test-client-key.generated-external-id_mocked-random-id');
+            expect(result).toBe('Client-Key test-client-key.generated-external-id');
         });
 
         it('should use provided externalId in Client-Key header', () => {
@@ -136,8 +136,7 @@ describe('getAuthHeader', () => {
             const externalId = 'user-123';
             const result = getAuthHeader(auth, externalId);
 
-            expect(result).toBe('Client-Key test-client-key.user-123_mocked-random-id');
-            expect(result).toContain('user-123');
+            expect(result).toBe('Client-Key test-client-key.user-123');
         });
 
         it('should use externalId from localStorage when not provided', () => {
@@ -147,8 +146,7 @@ describe('getAuthHeader', () => {
             const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
             const result = getAuthHeader(auth);
 
-            expect(result).toBe('Client-Key test-client-key.stored-user-id_mocked-random-id');
-            expect(result).toContain('stored-user-id');
+            expect(result).toBe('Client-Key test-client-key.stored-user-id');
         });
 
         it('should generate new externalId and store it when localStorage is empty', () => {
@@ -158,8 +156,7 @@ describe('getAuthHeader', () => {
             const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
             const result = getAuthHeader(auth);
 
-            expect(result).toBe('Client-Key test-client-key.new-generated-id_mocked-random-id');
-            expect(result).toContain('new-generated-id');
+            expect(result).toBe('Client-Key test-client-key.new-generated-id');
             expect(window.localStorage.getItem('did_external_key_id')).toBe(mockRandomId);
         });
 

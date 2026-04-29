@@ -17,10 +17,12 @@ import {
     ConnectionState,
     CreateSessionV2Options,
     CreateStreamOptions,
-    Interrupt,
     StreamEvents,
     StreamType,
     StreamingState,
+    ToolCallDonePayload,
+    ToolCallErrorPayload,
+    ToolEventPayload,
     TransportProvider,
 } from '@sdk/types';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
@@ -162,13 +164,35 @@ function trackLegacyVideoAnalytics(
     }
 }
 
+function trackToolEventAnalytics(
+    event: StreamEvents.ToolCallStarted | StreamEvents.ToolCallDone | StreamEvents.ToolCallError,
+    payload: ToolEventPayload,
+    analytics: Analytics
+) {
+    const baseProps: Record<string, unknown> = {
+        call_id: payload.call_id,
+        name: payload.name,
+    };
+
+    if (event === StreamEvents.ToolCallStarted) {
+        analytics.track('agent-tool-call', { ...baseProps, event: 'started' });
+        return;
+    }
+
+    const finishedPayload = payload as ToolCallDonePayload | ToolCallErrorPayload;
+    analytics.track('agent-tool-call', {
+        ...baseProps,
+        event: event === StreamEvents.ToolCallDone ? 'done' : 'error',
+        duration_ms: finishedPayload.duration_ms,
+        extra_keys: finishedPayload.extra ? Object.keys(finishedPayload.extra).length : 0,
+    });
+}
+
 type ConnectToManagerOptions = AgentManagerOptions & {
     callbacks: AgentManagerOptions['callbacks'] & {
         onVideoIdChange?: (videoId: string | null) => void;
         /** Internal callback for livekit-manager data channel events */
         onMessage?: ChatProgressCallback;
-        /** Internal callback for when interrupt is detected by streaming manager */
-        onInterruptDetected?: (interrupt: Interrupt) => void;
         onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
     };
     chatId?: string;
@@ -266,6 +290,10 @@ function connectToManager(
                             const readyLatency = streamReadyTimestampTracker.get(true);
                             analytics.track('agent-chat', { event: 'ready', latency: readyLatency });
                         },
+                        onToolEvent: ((event: any, data: any) => {
+                            options.callbacks.onToolEvent?.(event, data);
+                            trackToolEventAnalytics(event, data, analytics);
+                        }) as typeof options.callbacks.onToolEvent,
                     },
                 },
                 signal

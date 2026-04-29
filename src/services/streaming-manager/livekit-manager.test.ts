@@ -493,9 +493,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const publishPromise = manager.publishMicrophoneStream?.(mockStream);
             const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
 
-            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow(
-                'Microphone publish in progress'
-            );
+            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow('Microphone publish in progress');
 
             resolvePublish!(createMockPublication());
             await publishPromise;
@@ -619,14 +617,10 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
     });
 
     describe('Transcription Interrupt Detection', () => {
-        let mockOnInterruptDetected: jest.Mock;
         let transcriptionHandler: (segments: any[], participant?: any) => void;
         let dataHandler: (payload: Uint8Array, participant?: any, kind?: any, topic?: string) => void;
 
         beforeEach(async () => {
-            mockOnInterruptDetected = jest.fn();
-            options.callbacks.onInterruptDetected = mockOnInterruptDetected;
-
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
@@ -662,8 +656,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             transcriptionHandler([], localParticipant);
 
             expect(mockLatencyTimestampTrackerUpdate).toHaveBeenCalledTimes(1);
-            expect(mockOnInterruptDetected).toHaveBeenCalledTimes(1);
-            expect(mockOnInterruptDetected).toHaveBeenCalledWith({ type: 'audio' });
         });
 
         it('should not detect interrupt when local participant sends transcription during Idle state', () => {
@@ -671,7 +663,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             transcriptionHandler([], localParticipant);
 
             expect(mockLatencyTimestampTrackerUpdate).toHaveBeenCalledTimes(1);
-            expect(mockOnInterruptDetected).not.toHaveBeenCalled();
         });
 
         it('should not detect interrupt when local participant sends transcription during Loading state', async () => {
@@ -685,7 +676,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             transcriptionHandler([], localParticipant);
 
             expect(mockLatencyTimestampTrackerUpdate).toHaveBeenCalledTimes(1);
-            expect(mockOnInterruptDetected).not.toHaveBeenCalled();
         });
 
         it('should update latency tracker but not detect interrupt when remote participant sends transcription during Talking state', () => {
@@ -696,7 +686,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             transcriptionHandler([], remoteParticipant);
 
             expect(mockLatencyTimestampTrackerUpdate).not.toHaveBeenCalled();
-            expect(mockOnInterruptDetected).not.toHaveBeenCalled();
         });
     });
 
