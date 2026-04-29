@@ -7,9 +7,9 @@ import {
     Interrupt,
     PayloadType,
     StreamEvents,
-    StreamInterruptPayload,
     StreamingManagerOptions,
     StreamingState,
+    StreamInterruptPayload,
     StreamType,
 } from '@sdk/types';
 import { createStreamingLogger, StreamingManager } from './common';
