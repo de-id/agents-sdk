@@ -64,13 +64,16 @@ describe('formatStats', () => {
         });
 
         it.each([
-            [
-                'codecId does not match any codec entry',
-                [codecVp8, { ...inboundRtpVideo, codecId: 'unknown-id' }],
-            ],
+            ['codecId does not match any codec entry', [codecVp8, { ...inboundRtpVideo, codecId: 'unknown-id' }]],
             [
                 'inbound-rtp omits codecId entirely',
-                [codecVp8, (() => { const { codecId, ...rest } = inboundRtpVideo; return rest; })()],
+                [
+                    codecVp8,
+                    (() => {
+                        const { codecId, ...rest } = inboundRtpVideo;
+                        return rest;
+                    })(),
+                ],
             ],
         ])('falls back to any video codec when %s', (_label, entries) => {
             expect(formatStats(buildStats(entries)).codec).toBe('VP8');
