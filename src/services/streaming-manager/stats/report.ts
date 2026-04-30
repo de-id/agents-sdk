@@ -89,12 +89,12 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
         if (report.type === 'codec' && report.mimeType?.startsWith('video')) {
             codecIdToMime.set(report.id, report.mimeType.split('/')[1]);
         } else if (report.type === 'candidate-pair') {
-            const rtt = report.currentRoundTripTime;
-            const isNominated = (report as any).nominated === true;
+            const pair = report as RTCIceCandidatePairStats;
+            const rtt = pair.currentRoundTripTime ?? 0;
             // Prefer RTT from the nominated candidate-pair (the active connection path).
             // Fall back to the first valid pair only until a nominated value arrives.
             if (rtt > 0) {
-                if (isNominated) {
+                if (pair.nominated === true) {
                     currRtt = rtt;
                 } else if (currRtt === 0) {
                     currRtt = rtt;
@@ -136,7 +136,7 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
         frameHeight: inbound.frameHeight,
         framesPerSecond: inbound.framesPerSecond,
         freezeCount: inbound.freezeCount,
-        freezeDuration: (inbound as { totalFreezesDuration: number }).totalFreezesDuration,
+        freezeDuration: inbound.totalFreezesDuration,
     } as SlimRTCStatsReport;
 }
 
