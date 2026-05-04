@@ -1283,6 +1283,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 name: 'get_weather',
                 input: { location: 'Tel Aviv' },
                 output: {},
+                interruptible: true,
                 timestamp: new Date().toISOString(),
             });
 
@@ -1299,6 +1300,100 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     input: { location: 'Tel Aviv' },
                 })
             );
+        });
+
+        it('should emit onInterruptibleChange(false) when tool-call/started carries interruptible: false', async () => {
+            // ARRANGE:
+            const onInterruptibleChange = jest.fn();
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const payload = createDataChannelPayload({
+                subject: StreamEvents.ToolCallStarted,
+                call_id: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: {},
+                interruptible: false,
+                timestamp: new Date().toISOString(),
+            });
+
+            // ACT:
+            dataHandler(payload);
+
+            // ASSERT:
+            expect(onInterruptibleChange).toHaveBeenCalledWith(false);
+        });
+
+        it('should emit onInterruptibleChange(true) when tool-call/started carries interruptible: true', async () => {
+            // ARRANGE:
+            const onInterruptibleChange = jest.fn();
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const payload = createDataChannelPayload({
+                subject: StreamEvents.ToolCallStarted,
+                call_id: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: {},
+                interruptible: true,
+                timestamp: new Date().toISOString(),
+            });
+
+            // ACT:
+            dataHandler(payload);
+
+            // ASSERT:
+            expect(onInterruptibleChange).toHaveBeenCalledWith(true);
+        });
+
+        it('should not emit onInterruptibleChange on tool-call/done', async () => {
+            // ARRANGE:
+            const onInterruptibleChange = jest.fn();
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    interruptible: false,
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+            onInterruptibleChange.mockClear();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallDone,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    duration_ms: 50,
+                    extra: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+            // ASSERT:
+            expect(onInterruptibleChange).not.toHaveBeenCalled();
         });
     });
 

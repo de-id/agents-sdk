@@ -364,9 +364,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
      */
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
+            const payload = data as ToolCallStartedPayload;
+            currentInterruptible = payload.interruptible !== false;
+            callbacks.onInterruptibleChange?.(currentInterruptible);
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, data as ToolCallStartedPayload);
+            callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
             return;
         }
 
