@@ -365,6 +365,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
             const payload = data as ToolCallStartedPayload;
+            // TODO: race condition with parallel tool calls — if one tool is interruptible
+            // and another isn't, the last tool-call/started wins instead of AND-ing the flags.
+            // Backend currently sends interruptible: false for all tools, so this works in practice.
+            // Future fix: track interruptible per toolId and derive the aggregate state.
             currentInterruptible = payload.interruptible !== false;
             callbacks.onInterruptibleChange?.(currentInterruptible);
             currentActivityState = AgentActivityState.ToolActive;
