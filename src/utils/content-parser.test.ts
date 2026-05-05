@@ -53,6 +53,43 @@ describe('parseMessageParts', () => {
         });
     });
 
+    describe('markdown video (naked image syntax with video URL)', () => {
+        it('should classify ![alt](url.mp4) as video, not image', () => {
+            const result = parseMessageParts(
+                '![A video about dinosaurs for kids](https://agents-results-dev.d-id.com/auth0%7C123/v2_agt_x/assets/abc.mp4)'
+            );
+            expect(result).toEqual([
+                {
+                    type: 'video',
+                    src: 'https://agents-results-dev.d-id.com/auth0%7C123/v2_agt_x/assets/abc.mp4',
+                    alt: 'A video about dinosaurs for kids',
+                },
+            ]);
+        });
+
+        it.each(['.mp4', '.webm', '.mkv', '.mov', '.m4v', '.ogv'])('should classify %s extensions as video', ext => {
+            const result = parseMessageParts(`![v](https://example.com/file${ext})`);
+            expect(result).toEqual([{ type: 'video', src: `https://example.com/file${ext}`, alt: 'v' }]);
+        });
+
+        it('should classify video URL with query string as video', () => {
+            const result = parseMessageParts('![v](https://example.com/file.mp4?token=abc&exp=123)');
+            expect(result).toEqual([
+                { type: 'video', src: 'https://example.com/file.mp4?token=abc&exp=123', alt: 'v' },
+            ]);
+        });
+
+        it('should classify video URL with hash fragment as video', () => {
+            const result = parseMessageParts('![v](https://example.com/file.mp4#t=10)');
+            expect(result).toEqual([{ type: 'video', src: 'https://example.com/file.mp4#t=10', alt: 'v' }]);
+        });
+
+        it('should not misclassify image URLs containing video extension in path', () => {
+            const result = parseMessageParts('![pic](https://example.com/mp4-archive/photo.png)');
+            expect(result).toEqual([{ type: 'image', src: 'https://example.com/mp4-archive/photo.png', alt: 'pic' }]);
+        });
+    });
+
     describe('markdown links', () => {
         it('should parse a markdown link', () => {
             const result = parseMessageParts('[click here](https://example.com)');

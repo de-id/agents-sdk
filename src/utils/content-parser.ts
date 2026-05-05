@@ -6,6 +6,13 @@ const VIDEO_THUMBNAIL_RE = /\[!\[([^\[\]]*)\]\(([^)\s]+)\)\]\(([^)\s]+)\)/g;
 // Standard markdown image: ![alt](url)
 const IMAGE_RE = /!\[([^\[\]]*)\]\(([^)\s]+)\)/g;
 
+const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mkv', '.mov', '.m4v', '.ogv'];
+
+function isVideoUrl(url: string): boolean {
+    const path = url.split('?')[0].split('#')[0].toLowerCase();
+    return VIDEO_EXTENSIONS.some(ext => path.endsWith(ext));
+}
+
 // Standard markdown link: [label](url) — but NOT images (no leading !)
 const MD_LINK_RE = /(?<!!)\[([^\[\]]+)\]\(([^)\s]+)\)/g;
 
@@ -37,15 +44,23 @@ export function parseMessageParts(content: string): MessagePart[] {
         });
     }
 
-    // 2. Markdown images: ![alt](url) — skip those already consumed by video thumbnails
+    // 2. Markdown images: ![alt](url) — skip those already consumed by video thumbnails.
+    // A URL with a video extension is classified as video even without thumbnail syntax,
+    // since backends frequently emit naked `![alt](video.mp4)` for video assets.
     IMAGE_RE.lastIndex = 0;
     while ((m = IMAGE_RE.exec(content)) !== null) {
         const overlaps = matches.some(entry => m!.index >= entry.index && m!.index < entry.index + entry.length);
         if (!overlaps) {
             const src = m[2];
-            const part: MessagePart = { type: 'image', src, alt: m[1] };
-            if (src.toLowerCase().endsWith('.gif')) {
-                (part as Extract<MessagePart, { type: 'image' }>).mimeType = 'image/gif';
+            const alt = m[1];
+            let part: MessagePart;
+            if (isVideoUrl(src)) {
+                part = { type: 'video', src, alt };
+            } else {
+                part = { type: 'image', src, alt };
+                if (src.toLowerCase().endsWith('.gif')) {
+                    (part as Extract<MessagePart, { type: 'image' }>).mimeType = 'image/gif';
+                }
             }
             matches.push({ index: m.index, length: m[0].length, part });
         }
