@@ -197,6 +197,7 @@ export interface ToolCallStartedPayload {
     name: string;
     input: Record<string, unknown>;
     output: Record<string, unknown>;
+    interruptible: boolean;
     timestamp: string;
 }
 
