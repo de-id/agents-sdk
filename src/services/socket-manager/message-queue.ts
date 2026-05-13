@@ -81,7 +81,7 @@ function processChatEvent(
     let currentMessage: Message;
     if (lastMessage?.role === 'assistant' && !isNewAssistantMessage) {
         currentMessage = lastMessage;
-    } else if (!lastMessage || (lastMessage.transcribed && lastMessage.role === 'user') || isNewAssistantMessage) {
+    } else if (!lastMessage || lastMessage.role === 'user' || isNewAssistantMessage) {
         if (isNewAssistantMessage) {
             // Reset the streaming buffer so the next message does not inherit the previous one's content.
             clearQueue();
@@ -174,8 +174,6 @@ export function createMessageEventQueue(
                     // Clear the streaming buffer so the next turn's content does not inherit
                     // leftover partial slots from this one.
                     clearQueue();
-                } else {
-                    lastAssistantMessageType = null;
                 }
 
                 if (chatEvent === ChatProgress.Answer) {
