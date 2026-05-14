@@ -34,12 +34,6 @@ function handleAudioTranscribedMessage(
         return;
     }
 
-    // Mark the last assistant message as interrupted when new user input arrives via server-side STT
-    const lastMessage = items.messages[items.messages.length - 1];
-    if (lastMessage?.role === 'assistant' && !lastMessage.interrupted) {
-        lastMessage.interrupted = true;
-    }
-
     const userMessage: Message = {
         id: data.id || `user-${Date.now()}`,
         role: data.role,
@@ -103,6 +97,13 @@ function processChatEvent(
     if (event === ChatProgress.Partial) {
         chatEventQueue[sequence] = content;
     } else {
+        // Answer shorter than accumulated partials means the orchestrator cut the segment
+        // short — i.e. the user interrupted mid-utterance.
+        const partialsContent = getMessageContent(chatEventQueue);
+        const isInterrupted = !!(content && content.length < partialsContent.length);
+        if (isInterrupted) {
+            currentMessage.interrupted = true;
+        }
         chatEventQueue['answer'] = content;
     }
 
