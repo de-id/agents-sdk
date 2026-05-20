@@ -66,6 +66,17 @@ function processChatEvent(
 
     const lastMessage = items.messages[items.messages.length - 1];
 
+    // User sent a new message mid-stream: the orchestrator's shortened closing `answer` for the
+    // abandoned reply would otherwise land as a truncated duplicate after the new user message.
+    const isLateAnswerFromInterruptedStream =
+        event === ChatProgress.Answer &&
+        lastMessage?.role === 'user' &&
+        lastAssistantMessageType === 'partial';
+
+    if (isLateAnswerFromInterruptedStream) {
+        return;
+    }
+
     // `chat/answer` closes a logical assistant message: the next chat event (Partial or Answer)
     // starts a new one. This covers post-tool replies that follow a pre-tool ack within the same
     // turn, and consecutive answers in clips/talks flows. The orchestrator does not send a
