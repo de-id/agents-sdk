@@ -69,9 +69,7 @@ function processChatEvent(
     // User sent a new message mid-stream: the orchestrator's shortened closing `answer` for the
     // abandoned reply would otherwise land as a truncated duplicate after the new user message.
     const isLateAnswerFromInterruptedStream =
-        event === ChatProgress.Answer &&
-        lastMessage?.role === 'user' &&
-        lastAssistantMessageType === 'partial';
+        event === ChatProgress.Answer && lastMessage?.role === 'user' && lastAssistantMessageType === 'partial';
 
     if (isLateAnswerFromInterruptedStream) {
         return;
