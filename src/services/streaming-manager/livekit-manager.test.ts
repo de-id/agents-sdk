@@ -137,11 +137,13 @@ function createMockAudioTrack(id: string = TEST_AUDIO_TRACK_ID, additionalProps:
 }
 
 function createMockTrack(id: string = TEST_AUDIO_TRACK_ID, mediaStreamTrack?: MediaStreamTrack) {
-    return {
+    const track: any = {
         kind: 'audio',
         id,
         mediaStreamTrack: mediaStreamTrack || createMockAudioTrack(id),
-    } as any;
+    };
+    track.replaceTrack = jest.fn().mockResolvedValue(track);
+    return track;
 }
 
 function createMockPublication(trackId: string = TEST_AUDIO_TRACK_ID, trackSid: string = TEST_TRACK_SID) {
@@ -442,6 +444,131 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
     });
 
+    describe('Microphone Stream Replacement', () => {
+        it('should throw when room is not connected', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+
+            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow('Room is not connected');
+        });
+
+        it('should throw when there is no microphone publication', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+
+            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow(
+                'No microphone publication to replace'
+            );
+        });
+
+        it('should throw when given a non-audio track', async () => {
+            const mockStream = createMockStream();
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
+
+            const videoTrack = createMockCameraTrack();
+
+            await expect(manager.replaceMicrophoneTrack?.(videoTrack)).rejects.toThrow(
+                'Microphone track must be an audio track'
+            );
+            expect(mockPublication.track.replaceTrack).not.toHaveBeenCalled();
+        });
+
+        it('should throw when a publish is already in progress', async () => {
+            const mockStream = createMockStream();
+            let resolvePublish: (value: any) => void;
+            const slowPublish = new Promise(resolve => {
+                resolvePublish = resolve;
+            });
+            mockPublishTrack.mockReturnValue(slowPublish);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const publishPromise = manager.publishMicrophoneStream?.(mockStream);
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+
+            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow('Microphone publish in progress');
+
+            resolvePublish!(createMockPublication());
+            await publishPromise;
+        });
+
+        it('should call publication.track.replaceTrack and not unpublish/publish', async () => {
+            const mockStream = createMockStream();
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+            mockUnpublishTrack.mockResolvedValue(undefined);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
+
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+            mockPublishTrack.mockClear();
+            mockUnpublishTrack.mockClear();
+
+            await manager.replaceMicrophoneTrack?.(newTrack);
+
+            expect(mockPublication.track.replaceTrack).toHaveBeenCalledTimes(1);
+            expect(mockPublication.track.replaceTrack).toHaveBeenCalledWith(newTrack);
+            expect(mockUnpublishTrack).not.toHaveBeenCalled();
+            expect(mockPublishTrack).not.toHaveBeenCalled();
+
+            // Verify the SDK still holds the original publication reference:
+            // disconnect should unpublish *that exact* publication's track.
+            await manager.disconnect();
+            expect(mockUnpublishTrack).toHaveBeenCalledTimes(1);
+            expect(mockUnpublishTrack).toHaveBeenCalledWith(mockPublication.track, false);
+        });
+
+        it('should throw "No microphone publication to replace" after an explicit unpublish', async () => {
+            const mockStream = createMockStream();
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+            mockUnpublishTrack.mockResolvedValue(undefined);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
+            await manager.unpublishMicrophoneStream?.();
+
+            const newTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+
+            await expect(manager.replaceMicrophoneTrack?.(newTrack)).rejects.toThrow(
+                'No microphone publication to replace'
+            );
+            expect(mockPublication.track.replaceTrack).not.toHaveBeenCalled();
+        });
+
+        it('should reset isPublishing after replaceTrack rejects, allowing a subsequent replace', async () => {
+            const mockStream = createMockStream();
+            const mockPublication = createMockPublication();
+            mockPublishTrack.mockResolvedValue(mockPublication);
+
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            await manager.publishMicrophoneStream?.(mockStream);
+
+            const replaceSpy = mockPublication.track.replaceTrack as jest.Mock;
+            replaceSpy.mockRejectedValueOnce(new Error('replace failed'));
+
+            const failingTrack = createMockAudioTrack(TEST_AUDIO_TRACK_ID_2);
+            await expect(manager.replaceMicrophoneTrack?.(failingTrack)).rejects.toThrow('replace failed');
+
+            // Subsequent call must not be blocked by a leaked isPublishing flag.
+            const followupTrack = createMockAudioTrack('audio-track-3');
+            await expect(manager.replaceMicrophoneTrack?.(followupTrack)).resolves.toBeUndefined();
+            expect(replaceSpy).toHaveBeenLastCalledWith(followupTrack);
+            expect(replaceSpy).toHaveBeenCalledTimes(2);
+        });
+    });
+
     describe('Agent Activity State Changes', () => {
         let mockOnAgentActivityStateChange: jest.Mock;
         let sendDataEvent: (event: StreamEvents, extraData?: object) => void;
@@ -490,14 +617,10 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
     });
 
     describe('Transcription Interrupt Detection', () => {
-        let mockOnInterruptDetected: jest.Mock;
         let transcriptionHandler: (segments: any[], participant?: any) => void;
         let dataHandler: (payload: Uint8Array, participant?: any, kind?: any, topic?: string) => void;
 
         beforeEach(async () => {
-            mockOnInterruptDetected = jest.fn();
-            options.callbacks.onInterruptDetected = mockOnInterruptDetected;
-
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
@@ -533,8 +656,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             transcriptionHandler([], localParticipant);
 
             expect(mockLatencyTimestampTrackerUpdate).toHaveBeenCalledTimes(1);
-            expect(mockOnInterruptDetected).toHaveBeenCalledTimes(1);
-            expect(mockOnInterruptDetected).toHaveBeenCalledWith({ type: 'audio' });
         });
 
         it('should not detect interrupt when local participant sends transcription during Idle state', () => {
@@ -542,7 +663,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             transcriptionHandler([], localParticipant);
 
             expect(mockLatencyTimestampTrackerUpdate).toHaveBeenCalledTimes(1);
-            expect(mockOnInterruptDetected).not.toHaveBeenCalled();
         });
 
         it('should not detect interrupt when local participant sends transcription during Loading state', async () => {
@@ -556,7 +676,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             transcriptionHandler([], localParticipant);
 
             expect(mockLatencyTimestampTrackerUpdate).toHaveBeenCalledTimes(1);
-            expect(mockOnInterruptDetected).not.toHaveBeenCalled();
         });
 
         it('should update latency tracker but not detect interrupt when remote participant sends transcription during Talking state', () => {
@@ -567,7 +686,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             transcriptionHandler([], remoteParticipant);
 
             expect(mockLatencyTimestampTrackerUpdate).not.toHaveBeenCalled();
-            expect(mockOnInterruptDetected).not.toHaveBeenCalled();
         });
     });
 
@@ -1141,20 +1259,14 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
     });
 
     describe('Enum values', () => {
-        it('should have correct StreamEvents enum values for tool events', () => {
-            // ASSERT:
-            expect(StreamEvents.ToolCalling).toBe('tool/calling');
-            expect(StreamEvents.ToolResult).toBe('tool/result');
-        });
-
         it('should have correct AgentActivityState enum value for ToolActive', () => {
             // ASSERT:
             expect(AgentActivityState.ToolActive).toBe('TOOL_ACTIVE');
         });
     });
 
-    describe('handleDataReceived - tool/calling', () => {
-        it('should transition to ToolActive and call onToolEvent on tool/calling', async () => {
+    describe('handleDataReceived - tool-call/started', () => {
+        it('should transition to ToolActive and forward payload via onToolEvent on tool-call/started', async () => {
             // ARRANGE:
             const onAgentActivityStateChange = jest.fn();
             const onToolEvent = jest.fn();
@@ -1166,11 +1278,13 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
             const dataHandler = getDataReceivedHandler();
             const payload = createDataChannelPayload({
-                subject: StreamEvents.ToolCalling,
-                execution_id: 'exec-123',
-                tool_name: 'get_weather',
-                arguments: { location: 'Tel Aviv' },
-                created_at: new Date().toISOString(),
+                subject: StreamEvents.ToolCallStarted,
+                call_id: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: {},
+                interruptible: true,
+                timestamp: new Date().toISOString(),
             });
 
             // ACT:
@@ -1179,17 +1293,112 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCalling,
+                StreamEvents.ToolCallStarted,
                 expect.objectContaining({
-                    execution_id: 'exec-123',
-                    tool_name: 'get_weather',
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
                 })
             );
         });
+
+        it('should emit onInterruptibleChange(false) when tool-call/started carries interruptible: false', async () => {
+            // ARRANGE:
+            const onInterruptibleChange = jest.fn();
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const payload = createDataChannelPayload({
+                subject: StreamEvents.ToolCallStarted,
+                call_id: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: {},
+                interruptible: false,
+                timestamp: new Date().toISOString(),
+            });
+
+            // ACT:
+            dataHandler(payload);
+
+            // ASSERT:
+            expect(onInterruptibleChange).toHaveBeenCalledWith(false);
+        });
+
+        it('should emit onInterruptibleChange(true) when tool-call/started carries interruptible: true', async () => {
+            // ARRANGE:
+            const onInterruptibleChange = jest.fn();
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const payload = createDataChannelPayload({
+                subject: StreamEvents.ToolCallStarted,
+                call_id: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: {},
+                interruptible: true,
+                timestamp: new Date().toISOString(),
+            });
+
+            // ACT:
+            dataHandler(payload);
+
+            // ASSERT:
+            expect(onInterruptibleChange).toHaveBeenCalledWith(true);
+        });
+
+        it('should not emit onInterruptibleChange on tool-call/done', async () => {
+            // ARRANGE:
+            const onInterruptibleChange = jest.fn();
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    interruptible: false,
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+            onInterruptibleChange.mockClear();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallDone,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    duration_ms: 50,
+                    extra: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+            // ASSERT:
+            expect(onInterruptibleChange).not.toHaveBeenCalled();
+        });
     });
 
-    describe('handleDataReceived - tool/result', () => {
-        it('should call onToolEvent but not change state on tool/result', async () => {
+    describe('handleDataReceived - tool-call/done', () => {
+        it('should forward payload via onToolEvent without changing activity state', async () => {
             // ARRANGE:
             const onAgentActivityStateChange = jest.fn();
             const onToolEvent = jest.fn();
@@ -1201,38 +1410,92 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
             const dataHandler = getDataReceivedHandler();
 
-            // First trigger tool/calling to set ToolActive
+            // Set ToolActive first so we can verify done doesn't touch it
             dataHandler(
                 createDataChannelPayload({
-                    subject: StreamEvents.ToolCalling,
-                    execution_id: 'exec-123',
-                    tool_name: 'get_weather',
-                    arguments: {},
-                    created_at: new Date().toISOString(),
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
             onAgentActivityStateChange.mockClear();
 
-            const toolResultPayload = createDataChannelPayload({
-                subject: StreamEvents.ToolResult,
-                execution_id: 'exec-123',
-                tool_name: 'get_weather',
-                success: true,
+            const donePayload = createDataChannelPayload({
+                subject: StreamEvents.ToolCallDone,
+                call_id: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: { temp: 22 },
                 duration_ms: 500,
-                error_message: null,
-                created_at: new Date().toISOString(),
+                extra: {},
+                timestamp: new Date().toISOString(),
             });
 
             // ACT:
-            dataHandler(toolResultPayload);
+            dataHandler(donePayload);
 
             // ASSERT:
             expect(onAgentActivityStateChange).not.toHaveBeenCalled();
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolResult,
+                StreamEvents.ToolCallDone,
                 expect.objectContaining({
-                    execution_id: 'exec-123',
-                    success: true,
+                    call_id: 'call-123',
+                    output: { temp: 22 },
+                    duration_ms: 500,
+                })
+            );
+        });
+    });
+
+    describe('handleDataReceived - tool-call/error', () => {
+        it('should forward payload via onToolEvent without changing activity state', async () => {
+            // ARRANGE:
+            const onAgentActivityStateChange = jest.fn();
+            const onToolEvent = jest.fn();
+            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+            onAgentActivityStateChange.mockClear();
+
+            const errorPayload = createDataChannelPayload({
+                subject: StreamEvents.ToolCallError,
+                call_id: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: {},
+                duration_ms: 120,
+                extra: { message: 'upstream timeout' },
+                timestamp: new Date().toISOString(),
+            });
+
+            // ACT:
+            dataHandler(errorPayload);
+
+            // ASSERT:
+            expect(onAgentActivityStateChange).not.toHaveBeenCalled();
+            expect(onToolEvent).toHaveBeenCalledWith(
+                StreamEvents.ToolCallError,
+                expect.objectContaining({
+                    call_id: 'call-123',
+                    extra: { message: 'upstream timeout' },
                 })
             );
         });
@@ -1252,11 +1515,12 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // Set ToolActive state first
             dataHandler(
                 createDataChannelPayload({
-                    subject: StreamEvents.ToolCalling,
-                    execution_id: 'exec-123',
-                    tool_name: 'test',
-                    arguments: {},
-                    created_at: new Date().toISOString(),
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'test',
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
             onAgentActivityStateChange.mockClear();
@@ -1286,11 +1550,12 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // Set ToolActive state first
             dataHandler(
                 createDataChannelPayload({
-                    subject: StreamEvents.ToolCalling,
-                    execution_id: 'exec-123',
-                    tool_name: 'test',
-                    arguments: {},
-                    created_at: new Date().toISOString(),
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'test',
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
             onAgentActivityStateChange.mockClear();
@@ -1319,11 +1584,12 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // Set ToolActive state first
             dataHandler(
                 createDataChannelPayload({
-                    subject: StreamEvents.ToolCalling,
-                    execution_id: 'exec-123',
-                    tool_name: 'test',
-                    arguments: {},
-                    created_at: new Date().toISOString(),
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'test',
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
             onAgentActivityStateChange.mockClear();
@@ -1345,9 +1611,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
         it('should stay ToolActive across multiple tool calls until final stream-video/done', async () => {
             // ARRANGE:
             const onAgentActivityStateChange = jest.fn();
-            const onToolEvent = jest.fn();
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
-            options.callbacks.onToolEvent = onToolEvent;
 
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
@@ -1357,22 +1621,12 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // First tool cycle
             dataHandler(
                 createDataChannelPayload({
-                    subject: StreamEvents.ToolCalling,
-                    execution_id: 'exec-1',
-                    tool_name: 'tool1',
-                    arguments: {},
-                    created_at: new Date().toISOString(),
-                })
-            );
-
-            dataHandler(
-                createDataChannelPayload({
-                    subject: StreamEvents.ToolResult,
-                    execution_id: 'exec-1',
-                    tool_name: 'tool1',
-                    success: true,
-                    duration_ms: 100,
-                    created_at: new Date().toISOString(),
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-1',
+                    name: 'tool1',
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
 
@@ -1387,22 +1641,12 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // Second tool cycle
             dataHandler(
                 createDataChannelPayload({
-                    subject: StreamEvents.ToolCalling,
-                    execution_id: 'exec-2',
-                    tool_name: 'tool2',
-                    arguments: {},
-                    created_at: new Date().toISOString(),
-                })
-            );
-
-            dataHandler(
-                createDataChannelPayload({
-                    subject: StreamEvents.ToolResult,
-                    execution_id: 'exec-2',
-                    tool_name: 'tool2',
-                    success: true,
-                    duration_ms: 200,
-                    created_at: new Date().toISOString(),
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-2',
+                    name: 'tool2',
+                    input: {},
+                    output: {},
+                    timestamp: new Date().toISOString(),
                 })
             );
 
@@ -1417,7 +1661,6 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
             expect(onAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.Idle);
-            expect(onToolEvent).toHaveBeenCalledTimes(4);
         });
     });
 

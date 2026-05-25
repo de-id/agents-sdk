@@ -42,7 +42,7 @@ jobs:
       - name: Setup Node.js for SDK
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache-dependency-path: agents-sdk/yarn.lock
 
       - name: Install Yarn
@@ -76,7 +76,7 @@ jobs:
       - name: Setup Node.js for agents-ui
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Render .npmrc for agents-ui
         working-directory: agents-ui

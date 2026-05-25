@@ -24,10 +24,17 @@ export type RatingPayload = Omit<
     'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id' | 'agent_id' | 'chat_id'
 >;
 
+export type MessagePart =
+    | { type: 'text'; text: string }
+    | { type: 'image'; src: string; alt: string; mimeType?: string }
+    | { type: 'video'; src: string; alt: string; thumbnail?: string }
+    | { type: 'link'; href: string; label: string };
+
 export interface Message {
     id: string;
     role?: 'system' | 'assistant' | 'user' | 'function' | 'tool';
     content: string;
+    parts: MessagePart[];
     created_at?: string;
     matches?: ChatResponse['matches'];
     context?: string;

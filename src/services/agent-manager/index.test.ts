@@ -12,7 +12,6 @@ import { Agent, AgentManager, AgentManagerOptions, ChatMode, ConnectionState, St
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
-import { sendInterrupt, validateInterrupt } from '../interrupt';
 import { createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { initializeStreamAndChat } from './connect-to-manager';
@@ -26,7 +25,6 @@ jest.mock('./connect-to-manager');
 jest.mock('../socket-manager/message-queue');
 jest.mock('../chat/intial-messages');
 jest.mock('../chat');
-jest.mock('../interrupt');
 jest.mock('../../utils/retry-operation', () => ({ retryOperation: jest.fn(fn => fn()) }));
 jest.mock('../../utils', () => ({ getRandom: jest.fn(() => 'random-id-123') }));
 jest.mock('../../utils/chat', () => ({
@@ -82,8 +80,6 @@ describe('createAgentManager', () => {
         (createMessageEventQueue as jest.Mock).mockReturnValue({ onMessage: jest.fn(), clearQueue: jest.fn() });
         (getInitialMessages as jest.Mock).mockReturnValue([]);
         (createChat as jest.Mock).mockResolvedValue({ chat: mockChat });
-        (validateInterrupt as jest.Mock).mockReturnValue(undefined);
-        (sendInterrupt as jest.Mock).mockReturnValue(undefined);
     });
 
     describe('createAgentManager', () => {
@@ -140,7 +136,7 @@ describe('createAgentManager', () => {
 
         it('should handle initial messages correctly', async () => {
             const initialMessages = [
-                { id: '1', role: 'user' as const, content: 'Hello', created_at: new Date().toISOString() },
+                { id: '1', role: 'user' as const, content: 'Hello', parts: [], created_at: new Date().toISOString() },
             ];
             (getInitialMessages as jest.Mock).mockReturnValue(initialMessages);
 
@@ -297,6 +293,30 @@ describe('createAgentManager', () => {
                 });
             });
 
+            it('should populate parts on user message', async () => {
+                const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
+                mockCallback.mockClear();
+
+                await manager.chat('Hello, how are you?');
+
+                // First call is the user message
+                const [userMessages] = mockCallback.mock.calls[0];
+                const userMsg = userMessages[userMessages.length - 1];
+                expect(userMsg.parts).toEqual([{ type: 'text', text: 'Hello, how are you?' }]);
+            });
+
+            it('should populate parts on assistant response message', async () => {
+                const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
+                mockCallback.mockClear();
+
+                await manager.chat('Hello, how are you?');
+
+                // Second call is the answer
+                const [answerMessages] = mockCallback.mock.calls[1];
+                const assistantMsg = answerMessages[answerMessages.length - 1];
+                expect(assistantMsg.parts).toEqual([{ type: 'text', text: 'Agent response' }]);
+            });
+
             it('should validate chat request - empty message', async () => {
                 await expect(manager.chat('')).rejects.toThrow('Message cannot be empty');
             });
@@ -447,6 +467,17 @@ describe('createAgentManager', () => {
                 expect(lastMessage.created_at).toBeDefined();
             });
 
+            it('should populate parts on speak message', async () => {
+                const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
+                mockCallback.mockClear();
+
+                await manager.speak('Hello from speak');
+
+                const [messages] = mockCallback.mock.calls[0];
+                const lastMessage = messages[messages.length - 1];
+                expect(lastMessage.parts).toEqual([{ type: 'text', text: 'Hello from speak' }]);
+            });
+
             it('should trigger onNewMessage with script object', async () => {
                 const script = { type: 'text' as const, input: 'Hello from script', ssml: false };
                 const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
@@ -521,8 +552,7 @@ describe('createAgentManager', () => {
 
                 manager.interrupt({ type: 'click' });
 
-                expect(validateInterrupt).toHaveBeenCalledWith(mockStreamingManager, StreamType.Legacy, null);
-                expect(sendInterrupt).toHaveBeenCalledWith(mockStreamingManager, null);
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-video-interrupt', {
                     type: 'click',
                     video_duration_to_interrupt: expect.any(Number),
@@ -534,18 +564,15 @@ describe('createAgentManager', () => {
                 // Add a message to interrupt
                 await manager.chat('Hello');
 
-                // Mock validateInterrupt to throw an error
-                (validateInterrupt as jest.Mock).mockImplementationOnce(() => {
+                // Mock streamingManager.interrupt to throw a validation error
+                (mockStreamingManager.interrupt as jest.Mock).mockImplementationOnce(() => {
                     throw new Error('Interrupt validation failed');
                 });
 
                 expect(() => manager.interrupt({ type: 'click' })).toThrow('Interrupt validation failed');
 
-                // Verify validateInterrupt was called
-                expect(validateInterrupt).toHaveBeenCalledWith(mockStreamingManager, StreamType.Legacy, null);
-
-                // Verify sendInterrupt was not called due to validation failure
-                expect(sendInterrupt).not.toHaveBeenCalled();
+                // Verify streamingManager.interrupt was called
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
             });
         });
 
@@ -743,11 +770,37 @@ describe('createAgentManager', () => {
             expect(mockUnpublish).toHaveBeenCalled();
         });
 
-        it('should throw error when unpublishMicrophoneStream is not available', async () => {
+        it('should no-op when unpublishMicrophoneStream is not available', async () => {
             mockStreamingManager.unpublishMicrophoneStream = undefined;
 
-            await expect(manager.unpublishMicrophoneStream?.()).rejects.toThrow(
-                'unpublishMicrophoneStream is not available for this streaming manager'
+            await expect(manager.unpublishMicrophoneStream?.()).resolves.toBeUndefined();
+        });
+    });
+
+    describe('replaceMicrophoneTrack', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+        });
+
+        it('should replace microphone track when available', async () => {
+            const mockTrack = { kind: 'audio', id: 'audio-track-1' } as unknown as MediaStreamTrack;
+            const mockReplace = jest.fn().mockResolvedValue(undefined);
+            mockStreamingManager.replaceMicrophoneTrack = mockReplace;
+
+            await manager.replaceMicrophoneTrack?.(mockTrack);
+
+            expect(mockReplace).toHaveBeenCalledWith(mockTrack);
+        });
+
+        it('should throw error when replaceMicrophoneTrack is not available', async () => {
+            mockStreamingManager.replaceMicrophoneTrack = undefined;
+            const mockTrack = { kind: 'audio', id: 'audio-track-1' } as unknown as MediaStreamTrack;
+
+            await expect(manager.replaceMicrophoneTrack?.(mockTrack)).rejects.toThrow(
+                'replaceMicrophoneTrack is not available for this streaming manager'
             );
         });
     });
@@ -796,12 +849,10 @@ describe('createAgentManager', () => {
             expect(mockUnpublish).toHaveBeenCalled();
         });
 
-        it('should throw error when unpublishCameraStream is not available', async () => {
+        it('should no-op when unpublishCameraStream is not available', async () => {
             mockStreamingManager.unpublishCameraStream = undefined;
 
-            await expect(manager.unpublishCameraStream?.()).rejects.toThrow(
-                'unpublishCameraStream is not available for this streaming manager'
-            );
+            await expect(manager.unpublishCameraStream?.()).resolves.toBeUndefined();
         });
     });
 
@@ -834,6 +885,77 @@ describe('createAgentManager', () => {
                 isEnabled: false,
                 externalId: undefined,
             });
+        });
+    });
+
+    describe('registerClientTool', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            mockStreamingManager.registerRpcMethod = jest.fn();
+            mockStreamingManager.unregisterRpcMethod = jest.fn();
+            manager = await createAgentManager('agent-123', mockOptions);
+        });
+
+        it('should register tool and call registerRpcMethod after connect', async () => {
+            const handler = jest.fn().mockResolvedValue('result');
+
+            await manager.connect();
+            manager.registerClientTool('testTool', handler);
+
+            expect(mockStreamingManager.registerRpcMethod).toHaveBeenCalledWith('testTool', expect.any(Function));
+        });
+
+        it('should buffer tool registration before connect and flush on connect', async () => {
+            const handler = jest.fn().mockResolvedValue('result');
+
+            manager.registerClientTool('testTool', handler);
+            expect(mockStreamingManager.registerRpcMethod).not.toHaveBeenCalled();
+
+            await manager.connect();
+            expect(mockStreamingManager.registerRpcMethod).toHaveBeenCalledWith('testTool', expect.any(Function));
+        });
+
+        it('should not call registerRpcMethod twice for same tool name', async () => {
+            const handler1 = jest.fn().mockResolvedValue('result1');
+            const handler2 = jest.fn().mockResolvedValue('result2');
+
+            await manager.connect();
+            manager.registerClientTool('testTool', handler1);
+            manager.registerClientTool('testTool', handler2);
+
+            expect(mockStreamingManager.registerRpcMethod).toHaveBeenCalledTimes(1);
+        });
+
+        it('should unregister tool from map and room', async () => {
+            const handler = jest.fn().mockResolvedValue('result');
+
+            await manager.connect();
+            manager.registerClientTool('testTool', handler);
+            manager.unregisterClientTool('testTool');
+
+            expect(mockStreamingManager.unregisterRpcMethod).toHaveBeenCalledWith('testTool');
+        });
+
+        it('should invoke latest handler when RPC is called after re-registration', async () => {
+            const handler1 = jest.fn().mockResolvedValue('result1');
+            const handler2 = jest.fn().mockResolvedValue('result2');
+
+            await manager.connect();
+            manager.registerClientTool('testTool', handler1);
+
+            // Get the RPC handler that was registered
+            const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
+
+            // Re-register with new handler (same name — only updates Map)
+            manager.registerClientTool('testTool', handler2);
+
+            // Invoke the RPC handler — should use handler2 from Map
+            const result = await rpcHandler({ payload: '{"key": "val"}' });
+
+            expect(handler1).not.toHaveBeenCalled();
+            expect(handler2).toHaveBeenCalledWith({ key: 'val' });
+            expect(result).toBe('result2');
         });
     });
 });

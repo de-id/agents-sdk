@@ -24,16 +24,29 @@ export function createClient(
     const client = async <T>(url: string, options?: RequestOptions) => {
         const { skipErrorHandler, ...fetchOptions } = options || {};
 
-        const request = await retryHttpTooManyRequests(() =>
-            fetch(host + (url?.startsWith('/') ? url : `/${url}`), {
-                ...fetchOptions,
-                headers: {
-                    ...fetchOptions.headers,
-                    Authorization: getAuthHeader(auth, externalId),
-                    'Content-Type': 'application/json',
-                },
-            })
-        );
+        let request: Response;
+        try {
+            request = await retryHttpTooManyRequests(() =>
+                fetch(host + (url?.startsWith('/') ? url : `/${url}`), {
+                    ...fetchOptions,
+                    headers: {
+                        ...fetchOptions.headers,
+                        Authorization: getAuthHeader(auth, externalId),
+                        'Content-Type': 'application/json',
+                    },
+                })
+            );
+        } catch (networkError) {
+            // Network-level rejection — TypeError ("Failed to fetch"), DNS failure, offline,
+            // CORS preflight failure, etc. The HTTP-error branch below is unreachable in this
+            // case, so route the error through onError here so consumers learn about it.
+            // AbortError is excluded — those are intentional cancellations, not failures.
+            const isAbort = (networkError as { name?: string })?.name === 'AbortError';
+            if (!isAbort && onError && !skipErrorHandler) {
+                onError(networkError as Error, { url, options: fetchOptions });
+            }
+            throw networkError;
+        }
 
         if (!request.ok) {
             let errorText: any = await request.text().catch(() => `Failed to fetch with status ${request.status}`);

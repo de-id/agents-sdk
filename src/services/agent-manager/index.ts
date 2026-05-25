@@ -5,8 +5,8 @@ import {
     Chat,
     ChatMode,
     ChatResponse,
+    ClientToolHandler,
     ConnectionState,
-    CreateSessionV2Options,
     CreateStreamOptions,
     Interrupt,
     Message,
@@ -20,6 +20,7 @@ import { ChatCreationFailed, ValidationError } from '@sdk/errors';
 import { getRandom } from '@sdk/utils';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
+import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { defer } from '../../utils/defer';
@@ -28,7 +29,6 @@ import { initializeAnalytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createChat, getRequestHeaders } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
-import { sendInterrupt, sendInterruptV2, validateInterrupt } from '../interrupt';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
@@ -120,13 +120,45 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         lastMessage.interrupted = true;
         options.callbacks.onNewMessage?.([...items.messages], 'answer');
 
-        if (isStreamsV2) {
-            sendInterruptV2(items.streamingManager! as StreamingManager<CreateSessionV2Options>);
-        } else {
-            validateInterrupt(items.streamingManager, items.streamingManager?.streamType, videoId);
-            sendInterrupt(items.streamingManager!, videoId!);
-        }
+        items.streamingManager.interrupt(type);
     };
+
+    const clientToolHandlers = new Map<string, ClientToolHandler>();
+
+    function createRpcHandler(toolName: string) {
+        return async (data: { payload: string }): Promise<string> => {
+            const handler = clientToolHandlers.get(toolName);
+            if (!handler) {
+                throw new Error(`No handler registered for client tool: ${toolName}`);
+            }
+            try {
+                const args = JSON.parse(data.payload);
+                return await handler(args);
+            } catch (error) {
+                throw new Error(`Client tool "${toolName}" failed: ${(error as Error).message}`);
+            }
+        };
+    }
+
+    function flushClientToolsToRoom() {
+        for (const [name] of clientToolHandlers) {
+            items.streamingManager?.unregisterRpcMethod?.(name);
+            items.streamingManager?.registerRpcMethod?.(name, createRpcHandler(name));
+        }
+    }
+
+    function registerClientTool(name: string, handler: ClientToolHandler): void {
+        const isNew = !clientToolHandlers.has(name);
+        clientToolHandlers.set(name, handler);
+        if (isNew) {
+            items.streamingManager?.registerRpcMethod?.(name, createRpcHandler(name));
+        }
+    }
+
+    function unregisterClientTool(name: string): void {
+        clientToolHandlers.delete(name);
+        items.streamingManager?.unregisterRpcMethod?.(name);
+    }
 
     const loadedTimestamp = Date.now();
     defer(() => {
@@ -164,7 +196,6 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                             ...options.callbacks,
                             onVideoIdChange: updateVideoId,
                             onMessage,
-                            onInterruptDetected: interrupt,
                         },
                     },
                     agentsApi,
@@ -196,6 +227,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         items.streamingManager = streamingManager;
         items.socketManager = socketManager;
         items.chat = chat;
+
+        flushClientToolsToRoom();
 
         firstConnection = false;
 
@@ -280,27 +313,33 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 mode: items.chatMode,
             });
         },
-        async publishMicrophoneStream(stream: MediaStream) {
+        publishMicrophoneStream(stream: MediaStream): Promise<void> {
             if (!items.streamingManager?.publishMicrophoneStream) {
-                throw new Error('publishMicrophoneStream is not available for this streaming manager');
+                return Promise.reject(new Error('publishMicrophoneStream is not available for this streaming manager'));
             }
             return items.streamingManager.publishMicrophoneStream(stream);
         },
-        async unpublishMicrophoneStream() {
+        unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
-                throw new Error('unpublishMicrophoneStream is not available for this streaming manager');
+                return Promise.resolve();
             }
             return items.streamingManager.unpublishMicrophoneStream();
         },
-        async publishCameraStream(stream: MediaStream) {
+        replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void> {
+            if (!items.streamingManager?.replaceMicrophoneTrack) {
+                return Promise.reject(new Error('replaceMicrophoneTrack is not available for this streaming manager'));
+            }
+            return items.streamingManager.replaceMicrophoneTrack(track);
+        },
+        publishCameraStream(stream: MediaStream): Promise<void> {
             if (!items.streamingManager?.publishCameraStream) {
-                throw new Error('publishCameraStream is not available for this streaming manager');
+                return Promise.reject(new Error('publishCameraStream is not available for this streaming manager'));
             }
             return items.streamingManager.publishCameraStream(stream);
         },
-        async unpublishCameraStream() {
+        unpublishCameraStream(): Promise<void> {
             if (!items.streamingManager?.unpublishCameraStream) {
-                throw new Error('unpublishCameraStream is not available for this streaming manager');
+                return Promise.resolve();
             }
             return items.streamingManager.unpublishCameraStream();
         },
@@ -399,6 +438,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'user',
                     content: userMessage,
+                    parts: parseMessagePartsMemo(userMessage),
                     created_at: new Date(latencyTimestampTracker.update()).toISOString(),
                 });
 
@@ -407,14 +447,22 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 const chatId = await initializeChat();
                 const response = await sendChatRequest([...items.messages], chatId);
 
-                items.messages.push({
-                    id: getRandom(),
-                    role: 'assistant',
-                    content: response.result || '',
-                    created_at: new Date().toISOString(),
-                    context: response.context,
-                    matches: response.matches,
-                });
+                // Skip the assistant push entirely when `response.result` is empty — streaming
+                // modes deliver the actual reply through `chat/partial` + `chat/answer`, so the
+                // REST endpoint commonly returns an empty string that would otherwise leave a
+                // ghost assistant entry in `items.messages` (a "" bubble hidden by CSS but still
+                // exported in transcripts).
+                if (response.result) {
+                    items.messages.push({
+                        id: getRandom(),
+                        role: 'assistant',
+                        content: response.result,
+                        parts: parseMessagePartsMemo(response.result),
+                        created_at: new Date().toISOString(),
+                        context: response.context,
+                        matches: response.matches,
+                    });
+                }
 
                 analytics.track('agent-message-send', {
                     event: 'success',
@@ -528,6 +576,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     id: getRandom(),
                     role: 'assistant',
                     content: script.input,
+                    parts: parseMessagePartsMemo(script.input),
                     created_at: new Date().toISOString(),
                 });
                 options.callbacks.onNewMessage?.([...items.messages], 'answer');
@@ -554,5 +603,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
         },
         interrupt,
+        registerClientTool,
+        unregisterClientTool,
     };
 }

@@ -4,14 +4,16 @@ import {
     ConnectivityState,
     CreateSessionV2Options,
     CreateStreamOptions,
+    Interrupt,
     Message,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     StreamType,
-    ToolCallingPayload,
-    ToolResultPayload,
+    ToolCallDonePayload,
+    ToolCallErrorPayload,
+    ToolCallStartedPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
@@ -169,7 +171,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (participant?.isLocal) {
             latencyTimestampTracker.update();
             if (currentActivityState === AgentActivityState.Talking) {
-                callbacks.onInterruptDetected?.({ type: 'audio' });
                 currentActivityState = AgentActivityState.Idle;
             }
         }
@@ -357,20 +358,32 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     /**
      * ToolActive state transitions:
-     * - tool/calling -> sets ToolActive
+     * - tool-call/started -> sets ToolActive
      * - stream-video/done with interruptible: true -> sets Idle
      * - stream-video/done with interruptible: false -> stays ToolActive (more tools coming)
      */
     function handleToolEvents(subject: string, data: any): void {
-        if (subject === StreamEvents.ToolCalling) {
+        if (subject === StreamEvents.ToolCallStarted) {
+            const payload = data as ToolCallStartedPayload;
+            // TODO: race condition with parallel tool calls — if one tool is interruptible
+            // and another isn't, the last tool-call/started wins instead of AND-ing the flags.
+            // Backend currently sends interruptible: false for all tools, so this works in practice.
+            // Future fix: track interruptible per toolId and derive the aggregate state.
+            currentInterruptible = payload.interruptible !== false;
+            callbacks.onInterruptibleChange?.(currentInterruptible);
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
-            callbacks.onToolEvent?.(StreamEvents.ToolCalling, data as ToolCallingPayload);
+            callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
             return;
         }
 
-        if (subject === StreamEvents.ToolResult) {
-            callbacks.onToolEvent?.(StreamEvents.ToolResult, data as ToolResultPayload);
+        if (subject === StreamEvents.ToolCallDone) {
+            callbacks.onToolEvent?.(StreamEvents.ToolCallDone, data as ToolCallDonePayload);
+            return;
+        }
+
+        if (subject === StreamEvents.ToolCallError) {
+            callbacks.onToolEvent?.(StreamEvents.ToolCallError, data as ToolCallErrorPayload);
         }
     }
 
@@ -421,8 +434,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const dataChannelHandlers: Record<string, DataChannelHandler> = {
         [StreamEvents.ChatAnswer]: handleChatEvents,
         [StreamEvents.ChatPartial]: handleChatEvents,
-        [StreamEvents.ToolCalling]: handleToolEvents,
-        [StreamEvents.ToolResult]: handleToolEvents,
+        [StreamEvents.ToolCallStarted]: handleToolEvents,
+        [StreamEvents.ToolCallDone]: handleToolEvents,
+        [StreamEvents.ToolCallError]: handleToolEvents,
         [StreamEvents.StreamVideoCreated]: handleVideoEvents,
         [StreamEvents.StreamVideoDone]: handleVideoEvents,
         [StreamEvents.StreamVideoError]: handleVideoEvents,
@@ -576,6 +590,33 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         return unpublishTrackStream(microphoneState, 'Microphone');
     }
 
+    async function replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void> {
+        if (!isConnected || !room) {
+            log('Cannot replace microphone track: room is not connected');
+            throw new Error('Room is not connected');
+        }
+        if (track.kind !== 'audio') {
+            log('Cannot replace microphone track: not an audio track', { kind: track.kind });
+            throw new Error('Microphone track must be an audio track');
+        }
+        if (microphoneState.isPublishing) {
+            log('Cannot replace microphone track: publish in progress');
+            throw new Error('Microphone publish in progress');
+        }
+        const pub = microphoneState.publication;
+        if (!pub || !pub.track) {
+            log('Cannot replace microphone track: no publication to replace');
+            throw new Error('No microphone publication to replace');
+        }
+        try {
+            microphoneState.isPublishing = true;
+            await pub.track.replaceTrack(track);
+            log('Microphone track replaced', { trackId: track.id, trackSid: pub.trackSid });
+        } finally {
+            microphoneState.isPublishing = false;
+        }
+    }
+
     async function publishCameraStream(stream: MediaStream): Promise<void> {
         return publishTrackStream(
             cameraState,
@@ -718,8 +759,24 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         sendTextMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
+        replaceMicrophoneTrack,
         publishCameraStream,
         unpublishCameraStream,
+
+        interrupt(type: Interrupt['type']) {
+            // Skip text interrupts for V2/expressive: the orchestrator does not
+            // cancel the in-flight LLM token stream, and an extra interrupt while
+            // a previous one is still settling causes races.
+            if (type === 'text') return;
+            sendDataChannelMessage(JSON.stringify({ topic: DataChannelTopic.Interrupt }));
+        },
+
+        registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {
+            room?.registerRpcMethod(method, handler);
+        },
+        unregisterRpcMethod(method: string) {
+            room?.unregisterRpcMethod(method);
+        },
 
         sessionId,
         streamId: sessionId,

@@ -2,6 +2,7 @@ import { STTTokenResponse } from '@sdk/types';
 import { Auth } from '@sdk/types/auth';
 import {
     AgentActivityState,
+    ClientToolHandler,
     CompatibilityMode,
     ConnectionState,
     ConnectivityState,
@@ -9,8 +10,6 @@ import {
     StreamEvents,
     StreamType,
     StreamingState,
-    ToolCallingPayload,
-    ToolResultPayload,
 } from '@sdk/types/stream';
 import { SupportedStreamScript } from '@sdk/types/stream-script';
 import type { ManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
@@ -106,14 +105,11 @@ interface ManagerCallbacks {
      */
     onStreamCreated?: StreamManagerCallbacks['onStreamCreated'];
     /**
-     * Optional callback function that will be triggered when tool events occur during the call
-     * @param event - The tool event type (tool/calling or tool/result)
-     * @param data - The tool event payload
+     * Optional callback function that will be triggered when tool-call events occur during the call
+     * (tool-call/started, tool-call/done, tool-call/error).
+     * The payload shape is discriminated by the event argument.
      */
-    onToolEvent?: (
-        event: StreamEvents.ToolCalling | StreamEvents.ToolResult,
-        data: ToolCallingPayload | ToolResultPayload
-    ) => void;
+    onToolEvent?: StreamManagerCallbacks['onToolEvent'];
     /**
      * Optional callback function that will be triggered when the interruptible state changes
      * @param interruptible - Whether the agent can be interrupted by the user
@@ -229,6 +225,16 @@ export interface AgentManager {
      */
     unpublishMicrophoneStream?: () => Promise<void>;
     /**
+     * Replace the live microphone track on the current publication without
+     * unpublishing. Preserves the LiveKit publication (SSRC, trackSid) so the
+     * server sees continuous audio across mic device swaps. Resolves once
+     * LiveKit has switched the underlying RTCRtpSender's track.
+     * Rejects if there is no active publication — callers should fall back to
+     * `publishMicrophoneStream` in that case.
+     * Supported only for the LiveKit streaming manager.
+     */
+    replaceMicrophoneTrack?: (track: MediaStreamTrack) => Promise<void>;
+    /**
      * Publish a camera video stream to the LiveKit room.
      * Can be called after connection to enable vision.
      * supported only for livekit manager
@@ -279,4 +285,18 @@ export interface AgentManager {
      * Only available for Fluent streams and when there's an active video to interrupt
      */
     interrupt: (interrupt: Interrupt) => void;
+
+    /**
+     * Register a handler for a client tool. When the agent's LLM calls this tool,
+     * the handler executes on the client and returns the result to the LLM.
+     * @param name - Tool name (must match the tool name defined in the agent config)
+     * @param handler - Async function receiving args, must return a JSON string (max 15KiB)
+     */
+    registerClientTool: (name: string, handler: ClientToolHandler) => void;
+
+    /**
+     * Remove a previously registered client tool handler.
+     * @param name - Tool name to unregister
+     */
+    unregisterClientTool: (name: string) => void;
 }
