@@ -18,11 +18,11 @@ export function getExternalId(externalId?: string): string {
     return key;
 }
 
-// Trailing segment of the Client-Key auth header, shared by WS and HTTP. Rotated by startSession().
-let websocketConnectionId = getRandom();
+// Trailing segment of the Client-Key auth header, shared by WS and HTTP. Rotated by rotateConnectionId().
+let connectionId = getRandom();
 
-export function startSession() {
-    websocketConnectionId = getRandom();
+export function rotateConnectionId() {
+    connectionId = getRandom();
 }
 
 export function getAuthHeader(auth: Auth, externalId?: string) {
@@ -31,7 +31,7 @@ export function getAuthHeader(auth: Auth, externalId?: string) {
     } else if (auth.type === 'basic') {
         return `Basic ${'token' in auth ? auth.token : btoa(`${auth.username}:${auth.password}`)}`;
     } else if (auth.type === 'key') {
-        return `Client-Key ${auth.clientKey}.${getExternalId(externalId)}_${websocketConnectionId}`;
+        return `Client-Key ${auth.clientKey}.${getExternalId(externalId)}_${connectionId}`;
     } else {
         throw new Error(`Unknown auth type: ${auth}`);
     }

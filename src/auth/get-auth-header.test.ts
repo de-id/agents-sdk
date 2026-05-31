@@ -1,5 +1,5 @@
 import { Auth } from '../types/auth';
-import { getAuthHeader, getExternalId, startSession } from './get-auth-header';
+import { getAuthHeader, getExternalId, rotateConnectionId } from './get-auth-header';
 
 jest.mock('../utils', () => ({
     getRandom: jest.fn(() => 'mocked-random-id'),
@@ -119,10 +119,10 @@ describe('getAuthHeader', () => {
     describe('Client-Key auth', () => {
         beforeEach(() => {
             mockGetRandom.mockReturnValue('mocked-random-id');
-            startSession();
+            rotateConnectionId();
         });
 
-        it('should return Client-Key header with current websocketConnectionId', () => {
+        it('should return Client-Key header with current connectionId', () => {
             const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
             const result = getAuthHeader(auth, 'user-123');
 
@@ -155,14 +155,14 @@ describe('getAuthHeader', () => {
             expect(window.localStorage.getItem('did_external_key_id')).toBe('new-user-id');
         });
 
-        it('should rotate websocketConnectionId on startSession()', () => {
+        it('should rotate connectionId on rotateConnectionId()', () => {
             const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
             mockGetRandom.mockReturnValueOnce('session-A');
-            startSession();
+            rotateConnectionId();
             const first = getAuthHeader(auth, 'user-1');
 
             mockGetRandom.mockReturnValueOnce('session-B');
-            startSession();
+            rotateConnectionId();
             const second = getAuthHeader(auth, 'user-1');
 
             expect(first).toBe('Client-Key test-client-key.user-1_session-A');
