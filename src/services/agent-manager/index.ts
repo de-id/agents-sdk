@@ -14,6 +14,7 @@ import {
     SupportedStreamScript,
 } from '../../types';
 
+import { rotateConnectionId } from '@sdk/auth/get-auth-header';
 import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
 import { ChatCreationFailed, ValidationError } from '@sdk/errors';
@@ -166,6 +167,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     });
 
     async function connect(newChat: boolean) {
+        rotateConnectionId();
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();

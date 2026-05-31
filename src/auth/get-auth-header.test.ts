@@ -1,5 +1,5 @@
 import { Auth } from '../types/auth';
-import { getAuthHeader, getExternalId } from './get-auth-header';
+import { getAuthHeader, getExternalId, rotateConnectionId } from './get-auth-header';
 
 jest.mock('../utils', () => ({
     getRandom: jest.fn(() => 'mocked-random-id'),
@@ -119,56 +119,54 @@ describe('getAuthHeader', () => {
     describe('Client-Key auth', () => {
         beforeEach(() => {
             mockGetRandom.mockReturnValue('mocked-random-id');
+            rotateConnectionId();
         });
 
-        it('should return Client-Key header with clientKey and generated externalId', () => {
-            const mockRandomId = 'generated-external-id';
-            mockGetRandom.mockReturnValueOnce(mockRandomId);
-
+        it('should return Client-Key header with current connectionId', () => {
             const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
-            const result = getAuthHeader(auth);
-
-            expect(result).toBe('Client-Key test-client-key.generated-external-id_mocked-random-id');
-        });
-
-        it('should use provided externalId in Client-Key header', () => {
-            const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
-            const externalId = 'user-123';
-            const result = getAuthHeader(auth, externalId);
+            const result = getAuthHeader(auth, 'user-123');
 
             expect(result).toBe('Client-Key test-client-key.user-123_mocked-random-id');
-            expect(result).toContain('user-123');
         });
 
         it('should use externalId from localStorage when not provided', () => {
-            const existingId = 'stored-user-id';
-            window.localStorage.setItem('did_external_key_id', existingId);
+            window.localStorage.setItem('did_external_key_id', 'stored-user-id');
 
             const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
             const result = getAuthHeader(auth);
 
             expect(result).toBe('Client-Key test-client-key.stored-user-id_mocked-random-id');
-            expect(result).toContain('stored-user-id');
         });
 
         it('should generate new externalId and store it when localStorage is empty', () => {
-            const mockRandomId = 'new-generated-id';
-            mockGetRandom.mockReturnValueOnce(mockRandomId);
+            mockGetRandom.mockReturnValueOnce('new-generated-id');
 
             const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
             const result = getAuthHeader(auth);
 
             expect(result).toBe('Client-Key test-client-key.new-generated-id_mocked-random-id');
-            expect(result).toContain('new-generated-id');
-            expect(window.localStorage.getItem('did_external_key_id')).toBe(mockRandomId);
+            expect(window.localStorage.getItem('did_external_key_id')).toBe('new-generated-id');
         });
 
         it('should update localStorage with provided externalId', () => {
             const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
-            const externalId = 'new-user-id';
-            getAuthHeader(auth, externalId);
+            getAuthHeader(auth, 'new-user-id');
 
-            expect(window.localStorage.getItem('did_external_key_id')).toBe(externalId);
+            expect(window.localStorage.getItem('did_external_key_id')).toBe('new-user-id');
+        });
+
+        it('should rotate connectionId on rotateConnectionId()', () => {
+            const auth: Auth = { type: 'key', clientKey: 'test-client-key' };
+            mockGetRandom.mockReturnValueOnce('session-A');
+            rotateConnectionId();
+            const first = getAuthHeader(auth, 'user-1');
+
+            mockGetRandom.mockReturnValueOnce('session-B');
+            rotateConnectionId();
+            const second = getAuthHeader(auth, 'user-1');
+
+            expect(first).toBe('Client-Key test-client-key.user-1_session-A');
+            expect(second).toBe('Client-Key test-client-key.user-1_session-B');
         });
     });
 
