@@ -34,12 +34,6 @@ function handleAudioTranscribedMessage(
         return;
     }
 
-    // Mark the last assistant message as interrupted when new user input arrives via server-side STT
-    const lastMessage = items.messages[items.messages.length - 1];
-    if (lastMessage?.role === 'assistant' && !lastMessage.interrupted) {
-        lastMessage.interrupted = true;
-    }
-
     const userMessage: Message = {
         id: data.id || `user-${Date.now()}`,
         role: data.role,
@@ -58,7 +52,8 @@ function processChatEvent(
     chatEventQueue: ChatEventQueue,
     items: AgentManagerItems,
     onNewMessage: AgentManagerOptions['callbacks']['onNewMessage'],
-    clearQueue: () => void
+    clearQueue: () => void,
+    lastAssistantMessageType: 'partial' | 'answer' | null
 ) {
     if (event === ChatProgress.Transcribe && data.content) {
         handleAudioTranscribedMessage(data, items, onNewMessage);
@@ -71,17 +66,25 @@ function processChatEvent(
 
     const lastMessage = items.messages[items.messages.length - 1];
 
-    // A new assistant message within the same turn (e.g. after a client tool call, or several
-    // assistant messages in a row) is signalled by a chat event whose `id` differs from the
-    // last assistant message. The new message typically starts with `Partial` events and ends
-    // with `Answer`, so both branches must detect the id change — otherwise the SDK overwrites
-    // the previous message on the first partial of the new one.
-    const isNewAssistantMessage = data.id && lastMessage?.role === 'assistant' && lastMessage.id !== data.id;
+    // User sent a new message mid-stream: the orchestrator's shortened closing `answer` for the
+    // abandoned reply would otherwise land as a truncated duplicate after the new user message.
+    const isLateAnswerFromInterruptedStream =
+        event === ChatProgress.Answer && lastMessage?.role === 'user' && lastAssistantMessageType === 'partial';
+
+    if (isLateAnswerFromInterruptedStream) {
+        return;
+    }
+
+    // `chat/answer` closes a logical assistant message: the next chat event (Partial or Answer)
+    // starts a new one. This covers post-tool replies that follow a pre-tool ack within the same
+    // turn, and consecutive answers in clips/talks flows. The orchestrator does not send a
+    // message id, so the previous id-mismatch heuristic does not apply.
+    const isNewAssistantMessage = lastAssistantMessageType === 'answer';
 
     let currentMessage: Message;
     if (lastMessage?.role === 'assistant' && !isNewAssistantMessage) {
         currentMessage = lastMessage;
-    } else if (!lastMessage || (lastMessage.transcribed && lastMessage.role === 'user') || isNewAssistantMessage) {
+    } else if (!lastMessage || lastMessage.role === 'user' || isNewAssistantMessage) {
         if (isNewAssistantMessage) {
             // Reset the streaming buffer so the next message does not inherit the previous one's content.
             clearQueue();
@@ -103,6 +106,13 @@ function processChatEvent(
     if (event === ChatProgress.Partial) {
         chatEventQueue[sequence] = content;
     } else {
+        // Answer shorter than accumulated partials means the orchestrator cut the segment
+        // short — i.e. the user interrupted mid-utterance.
+        const partialsContent = getMessageContent(chatEventQueue);
+        const isInterrupted = !!(content && content.length < partialsContent.length);
+        if (isInterrupted) {
+            currentMessage.interrupted = true;
+        }
         chatEventQueue['answer'] = content;
     }
 
@@ -123,14 +133,24 @@ export function createMessageEventQueue(
     agentEntity: Agent,
     onStreamDone: () => void
 ) {
-    let chatEventQueue: ChatEventQueue = {};
-    const clearQueue = () => (chatEventQueue = {});
-    let lastMessageType: 'answer' | 'partial' | 'user' = 'answer';
+    const chatEventQueue: ChatEventQueue = {};
+    const clearQueue = () => {
+        // Mutate the queue object so closures that captured it (e.g. the parameter inside
+        // `processChatEvent`) observe the reset — reassigning the outer-scope variable would
+        // leave those captured references pointing at the old, populated object.
+        for (const key of Object.keys(chatEventQueue)) {
+            delete chatEventQueue[key as keyof ChatEventQueue];
+        }
+    };
+    // Tracks the last assistant chat event in the current turn. `null` means "no assistant stream
+    // is in progress" (initial state, or after a non-assistant event). The flag stays `null` for
+    // the first backend partial of the greeting so it adopts the locally-pushed `agent.speak()`
+    // entry instead of opening a new message.
+    let lastAssistantMessageType: 'partial' | 'answer' | null = null;
     const onNewMessage: AgentManagerOptions['callbacks']['onNewMessage'] = (messages, event) => {
         if (event === 'user') {
             clearQueue();
         }
-        lastMessageType = event;
         options.callbacks.onNewMessage?.(messages, event);
     };
 
@@ -144,7 +164,27 @@ export function createMessageEventQueue(
                         : event === StreamEvents.ChatAudioTranscribed
                           ? ChatProgress.Transcribe
                           : (event as ChatProgress);
-                processChatEvent(chatEvent, data, chatEventQueue, items, onNewMessage, clearQueue);
+                processChatEvent(
+                    chatEvent,
+                    data,
+                    chatEventQueue,
+                    items,
+                    onNewMessage,
+                    clearQueue,
+                    lastAssistantMessageType
+                );
+
+                // Track the chat-event boundary directly here — relying on `onNewMessage` would
+                // miss empty-content partials and the next partial would still see
+                // `lastAssistantMessageType === 'answer'` and open yet another message.
+                if (chatEvent === ChatProgress.Partial) {
+                    lastAssistantMessageType = 'partial';
+                } else if (chatEvent === ChatProgress.Answer) {
+                    lastAssistantMessageType = 'answer';
+                    // Clear the streaming buffer so the next turn's content does not inherit
+                    // leftover partial slots from this one.
+                    clearQueue();
+                }
 
                 if (chatEvent === ChatProgress.Answer) {
                     analytics.track('agent-message-received', {
@@ -170,7 +210,7 @@ export function createMessageEventQueue(
                         if (lastMessage?.role === 'assistant') {
                             const updatedMessage = { ...lastMessage, sentiment: data.sentiment };
                             items.messages[items.messages.length - 1] = updatedMessage;
-                            onNewMessage?.([...items.messages], lastMessageType);
+                            onNewMessage?.([...items.messages], lastAssistantMessageType ?? 'answer');
                         }
                     }
                 }

@@ -14,6 +14,7 @@ import {
     SupportedStreamScript,
 } from '../../types';
 
+import { rotateConnectionId } from '@sdk/auth/get-auth-header';
 import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
 import { ChatCreationFailed, ValidationError } from '@sdk/errors';
@@ -166,6 +167,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     });
 
     async function connect(newChat: boolean) {
+        rotateConnectionId();
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();
@@ -447,15 +449,22 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 const chatId = await initializeChat();
                 const response = await sendChatRequest([...items.messages], chatId);
 
-                items.messages.push({
-                    id: getRandom(),
-                    role: 'assistant',
-                    content: response.result || '',
-                    parts: parseMessagePartsMemo(response.result || ''),
-                    created_at: new Date().toISOString(),
-                    context: response.context,
-                    matches: response.matches,
-                });
+                // Skip the assistant push entirely when `response.result` is empty — streaming
+                // modes deliver the actual reply through `chat/partial` + `chat/answer`, so the
+                // REST endpoint commonly returns an empty string that would otherwise leave a
+                // ghost assistant entry in `items.messages` (a "" bubble hidden by CSS but still
+                // exported in transcripts).
+                if (response.result) {
+                    items.messages.push({
+                        id: getRandom(),
+                        role: 'assistant',
+                        content: response.result,
+                        parts: parseMessagePartsMemo(response.result),
+                        created_at: new Date().toISOString(),
+                        context: response.context,
+                        matches: response.matches,
+                    });
+                }
 
                 analytics.track('agent-message-send', {
                     event: 'success',

@@ -334,7 +334,7 @@ describe('createMessageEventQueue', () => {
             ]);
         });
 
-        it('should overwrite the last assistant message when answer has the same id', () => {
+        it('should treat each consecutive answer as a new logical assistant message', () => {
             const { onMessage } = createMessageEventQueue(
                 mockAnalytics,
                 mockItems,
@@ -347,11 +347,12 @@ describe('createMessageEventQueue', () => {
             onMessage(ChatProgress.Answer, { id: 'assistant-1', content: 'final answer' });
 
             const assistantMessages = mockItems.messages.filter(m => m.role === 'assistant');
-            expect(assistantMessages).toHaveLength(1);
-            expect(assistantMessages[0].content).toBe('final answer');
+            expect(assistantMessages).toHaveLength(2);
+            expect(assistantMessages[0].content).toBe('first draft');
+            expect(assistantMessages[1].content).toBe('final answer');
         });
 
-        it('should overwrite the last assistant message when answer has no id (legacy backends)', () => {
+        it('should split consecutive answers without ids into separate messages (legacy backends)', () => {
             const { onMessage } = createMessageEventQueue(
                 mockAnalytics,
                 mockItems,
@@ -364,8 +365,9 @@ describe('createMessageEventQueue', () => {
             onMessage(ChatProgress.Answer, { content: 'second' });
 
             const assistantMessages = mockItems.messages.filter(m => m.role === 'assistant');
-            expect(assistantMessages).toHaveLength(1);
-            expect(assistantMessages[0].content).toBe('second');
+            expect(assistantMessages).toHaveLength(2);
+            expect(assistantMessages[0].content).toBe('first');
+            expect(assistantMessages[1].content).toBe('second');
         });
 
         it('should not leak content from the previous assistant message into the new one', () => {
