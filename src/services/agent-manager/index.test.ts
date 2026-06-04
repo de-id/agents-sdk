@@ -379,10 +379,10 @@ describe('createAgentManager', () => {
                 mockAgentsApi.chat.mockRejectedValueOnce(apiError);
 
                 await expect(manager.chat('Hello')).rejects.toThrow('API Error');
-                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-message-send', {
-                    event: 'error',
-                    messages: expect.any(Number),
-                });
+                expect(mockAnalytics.track).toHaveBeenCalledWith(
+                    'agent-message-send',
+                    expect.objectContaining({ event: 'error', error: 'API Error' })
+                );
             });
 
             it('should handle retry logic for invalid session', async () => {

@@ -58,6 +58,8 @@ export function getAgentInfo(agent: Agent) {
         ...(agent.access === 'public' ? { from: 'agent-template' } : {}),
     };
 }
+export const getErrorMessage = (error: unknown) => String((error as Error)?.message ?? error ?? '').slice(0, 256);
+
 export const sumFunc = (numbers: number[]) => numbers.reduce((total, aNumber) => total + aNumber, 0);
 export const average = (numbers: number[]) => sumFunc(numbers) / numbers.length;
 
