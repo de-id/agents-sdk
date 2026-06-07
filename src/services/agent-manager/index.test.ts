@@ -34,6 +34,7 @@ jest.mock('../../utils/chat', () => ({
 jest.mock('../../utils/analytics', () => ({
     getAgentInfo: jest.fn(() => ({ agentType: 'talk' })),
     getAnalyticsInfo: jest.fn(() => ({ agentType: 'talk' })),
+    getErrorMessage: jest.requireActual('../../utils/analytics').getErrorMessage,
 }));
 jest.mock('../../utils/defer', () => ({
     defer: jest.fn(fn => fn()),
@@ -379,10 +380,10 @@ describe('createAgentManager', () => {
                 mockAgentsApi.chat.mockRejectedValueOnce(apiError);
 
                 await expect(manager.chat('Hello')).rejects.toThrow('API Error');
-                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-message-send', {
-                    event: 'error',
-                    messages: expect.any(Number),
-                });
+                expect(mockAnalytics.track).toHaveBeenCalledWith(
+                    'agent-message-send',
+                    expect.objectContaining({ event: 'error', error: 'API Error' })
+                );
             });
 
             it('should handle retry logic for invalid session', async () => {
