@@ -14,6 +14,7 @@ import {
     SupportedStreamScript,
 } from '../../types';
 
+import { rotateConnectionId } from '@sdk/auth/get-auth-header';
 import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
 import { ChatCreationFailed, ValidationError } from '@sdk/errors';
@@ -22,7 +23,7 @@ import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
 import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
 import { createAgentsApi } from '../../api/agents';
-import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
+import { getAgentInfo, getAnalyticsInfo, getErrorMessage } from '../../utils/analytics';
 import { defer } from '../../utils/defer';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
@@ -79,6 +80,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     defer(() => {
         analytics.track('agent-sdk', { event: 'init' }, initTimestamp);
     });
+
+    const originalOnError = options.callbacks.onError;
+    options.callbacks.onError = (error: Error, errorData?: object) => {
+        analytics.track('agent-error', { error: getErrorMessage(error) });
+        originalOnError?.(error, errorData);
+    };
 
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
 
@@ -166,6 +173,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     });
 
     async function connect(newChat: boolean) {
+        rotateConnectionId();
         options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();
@@ -487,6 +495,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 analytics.track('agent-message-send', {
                     event: 'error',
                     messages: items.messages.length,
+                    error: getErrorMessage(e),
                 });
 
                 throw e;
