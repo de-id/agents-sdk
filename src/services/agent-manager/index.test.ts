@@ -34,6 +34,7 @@ jest.mock('../../utils/chat', () => ({
 jest.mock('../../utils/analytics', () => ({
     getAgentInfo: jest.fn(() => ({ agentType: 'talk' })),
     getAnalyticsInfo: jest.fn(() => ({ agentType: 'talk' })),
+    getErrorMessage: jest.requireActual('../../utils/analytics').getErrorMessage,
 }));
 jest.mock('../../utils/defer', () => ({
     defer: jest.fn(fn => fn()),
