@@ -15,7 +15,7 @@ import {
 } from '../../types';
 
 import { rotateConnectionId } from '@sdk/auth/get-auth-header';
-import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
+import { CONNECTION_RETRY_TIMEOUT_MS, MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
 import { ChatCreationFailed, ValidationError } from '@sdk/errors';
 import { getRandom } from '@sdk/utils';
@@ -355,8 +355,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const validateChatRequest = () => {
                 if (isChatModeWithoutChat(mode)) {
                     throw new ValidationError(`${mode} is enabled, chat is disabled`);
-                } else if (userMessage.length >= 800) {
-                    throw new ValidationError('Message cannot be more than 800 characters');
+                } else if (userMessage.length >= MAX_CHAT_MESSAGE_LENGTH) {
+                    throw new ValidationError(`Message cannot be more than ${MAX_CHAT_MESSAGE_LENGTH} characters`);
                 } else if (userMessage.length === 0) {
                     throw new ValidationError('Message cannot be empty');
                 } else if (items.chatMode === ChatMode.Maintenance) {
