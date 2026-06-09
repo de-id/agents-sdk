@@ -1,10 +1,11 @@
 import { PLAYGROUND_HEADER } from '@sdk/config/consts';
+import { HttpError } from '@sdk/errors';
 import type { Agent, AgentsAPI, Chat } from '@sdk/types';
 import { ChatMode } from '@sdk/types';
 import { isChatModeWithoutChat } from '@sdk/utils/chat';
 import { Analytics } from '../analytics/mixpanel';
 
-export function getRequestHeaders(chatMode?: ChatMode): Record<string, Record<string, string>> {
+export function getRequestHeaders(chatMode?: ChatMode): { headers?: Record<string, string> } {
     return chatMode === ChatMode.Playground ? { headers: { [PLAYGROUND_HEADER]: 'true' } } : {};
 }
 
@@ -28,20 +29,16 @@ export async function createChat(
         }
 
         return { chat, chatMode: chat?.chat_mode ?? chatMode };
-    } catch (error: any) {
-        const errorKind = getErrorKind(error);
-        if (errorKind === 'InsufficientCreditsError') {
+    } catch (error) {
+        const httpError = error instanceof HttpError ? error : undefined;
+
+        if (httpError?.kind === 'InsufficientCreditsError') {
             throw new Error('InsufficientCreditsError');
         }
-        throw new Error('Cannot create new chat');
+
+        // preserve the status so the connect-level retry guard can fail-fast on a 429
+        const failure = new Error('Cannot create new chat') as Error & { status?: number };
+        failure.status = httpError?.status;
+        throw failure;
     }
 }
-
-const getErrorKind = (error: Error) => {
-    try {
-        const parsedError = JSON.parse(error.message);
-        return parsedError?.kind;
-    } catch (e) {
-        return 'UnknownError';
-    }
-};

@@ -23,8 +23,9 @@ import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
 import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
 import { createAgentsApi } from '../../api/agents';
-import { getAgentInfo, getAnalyticsInfo, getErrorMessage } from '../../utils/analytics';
+import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { defer } from '../../utils/defer';
+import { toErrorAnalytics } from '../../utils/error-analytics';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
@@ -83,7 +84,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const originalOnError = options.callbacks.onError;
     options.callbacks.onError = (error: Error, errorData?: object) => {
-        analytics.track('agent-error', { error: getErrorMessage(error) });
+        analytics.track('agent-error', toErrorAnalytics(error));
         originalOnError?.(error, errorData);
     };
 
@@ -495,7 +496,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 analytics.track('agent-message-send', {
                     event: 'error',
                     messages: items.messages.length,
-                    error: getErrorMessage(e),
+                    ...toErrorAnalytics(e),
                 });
 
                 throw e;

@@ -1,19 +1,27 @@
-interface BaseErrorParams {
+export interface ErrorJson {
     kind: string;
-    description?: string;
-    error?: Error;
+    error: string;
+    cause?: string;
+    [key: string]: any;
 }
 
 export class BaseError extends Error {
-    kind: string;
-    description?: string;
-    error?: Error;
+    constructor(
+        message: string,
+        public readonly kind: string = 'Error',
+        public readonly originalError?: unknown
+    ) {
+        super(message);
+        Object.setPrototypeOf(this, new.target.prototype);
+    }
 
-    constructor({ kind, description, error }: BaseErrorParams) {
-        super(JSON.stringify({ kind, description }));
-
-        this.kind = kind;
-        this.description = description;
-        this.error = error;
+    toJson(): ErrorJson {
+        // the cause's message — Error causes only, and only when it adds to ours (payload is public)
+        const cause = this.originalError instanceof Error ? this.originalError.message.slice(0, 256) : undefined;
+        return {
+            kind: this.kind,
+            error: this.message,
+            ...(cause && cause !== this.message ? { cause } : {}),
+        };
     }
 }
