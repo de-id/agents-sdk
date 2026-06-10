@@ -168,9 +168,6 @@ describe('createClient', () => {
         });
     });
 
-    // The typed contract consumers (agents-ui, agents-ui-2) branch on: a stable `kind`,
-    // an HTTP `status`, and a dedicated NetworkError for transport failures — read via
-    // isDIDError(e) + e.kind, NOT JSON.parse(error.message) or `instanceof TypeError`.
     describe('typed error contract for consumers', () => {
         it('should expose an HTTP error with the server kind, status, and a human message', async () => {
             const body = JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' });
