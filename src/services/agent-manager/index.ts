@@ -84,7 +84,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const originalOnError = options.callbacks.onError;
     options.callbacks.onError = (error: Error, errorData?: object) => {
-        analytics.track('agent-error', toErrorAnalytics(error));
+        analytics.track('agent-error', { error: toErrorAnalytics(error) });
         originalOnError?.(error, errorData);
     };
 
@@ -498,7 +498,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 analytics.track('agent-message-send', {
                     event: 'error',
                     messages: items.messages.length,
-                    ...toErrorAnalytics(e),
+                    error: toErrorAnalytics(e),
                 });
 
                 throw e;

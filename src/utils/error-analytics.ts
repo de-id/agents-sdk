@@ -8,5 +8,5 @@ export function toErrorAnalytics(error: unknown): ErrorAnalyticsProps {
         return error.toJson();
     }
 
-    return { kind: 'UnknownError', error: getErrorMessage(error) || 'UnknownError' };
+    return { kind: 'UnknownError', message: getErrorMessage(error) || 'UnknownError' };
 }

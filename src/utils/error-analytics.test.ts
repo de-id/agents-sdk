@@ -1,7 +1,7 @@
 import { BaseError, HttpError, ValidationError, WsError } from '../errors';
 import { toErrorAnalytics } from './error-analytics';
 
-const ALLOWED_KEYS = ['kind', 'error', 'cause', 'httpStatus', 'endpoint', 'method'];
+const ALLOWED_KEYS = ['kind', 'message', 'cause', 'httpStatus', 'endpoint', 'method'];
 
 describe('toErrorAnalytics', () => {
     it("should delegate to an SDK error's own toJson()", () => {
@@ -13,7 +13,7 @@ describe('toErrorAnalytics', () => {
         expect(toErrorAnalytics(err)).toEqual(err.toJson());
         expect(toErrorAnalytics(err)).toEqual({
             kind: 'InsufficientCreditsError',
-            error: 'no credits',
+            message: 'no credits',
             httpStatus: 402,
             endpoint: '/agents/x/chat',
             method: 'POST',
@@ -25,11 +25,11 @@ describe('toErrorAnalytics', () => {
             kind: 'HttpError',
             httpStatus: 500,
         });
-        expect(toErrorAnalytics(new ValidationError('bad'))).toMatchObject({ kind: 'ValidationError', error: 'bad' });
+        expect(toErrorAnalytics(new ValidationError('bad'))).toMatchObject({ kind: 'ValidationError', message: 'bad' });
         expect(toErrorAnalytics(new WsError('socket'))).toMatchObject({ kind: 'WSError' });
         expect(toErrorAnalytics(new BaseError('Network request failed', 'NetworkError'))).toEqual({
             kind: 'NetworkError',
-            error: 'Network request failed',
+            message: 'Network request failed',
         });
         expect(toErrorAnalytics(new BaseError('downgraded', 'ChatModeDowngraded'))).toMatchObject({
             kind: 'ChatModeDowngraded',
@@ -43,12 +43,12 @@ describe('toErrorAnalytics', () => {
             ['a number', 42, '42'],
             ['null', null, 'UnknownError'],
             ['undefined', undefined, 'UnknownError'],
-        ])('should classify %s as UnknownError', (_label, thrown, expectedError) => {
-            expect(toErrorAnalytics(thrown)).toEqual({ kind: 'UnknownError', error: expectedError });
+        ])('should classify %s as UnknownError', (_label, thrown, expectedMessage) => {
+            expect(toErrorAnalytics(thrown)).toEqual({ kind: 'UnknownError', message: expectedMessage });
         });
 
         it('should default the message to "Unknown error" when the value cannot be stringified', () => {
-            expect(toErrorAnalytics(Object.create(null))).toEqual({ kind: 'UnknownError', error: 'Unknown error' });
+            expect(toErrorAnalytics(Object.create(null))).toEqual({ kind: 'UnknownError', message: 'Unknown error' });
         });
     });
 

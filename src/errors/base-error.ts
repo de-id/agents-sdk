@@ -1,6 +1,6 @@
 export interface ErrorJson {
     kind: string;
-    error: string;
+    message: string;
     cause?: string;
     [key: string]: any;
 }
@@ -20,7 +20,7 @@ export class BaseError extends Error {
         const cause = this.originalError instanceof Error ? this.originalError.message.slice(0, 256) : undefined;
         return {
             kind: this.kind,
-            error: this.message,
+            message: this.message,
             ...(cause && cause !== this.message ? { cause } : {}),
         };
     }

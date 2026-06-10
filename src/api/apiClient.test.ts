@@ -148,7 +148,7 @@ describe('createClient', () => {
             const rejection = await client.get('/agents/missing').catch(e => e);
             expect(toErrorAnalytics(rejection)).toEqual({
                 kind: 'NotFoundError',
-                error: 'agent not found',
+                message: 'agent not found',
                 httpStatus: 404,
                 endpoint: '/agents/missing',
                 method: 'GET',
@@ -162,7 +162,7 @@ describe('createClient', () => {
             const rejection = await client.get('/agents/x').catch(e => e);
             expect(toErrorAnalytics(rejection)).toEqual({
                 kind: 'NetworkError',
-                error: 'Network request failed',
+                message: 'Network request failed',
                 cause: 'Failed to fetch',
             });
         });

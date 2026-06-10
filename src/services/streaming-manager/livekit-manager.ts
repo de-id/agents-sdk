@@ -20,6 +20,7 @@ import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
+import { toErrorAnalytics } from '../../utils/error-analytics';
 import { latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createStreamingLogger, StreamingManager } from './common';
 import { chatEventMap } from './data-channel-handlers';
@@ -182,11 +183,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 `Track subscription timeout - no track subscribed within ${TRACK_SUBSCRIPTION_TIMEOUT_MS / 1000} seconds after connect`
             );
             trackSubscriptionTimeoutId = null;
+            const error = streamError('Track subscription timeout');
             analytics.track('connectivity-error', {
-                error: 'Track subscription timeout',
+                error: toErrorAnalytics(error),
                 sessionId,
             });
-            callbacks.onError?.(streamError('Track subscription timeout'), { sessionId });
+            callbacks.onError?.(error, { sessionId });
             disconnect('internal:track-subscription-timeout');
         }, TRACK_SUBSCRIPTION_TIMEOUT_MS);
     } catch (error) {

@@ -45,20 +45,20 @@ describe('SDK errors', () => {
             expect(err.message).toBe('boom');
             expect(err.kind).toBe('X');
             expect(err.originalError).toBe(cause);
-            expect(err.toJson()).toEqual({ kind: 'X', error: 'boom', cause: 'root' });
+            expect(err.toJson()).toEqual({ kind: 'X', message: 'boom', cause: 'root' });
         });
 
         it('should serialize the cause message only when it adds info, and never a non-Error cause', () => {
             // distinct wrapper message → the underlying browser message surfaces
             expect(
                 new BaseError('Network request failed', 'NetworkError', new TypeError('Failed to fetch')).toJson()
-            ).toEqual({ kind: 'NetworkError', error: 'Network request failed', cause: 'Failed to fetch' });
+            ).toEqual({ kind: 'NetworkError', message: 'Network request failed', cause: 'Failed to fetch' });
 
             // same message → no redundant cause
-            expect(new BaseError('boom', 'X', new Error('boom')).toJson()).toEqual({ kind: 'X', error: 'boom' });
+            expect(new BaseError('boom', 'X', new Error('boom')).toJson()).toEqual({ kind: 'X', message: 'boom' });
 
             // non-Error cause → omitted (never serialize arbitrary objects)
-            expect(new BaseError('boom', 'X', { token: 'SECRET' }).toJson()).toEqual({ kind: 'X', error: 'boom' });
+            expect(new BaseError('boom', 'X', { token: 'SECRET' }).toJson()).toEqual({ kind: 'X', message: 'boom' });
         });
     });
 
@@ -73,7 +73,7 @@ describe('SDK errors', () => {
             expect(err.status).toBe(402);
             expect(err.toJson()).toEqual({
                 kind: 'InsufficientCreditsError',
-                error: 'no credits',
+                message: 'no credits',
                 httpStatus: 402,
                 endpoint: '/agents/x/chat',
                 method: 'POST',
@@ -86,7 +86,7 @@ describe('SDK errors', () => {
             expect(err.message).toBe('<html>gateway timeout</html>');
             expect(err.toJson()).toEqual({
                 kind: 'HttpError',
-                error: '<html>gateway timeout</html>',
+                message: '<html>gateway timeout</html>',
                 httpStatus: 504,
             });
         });
@@ -97,7 +97,7 @@ describe('SDK errors', () => {
 
         it('should expose only mapped keys in toJson, never raw status/url/method', () => {
             const json = new HttpError(500, 'boom', { url: '/x', method: 'GET' }).toJson();
-            expect(Object.keys(json).sort()).toEqual(['endpoint', 'error', 'httpStatus', 'kind', 'method']);
+            expect(Object.keys(json).sort()).toEqual(['endpoint', 'httpStatus', 'kind', 'message', 'method']);
             expect(json).not.toHaveProperty('status');
             expect(json).not.toHaveProperty('url');
         });
@@ -105,7 +105,7 @@ describe('SDK errors', () => {
         it('should omit endpoint/method from toJson when the call context is absent', () => {
             expect(new HttpError(500, 'boom').toJson()).toEqual({
                 kind: 'HttpError',
-                error: 'boom',
+                message: 'boom',
                 httpStatus: 500,
             });
         });
@@ -116,14 +116,14 @@ describe('SDK errors', () => {
             const err = new ValidationError('Message cannot be empty', 'message');
             expect(err).toBeInstanceOf(ValidationError);
             expect(err.key).toBe('message');
-            expect(err.toJson()).toEqual({ kind: 'ValidationError', error: 'Message cannot be empty' });
+            expect(err.toJson()).toEqual({ kind: 'ValidationError', message: 'Message cannot be empty' });
             expect(err.toJson()).not.toHaveProperty('key');
         });
     });
 
     describe('WsError', () => {
         it('should use kind "WSError"', () => {
-            expect(new WsError('socket died').toJson()).toEqual({ kind: 'WSError', error: 'socket died' });
+            expect(new WsError('socket died').toJson()).toEqual({ kind: 'WSError', message: 'socket died' });
         });
     });
 
