@@ -1,3 +1,4 @@
+import { StreamError } from '@sdk/errors';
 import {
     AgentActivityState,
     ConnectionState,
@@ -19,6 +20,7 @@ import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
+import { toErrorAnalytics } from '../../utils/error-analytics';
 import { latencyTimestampTracker } from '../analytics/timestamp-tracker';
 import { createStreamingLogger, StreamingManager } from './common';
 import { chatEventMap } from './data-channel-handlers';
@@ -71,10 +73,7 @@ const connectivityQualityToState = {
     unknown: ConnectivityState.Unknown,
 };
 
-const internalErrorMassage = JSON.stringify({
-    kind: 'InternalServerError',
-    description: 'Stream Error',
-});
+const streamError = (message = 'Stream Error') => new StreamError(message);
 
 export enum DataChannelTopic {
     Chat = 'lk.chat',
@@ -184,11 +183,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 `Track subscription timeout - no track subscribed within ${TRACK_SUBSCRIPTION_TIMEOUT_MS / 1000} seconds after connect`
             );
             trackSubscriptionTimeoutId = null;
+            const error = streamError('Track subscription timeout');
             analytics.track('connectivity-error', {
-                error: 'Track subscription timeout',
+                error: toErrorAnalytics(error),
                 sessionId,
             });
-            callbacks.onError?.(new Error('Track subscription timeout'), { sessionId });
+            callbacks.onError?.(error, { sessionId });
             disconnect('internal:track-subscription-timeout');
         }, TRACK_SUBSCRIPTION_TIMEOUT_MS);
     } catch (error) {
@@ -469,12 +469,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleMediaDevicesError(error: Error): void {
         log('Media devices error:', error);
-        callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
+        callbacks.onError?.(streamError(), { sessionId });
     }
 
     function handleEncryptionError(error: Error): void {
         log('Encryption error:', error);
-        callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
+        callbacks.onError?.(streamError(), { sessionId });
     }
 
     function handleTrackSubscriptionFailed(
@@ -642,7 +642,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     async function sendMessage(message: string, topic: DataChannelTopic) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
-            callbacks.onError?.(new Error(internalErrorMassage), {
+            callbacks.onError?.(streamError(), {
                 sessionId,
             });
             return;
@@ -653,7 +653,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             log('Message sent successfully:', message);
         } catch (error) {
             log('Failed to send message:', error);
-            callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
+            callbacks.onError?.(streamError(), { sessionId });
         }
     }
 
@@ -664,7 +664,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             return sendMessage('', topic);
         } catch (error) {
             log('Failed to send data channel message:', error);
-            callbacks.onError?.(new Error(internalErrorMassage), { sessionId });
+            callbacks.onError?.(streamError(), { sessionId });
         }
     }
 

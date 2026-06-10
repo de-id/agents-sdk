@@ -388,7 +388,7 @@ describe('createAgentManager', () => {
                 await expect(manager.chat('Hello')).rejects.toThrow('API Error');
                 expect(mockAnalytics.track).toHaveBeenCalledWith(
                     'agent-message-send',
-                    expect.objectContaining({ event: 'error', error: 'API Error' })
+                    expect.objectContaining({ event: 'error', error: { kind: 'UnknownError', message: 'API Error' } })
                 );
             });
 
