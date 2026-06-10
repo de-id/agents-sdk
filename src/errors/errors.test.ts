@@ -1,13 +1,5 @@
 import { ChatMode } from '@sdk/types';
-import {
-    ApplicationError,
-    BaseError,
-    ChatCreationFailed,
-    ChatModeDowngraded,
-    HttpError,
-    ValidationError,
-    WsError,
-} from './index';
+import { BaseError, ChatCreationFailed, ChatModeDowngraded, HttpError, ValidationError, WsError } from './index';
 
 describe('SDK errors', () => {
     // The key invariant under an ES5 target: every error must remain catchable by type.
@@ -18,7 +10,6 @@ describe('SDK errors', () => {
             { name: 'HttpError', error: new HttpError(500, 'boom'), kind: 'HttpError' },
             { name: 'ValidationError', error: new ValidationError('bad'), kind: 'ValidationError' },
             { name: 'WsError', error: new WsError('socket'), kind: 'WSError' },
-            { name: 'ApplicationError', error: new ApplicationError('oops'), kind: 'ApplicationError' },
             {
                 name: 'ChatCreationFailed',
                 error: new ChatCreationFailed(ChatMode.Functional, true),
@@ -133,17 +124,6 @@ describe('SDK errors', () => {
     describe('WsError', () => {
         it('should use kind "WSError"', () => {
             expect(new WsError('socket died').toJson()).toEqual({ kind: 'WSError', error: 'socket died' });
-        });
-    });
-
-    describe('ApplicationError', () => {
-        it('should use kind "ApplicationError" and surface the cause message but never the cause object', () => {
-            const cause = new Error('root');
-            const err = new ApplicationError('wrapped', cause);
-            expect(err).toBeInstanceOf(ApplicationError);
-            expect(err.originalError).toBe(cause);
-            expect(err.toJson()).toEqual({ kind: 'ApplicationError', error: 'wrapped', cause: 'root' });
-            expect(err.toJson()).not.toHaveProperty('originalError');
         });
     });
 

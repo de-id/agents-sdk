@@ -1,4 +1,4 @@
-import { ApplicationError, BaseError, HttpError, ValidationError, WsError } from '../errors';
+import { BaseError, HttpError, ValidationError, WsError } from '../errors';
 import { toErrorAnalytics } from './error-analytics';
 
 const ALLOWED_KEYS = ['kind', 'error', 'cause', 'httpStatus', 'endpoint', 'method'];
@@ -36,26 +36,19 @@ describe('toErrorAnalytics', () => {
         });
     });
 
-    describe('unknown / non-SDK throwables are wrapped as ApplicationError', () => {
+    describe('unknown / non-SDK throwables map to kind "UnknownError"', () => {
         it.each([
             ['an Error', new Error('something weird'), 'something weird'],
             ['a string', 'plain string', 'plain string'],
             ['a number', 42, '42'],
             ['null', null, 'UnknownError'],
             ['undefined', undefined, 'UnknownError'],
-        ])('should wrap %s as an ApplicationError', (_label, thrown, expectedError) => {
-            expect(toErrorAnalytics(thrown)).toEqual({ kind: 'ApplicationError', error: expectedError });
+        ])('should classify %s as UnknownError', (_label, thrown, expectedError) => {
+            expect(toErrorAnalytics(thrown)).toEqual({ kind: 'UnknownError', error: expectedError });
         });
 
         it('should default the message to "Unknown error" when the value cannot be stringified', () => {
-            expect(toErrorAnalytics(Object.create(null))).toEqual({ kind: 'ApplicationError', error: 'Unknown error' });
-        });
-
-        it('should pass an explicit ApplicationError straight through', () => {
-            expect(toErrorAnalytics(new ApplicationError('explicit'))).toEqual({
-                kind: 'ApplicationError',
-                error: 'explicit',
-            });
+            expect(toErrorAnalytics(Object.create(null))).toEqual({ kind: 'UnknownError', error: 'Unknown error' });
         });
     });
 
@@ -64,7 +57,7 @@ describe('toErrorAnalytics', () => {
             const payloads = [
                 toErrorAnalytics(new HttpError(500, JSON.stringify({ kind: 'X' }), { url: '/x', method: 'GET' })),
                 toErrorAnalytics(new ValidationError('bad', 'secretFieldName')),
-                toErrorAnalytics(new ApplicationError('boom', { token: 'SECRET' })),
+                toErrorAnalytics(new BaseError('boom', 'X', { token: 'SECRET' })),
                 toErrorAnalytics(new Error('boom')),
             ];
             for (const payload of payloads) {
@@ -76,7 +69,7 @@ describe('toErrorAnalytics', () => {
 
         it('should never leak the original cause or a ValidationError key', () => {
             expect(toErrorAnalytics(new ValidationError('bad', 'fieldName'))).not.toHaveProperty('key');
-            expect(toErrorAnalytics(new ApplicationError('boom', { secret: 1 }))).not.toHaveProperty('originalError');
+            expect(toErrorAnalytics(new BaseError('boom', 'X', { secret: 1 }))).not.toHaveProperty('originalError');
         });
     });
 });
