@@ -25,3 +25,7 @@ export class BaseError extends Error {
         };
     }
 }
+
+export function isDIDError(error: unknown): error is BaseError {
+    return error instanceof Error && typeof (error as { kind?: unknown }).kind === 'string';
+}

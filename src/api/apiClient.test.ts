@@ -2,7 +2,7 @@ import { Auth } from '@sdk/types/auth';
 
 jest.mock('../config/environment', () => ({ didApiUrl: 'http://test-api.com' }));
 
-import { BaseError, HttpError } from '../errors';
+import { HttpError, NetworkError, isDIDError } from '../errors';
 import { toErrorAnalytics } from '../utils/error-analytics';
 import { createClient } from './apiClient';
 
@@ -93,7 +93,7 @@ describe('createClient', () => {
         const client = createClient(auth, 'https://api.example.com', onError);
 
         const rejection = await client.get('/agents/x').catch(e => e);
-        expect(rejection).toBeInstanceOf(BaseError);
+        expect(rejection).toBeInstanceOf(NetworkError);
         expect(rejection.kind).toBe('NetworkError');
         expect(rejection.originalError).toBe(networkError);
 
@@ -135,7 +135,7 @@ describe('createClient', () => {
         fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
         const client = createClient(auth, 'https://api.example.com');
         const rejection = await client.get('/agents/x').catch(e => e);
-        expect(rejection).toBeInstanceOf(BaseError);
+        expect(rejection).toBeInstanceOf(NetworkError);
         expect(rejection.kind).toBe('NetworkError');
     });
 
@@ -165,6 +165,34 @@ describe('createClient', () => {
                 error: 'Network request failed',
                 cause: 'Failed to fetch',
             });
+        });
+    });
+
+    // The typed contract consumers (agents-ui, agents-ui-2) branch on: a stable `kind`,
+    // an HTTP `status`, and a dedicated NetworkError for transport failures — read via
+    // isDIDError(e) + e.kind, NOT JSON.parse(error.message) or `instanceof TypeError`.
+    describe('typed error contract for consumers', () => {
+        it('should expose an HTTP error with the server kind, status, and a human message', async () => {
+            const body = JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' });
+            fetchSpy.mockResolvedValue(fakeResponse({ status: 402, bodyText: body }));
+            const client = createClient(auth, 'https://api.example.com');
+
+            const error = await client.get('/agents/x').catch(e => e);
+            expect(isDIDError(error)).toBe(true);
+            expect(error).toBeInstanceOf(HttpError);
+            expect(error.kind).toBe('InsufficientCreditsError');
+            expect(error.status).toBe(402);
+            expect(error.message).toBe('no credits');
+        });
+
+        it('should expose a transport failure as a NetworkError', async () => {
+            fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+            const client = createClient(auth, 'https://api.example.com');
+
+            const error = await client.get('/agents/x').catch(e => e);
+            expect(isDIDError(error)).toBe(true);
+            expect(error).toBeInstanceOf(NetworkError);
+            expect(error.kind).toBe('NetworkError');
         });
     });
 });

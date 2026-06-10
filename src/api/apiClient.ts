@@ -1,4 +1,4 @@
-import { BaseError, HttpError } from '@sdk/errors';
+import { HttpError, NetworkError } from '@sdk/errors';
 import { Auth } from '@sdk/types/auth';
 import { retryOperation } from '@sdk/utils/retry-operation';
 import { getAuthHeader } from '../auth/get-auth-header';
@@ -44,7 +44,7 @@ export function createClient(
                 throw networkError;
             }
 
-            const error = new BaseError('Network request failed', 'NetworkError', networkError);
+            const error = new NetworkError(networkError);
             if (!skipErrorHandler) {
                 onError?.(error, { url, options: fetchOptions });
             }
