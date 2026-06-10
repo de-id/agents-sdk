@@ -1,5 +1,6 @@
 import { createStreamApi } from '@sdk/api/streams';
 import { didApiUrl } from '@sdk/config/environment';
+import { StreamError } from '@sdk/errors';
 import {
     AgentActivityState,
     ConnectionState,
@@ -327,7 +328,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     function sendDataChannelMessage(payload: string) {
         if (!isConnected || pcDataChannel.readyState !== 'open') {
             log('Data channel is not ready for sending messages');
-            callbacks.onError?.(new Error('Data channel is not ready for sending messages'), {
+            callbacks.onError?.(new StreamError('Data channel is not ready for sending messages'), {
                 streamId: streamIdFromServer,
             });
             return;

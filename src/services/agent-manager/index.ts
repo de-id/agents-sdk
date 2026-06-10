@@ -17,7 +17,7 @@ import {
 import { rotateConnectionId } from '@sdk/auth/get-auth-header';
 import { CONNECTION_RETRY_TIMEOUT_MS, MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
-import { ChatCreationFailed, ValidationError } from '@sdk/errors';
+import { ChatCreationFailed, HttpError, ValidationError } from '@sdk/errors';
 import { getRandom } from '@sdk/utils';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
@@ -217,8 +217,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 timeoutErrorMessage: 'Timeout initializing the stream',
                 shouldRetryFn: (error: any) =>
                     error?.message !== 'Could not connect' &&
-                    error.status !== 429 &&
-                    error?.message !== 'InsufficientCreditsError',
+                    !(
+                        error instanceof HttpError &&
+                        (error.status === 429 || error.kind === 'InsufficientCreditsError')
+                    ),
                 delayMs: 1000,
             }
         ).catch(e => {
@@ -506,9 +508,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const message = items.messages.find(message => message.id === messageId);
 
             if (!items.chat) {
-                throw new Error('Chat is not initialized');
+                throw new ValidationError('Chat is not initialized');
             } else if (!message) {
-                throw new Error('Message not found');
+                throw new ValidationError('Message not found');
             }
 
             const matches: [string, string][] = message.matches?.map(match => [match.document_id, match.id]) ?? [];
@@ -539,7 +541,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         deleteRate(id: string) {
             if (!items.chat) {
-                throw new Error('Chat is not initialized');
+                throw new ValidationError('Chat is not initialized');
             }
 
             analytics.track('agent-rate-delete', { type: 'text' });
@@ -550,7 +552,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
                     if (!agentEntity.presenter.voice) {
-                        throw new Error('Presenter voice is not initialized');
+                        throw new ValidationError('Presenter voice is not initialized');
                     }
 
                     return {
@@ -563,7 +565,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 if (payload.type === 'text' && !payload.provider) {
                     if (!agentEntity.presenter.voice) {
-                        throw new Error('Presenter voice is not initialized');
+                        throw new ValidationError('Presenter voice is not initialized');
                     }
 
                     return {
@@ -604,7 +606,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
 
             if (!items.streamingManager) {
-                throw new Error('Please connect to the agent first');
+                throw new ValidationError('Please connect to the agent first');
             }
 
             return items.streamingManager.speak({
