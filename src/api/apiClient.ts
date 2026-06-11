@@ -1,3 +1,4 @@
+import { HttpError, NetworkError } from '@sdk/errors';
 import { Auth } from '@sdk/types/auth';
 import { retryOperation } from '@sdk/utils/retry-operation';
 import { getAuthHeader } from '../auth/get-auth-header';
@@ -37,23 +38,25 @@ export function createClient(
                 })
             );
         } catch (networkError) {
-            // Network-level rejection — TypeError ("Failed to fetch"), DNS failure, offline,
-            // CORS preflight failure, etc. The HTTP-error branch below is unreachable in this
-            // case, so route the error through onError here so consumers learn about it.
-            // AbortError is excluded — those are intentional cancellations, not failures.
+            // no response reached us (offline / DNS / refused / TLS / CORS); AbortError is a cancellation
             const isAbort = (networkError as { name?: string })?.name === 'AbortError';
-            if (!isAbort && onError && !skipErrorHandler) {
-                onError(networkError as Error, { url, options: fetchOptions });
+            if (isAbort) {
+                throw networkError;
             }
-            throw networkError;
+
+            const error = new NetworkError(networkError);
+            if (!skipErrorHandler) {
+                onError?.(error, { url, options: fetchOptions });
+            }
+            throw error;
         }
 
         if (!request.ok) {
-            let errorText: any = await request.text().catch(() => `Failed to fetch with status ${request.status}`);
-            const error = new Error(errorText);
+            const errorText = await request.text().catch(() => `Failed to fetch with status ${request.status}`);
+            const error = new HttpError(request.status, errorText, { url, method: fetchOptions.method ?? 'GET' });
 
-            if (onError && !skipErrorHandler) {
-                onError(error, { url, options: fetchOptions, headers: request.headers });
+            if (!skipErrorHandler) {
+                onError?.(error, { url, options: fetchOptions, headers: request.headers });
             }
 
             throw error;
