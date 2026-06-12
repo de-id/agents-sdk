@@ -164,6 +164,8 @@ describe('createClient', () => {
                 kind: 'NetworkError',
                 message: 'Network request failed',
                 cause: 'Failed to fetch',
+                endpoint: '/agents/x',
+                method: 'GET',
             });
         });
     });

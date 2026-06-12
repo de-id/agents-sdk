@@ -1,5 +1,13 @@
 import { ChatMode } from '@sdk/types';
-import { BaseError, ChatCreationFailed, ChatModeDowngraded, HttpError, ValidationError, WsError } from './index';
+import {
+    BaseError,
+    ChatCreationFailed,
+    ChatModeDowngraded,
+    HttpError,
+    NetworkError,
+    ValidationError,
+    WsError,
+} from './index';
 
 describe('SDK errors', () => {
     // The key invariant under an ES5 target: every error must remain catchable by type.
@@ -8,6 +16,7 @@ describe('SDK errors', () => {
             { name: 'BaseError', error: new BaseError('boom'), kind: 'Error' },
             { name: 'BaseError(custom)', error: new BaseError('boom', 'CustomKind'), kind: 'CustomKind' },
             { name: 'HttpError', error: new HttpError(500, 'boom'), kind: 'HttpError' },
+            { name: 'NetworkError', error: new NetworkError(new TypeError('Failed to fetch')), kind: 'NetworkError' },
             { name: 'ValidationError', error: new ValidationError('bad'), kind: 'ValidationError' },
             { name: 'WsError', error: new WsError('socket'), kind: 'WSError' },
             {
@@ -107,6 +116,29 @@ describe('SDK errors', () => {
                 kind: 'HttpError',
                 message: 'boom',
                 httpStatus: 500,
+            });
+        });
+    });
+
+    describe('NetworkError', () => {
+        it('should record the failing call (endpoint + method) and the underlying cause', () => {
+            const err = new NetworkError(new TypeError('Failed to fetch'), { url: '/agents/x/chat', method: 'POST' });
+
+            expect(err.kind).toBe('NetworkError');
+            expect(err.toJson()).toEqual({
+                kind: 'NetworkError',
+                message: 'Network request failed',
+                cause: 'Failed to fetch',
+                endpoint: '/agents/x/chat',
+                method: 'POST',
+            });
+        });
+
+        it('should omit endpoint/method when the call context is absent', () => {
+            expect(new NetworkError(new TypeError('Failed to fetch')).toJson()).toEqual({
+                kind: 'NetworkError',
+                message: 'Network request failed',
+                cause: 'Failed to fetch',
             });
         });
     });
