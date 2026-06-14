@@ -155,18 +155,22 @@ describe('createClient', () => {
             });
         });
 
-        it('should produce a NetworkError payload with the browser cause when fetch rejects', async () => {
+        it('should produce a NetworkError payload with the browser cause + captured signals when fetch rejects', async () => {
             fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
             const client = createClient(auth, 'https://api.example.com');
 
             const rejection = await client.get('/agents/x').catch(e => e);
-            expect(toErrorAnalytics(rejection)).toEqual({
+            const payload = toErrorAnalytics(rejection);
+            expect(payload).toMatchObject({
                 kind: 'NetworkError',
                 message: 'Network request failed',
                 cause: 'Failed to fetch',
                 endpoint: '/agents/x',
                 method: 'GET',
+                online: true, // jsdom default
+                visibility: 'visible', // jsdom default
             });
+            expect(payload.durationMs).toEqual(expect.any(Number));
         });
     });
 

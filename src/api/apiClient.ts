@@ -24,6 +24,8 @@ export function createClient(
 ) {
     const client = async <T>(url: string, options?: RequestOptions) => {
         const { skipErrorHandler, ...fetchOptions } = options || {};
+        const method = fetchOptions.method ?? 'GET';
+        const start = performance.now();
 
         let request: Response;
         try {
@@ -44,7 +46,13 @@ export function createClient(
                 throw networkError;
             }
 
-            const error = new NetworkError(networkError, { url, method: fetchOptions.method ?? 'GET' });
+            const error = new NetworkError(networkError, {
+                url,
+                method,
+                durationMs: Math.round(performance.now() - start),
+                online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
+                visibility: typeof document !== 'undefined' ? document.visibilityState : undefined,
+            });
             if (!skipErrorHandler) {
                 onError?.(error, { url, options: fetchOptions });
             }
@@ -53,7 +61,7 @@ export function createClient(
 
         if (!request.ok) {
             const errorText = await request.text().catch(() => `Failed to fetch with status ${request.status}`);
-            const error = new HttpError(request.status, errorText, { url, method: fetchOptions.method ?? 'GET' });
+            const error = new HttpError(request.status, errorText, { url, method });
 
             if (!skipErrorHandler) {
                 onError?.(error, { url, options: fetchOptions, headers: request.headers });
