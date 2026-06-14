@@ -134,11 +134,31 @@ describe('SDK errors', () => {
             });
         });
 
-        it('should omit endpoint/method when the call context is absent', () => {
+        it('should omit endpoint/method/signals when the call context is absent', () => {
             expect(new NetworkError(new TypeError('Failed to fetch')).toJson()).toEqual({
                 kind: 'NetworkError',
                 message: 'Network request failed',
                 cause: 'Failed to fetch',
+            });
+        });
+
+        it('should serialize the captured context signals', () => {
+            const err = new NetworkError(new TypeError('Load failed'), {
+                url: '/streams',
+                method: 'POST',
+                durationMs: 1234,
+                online: false,
+                visibility: 'hidden',
+            });
+            expect(err.toJson()).toEqual({
+                kind: 'NetworkError',
+                message: 'Network request failed',
+                cause: 'Load failed',
+                endpoint: '/streams',
+                method: 'POST',
+                durationMs: 1234,
+                online: false,
+                visibility: 'hidden',
             });
         });
     });
