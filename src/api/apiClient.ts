@@ -44,7 +44,7 @@ export function createClient(
                 throw networkError;
             }
 
-            const error = new NetworkError(networkError);
+            const error = new NetworkError(networkError, { url, method: fetchOptions.method ?? 'GET' });
             if (!skipErrorHandler) {
                 onError?.(error, { url, options: fetchOptions });
             }
