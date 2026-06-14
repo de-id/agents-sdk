@@ -75,12 +75,6 @@ jobs:
           yarn install --frozen-lockfile \
             || logger -l error -m "Failed to install dependencies"
 
-      - name: Build package
-        run: |
-          logger -l info -m "Building package"
-          yarn build \
-            || logger -l error -m "Failed to build package"
-
       - name: Determine version and tag
         id: version
         run: |
@@ -132,6 +126,13 @@ jobs:
 
           mv package.json.tmp package.json
           logger -l info -m "Updated package.json version to: ${{ steps.version.outputs.version }}"
+
+      # Build AFTER the version bump so SDK_VERSION baked into the bundle matches the published package.json.
+      - name: Build package
+        run: |
+          logger -l info -m "Building package"
+          yarn build \
+            || logger -l error -m "Failed to build package"
 
       - name: Publish to NPM
         env:
