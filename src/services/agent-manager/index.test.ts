@@ -1,3 +1,4 @@
+import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
 import { createAgentsApi } from '../../api/agents';
 import {
     AgentFactory,
@@ -48,7 +49,10 @@ jest.mock('../../config/environment', () => ({
     didSocketApiUrl: 'wss://api.d-id.com',
     mixpanelKey: 'test-mixpanel-key',
 }));
-jest.mock('../../config/consts', () => ({ CONNECTION_RETRY_TIMEOUT_MS: 5000 }));
+jest.mock('../../config/consts', () => ({
+    ...jest.requireActual('../../config/consts'),
+    CONNECTION_RETRY_TIMEOUT_MS: 5000,
+}));
 
 describe('createAgentManager', () => {
     let mockAgent: Agent;
@@ -323,8 +327,10 @@ describe('createAgentManager', () => {
             });
 
             it('should validate chat request - message too long', async () => {
-                const longMessage = 'a'.repeat(801);
-                await expect(manager.chat(longMessage)).rejects.toThrow('Message cannot be more than 800 characters');
+                const longMessage = 'a'.repeat(MAX_CHAT_MESSAGE_LENGTH + 1);
+                await expect(manager.chat(longMessage)).rejects.toThrow(
+                    `Message cannot be more than ${MAX_CHAT_MESSAGE_LENGTH} characters`
+                );
             });
 
             it('should validate chat request - maintenance mode', async () => {
@@ -382,7 +388,7 @@ describe('createAgentManager', () => {
                 await expect(manager.chat('Hello')).rejects.toThrow('API Error');
                 expect(mockAnalytics.track).toHaveBeenCalledWith(
                     'agent-message-send',
-                    expect.objectContaining({ event: 'error', error: 'API Error' })
+                    expect.objectContaining({ event: 'error', error: { kind: 'UnknownError', message: 'API Error' } })
                 );
             });
 
