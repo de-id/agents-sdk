@@ -1,9 +1,11 @@
-import { AnalyticsRTCStatsReport, SlimRTCStatsReport } from '@sdk/types';
+import { AnalyticsRTCStatsReport, AvSyncReport, SlimRTCStatsReport } from '@sdk/types';
 import { average } from '@sdk/utils/analytics';
+import { buildAvSyncReport } from './av-sync';
 
 export interface VideoRTCStatsReport {
     webRTCStats: {
         anomalies: AnalyticsRTCStatsReport[];
+        avSync: AvSyncReport | null;
         aggregateReport: AnalyticsRTCStatsReport;
         minRtt: number;
         maxRtt: number;
@@ -78,6 +80,9 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
     let codec = '';
     let currRtt: number = 0;
     let videoInboundRtp: RTCInboundRtpStreamStats | null = null;
+    let audioInboundRtp: any = null;
+    let remoteOutboundAudio: any = null;
+    let remoteOutboundVideo: any = null;
     const codecIdToMime = new Map<string, string>();
 
     // RTCStatsReport iteration order is not guaranteed across browsers.
@@ -102,6 +107,12 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
             }
         } else if (report.type === 'inbound-rtp' && report.kind === 'video') {
             videoInboundRtp = report as RTCInboundRtpStreamStats;
+        } else if (report.type === 'inbound-rtp' && (report as any).kind === 'audio') {
+            audioInboundRtp = report;
+        } else if (report.type === 'remote-outbound-rtp' && (report as any).kind === 'audio') {
+            remoteOutboundAudio = report;
+        } else if (report.type === 'remote-outbound-rtp' && (report as any).kind === 'video') {
+            remoteOutboundVideo = report;
         }
     }
 
@@ -119,7 +130,7 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
         codec = codecIdToMime.values().next().value ?? '';
     }
 
-    return {
+    const slim = {
         codec,
         rtt: currRtt,
         timestamp: inbound.timestamp,
@@ -138,6 +149,32 @@ export function formatStats(stats: RTCStatsReport): SlimRTCStatsReport {
         freezeCount: inbound.freezeCount,
         freezeDuration: inbound.totalFreezesDuration,
     } as SlimRTCStatsReport;
+
+    if (audioInboundRtp) {
+        const audio = audioInboundRtp as any;
+        const video = inbound as any;
+        slim.av = {
+            audioPlayout: audio.estimatedPlayoutTimestamp ?? 0,
+            videoPlayout: video.estimatedPlayoutTimestamp ?? 0,
+            audioJbDelay: audio.jitterBufferDelay ?? 0,
+            audioJbCount: audio.jitterBufferEmittedCount ?? 0,
+            audioJbTarget: audio.jitterBufferTargetDelay ?? 0,
+            audioJbMin: audio.jitterBufferMinimumDelay ?? 0,
+            audioAccel: audio.removedSamplesForAcceleration ?? 0,
+            audioDecel: audio.insertedSamplesForDeceleration ?? 0,
+            audioConcealed: audio.concealedSamples ?? 0,
+            audioPacketsLost: audio.packetsLost ?? 0,
+            audioPacketsReceived: audio.packetsReceived ?? 0,
+            audioJitter: audio.jitter ?? 0,
+            videoJbDelay: video.jitterBufferDelay ?? 0,
+            videoJbCount: video.jitterBufferEmittedCount ?? 0,
+            srAudioRemoteTs: remoteOutboundAudio?.remoteTimestamp ?? 0,
+            srVideoRemoteTs: remoteOutboundVideo?.remoteTimestamp ?? 0,
+            localTs: video.timestamp,
+        };
+    }
+
+    return slim;
 }
 
 export function createVideoStatsReport(
@@ -224,6 +261,7 @@ export function createVideoStatsReport(
     return {
         webRTCStats: {
             anomalies: anomalies,
+            avSync: buildAvSyncReport(stats),
             minRtt: Math.min(...avgRttSamples),
             avgRtt: average(avgRttSamples),
             maxRtt: Math.max(...avgRttSamples),

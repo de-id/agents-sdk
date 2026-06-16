@@ -162,6 +162,55 @@ export interface SlimRTCStatsReport {
     framesPerSecond: any;
     freezeCount: number;
     freezeDuration: number;
+    av?: AvSyncSample;
+}
+
+export interface AvSyncSample {
+    audioPlayout: number;
+    videoPlayout: number;
+    audioJbDelay: number;
+    audioJbCount: number;
+    audioJbTarget: number;
+    audioJbMin: number;
+    audioAccel: number;
+    audioDecel: number;
+    audioConcealed: number;
+    audioPacketsLost: number;
+    audioPacketsReceived: number;
+    audioJitter: number;
+    videoJbDelay: number;
+    videoJbCount: number;
+    srAudioRemoteTs: number;
+    srVideoRemoteTs: number;
+    localTs: number;
+}
+
+export interface AvSyncAnomaly {
+    type: string;
+    severity: 'low' | 'medium' | 'high';
+    detail: string;
+}
+
+export interface AvSyncReport {
+    sampleCount: number;
+    durationMs: number;
+    offsetMedianMs: number;
+    offsetP95Ms: number;
+    residualOffsetMs: number;
+    maxAbsDriftMs: number;
+    startOffsetMs: number;
+    timeToSyncMs: number | null;
+    audioLeadPct: number;
+    syncSlackMs: number;
+    jbGapMs: number;
+    audioRetimeMs: number;
+    srClockRatioAudio: number | null;
+    srClockRatioVideo: number | null;
+    srSkewMs: number | null;
+    concealMs: number;
+    audioLossPct: number;
+    audioJitterMs: number;
+    anomalies: AvSyncAnomaly[];
 }
 
 export interface AnalyticsRTCStatsReport {
