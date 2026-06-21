@@ -1,5 +1,6 @@
 import { getExternalId } from '@sdk/auth/get-auth-header';
 import { getRandom } from '@sdk/utils';
+import { SDK_VERSION } from '@sdk/version';
 
 export interface AnalyticsOptions {
     token: string;
@@ -77,6 +78,8 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
                                 ...sendProps,
                                 agentId: this.agentId,
                                 source,
+                                emittedBy: 'agents-sdk',
+                                sdkVersion: SDK_VERSION,
                                 token: this.token,
                                 time: eventTime,
                                 $insert_id: this.getRandom(),

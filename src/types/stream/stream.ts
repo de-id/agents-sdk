@@ -162,6 +162,29 @@ export interface SlimRTCStatsReport {
     framesPerSecond: any;
     freezeCount: number;
     freezeDuration: number;
+    av?: AvSyncSample;
+}
+
+export interface AvSyncSample {
+    /** Audio estimatedPlayoutTimestamp (ms, NTP) — playout time of the audio sample currently being rendered. */
+    audioPlayout: number;
+    /** Video estimatedPlayoutTimestamp (ms, NTP) — playout time of the video frame currently being rendered. */
+    videoPlayout: number;
+    /** Local timestamp of this sample (ms) — the video inbound-rtp report timestamp; the utterance time axis. */
+    localTs: number;
+}
+
+export interface AvSyncReport {
+    /** Measurable samples in this utterance (both audio and video playout present). Report is null if fewer than 2. */
+    sampleCount: number;
+    /** Measurement window in milliseconds (first to last sample). */
+    durationMs: number;
+    /** How long the A/V offset was perceptibly off (audio ahead > 45ms or behind > 100ms) — the "was there a lip-sync issue, and for how long" signal. */
+    desyncDurationMs: number;
+    /** The single worst offset (largest magnitude), signed. Positive = audio ahead of video, negative = video ahead. */
+    maxOffsetMs: number;
+    /** Settled offset after startup (signed median over the back half). ~0 = recovered; non-zero = persistent lip-sync error. */
+    residualOffsetMs: number;
 }
 
 export interface AnalyticsRTCStatsReport {
