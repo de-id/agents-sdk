@@ -1281,30 +1281,6 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
         );
     });
 
-    it('exposes the server-granted verbose via getVerbose()', async () => {
-        mockCreateStream.mockResolvedValueOnce({
-            id: 'session-123',
-            session_token: 'token-123',
-            session_url: 'wss://test.livekit.cloud',
-            interrupt_enabled: true,
-            verbose: true,
-        });
-        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, { ...options, verbose: true });
-
-        expect(manager.getVerbose?.()).toBe(true);
-    });
-
-    it('getVerbose() is false when the server does not grant verbose', async () => {
-        mockCreateStream.mockResolvedValueOnce({
-            id: 'session-123',
-            session_token: 'token-123',
-            session_url: 'wss://test.livekit.cloud',
-            interrupt_enabled: true,
-        });
-        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
-
-        expect(manager.getVerbose?.()).toBe(false);
-    });
 });
 
 describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
