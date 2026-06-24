@@ -131,19 +131,22 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let token: string | undefined;
     let url: string | undefined;
     let interruptEnabled = true;
+    let grantedVerbose = false;
 
     try {
         const streamResponse = await streamApi.createStream({
             transport: sessionOptions.transport,
             chat_persist: sessionOptions.chat_persist ?? true,
+            verbose: options.verbose ?? false,
         });
 
-        const { id, session_token, session_url, interrupt_enabled } = streamResponse;
+        const { id, session_token, session_url, interrupt_enabled, verbose } = streamResponse;
         callbacks.onStreamCreated?.({ session_id: id, stream_id: id, agent_id: agentId });
         sessionId = id;
         token = session_token;
         url = session_url;
         interruptEnabled = interrupt_enabled ?? true;
+        grantedVerbose = verbose ?? false;
 
         await room.prepareConnection(url, token);
     } catch (error) {
@@ -783,6 +786,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         streamType,
         interruptAvailable: interruptEnabled,
         isInterruptible: currentInterruptible,
+        getVerbose: () => grantedVerbose,
     };
 }
 
