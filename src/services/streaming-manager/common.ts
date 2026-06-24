@@ -97,6 +97,12 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     isInterruptible: boolean;
 
     /**
+     * Returns the server-granted verbose flag for this session.
+     * supported only for livekit manager
+     */
+    getVerbose?(): boolean;
+
+    /**
      * Send an interrupt for the current stream segment.
      * Each implementation owns the validation/transport details (e.g. V1
      * sends a `stream/interrupt` payload over the data channel; V2 sends

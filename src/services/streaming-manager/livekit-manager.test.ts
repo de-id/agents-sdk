@@ -1291,7 +1291,7 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
         });
         const manager = await createLiveKitStreamingManager(agentId, sessionOptions, { ...options, verbose: true });
 
-        expect(manager.getVerbose()).toBe(true);
+        expect(manager.getVerbose?.()).toBe(true);
     });
 
     it('getVerbose() is false when the server does not grant verbose', async () => {
@@ -1303,7 +1303,7 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
         });
         const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
-        expect(manager.getVerbose()).toBe(false);
+        expect(manager.getVerbose?.()).toBe(false);
     });
 });
 
