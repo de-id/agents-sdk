@@ -1268,19 +1268,14 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
         const optionsWithVerbose = { ...options, verbose: true };
         await createLiveKitStreamingManager(agentId, sessionOptions, optionsWithVerbose);
 
-        expect(mockCreateStream).toHaveBeenCalledWith(
-            expect.objectContaining({ verbose: true })
-        );
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ verbose: true }));
     });
 
     it('defaults verbose to false in the createStream request', async () => {
         await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
-        expect(mockCreateStream).toHaveBeenCalledWith(
-            expect.objectContaining({ verbose: false })
-        );
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ verbose: false }));
     });
-
 });
 
 describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
