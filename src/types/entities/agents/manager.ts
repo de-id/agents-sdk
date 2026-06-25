@@ -164,6 +164,7 @@ export interface AgentManagerOptions {
     baseURL?: string;
     wsURL?: string;
     debug?: boolean;
+    verbose?: boolean;
     enableAnalitics?: boolean;
     mixpanelKey?: string;
     mixpanelAdditionalProperties?: Record<string, any>;

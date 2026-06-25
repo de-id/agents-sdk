@@ -131,6 +131,7 @@ export interface StreamingManagerOptions {
     callbacks: ManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
+    verbose?: boolean;
     auth: Auth;
     analytics: Analytics;
     /**
