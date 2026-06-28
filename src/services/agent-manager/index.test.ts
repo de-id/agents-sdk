@@ -207,6 +207,7 @@ describe('createAgentManager', () => {
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-chat', {
                     event: 'reconnect',
                     mode: ChatMode.Functional,
+                    success: true,
                 });
 
                 // Verify that the streaming manager and socket manager have disconnect methods
@@ -222,10 +223,10 @@ describe('createAgentManager', () => {
                 mockStreamingManager.disconnect.mockRejectedValueOnce(new Error('Disconnect failed'));
 
                 await expect(manager.reconnect()).rejects.toThrow('Disconnect failed');
-                expect(mockAnalytics.track).not.toHaveBeenCalledWith('agent-chat', {
-                    event: 'reconnect',
-                    mode: ChatMode.Functional,
-                });
+                expect(mockAnalytics.track).not.toHaveBeenCalledWith(
+                    'agent-chat',
+                    expect.objectContaining({ event: 'reconnect' })
+                );
             });
 
             it('should handle reconnect failure during connect', async () => {
@@ -236,10 +237,10 @@ describe('createAgentManager', () => {
                 (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connect failed'));
 
                 await expect(manager.reconnect()).rejects.toThrow('Connect failed');
-                expect(mockAnalytics.track).not.toHaveBeenCalledWith('agent-chat', {
-                    event: 'reconnect',
-                    mode: ChatMode.Functional,
-                });
+                expect(mockAnalytics.track).not.toHaveBeenCalledWith(
+                    'agent-chat',
+                    expect.objectContaining({ event: 'reconnect' })
+                );
             });
         });
 
