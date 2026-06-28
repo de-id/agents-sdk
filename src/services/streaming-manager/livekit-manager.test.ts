@@ -1235,6 +1235,49 @@ describe('LiveKit Streaming Manager - Disconnect Behavior', () => {
     });
 });
 
+describe('LiveKit Streaming Manager - Verbose Mode', () => {
+    let agentId: string;
+    let sessionOptions: CreateSessionV2Options;
+    let options: StreamingManagerOptions;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRoom.connect.mockResolvedValue(undefined);
+        mockRoom.prepareConnection.mockResolvedValue(undefined);
+        mockRoom.disconnect.mockResolvedValue(undefined);
+        mockRoom.on.mockReturnThis();
+        mockLocalParticipant.audioTrackPublications = new Map();
+        mockLocalParticipant.videoTrackPublications = new Map();
+        agentId = TEST_AGENT_ID;
+        sessionOptions = {
+            chat_persist: true,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
+        };
+        options = StreamingManagerOptionsFactory.build();
+        mockCreateStream.mockResolvedValue({
+            id: 'session-123',
+            session_token: 'token-123',
+            session_url: 'wss://test.livekit.cloud',
+            interrupt_enabled: true,
+        });
+    });
+
+    it('sends verbose in the createStream request when options.verbose is true', async () => {
+        const optionsWithVerbose = { ...options, verbose: true };
+        await createLiveKitStreamingManager(agentId, sessionOptions, optionsWithVerbose);
+
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ verbose: true }));
+    });
+
+    it('defaults verbose to false in the createStream request', async () => {
+        await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ verbose: false }));
+    });
+});
+
 describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
     let agentId: string;
     let sessionOptions: CreateSessionV2Options;
