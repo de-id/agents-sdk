@@ -303,7 +303,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         const newState = mapConnectionState(peerConnection.iceConnectionState);
 
         if (newState !== ConnectionState.Connected) {
-            callbacks.onConnectionStateChange?.(newState);
+            callbacks.onConnectionStateChange?.(newState, `webrtc:ice-${peerConnection.iceConnectionState}`);
         }
     };
 
