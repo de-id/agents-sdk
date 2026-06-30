@@ -18,7 +18,11 @@ export function getExternalId(externalId?: string): string {
     return key;
 }
 
-// Trailing segment of the Client-Key auth header, shared by WS and HTTP. Rotated by rotateConnectionId().
+// Per-connection routing id, shared by WS and HTTP. Rotated by rotateConnectionId().
+// Carried in every auth header so the notifications WS adapter routes messages
+// per-connection instead of collapsing clients that share a bearer/basic credential.
+// Client-Key appends it after the external_id (`_<id>`); bearer/basic append it after
+// a `~` delimiter, which the authorizer strips before validating the token.
 let connectionId = getRandom();
 
 export function rotateConnectionId() {
@@ -27,9 +31,10 @@ export function rotateConnectionId() {
 
 export function getAuthHeader(auth: Auth, externalId?: string) {
     if (auth.type === 'bearer') {
-        return `Bearer ${auth.token}`;
+        return `Bearer ${auth.token}~${connectionId}`;
     } else if (auth.type === 'basic') {
-        return `Basic ${'token' in auth ? auth.token : btoa(`${auth.username}:${auth.password}`)}`;
+        const credentials = 'token' in auth ? auth.token : btoa(`${auth.username}:${auth.password}`);
+        return `Basic ${credentials}~${connectionId}`;
     } else if (auth.type === 'key') {
         return `Client-Key ${auth.clientKey}.${getExternalId(externalId)}_${connectionId}`;
     } else {
