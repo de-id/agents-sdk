@@ -15,6 +15,7 @@ export interface CreateSessionV2Options {
         };
     };
     chat_persist?: boolean;
+    verbose?: boolean;
 }
 
 export interface CreateSessionV2Response {

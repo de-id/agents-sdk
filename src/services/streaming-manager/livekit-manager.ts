@@ -136,6 +136,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         const streamResponse = await streamApi.createStream({
             transport: sessionOptions.transport,
             chat_persist: sessionOptions.chat_persist ?? true,
+            verbose: options.verbose ?? false,
         });
 
         const { id, session_token, session_url, interrupt_enabled } = streamResponse;
