@@ -7,6 +7,7 @@ export interface CreateSessionV2Options {
         provider: TransportProvider.Livekit;
     };
     chat_persist?: boolean;
+    verbose?: boolean;
 }
 
 export interface CreateSessionV2Response {

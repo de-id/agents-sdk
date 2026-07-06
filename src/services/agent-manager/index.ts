@@ -109,6 +109,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const updateVideoId = (newVideoId: string | null) => {
         videoId = newVideoId;
+        analytics.enrich({ videoId: newVideoId });
     };
 
     const interrupt = ({ type }: Interrupt) => {
@@ -293,27 +294,26 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async reconnect() {
             const streamingManager = items.streamingManager as { reconnect?: () => Promise<void> } | undefined;
+            let fallbackReason: string | undefined;
+
             if (isStreamsV2 && streamingManager?.reconnect) {
                 try {
                     await streamingManager.reconnect();
-
-                    analytics.track('agent-chat', {
-                        event: 'reconnect',
-                        mode: items.chatMode,
-                    });
                 } catch (error) {
+                    fallbackReason = toErrorAnalytics(error).kind;
                     await disconnect();
                     await connect(false);
                 }
-                return;
+            } else {
+                await disconnect();
+                await connect(false);
             }
-
-            await disconnect();
-            await connect(false);
 
             analytics.track('agent-chat', {
                 event: 'reconnect',
                 mode: items.chatMode,
+                success: true,
+                ...(fallbackReason && { fallbackReason }),
             });
         },
         async disconnect() {
@@ -547,6 +547,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-rate-delete', { type: 'text' });
 
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
+        },
+        submitFeedback(rating: number, answer?: string) {
+            if (!items.chat) {
+                throw new ValidationError('Chat is not initialized');
+            }
+
+            analytics.track('agent-feedback', { rating, hasAnswer: !!answer });
+
+            return agentsApi.submitFeedback(agentEntity.id, items.chat.id, { rating, answer });
         },
         async speak(payload: string | SupportedStreamScript) {
             function getScript(): StreamScript {

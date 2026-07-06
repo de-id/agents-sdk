@@ -77,42 +77,67 @@ describe('getAuthHeader', () => {
     });
 
     describe('Bearer token auth', () => {
-        it('should return Bearer token header', () => {
+        beforeEach(() => {
+            mockGetRandom.mockReturnValue('mocked-random-id');
+            rotateConnectionId();
+        });
+
+        it('appends the connectionId so the authorizer can route the websocket per-connection', () => {
             const auth: Auth = { type: 'bearer', token: 'test-token-123' };
             const result = getAuthHeader(auth);
 
-            expect(result).toBe('Bearer test-token-123');
+            expect(result).toBe('Bearer test-token-123~mocked-random-id');
         });
 
-        it('should ignore externalId for bearer auth', () => {
+        it('appends the connectionId regardless of externalId for bearer auth', () => {
             const auth: Auth = { type: 'bearer', token: 'test-token-123' };
             const result = getAuthHeader(auth, 'user-123');
 
-            expect(result).toBe('Bearer test-token-123');
+            expect(result).toBe('Bearer test-token-123~mocked-random-id');
+        });
+
+        it('rotates the bearer connectionId on rotateConnectionId()', () => {
+            const auth: Auth = { type: 'bearer', token: 'tok' };
+
+            mockGetRandom.mockReturnValueOnce('session-A');
+            rotateConnectionId();
+            const first = getAuthHeader(auth);
+
+            mockGetRandom.mockReturnValueOnce('session-B');
+            rotateConnectionId();
+            const second = getAuthHeader(auth);
+
+            expect(first).toBe('Bearer tok~session-A');
+            expect(second).toBe('Bearer tok~session-B');
         });
     });
 
     describe('Basic auth', () => {
-        it('should return Basic auth header with base64 encoded credentials', () => {
+        beforeEach(() => {
+            mockGetRandom.mockReturnValue('mocked-random-id');
+            rotateConnectionId();
+        });
+
+        it('appends the connectionId to the base64 encoded credentials', () => {
             const auth: Auth = { type: 'basic', username: 'user', password: 'pass' };
             const result = getAuthHeader(auth);
 
-            expect(result).toBe('Basic ' + btoa('user:pass'));
+            expect(result).toBe('Basic ' + btoa('user:pass') + '~mocked-random-id');
         });
 
-        it('should ignore externalId for basic auth', () => {
+        it('appends the connectionId regardless of externalId for basic auth', () => {
             const auth: Auth = { type: 'basic', username: 'user', password: 'pass' };
             const result = getAuthHeader(auth, 'user-123');
 
-            expect(result).toBe('Basic ' + btoa('user:pass'));
+            expect(result).toBe('Basic ' + btoa('user:pass') + '~mocked-random-id');
         });
 
-        it('should return pre-encoded token without double-encoding', () => {
+        it('appends the connectionId to a pre-encoded token without double-encoding the credentials', () => {
             const preEncodedToken = btoa('user:pass');
             const auth: Auth = { type: 'basic', token: preEncodedToken };
             const result = getAuthHeader(auth);
 
-            expect(result).toBe(`Basic ${preEncodedToken}`);
+            expect(result).toBe(`Basic ${preEncodedToken}~mocked-random-id`);
         });
     });
 

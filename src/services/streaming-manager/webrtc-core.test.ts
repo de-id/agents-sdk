@@ -94,7 +94,10 @@ describe('Streaming Manager Core', () => {
             const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
             mockPC.iceConnectionState = 'disconnected';
             mockPC.oniceconnectionstatechange();
-            expect(options.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Disconnected);
+            expect(options.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                ConnectionState.Disconnected,
+                'webrtc:ice-disconnected'
+            );
         });
 
         it('should add ICE candidates', async () => {

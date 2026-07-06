@@ -207,6 +207,7 @@ describe('createAgentManager', () => {
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-chat', {
                     event: 'reconnect',
                     mode: ChatMode.Functional,
+                    success: true,
                 });
 
                 // Verify that the streaming manager and socket manager have disconnect methods
@@ -222,10 +223,10 @@ describe('createAgentManager', () => {
                 mockStreamingManager.disconnect.mockRejectedValueOnce(new Error('Disconnect failed'));
 
                 await expect(manager.reconnect()).rejects.toThrow('Disconnect failed');
-                expect(mockAnalytics.track).not.toHaveBeenCalledWith('agent-chat', {
-                    event: 'reconnect',
-                    mode: ChatMode.Functional,
-                });
+                expect(mockAnalytics.track).not.toHaveBeenCalledWith(
+                    'agent-chat',
+                    expect.objectContaining({ event: 'reconnect' })
+                );
             });
 
             it('should handle reconnect failure during connect', async () => {
@@ -236,10 +237,10 @@ describe('createAgentManager', () => {
                 (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connect failed'));
 
                 await expect(manager.reconnect()).rejects.toThrow('Connect failed');
-                expect(mockAnalytics.track).not.toHaveBeenCalledWith('agent-chat', {
-                    event: 'reconnect',
-                    mode: ChatMode.Functional,
-                });
+                expect(mockAnalytics.track).not.toHaveBeenCalledWith(
+                    'agent-chat',
+                    expect.objectContaining({ event: 'reconnect' })
+                );
             });
         });
 
@@ -682,6 +683,37 @@ describe('createAgentManager', () => {
                 await newManager.connect();
 
                 expect(() => newManager.deleteRate('rating-123')).toThrow('Chat is not initialized');
+            });
+        });
+
+        describe('submitFeedback', () => {
+            beforeEach(async () => {
+                await manager.connect();
+            });
+
+            it('should submit feedback successfully', async () => {
+                await manager.submitFeedback(4, 'nice');
+
+                expect(mockAgentsApi.submitFeedback).toHaveBeenCalledWith('agent-123', 'chat-123', {
+                    rating: 4,
+                    answer: 'nice',
+                });
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-feedback', {
+                    rating: 4,
+                    hasAnswer: true,
+                });
+            });
+
+            it('should throw error if chat not initialized when submitting feedback', async () => {
+                (initializeStreamAndChat as jest.Mock).mockResolvedValue({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+
+                const newManager = await createAgentManager('agent-123', mockOptions);
+                await newManager.connect();
+
+                expect(() => newManager.submitFeedback(4)).toThrow('Chat is not initialized');
             });
         });
 
