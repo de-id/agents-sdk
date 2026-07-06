@@ -18,6 +18,7 @@ import {
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
+import { getUserContextAttributes } from '@sdk/utils/user-context';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { toErrorAnalytics } from '../../utils/error-analytics';
@@ -174,9 +175,24 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             }
         }
     }
+    async function setUserContextAttributes(): Promise<void> {
+        const attributes = getUserContextAttributes();
+        if (!room || Object.keys(attributes).length === 0) {
+            return;
+        }
+        try {
+            await room.localParticipant.setAttributes(attributes);
+            log('User context attributes set', attributes);
+        } catch (error) {
+            log('Failed to set user context attributes', error);
+        }
+    }
+
     try {
         await room.connect(url, token);
         log('LiveKit room joined successfully');
+
+        void setUserContextAttributes();
 
         trackSubscriptionTimeoutId = setTimeout(() => {
             log(
