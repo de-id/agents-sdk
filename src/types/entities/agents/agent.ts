@@ -36,6 +36,17 @@ export interface Vision {
     enabled: boolean;
 }
 
+export interface EndOfCallFeedbackConfig {
+    enabled: boolean;
+    closing_message?: string;
+    follow_up_enabled?: boolean;
+    follow_up_messages?: {
+        low?: string;
+        four?: string;
+        five?: string;
+    };
+}
+
 export interface Agent {
     id: string;
     username?: string;
@@ -57,6 +68,7 @@ export interface Agent {
     preview_url?: string;
     owner_id?: string;
     status?: AgentStatus;
+    end_of_call_feedback?: EndOfCallFeedbackConfig;
 }
 
 export type AgentPayload = Omit<

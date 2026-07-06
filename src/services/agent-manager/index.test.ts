@@ -686,6 +686,37 @@ describe('createAgentManager', () => {
             });
         });
 
+        describe('submitFeedback', () => {
+            beforeEach(async () => {
+                await manager.connect();
+            });
+
+            it('should submit feedback successfully', async () => {
+                await manager.submitFeedback(4, 'nice');
+
+                expect(mockAgentsApi.submitFeedback).toHaveBeenCalledWith('agent-123', 'chat-123', {
+                    rating: 4,
+                    answer: 'nice',
+                });
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-feedback', {
+                    rating: 4,
+                    hasAnswer: true,
+                });
+            });
+
+            it('should throw error if chat not initialized when submitting feedback', async () => {
+                (initializeStreamAndChat as jest.Mock).mockResolvedValue({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+
+                const newManager = await createAgentManager('agent-123', mockOptions);
+                await newManager.connect();
+
+                expect(() => newManager.submitFeedback(4)).toThrow('Chat is not initialized');
+            });
+        });
+
         describe('changeMode', () => {
             it('should change mode successfully', async () => {
                 await manager.changeMode(ChatMode.TextOnly);
