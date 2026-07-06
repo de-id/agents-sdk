@@ -14,7 +14,7 @@ import {
 import { SupportedStreamScript } from '@sdk/types/stream-script';
 import type { ManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
 import { Agent } from './agent';
-import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity } from './chat';
+import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity, SubmitFeedbackResponse } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -264,6 +264,12 @@ export interface AgentManager {
      * @param id - id of Rating entity.
      */
     deleteRate: (id: string) => Promise<RatingEntity>;
+    /**
+     * Method to submit end-of-call feedback for the chat
+     * @param rating - integer score from 1 to 5
+     * @param answer - optional free-text answer
+     */
+    submitFeedback: (rating: number, answer?: string) => Promise<SubmitFeedbackResponse>;
     /**
      * Method to make your agent read the text you provide or reproduce sound
      * @param payload
