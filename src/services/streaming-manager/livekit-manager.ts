@@ -182,7 +182,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
         try {
             await room.localParticipant.setAttributes(attributes);
-            log('User context attributes set', attributes);
         } catch (error) {
             log('Failed to set user context attributes', error);
         }
