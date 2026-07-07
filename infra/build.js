@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { program } from 'commander';
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
 
 function asyncExec(command) {
     return new Promise((resolve, reject) => {
@@ -27,7 +27,7 @@ try {
     console.log(`Building ${mode}`);
     await asyncExec(`yarn vite build --mode ${mode}`);
 
-    console.log(`Succesful build ${mode}`)
+    console.log(`Succesful build ${mode}`);
 } catch (e) {
     console.error(e);
 }

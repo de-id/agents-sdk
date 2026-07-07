@@ -8,6 +8,7 @@ import {
     RatingEntity,
     RatingPayload,
     STTTokenResponse,
+    SubmitFeedbackResponse,
 } from '@sdk/types/index';
 import { didApiUrl } from '../config/environment';
 import { RequestOptions, createClient } from './apiClient';
@@ -56,6 +57,14 @@ export function createAgentsApi(
         },
         deleteRating(agentId: string, chatId: string, ratingId: string, options?: RequestOptions) {
             return client.delete<RatingEntity>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, options);
+        },
+        submitFeedback(
+            agentId: string,
+            chatId: string,
+            payload: { rating: number; answer?: string },
+            options?: RequestOptions
+        ) {
+            return client.post<SubmitFeedbackResponse>(`/${agentId}/chat/${chatId}/feedback`, payload, options);
         },
         getSTTToken(agentId: string, options?: RequestOptions) {
             return client.get<STTTokenResponse>(`/${agentId}/stt-token`, options);

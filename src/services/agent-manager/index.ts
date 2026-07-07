@@ -15,9 +15,9 @@ import {
 } from '../../types';
 
 import { rotateConnectionId } from '@sdk/auth/get-auth-header';
-import { CONNECTION_RETRY_TIMEOUT_MS } from '@sdk/config/consts';
+import { CONNECTION_RETRY_TIMEOUT_MS, MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
-import { ChatCreationFailed, ValidationError } from '@sdk/errors';
+import { ChatCreationFailed, HttpError, ValidationError } from '@sdk/errors';
 import { getRandom } from '@sdk/utils';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
@@ -25,6 +25,7 @@ import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { defer } from '../../utils/defer';
+import { toErrorAnalytics } from '../../utils/error-analytics';
 import { retryOperation } from '../../utils/retry-operation';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { interruptTimestampTracker, latencyTimestampTracker } from '../analytics/timestamp-tracker';
@@ -81,6 +82,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.track('agent-sdk', { event: 'init' }, initTimestamp);
     });
 
+    const originalOnError = options.callbacks.onError;
+    options.callbacks.onError = (error: Error, errorData?: object) => {
+        analytics.track('agent-error', { error: toErrorAnalytics(error) });
+        originalOnError?.(error, errorData);
+    };
+
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
 
     const agentEntity = await agentsApi.getById(agent);
@@ -102,6 +109,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const updateVideoId = (newVideoId: string | null) => {
         videoId = newVideoId;
+        analytics.enrich({ videoId: newVideoId });
     };
 
     const interrupt = ({ type }: Interrupt) => {
@@ -210,8 +218,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 timeoutErrorMessage: 'Timeout initializing the stream',
                 shouldRetryFn: (error: any) =>
                     error?.message !== 'Could not connect' &&
-                    error.status !== 429 &&
-                    error?.message !== 'InsufficientCreditsError',
+                    !(
+                        error instanceof HttpError &&
+                        (error.status === 429 || error.kind === 'InsufficientCreditsError')
+                    ),
                 delayMs: 1000,
             }
         ).catch(e => {
@@ -284,27 +294,26 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async reconnect() {
             const streamingManager = items.streamingManager as { reconnect?: () => Promise<void> } | undefined;
+            let fallbackReason: string | undefined;
+
             if (isStreamsV2 && streamingManager?.reconnect) {
                 try {
                     await streamingManager.reconnect();
-
-                    analytics.track('agent-chat', {
-                        event: 'reconnect',
-                        mode: items.chatMode,
-                    });
                 } catch (error) {
+                    fallbackReason = toErrorAnalytics(error).kind;
                     await disconnect();
                     await connect(false);
                 }
-                return;
+            } else {
+                await disconnect();
+                await connect(false);
             }
-
-            await disconnect();
-            await connect(false);
 
             analytics.track('agent-chat', {
                 event: 'reconnect',
                 mode: items.chatMode,
+                success: true,
+                ...(fallbackReason && { fallbackReason }),
             });
         },
         async disconnect() {
@@ -349,8 +358,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const validateChatRequest = () => {
                 if (isChatModeWithoutChat(mode)) {
                     throw new ValidationError(`${mode} is enabled, chat is disabled`);
-                } else if (userMessage.length >= 800) {
-                    throw new ValidationError('Message cannot be more than 800 characters');
+                } else if (userMessage.length >= MAX_CHAT_MESSAGE_LENGTH) {
+                    throw new ValidationError(`Message cannot be more than ${MAX_CHAT_MESSAGE_LENGTH} characters`);
                 } else if (userMessage.length === 0) {
                     throw new ValidationError('Message cannot be empty');
                 } else if (items.chatMode === ChatMode.Maintenance) {
@@ -489,6 +498,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 analytics.track('agent-message-send', {
                     event: 'error',
                     messages: items.messages.length,
+                    error: toErrorAnalytics(e),
                 });
 
                 throw e;
@@ -498,9 +508,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             const message = items.messages.find(message => message.id === messageId);
 
             if (!items.chat) {
-                throw new Error('Chat is not initialized');
+                throw new ValidationError('Chat is not initialized');
             } else if (!message) {
-                throw new Error('Message not found');
+                throw new ValidationError('Message not found');
             }
 
             const matches: [string, string][] = message.matches?.map(match => [match.document_id, match.id]) ?? [];
@@ -531,18 +541,27 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         deleteRate(id: string) {
             if (!items.chat) {
-                throw new Error('Chat is not initialized');
+                throw new ValidationError('Chat is not initialized');
             }
 
             analytics.track('agent-rate-delete', { type: 'text' });
 
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
+        submitFeedback(rating: number, answer?: string) {
+            if (!items.chat) {
+                throw new ValidationError('Chat is not initialized');
+            }
+
+            analytics.track('agent-feedback', { rating, hasAnswer: !!answer });
+
+            return agentsApi.submitFeedback(agentEntity.id, items.chat.id, { rating, answer });
+        },
         async speak(payload: string | SupportedStreamScript) {
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
                     if (!agentEntity.presenter.voice) {
-                        throw new Error('Presenter voice is not initialized');
+                        throw new ValidationError('Presenter voice is not initialized');
                     }
 
                     return {
@@ -555,7 +574,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 if (payload.type === 'text' && !payload.provider) {
                     if (!agentEntity.presenter.voice) {
-                        throw new Error('Presenter voice is not initialized');
+                        throw new ValidationError('Presenter voice is not initialized');
                     }
 
                     return {
@@ -597,7 +616,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
 
             if (!items.streamingManager) {
-                throw new Error('Please connect to the agent first');
+                throw new ValidationError('Please connect to the agent first');
             }
 
             return items.streamingManager.speak({

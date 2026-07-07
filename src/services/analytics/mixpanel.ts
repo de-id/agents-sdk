@@ -1,5 +1,6 @@
 import { getExternalId } from '@sdk/auth/get-auth-header';
 import { getRandom } from '@sdk/utils';
+import { SDK_VERSION } from '@sdk/version';
 
 export interface AnalyticsOptions {
     token: string;
@@ -36,6 +37,59 @@ interface MixpanelEvents {
 
 const mixpanelUrl = 'https://api-js.mixpanel.com/track/?verbose=1&ip=1';
 
+// Re-send analytics that failed to POST (e.g. a network drop) once connectivity returns.
+const MAX_QUEUE = 50;
+const failedQueue: Array<Record<string, any>> = [];
+let flushInFlight = false;
+
+async function postEvents(events: Array<Record<string, any>>): Promise<void> {
+    const response = await fetch(mixpanelUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ data: JSON.stringify(events) }),
+    });
+    if (!response.ok) {
+        throw new Error(`Mixpanel responded with ${response.status}`);
+    }
+}
+
+function enqueueFailed(event: Record<string, any>): void {
+    failedQueue.push(event);
+    failedQueue.splice(MAX_QUEUE);
+}
+
+function flushQueue(): void {
+    if (flushInFlight || !failedQueue.length) {
+        return;
+    }
+    flushInFlight = true;
+    const batch = failedQueue.splice(0, failedQueue.length);
+    postEvents(batch)
+        .catch(() => {
+            failedQueue.unshift(...batch);
+            failedQueue.splice(MAX_QUEUE);
+        })
+        .finally(() => {
+            flushInFlight = false;
+        });
+}
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('online', flushQueue);
+    if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                flushQueue();
+            }
+        });
+    }
+}
+
+export function _resetOfflineBufferForTests(): void {
+    failedQueue.length = 0;
+    flushInFlight = false;
+}
+
 export function initializeAnalytics(config: AnalyticsOptions): Analytics {
     const source = window?.hasOwnProperty('DID_AGENTS_API') ? 'agents-ui' : 'agents-sdk';
     const mixpanelEvents: MixpanelEvents = {};
@@ -63,34 +117,27 @@ export function initializeAnalytics(config: AnalyticsOptions): Analytics {
 
             const eventTime = eventTimestamp || Date.now();
 
-            const options = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
+            const eventData = {
+                event,
+                properties: {
+                    ...this.additionalProperties,
+                    ...sendProps,
+                    agentId: this.agentId,
+                    source,
+                    emittedBy: 'agents-sdk',
+                    sdkVersion: SDK_VERSION,
+                    token: this.token,
+                    time: eventTime,
+                    $insert_id: this.getRandom(),
+                    origin: window.location.href,
+                    'Screen Height': window.screen.height || window.innerHeight,
+                    'Screen Width': window.screen.width || window.innerWidth,
+                    'User Agent': navigator.userAgent,
                 },
-                body: new URLSearchParams({
-                    data: JSON.stringify([
-                        {
-                            event,
-                            properties: {
-                                ...this.additionalProperties,
-                                ...sendProps,
-                                agentId: this.agentId,
-                                source,
-                                token: this.token,
-                                time: eventTime,
-                                $insert_id: this.getRandom(),
-                                origin: window.location.href,
-                                'Screen Height': window.screen.height || window.innerWidth,
-                                'Screen Width': window.screen.width || window.innerHeight,
-                                'User Agent': navigator.userAgent,
-                            },
-                        },
-                    ]),
-                }),
             };
 
-            fetch(mixpanelUrl, options).catch(err => console.error('Analytics tracking error:', err));
+            flushQueue();
+            postEvents([eventData]).catch(() => enqueueFailed(eventData));
 
             return Promise.resolve();
         },

@@ -1,3 +1,4 @@
+import { StreamError } from '@sdk/errors';
 import { Agent, AgentManagerOptions, ChatProgress, StreamEvents } from '@sdk/types';
 import { Message } from '@sdk/types/entities/agents/chat';
 import { getStreamAnalyticsProps } from '@sdk/utils/analytics';
@@ -228,7 +229,7 @@ export function createMessageEventQueue(
                 }
 
                 if (failedEvents.includes(event)) {
-                    options.callbacks.onError?.(new Error(`Stream failed with event ${event}`), { data });
+                    options.callbacks.onError?.(new StreamError(`Stream failed with event ${event}`), { data });
                 }
 
                 if (data.event === SEvent.StreamDone) {

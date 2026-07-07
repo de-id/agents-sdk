@@ -1,3 +1,4 @@
+import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
 import { createAgentsApi } from '../../api/agents';
 import {
     AgentFactory,
@@ -34,6 +35,7 @@ jest.mock('../../utils/chat', () => ({
 jest.mock('../../utils/analytics', () => ({
     getAgentInfo: jest.fn(() => ({ agentType: 'talk' })),
     getAnalyticsInfo: jest.fn(() => ({ agentType: 'talk' })),
+    getErrorMessage: jest.requireActual('../../utils/analytics').getErrorMessage,
 }));
 jest.mock('../../utils/defer', () => ({
     defer: jest.fn(fn => fn()),
@@ -47,7 +49,10 @@ jest.mock('../../config/environment', () => ({
     didSocketApiUrl: 'wss://api.d-id.com',
     mixpanelKey: 'test-mixpanel-key',
 }));
-jest.mock('../../config/consts', () => ({ CONNECTION_RETRY_TIMEOUT_MS: 5000 }));
+jest.mock('../../config/consts', () => ({
+    ...jest.requireActual('../../config/consts'),
+    CONNECTION_RETRY_TIMEOUT_MS: 5000,
+}));
 
 describe('createAgentManager', () => {
     let mockAgent: Agent;
@@ -202,6 +207,7 @@ describe('createAgentManager', () => {
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-chat', {
                     event: 'reconnect',
                     mode: ChatMode.Functional,
+                    success: true,
                 });
 
                 // Verify that the streaming manager and socket manager have disconnect methods
@@ -217,10 +223,10 @@ describe('createAgentManager', () => {
                 mockStreamingManager.disconnect.mockRejectedValueOnce(new Error('Disconnect failed'));
 
                 await expect(manager.reconnect()).rejects.toThrow('Disconnect failed');
-                expect(mockAnalytics.track).not.toHaveBeenCalledWith('agent-chat', {
-                    event: 'reconnect',
-                    mode: ChatMode.Functional,
-                });
+                expect(mockAnalytics.track).not.toHaveBeenCalledWith(
+                    'agent-chat',
+                    expect.objectContaining({ event: 'reconnect' })
+                );
             });
 
             it('should handle reconnect failure during connect', async () => {
@@ -231,10 +237,10 @@ describe('createAgentManager', () => {
                 (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connect failed'));
 
                 await expect(manager.reconnect()).rejects.toThrow('Connect failed');
-                expect(mockAnalytics.track).not.toHaveBeenCalledWith('agent-chat', {
-                    event: 'reconnect',
-                    mode: ChatMode.Functional,
-                });
+                expect(mockAnalytics.track).not.toHaveBeenCalledWith(
+                    'agent-chat',
+                    expect.objectContaining({ event: 'reconnect' })
+                );
             });
         });
 
@@ -322,8 +328,10 @@ describe('createAgentManager', () => {
             });
 
             it('should validate chat request - message too long', async () => {
-                const longMessage = 'a'.repeat(801);
-                await expect(manager.chat(longMessage)).rejects.toThrow('Message cannot be more than 800 characters');
+                const longMessage = 'a'.repeat(MAX_CHAT_MESSAGE_LENGTH + 1);
+                await expect(manager.chat(longMessage)).rejects.toThrow(
+                    `Message cannot be more than ${MAX_CHAT_MESSAGE_LENGTH} characters`
+                );
             });
 
             it('should validate chat request - maintenance mode', async () => {
@@ -379,10 +387,10 @@ describe('createAgentManager', () => {
                 mockAgentsApi.chat.mockRejectedValueOnce(apiError);
 
                 await expect(manager.chat('Hello')).rejects.toThrow('API Error');
-                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-message-send', {
-                    event: 'error',
-                    messages: expect.any(Number),
-                });
+                expect(mockAnalytics.track).toHaveBeenCalledWith(
+                    'agent-message-send',
+                    expect.objectContaining({ event: 'error', error: { kind: 'UnknownError', message: 'API Error' } })
+                );
             });
 
             it('should handle retry logic for invalid session', async () => {
@@ -713,6 +721,37 @@ describe('createAgentManager', () => {
                 await newManager.connect();
 
                 expect(() => newManager.deleteRate('rating-123')).toThrow('Chat is not initialized');
+            });
+        });
+
+        describe('submitFeedback', () => {
+            beforeEach(async () => {
+                await manager.connect();
+            });
+
+            it('should submit feedback successfully', async () => {
+                await manager.submitFeedback(4, 'nice');
+
+                expect(mockAgentsApi.submitFeedback).toHaveBeenCalledWith('agent-123', 'chat-123', {
+                    rating: 4,
+                    answer: 'nice',
+                });
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-feedback', {
+                    rating: 4,
+                    hasAnswer: true,
+                });
+            });
+
+            it('should throw error if chat not initialized when submitting feedback', async () => {
+                (initializeStreamAndChat as jest.Mock).mockResolvedValue({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+
+                const newManager = await createAgentManager('agent-123', mockOptions);
+                await newManager.connect();
+
+                expect(() => newManager.submitFeedback(4)).toThrow('Chat is not initialized');
             });
         });
 

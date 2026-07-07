@@ -24,6 +24,13 @@ export type RatingPayload = Omit<
     'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id' | 'agent_id' | 'chat_id'
 >;
 
+export interface SubmitFeedbackResponse {
+    chat_id: string;
+    rating: number;
+    question_shown?: string;
+    submitted_at: string;
+}
+
 export type MessagePart =
     | { type: 'text'; text: string }
     | { type: 'image'; src: string; alt: string; mimeType?: string }

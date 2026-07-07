@@ -9,4 +9,5 @@ export const AgentsApiFactory = new Factory().attrs({
     createRating: () => jest.fn().mockResolvedValue({ id: 'rating-123' }),
     updateRating: () => jest.fn().mockResolvedValue({ id: 'rating-123' }),
     deleteRating: () => jest.fn().mockResolvedValue(undefined),
+    submitFeedback: () => jest.fn().mockResolvedValue({ chat_id: 'chat-123', rating: 4, submitted_at: 'now' }),
 });
