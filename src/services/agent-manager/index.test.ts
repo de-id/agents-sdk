@@ -441,6 +441,44 @@ describe('createAgentManager', () => {
                 });
             });
 
+            it('should preserve should_queue_speaks in the speak script', async () => {
+                const script = {
+                    type: 'text' as const,
+                    input: 'Hello world',
+                    ssml: false,
+                    should_queue_speaks: true,
+                };
+
+                await manager.speak(script);
+
+                expect(mockStreamingManager.speak).toHaveBeenCalledWith({
+                    script: {
+                        type: 'text',
+                        provider: mockAgent.presenter.voice,
+                        input: 'Hello world',
+                        ssml: false,
+                        should_queue_speaks: true,
+                    },
+                    metadata: { chat_id: 'chat-123', agent_id: 'agent-123' },
+                });
+            });
+
+            it('should preserve should_queue_speaks when the script has a provider', async () => {
+                const script = {
+                    type: 'text' as const,
+                    provider: mockAgent.presenter.voice,
+                    input: 'Hello world',
+                    should_queue_speaks: true,
+                };
+
+                await manager.speak(script);
+
+                expect(mockStreamingManager.speak).toHaveBeenCalledWith({
+                    script,
+                    metadata: { chat_id: 'chat-123', agent_id: 'agent-123' },
+                });
+            });
+
             it('should trigger onNewMessage callback when speak is called with text', async () => {
                 const textInput = 'Hello from speak method';
                 const mockCallback = mockOptions.callbacks.onNewMessage as jest.Mock;
