@@ -18,6 +18,7 @@ import {
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
+import { getUserContextAttributes } from '@sdk/utils/user-context';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
 import { didApiUrl } from '../../config/environment';
 import { toErrorAnalytics } from '../../utils/error-analytics';
@@ -124,6 +125,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
+    const pendingToolCalls = new Set<string>();
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
@@ -175,9 +177,23 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             }
         }
     }
+    async function setUserContextAttributes(): Promise<void> {
+        const attributes = getUserContextAttributes();
+        if (!room || Object.keys(attributes).length === 0) {
+            return;
+        }
+        try {
+            await room.localParticipant.setAttributes(attributes);
+        } catch (error) {
+            log('Failed to set user context attributes', error);
+        }
+    }
+
     try {
         await room.connect(url, token);
         log('LiveKit room joined successfully');
+
+        void setUserContextAttributes();
 
         trackSubscriptionTimeoutId = setTimeout(() => {
             log(
@@ -359,9 +375,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     /**
      * ToolActive state transitions:
-     * - tool-call/started -> sets ToolActive
-     * - stream-video/done with interruptible: true -> sets Idle
-     * - stream-video/done with interruptible: false -> stays ToolActive (more tools coming)
+     * - tool-call/started -> ToolActive
+     * - stream-video/created -> Talking, then back to ToolActive on stream-video/done
+     *   while any tool call is still pending (e.g. a client tool waiting for user input)
+     * - last tool-call/done|error -> Idle
      */
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
@@ -372,6 +389,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // Future fix: track interruptible per toolId and derive the aggregate state.
             currentInterruptible = payload.interruptible !== false;
             callbacks.onInterruptibleChange?.(currentInterruptible);
+            pendingToolCalls.add(payload.call_id);
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
             callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
@@ -379,12 +397,24 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         if (subject === StreamEvents.ToolCallDone) {
-            callbacks.onToolEvent?.(StreamEvents.ToolCallDone, data as ToolCallDonePayload);
+            const payload = data as ToolCallDonePayload;
+            resolvePendingToolCall(payload.call_id);
+            callbacks.onToolEvent?.(StreamEvents.ToolCallDone, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallError) {
-            callbacks.onToolEvent?.(StreamEvents.ToolCallError, data as ToolCallErrorPayload);
+            const payload = data as ToolCallErrorPayload;
+            resolvePendingToolCall(payload.call_id);
+            callbacks.onToolEvent?.(StreamEvents.ToolCallError, payload);
+        }
+    }
+
+    function resolvePendingToolCall(callId: string): void {
+        pendingToolCalls.delete(callId);
+        if (pendingToolCalls.size === 0 && currentActivityState === AgentActivityState.ToolActive) {
+            currentActivityState = AgentActivityState.Idle;
+            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         }
     }
 
@@ -399,6 +429,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 sttLatency: data?.stt?.latency,
                 serviceLatency: data?.serviceLatency,
             });
+            return;
+        }
+
+        if (pendingToolCalls.size > 0) {
+            if (currentActivityState !== AgentActivityState.ToolActive) {
+                currentActivityState = AgentActivityState.ToolActive;
+                callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
+            }
             return;
         }
 
@@ -690,6 +728,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         cleanMediaStream();
         isConnected = false;
         hasEmittedConnected = false;
+        pendingToolCalls.clear();
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         currentActivityState = AgentActivityState.Idle;
     }
