@@ -582,6 +582,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         provider: agentEntity.presenter.voice,
                         input: payload.input,
                         ssml: payload.ssml,
+                        should_queue_speaks: payload.should_queue_speaks,
                     };
                 }
 
