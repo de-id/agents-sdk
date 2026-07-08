@@ -31,6 +31,12 @@ export interface Stream_Text_Script extends BaseStreamScript {
      * @default false
      */
     ssml?: boolean;
+
+    /**
+     * Queue this speak behind the current speech instead of interrupting it.
+     * @default false
+     */
+    should_queue_speaks?: boolean;
 }
 
 export interface Stream_Audio_Script extends BaseStreamScript {
