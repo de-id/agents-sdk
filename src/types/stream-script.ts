@@ -37,6 +37,13 @@ export interface Stream_Text_Script extends BaseStreamScript {
      * @default false
      */
     should_queue_speaks?: boolean;
+
+    /**
+     * Sentiment name to speak with (expressive avatars only).
+     * If the sentiment is not supported by the agent, the default sentiment is used.
+     * @example "friendly"
+     */
+    sentiment?: string;
 }
 
 export interface Stream_Audio_Script extends BaseStreamScript {
