@@ -33,7 +33,7 @@ export interface Stream_Text_Script extends BaseStreamScript {
     ssml?: boolean;
 
     /**
-     * Queue this speak behind the current speech instead of interrupting it.
+     * Queue this speak behind the current speech instead of interrupting it (expressive avatars only).
      * @default false
      */
     should_queue_speaks?: boolean;
