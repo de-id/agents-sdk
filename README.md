@@ -115,13 +115,23 @@ The `agentManager` object created during initialization has several built-in met
     });
     ```
 
+    Text scripts also accept an optional `sentiment` (expressive avatars only). If the requested sentiment is not supported by the agent, the default sentiment is used.
+
+    ```javascript Text with sentiment - JavaScript
+    let speak = agentManager.speak({
+        type: 'text',
+        input: "Hi! I'm Alice!",
+        sentiment: 'friendly',
+    });
+    ```
+
     ```javascript Audio File - JavaScript
     let speak = agentManager.speak(
         {
           type: "audio",
-          audio_url: "http://www.yourwebsite.com/audio.mp3";
+          audio_url: "http://www.yourwebsite.com/audio.mp3"
         }
-    )
+    );
     ```
 
 - **`agentManager.chat(string)`**

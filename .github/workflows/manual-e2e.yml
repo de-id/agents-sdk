@@ -18,7 +18,7 @@ on:
 
 jobs:
   e2e-validation:
-    runs-on: ${{ github.event.inputs.ui_branch == 'prod' && 'ubuntu-latest' || 'aws-medium' }}
+    runs-on: ${{ github.event.inputs.ui_branch == 'prod' && 'ubuntu-latest' || 'azure-medium' }}
     timeout-minutes: 30
     environment:
       name: ${{ github.event.inputs.ui_branch == 'prod' && 'prod' || 'staging' }}
