@@ -356,8 +356,6 @@ describe('connect-to-manager', () => {
 
                 expect(mockAnalytics.track).toHaveBeenCalledWith('stream-session', {
                     event: 'stop',
-                    is_greenscreen: true,
-                    background: 'office',
                     'stream-type': StreamType.Fluent,
                     ...statsReport,
                 });
@@ -381,7 +379,7 @@ describe('connect-to-manager', () => {
 
                 expect(mockAnalytics.linkTrack).toHaveBeenCalledWith(
                     'agent-video',
-                    expect.objectContaining({ is_greenscreen: false, background: false }),
+                    expect.objectContaining({ event: 'stop', 'stream-type': StreamType.Legacy }),
                     'done',
                     [StreamEvents.StreamVideoDone]
                 );
@@ -412,8 +410,6 @@ describe('connect-to-manager', () => {
                     'agent-video',
                     expect.objectContaining({
                         event: 'stop',
-                        is_greenscreen: true,
-                        background: 'office',
                         'stream-type': StreamType.Legacy,
                     }),
                     'done',
@@ -679,7 +675,7 @@ describe('connect-to-manager', () => {
                     presenter_id: 'expressive-presenter-123',
                     voice: { type: Providers.Microsoft, voice_id: 'voice-123' },
                 },
-            };
+            } as Agent;
 
             const result = await initializeStreamAndChat(expressiveAgent, mockOptions, mockAgentsApi, mockAnalytics);
 

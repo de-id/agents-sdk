@@ -6,7 +6,6 @@ import {
     createStreamingManager,
 } from '@sdk/services/streaming-manager';
 import {
-    Agent,
     AgentActivityState,
     AgentManagerOptions,
     AgentsAPI,
@@ -17,6 +16,7 @@ import {
     ConnectionState,
     CreateSessionV2Options,
     CreateStreamOptions,
+    RuntimeAgent,
     StreamEvents,
     StreamType,
     StreamingState,
@@ -64,7 +64,7 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
     return { ...streamArgs, ...(endUserData && { end_user_data: endUserData }) };
 }
 
-function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
+function getAgentStreamOptions(agent: RuntimeAgent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
     return isStreamsV2Agent(agent.presenter.type)
         ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options() }
         : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
@@ -76,7 +76,7 @@ function trackConnectionStateChangeAnalytics(state: ConnectionState, reason: str
 
 function trackVideoStateChangeAnalytics(
     state: StreamingState,
-    agent: Agent,
+    agent: RuntimeAgent,
     statsReport: any,
     analytics: Analytics,
     streamType: StreamType
@@ -90,7 +90,7 @@ function trackVideoStateChangeAnalytics(
 
 function trackVideoStreamAnalytics(
     state: StreamingState,
-    agent: Agent,
+    agent: RuntimeAgent,
     statsReport: any,
     analytics: Analytics,
     streamType: StreamType
@@ -100,8 +100,6 @@ function trackVideoStreamAnalytics(
     } else if (state === StreamingState.Stop) {
         analytics.track('stream-session', {
             event: 'stop',
-            is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-            background: agent.presenter.type === 'clip' && agent.presenter.background,
             'stream-type': streamType,
             ...statsReport,
         });
@@ -110,7 +108,7 @@ function trackVideoStreamAnalytics(
 
 function trackAgentActivityAnalytics(
     state: StreamingState,
-    agent: Agent,
+    agent: RuntimeAgent,
     analytics: Analytics,
     streamType: StreamType,
     metrics?: AudioDetectionMetrics
@@ -124,8 +122,6 @@ function trackAgentActivityAnalytics(
             'agent-video',
             {
                 event: 'stop',
-                is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-                background: agent.presenter.type === 'clip' && agent.presenter.background,
                 'stream-type': streamType,
             },
             'done',
@@ -136,7 +132,7 @@ function trackAgentActivityAnalytics(
 
 function trackLegacyVideoAnalytics(
     state: StreamingState,
-    agent: Agent,
+    agent: RuntimeAgent,
     statsReport: any,
     analytics: Analytics,
     streamType: StreamType
@@ -153,8 +149,6 @@ function trackLegacyVideoAnalytics(
             'agent-video',
             {
                 event: 'stop',
-                is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-                background: agent.presenter.type === 'clip' && agent.presenter.background,
                 'stream-type': streamType,
                 ...statsReport,
             },
@@ -199,7 +193,7 @@ type ConnectToManagerOptions = AgentManagerOptions & {
 };
 
 function connectToManager(
-    agent: Agent,
+    agent: RuntimeAgent,
     options: ConnectToManagerOptions,
     analytics: Analytics,
     signal?: AbortSignal
@@ -309,7 +303,7 @@ function connectToManager(
 }
 
 export async function initializeStreamAndChat(
-    agent: Agent,
+    agent: RuntimeAgent,
     options: ConnectToManagerOptions,
     agentsApi: AgentsAPI,
     analytics: Analytics,

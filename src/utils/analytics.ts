@@ -1,7 +1,7 @@
-import { Agent } from '@sdk/types/index';
-import { getAgentType, getPresenterIdentifier, getPresenterType } from './agent';
+import { RuntimeAgent } from '@sdk/types/index';
+import { getAgentType, getPresenterType } from './agent';
 
-export function getAnalyticsInfo(agent: Agent) {
+export function getAnalyticsInfo(agent: RuntimeAgent) {
     const mobileOrDesktop = () => {
         return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
     };
@@ -27,35 +27,19 @@ export function getAnalyticsInfo(agent: Agent) {
         origin: window.location.origin,
         agentType: getAgentType(presenter),
         agentVoice: {
-            voiceId: agent.presenter?.voice?.voice_id,
-            provider: agent.presenter?.voice?.type,
+            language: agent.presenter?.voice?.language,
         },
     };
 }
 
-export function getAgentInfo(agent: Agent) {
-    const promptCustomization = agent.llm?.prompt_customization;
-
+export function getAgentInfo(agent: RuntimeAgent) {
     return {
         agentType: getAgentType(agent.presenter),
         presenterType: getPresenterType(agent.presenter),
-        presenter: getPresenterIdentifier(agent.presenter),
         owner_id: agent.owner_id ?? '',
-        promptVersion: agent.llm?.prompt_version,
-        behavior: {
-            role: promptCustomization?.role,
-            personality: promptCustomization?.personality,
-            instructions: agent.llm?.instructions,
-        },
-        temperature: agent.llm?.temperature,
-        knowledgeSource: promptCustomization?.knowledge_source,
-        starterQuestionsCount: agent.knowledge?.starter_message?.length,
-        topicsToAvoid: promptCustomization?.topics_to_avoid,
-        maxResponseLength: promptCustomization?.max_response_length,
+        starterQuestionsCount: agent.starter_message?.length,
         agentId: agent.id,
-        access: agent.access,
         agentName: agent.preview_name,
-        ...(agent.access === 'public' ? { from: 'agent-template' } : {}),
     };
 }
 export const getErrorMessage = (error: unknown): string => {
@@ -88,17 +72,14 @@ export const safe = <T>(fn: () => T, fallback: T): T => {
     }
 };
 
-export function getStreamAnalyticsProps(data: any, agent: Agent, additionalProps: Record<string, any>) {
+export function getStreamAnalyticsProps(data: any, agent: RuntimeAgent, additionalProps: Record<string, any>) {
     const { event, ...baseProps } = data;
 
-    const { template } = agent?.llm || {};
     const { language } = agent?.presenter?.voice || {};
 
     const props = {
         ...baseProps,
-        llm: { ...baseProps.llm, template },
         script: { ...baseProps.script, provider: { ...baseProps?.script?.provider, language } },
-        stitch: agent?.presenter.type === 'talk' ? agent?.presenter?.stitch : undefined,
         ...additionalProps,
     };
 

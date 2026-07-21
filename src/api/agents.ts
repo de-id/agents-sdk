@@ -7,6 +7,7 @@ import {
     ChatResponse,
     RatingEntity,
     RatingPayload,
+    RuntimeAgent,
     STTTokenResponse,
     SubmitFeedbackResponse,
 } from '@sdk/types/index';
@@ -30,6 +31,9 @@ export function createAgentsApi(
         },
         getById(id: string, options?: RequestOptions) {
             return client.get<Agent>(`/${id}`, options);
+        },
+        getRuntimeById(id: string, options?: RequestOptions) {
+            return client.get<RuntimeAgent>(`/${id}/runtime`, options);
         },
         delete(id: string, options?: RequestOptions) {
             return client.delete(`/${id}`, undefined, options);

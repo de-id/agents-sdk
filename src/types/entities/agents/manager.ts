@@ -13,8 +13,8 @@ import {
 } from '@sdk/types/stream';
 import { SupportedStreamScript } from '@sdk/types/stream-script';
 import type { ManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
-import { Agent } from './agent';
 import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity, SubmitFeedbackResponse } from './chat';
+import { RuntimeAgent } from './runtime-agent';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -191,7 +191,7 @@ export interface AgentManager {
      * Agent instance you are working with.
      * To know more about agents go to https://docs.d-id.com/reference/agents
      */
-    agent: Agent;
+    agent: RuntimeAgent;
     /**
      * Get the current stream type of the agent
      */

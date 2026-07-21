@@ -66,13 +66,13 @@ describe('createAgentManager', () => {
     beforeEach(() => {
         jest.clearAllMocks();
 
-        mockAgent = AgentFactory.build();
+        mockAgent = { ...AgentFactory.build(), starter_message: ['Hello!', 'How can I help?'] } as Agent;
         mockOptions = AgentManagerOptionsFactory.build();
         mockStreamingManager = StreamingManagerFactory.build({ streamType: StreamType.Legacy });
         mockChat = ChatFactory.build();
         mockSocketManager = SocketManagerFactory.build();
         mockAnalytics = AnalyticsFactory.build();
-        mockAgentsApi = AgentsApiFactory.build({ getById: jest.fn().mockResolvedValue(mockAgent) });
+        mockAgentsApi = AgentsApiFactory.build({ getRuntimeById: jest.fn().mockResolvedValue(mockAgent) });
 
         // Setup mocks
         (createAgentsApi as jest.Mock).mockReturnValue(mockAgentsApi);
@@ -100,7 +100,7 @@ describe('createAgentManager', () => {
                 mockOptions.callbacks.onError,
                 undefined
             );
-            expect(mockAgentsApi.getById).toHaveBeenCalledWith('agent-123');
+            expect(mockAgentsApi.getRuntimeById).toHaveBeenCalledWith('agent-123');
         });
 
         it('should initialize analytics correctly', async () => {
@@ -430,7 +430,7 @@ describe('createAgentManager', () => {
                 const result = await manager.speak('Hello world');
 
                 expect(mockStreamingManager.speak).toHaveBeenCalledWith({
-                    script: { type: 'text', provider: mockAgent.presenter.voice, input: 'Hello world', ssml: false },
+                    script: { type: 'text', input: 'Hello world', ssml: false },
                     metadata: { chat_id: 'chat-123', agent_id: 'agent-123' },
                 });
 
@@ -444,7 +444,7 @@ describe('createAgentManager', () => {
                 await manager.speak(script);
 
                 expect(mockStreamingManager.speak).toHaveBeenCalledWith({
-                    script: { type: 'text', provider: mockAgent.presenter.voice, input: 'Hello world', ssml: true },
+                    script: { type: 'text', input: 'Hello world', ssml: true },
                     metadata: { chat_id: 'chat-123', agent_id: 'agent-123' },
                 });
             });
@@ -462,7 +462,6 @@ describe('createAgentManager', () => {
                 expect(mockStreamingManager.speak).toHaveBeenCalledWith({
                     script: {
                         type: 'text',
-                        provider: mockAgent.presenter.voice,
                         input: 'Hello world',
                         ssml: false,
                         should_queue_speaks: true,
@@ -611,16 +610,6 @@ describe('createAgentManager', () => {
                 await manager.disconnect();
 
                 await expect(manager.speak('Hello')).rejects.toThrow('Please connect to the agent first');
-            });
-
-            it('should throw error if presenter voice is not initialized', async () => {
-                const agentWithoutVoice = { ...mockAgent, presenter: { type: 'talk' } };
-                mockAgentsApi.getById.mockResolvedValueOnce(agentWithoutVoice);
-
-                const managerWithoutVoice = await createAgentManager('agent-123', mockOptions);
-                await managerWithoutVoice.connect();
-
-                await expect(managerWithoutVoice.speak('Hello')).rejects.toThrow('Presenter voice is not initialized');
             });
         });
 
@@ -984,7 +973,7 @@ describe('createAgentManager', () => {
     describe('Error handling', () => {
         it('should handle agent fetch error', async () => {
             const error = new Error('Agent not found');
-            mockAgentsApi.getById.mockRejectedValueOnce(error);
+            mockAgentsApi.getRuntimeById.mockRejectedValueOnce(error);
 
             await expect(createAgentManager('invalid-agent', mockOptions)).rejects.toThrow('Agent not found');
         });

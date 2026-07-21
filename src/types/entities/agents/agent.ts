@@ -2,6 +2,7 @@ import { Chat, ChatPayload, ChatResponse } from './chat';
 import { Knowledge } from './knowledge';
 import { LLM } from './llm';
 import { Presenter } from './presenter';
+import { RuntimeAgent } from './runtime-agent';
 
 // @deprecated - only for backwards compatibility
 export enum UserPlan {
@@ -80,6 +81,7 @@ export interface AgentsAPI {
     create(payload: AgentPayload, options?: RequestInit): Promise<Agent>;
     getAgents(tag?: string, options?: RequestInit): Promise<Agent[]>;
     getById(id: string, options?: RequestInit): Promise<Agent>;
+    getRuntimeById(id: string, options?: RequestInit): Promise<RuntimeAgent>;
     delete(id: string, options?: RequestInit): Promise<void>;
     update(id: string, payload: AgentPayload, options?: RequestInit): Promise<Agent>;
     newChat(agentId: string, payload: { persist: boolean }, options?: RequestInit): Promise<Chat>;
