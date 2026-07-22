@@ -4,7 +4,7 @@ import { getAgentInfo, getAnalyticsInfo, getErrorMessage, getStreamAnalyticsProp
 const buildRuntimeAgent = (overrides: Partial<RuntimeAgent> = {}): RuntimeAgent => ({
     id: 'agent-123',
     owner_id: 'owner-456',
-    preview_name: 'Test Agent',
+    name: 'Test Agent',
     thumbnail: 'https://example.com/thumb.png',
     starter_message: ['Hello!', 'How can I help?', 'Ask me anything'],
     knowledge: { id: 'knowledge-123' },

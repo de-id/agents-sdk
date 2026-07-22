@@ -48,7 +48,7 @@ describe('connect-to-manager', () => {
 
         mockAgent = {
             id: 'agent-123',
-            preview_name: 'Test Agent',
+            name: 'Test Agent',
             presenter: {
                 type: 'clip',
                 voice: { language: 'en-US' },

@@ -3,7 +3,7 @@ import { EndOfCallFeedbackConfig } from './agent';
 export interface RuntimeAgent {
     id: string;
     owner_id?: string;
-    preview_name?: string;
+    name?: string;
     thumbnail?: string;
     greetings?: string[];
     starter_message?: string[];

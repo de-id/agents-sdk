@@ -39,7 +39,7 @@ export function getAgentInfo(agent: RuntimeAgent) {
         owner_id: agent.owner_id ?? '',
         starterQuestionsCount: agent.starter_message?.length,
         agentId: agent.id,
-        agentName: agent.preview_name,
+        agentName: agent.name,
     };
 }
 export const getErrorMessage = (error: unknown): string => {
