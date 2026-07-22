@@ -5,8 +5,6 @@ import { AgentFactory } from './agent.factory';
 export const AgentsApiFactory = new Factory().attrs({
     getById: () => jest.fn().mockResolvedValue(AgentFactory.build()),
     getRuntimeById: () => {
-        // The /agents/{id}/runtime payload (RuntimeAgent) carries starter_message at the top level,
-        // not nested under knowledge as the base Agent does.
         const agent = AgentFactory.build();
         return jest.fn().mockResolvedValue({ ...agent, starter_message: agent.knowledge?.starter_message });
     },

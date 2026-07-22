@@ -499,7 +499,6 @@ describe('createAgentManager', () => {
                 expect(mockStreamingManager.speak).toHaveBeenCalledWith({
                     script: {
                         type: 'text',
-                        provider: mockAgent.presenter.voice,
                         input: 'Hello world',
                         ssml: false,
                         sentiment: 'friendly',

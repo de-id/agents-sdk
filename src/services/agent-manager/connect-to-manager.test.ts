@@ -1,11 +1,10 @@
 import { createStreamingManager, StreamApiVersion } from '@sdk/services/streaming-manager';
 import {
-    Agent,
     AgentActivityState,
     AgentManagerOptions,
     ChatMode,
     ConnectionState,
-    Providers,
+    RuntimeAgent,
     StreamEvents,
     StreamingState,
     StreamType,
@@ -32,7 +31,7 @@ jest.mock('../analytics/timestamp-tracker', () => ({
 }));
 
 describe('connect-to-manager', () => {
-    let mockAgent: Agent;
+    let mockAgent: RuntimeAgent;
     let mockOptions: AgentManagerOptions & { callbacks: any };
     let mockAgentsApi: any;
     let mockAnalytics: Analytics;
@@ -49,21 +48,16 @@ describe('connect-to-manager', () => {
 
         mockAgent = {
             id: 'agent-123',
-            name: 'Test Agent',
+            preview_name: 'Test Agent',
             presenter: {
                 type: 'clip',
-                driver_id: 'driver-123',
-                presenter_id: 'presenter-123',
-                is_greenscreen: true,
-                background: 'office',
-                voice: { type: Providers.Microsoft, voice_id: 'voice-123' },
+                voice: { language: 'en-US' },
             },
             knowledge: {
                 id: 'knowledge-123',
-                provider: 'pinecone' as const,
-                starter_message: ['Hello!', 'How can I help?'],
             },
-        } as Agent;
+            starter_message: ['Hello!', 'How can I help?'],
+        };
 
         mockOptions = {
             auth: { type: 'key', clientKey: 'test-key' },
@@ -668,14 +662,13 @@ describe('connect-to-manager', () => {
 
     describe('Streams V2 Support', () => {
         it('should use CreateStreamV2Options for expressive agents', async () => {
-            const expressiveAgent = {
+            const expressiveAgent: RuntimeAgent = {
                 ...mockAgent,
                 presenter: {
-                    type: 'expressive' as const,
-                    presenter_id: 'expressive-presenter-123',
-                    voice: { type: Providers.Microsoft, voice_id: 'voice-123' },
+                    type: 'expressive',
+                    voice: { language: 'en-US' },
                 },
-            } as Agent;
+            };
 
             const result = await initializeStreamAndChat(expressiveAgent, mockOptions, mockAgentsApi, mockAnalytics);
 
