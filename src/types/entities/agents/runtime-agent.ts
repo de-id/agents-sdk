@@ -4,6 +4,7 @@ export interface RuntimeAgent {
     id: string;
     owner_id?: string;
     name?: string;
+    access?: 'public';
     thumbnail?: string;
     greetings?: string[];
     starter_message?: string[];

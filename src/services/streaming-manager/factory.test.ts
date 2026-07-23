@@ -45,7 +45,7 @@ describe('createStreamingManager', () => {
         });
 
         await createStreamingManager(
-            { ...agent, avatar: agent.presenter },
+            { id: agent.id, avatar: agent.presenter },
             { version: StreamApiVersion.V1, ...mockStreamOptions },
             mockOptions
         );
@@ -73,7 +73,7 @@ describe('createStreamingManager', () => {
         });
 
         await createStreamingManager(
-            { ...agent, avatar: agent.presenter },
+            { id: agent.id, avatar: agent.presenter },
             { version: StreamApiVersion.V1, ...mockStreamOptions },
             mockOptions
         );
@@ -107,7 +107,7 @@ describe('createStreamingManager', () => {
         };
 
         await createStreamingManager(
-            { ...agent, avatar: agent.presenter },
+            { id: agent.id, avatar: agent.presenter },
             { version: StreamApiVersion.V2, ...v2StreamOptions },
             mockOptions
         );
@@ -142,7 +142,7 @@ describe('createStreamingManager', () => {
         };
 
         await createStreamingManager(
-            { ...agent, avatar: agent.presenter },
+            { id: agent.id, avatar: agent.presenter },
             { version: StreamApiVersion.V2, ...v2StreamOptions },
             optionsWithMicrophone
         );
