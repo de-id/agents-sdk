@@ -1,7 +1,7 @@
-import { RuntimeAgent } from '@sdk/types/index';
+import { Agent } from '@sdk/types/index';
 import { getAgentType, getPresenterType } from './agent';
 
-export function getAnalyticsInfo(agent: RuntimeAgent) {
+export function getAnalyticsInfo(agent: Agent) {
     const mobileOrDesktop = () => {
         return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
     };
@@ -32,7 +32,7 @@ export function getAnalyticsInfo(agent: RuntimeAgent) {
     };
 }
 
-export function getAgentInfo(agent: RuntimeAgent) {
+export function getAgentInfo(agent: Agent) {
     return {
         agentType: getAgentType(agent.avatar),
         presenterType: getPresenterType(agent.avatar),
@@ -72,7 +72,7 @@ export const safe = <T>(fn: () => T, fallback: T): T => {
     }
 };
 
-export function getStreamAnalyticsProps(data: any, agent: RuntimeAgent, additionalProps: Record<string, any>) {
+export function getStreamAnalyticsProps(data: any, agent: Agent, additionalProps: Record<string, any>) {
     const { event, ...baseProps } = data;
 
     const { language } = agent?.avatar?.voice || {};

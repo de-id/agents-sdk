@@ -1,7 +1,7 @@
-import { RuntimeAgent } from '@sdk/types';
+import { Agent } from '@sdk/types';
 import { getAgentInfo, getAnalyticsInfo, getErrorMessage, getStreamAnalyticsProps } from './analytics';
 
-const buildRuntimeAgent = (overrides: Partial<RuntimeAgent> = {}): RuntimeAgent => ({
+const buildRuntimeAgent = (overrides: Partial<Agent> = {}): Agent => ({
     id: 'agent-123',
     owner_id: 'owner-456',
     name: 'Test Agent',

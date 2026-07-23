@@ -1,10 +1,10 @@
 import { createStreamingManager, StreamApiVersion } from '@sdk/services/streaming-manager';
 import {
+    Agent,
     AgentActivityState,
     AgentManagerOptions,
     ChatMode,
     ConnectionState,
-    RuntimeAgent,
     StreamEvents,
     StreamingState,
     StreamType,
@@ -31,7 +31,7 @@ jest.mock('../analytics/timestamp-tracker', () => ({
 }));
 
 describe('connect-to-manager', () => {
-    let mockAgent: RuntimeAgent;
+    let mockAgent: Agent;
     let mockOptions: AgentManagerOptions & { callbacks: any };
     let mockAgentsApi: any;
     let mockAnalytics: Analytics;
@@ -662,7 +662,7 @@ describe('connect-to-manager', () => {
 
     describe('Streams V2 Support', () => {
         it('should use CreateStreamV2Options for expressive agents', async () => {
-            const expressiveAgent: RuntimeAgent = {
+            const expressiveAgent: Agent = {
                 ...mockAgent,
                 avatar: {
                     type: 'expressive',

@@ -1,5 +1,5 @@
 import { PLAYGROUND_HEADER } from '@sdk/config/consts';
-import type { AgentsAPI, Chat, RuntimeAgent } from '@sdk/types';
+import type { Agent, AgentsAPI, Chat } from '@sdk/types';
 import { ChatMode } from '@sdk/types';
 import { isChatModeWithoutChat } from '@sdk/utils/chat';
 import { Analytics } from '../analytics/mixpanel';
@@ -9,7 +9,7 @@ export function getRequestHeaders(chatMode?: ChatMode): { headers?: Record<strin
 }
 
 export async function createChat(
-    agent: RuntimeAgent,
+    agent: Agent,
     agentsApi: AgentsAPI,
     analytics: Analytics,
     chatMode?: ChatMode,

@@ -1,8 +1,4 @@
 import { Chat, ChatPayload, ChatResponse } from './chat';
-import { Knowledge } from './knowledge';
-import { LLM } from './llm';
-import { Presenter } from './presenter';
-import { RuntimeAgent } from './runtime-agent';
 
 // @deprecated - only for backwards compatibility
 export enum UserPlan {
@@ -50,40 +46,24 @@ export interface EndOfCallFeedbackConfig {
 
 export interface Agent {
     id: string;
-    username?: string;
-    presenter: Presenter;
-    llm?: LLM;
-    knowledge?: Knowledge;
-    vision?: Vision;
-    use_case?: string;
-    tags?: string[];
-    chats?: number;
-    greetings?: string[];
-    access?: 'private' | 'pending-public' | 'unlisted' | 'rejected' | 'public';
-    metadata?: { plan: PlanGroup | UserPlan };
-
-    preview_name?: string;
-    preview_description?: string;
-    preview_thumbnail?: string;
-    logo?: string;
-    preview_url?: string;
     owner_id?: string;
-    status?: AgentStatus;
+    name?: string;
+    access?: 'public';
+    thumbnail?: string;
+    greetings?: string[];
+    starter_message?: string[];
+    idle_video?: string;
+    knowledge?: { id: string; embedder?: { is_limited_language?: boolean } };
+    avatar: { type: 'talk' | 'clip' | 'expressive'; voice?: { language?: string } };
+    vision?: { enabled: boolean };
     end_of_call_feedback?: EndOfCallFeedbackConfig;
+    triggers_available?: boolean;
+    advanced_settings?: { ui_debug_mode?: boolean; vm_account_id?: string };
 }
 
-export type AgentPayload = Omit<
-    Agent,
-    'type' | 'created_at' | 'modified_at' | 'id' | 'owner_id' | 'metadata' | 'idle_video_url'
->;
-
 export interface AgentsAPI {
-    create(payload: AgentPayload, options?: RequestInit): Promise<Agent>;
-    getAgents(tag?: string, options?: RequestInit): Promise<Agent[]>;
-    getById(id: string, options?: RequestInit): Promise<Agent>;
-    getRuntimeById(id: string, options?: RequestInit): Promise<RuntimeAgent>;
+    getRuntimeById(id: string, options?: RequestInit): Promise<Agent>;
     delete(id: string, options?: RequestInit): Promise<void>;
-    update(id: string, payload: AgentPayload, options?: RequestInit): Promise<Agent>;
     newChat(agentId: string, payload: { persist: boolean }, options?: RequestInit): Promise<Chat>;
     chat(agentId: string, chatId: string, payload: ChatPayload, options?: RequestInit): Promise<ChatResponse>;
 }

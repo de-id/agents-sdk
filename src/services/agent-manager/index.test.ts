@@ -9,7 +9,15 @@ import {
     SocketManagerFactory,
     StreamingManagerFactory,
 } from '../../test-utils/factories';
-import { Agent, AgentManager, AgentManagerOptions, ChatMode, ConnectionState, StreamType } from '../../types';
+import {
+    Agent,
+    AgentManager,
+    AgentManagerOptions,
+    ChatMode,
+    ConnectionState,
+    Providers,
+    StreamType,
+} from '../../types';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
@@ -477,7 +485,7 @@ describe('createAgentManager', () => {
             it('should preserve should_queue_speaks when the script has a provider', async () => {
                 const script = {
                     type: 'text' as const,
-                    provider: mockAgent.presenter.voice,
+                    provider: { type: Providers.Microsoft, voice_id: 'voice-123' },
                     input: 'Hello world',
                     should_queue_speaks: true,
                 };
@@ -514,7 +522,7 @@ describe('createAgentManager', () => {
             it('should preserve sentiment when the script has a provider', async () => {
                 const script = {
                     type: 'text' as const,
-                    provider: mockAgent.presenter.voice,
+                    provider: { type: Providers.Microsoft, voice_id: 'voice-123' },
                     input: 'Hello world',
                     sentiment: 'excited',
                 };

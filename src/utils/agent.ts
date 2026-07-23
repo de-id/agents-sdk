@@ -1,12 +1,12 @@
-import { RuntimeAgent, VideoType } from '@sdk/types';
+import { Agent, VideoType } from '@sdk/types';
 
-type AgentType = 'clip_v2' | RuntimeAgent['avatar']['type'];
+type AgentType = 'clip_v2' | Agent['avatar']['type'];
 
 export type PresenterType = 'v4' | 'v3-pro' | 'v2';
 
-export const getAgentType = (presenter: RuntimeAgent['avatar']): AgentType => presenter.type;
+export const getAgentType = (presenter: Agent['avatar']): AgentType => presenter.type;
 
-export const getPresenterType = (presenter: RuntimeAgent['avatar']): PresenterType => {
+export const getPresenterType = (presenter: Agent['avatar']): PresenterType => {
     switch (presenter.type) {
         case 'expressive':
             return 'v4';

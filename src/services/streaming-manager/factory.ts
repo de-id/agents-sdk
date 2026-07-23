@@ -1,7 +1,7 @@
 import {
+    Agent,
     CreateSessionV2Options,
     CreateStreamOptions,
-    RuntimeAgent,
     StreamingManagerOptions,
     TransportProvider,
 } from '@sdk/types';
@@ -18,7 +18,7 @@ export type ExtendedStreamOptions =
     | ({ version: StreamApiVersion.V2 } & CreateSessionV2Options);
 
 export async function createStreamingManager(
-    agent: RuntimeAgent,
+    agent: Agent,
     streamOptions: ExtendedStreamOptions,
     options: StreamingManagerOptions,
     signal?: AbortSignal

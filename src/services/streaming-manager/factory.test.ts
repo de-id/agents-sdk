@@ -1,11 +1,5 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import {
-    CreateSessionV2Options,
-    CreateStreamOptions,
-    Providers,
-    StreamingManagerOptions,
-    TransportProvider,
-} from '../../types';
+import { CreateSessionV2Options, CreateStreamOptions, StreamingManagerOptions, TransportProvider } from '../../types';
 import { StreamApiVersion, createStreamingManager } from './factory';
 
 const mockCreateWebRTCStreamingManager = jest.fn();
@@ -34,18 +28,14 @@ describe('createStreamingManager', () => {
 
     it('calls to createWebRTCStreamingManager when agent presenter type is talk', async () => {
         const agent = AgentFactory.build({
-            presenter: {
+            avatar: {
                 type: 'talk',
-                source_url: 'https://example.com/presenter',
-                voice: {
-                    type: Providers.Microsoft,
-                    voice_id: 'voice-123',
-                },
+                voice: { language: 'en-US' },
             },
         });
 
         await createStreamingManager(
-            { id: agent.id, avatar: agent.presenter },
+            { id: agent.id, avatar: agent.avatar },
             { version: StreamApiVersion.V1, ...mockStreamOptions },
             mockOptions
         );
@@ -61,19 +51,14 @@ describe('createStreamingManager', () => {
 
     it('calls to createWebRTCStreamingManager when agent presenter type is clip', async () => {
         const agent = AgentFactory.build({
-            presenter: {
+            avatar: {
                 type: 'clip',
-                driver_id: 'driver-123',
-                presenter_id: 'presenter-123',
-                voice: {
-                    type: Providers.Microsoft,
-                    voice_id: 'voice-123',
-                },
+                voice: { language: 'en-US' },
             },
         });
 
         await createStreamingManager(
-            { id: agent.id, avatar: agent.presenter },
+            { id: agent.id, avatar: agent.avatar },
             { version: StreamApiVersion.V1, ...mockStreamOptions },
             mockOptions
         );
@@ -89,13 +74,9 @@ describe('createStreamingManager', () => {
 
     it('calls to createLiveKitStreamingManager when agent presenter type is expressive', async () => {
         const agent = AgentFactory.build({
-            presenter: {
+            avatar: {
                 type: 'expressive',
-                presenter_id: 'expressive-presenter-123',
-                voice: {
-                    type: Providers.Microsoft,
-                    voice_id: 'voice-123',
-                },
+                voice: { language: 'en-US' },
             },
         });
 
@@ -107,7 +88,7 @@ describe('createStreamingManager', () => {
         };
 
         await createStreamingManager(
-            { id: agent.id, avatar: agent.presenter },
+            { id: agent.id, avatar: agent.avatar },
             { version: StreamApiVersion.V2, ...v2StreamOptions },
             mockOptions
         );
@@ -118,13 +99,9 @@ describe('createStreamingManager', () => {
 
     it('passes microphoneStream to createLiveKitStreamingManager when provided', async () => {
         const agent = AgentFactory.build({
-            presenter: {
+            avatar: {
                 type: 'expressive',
-                presenter_id: 'expressive-presenter-123',
-                voice: {
-                    type: Providers.Microsoft,
-                    voice_id: 'voice-123',
-                },
+                voice: { language: 'en-US' },
             },
         });
 
@@ -142,7 +119,7 @@ describe('createStreamingManager', () => {
         };
 
         await createStreamingManager(
-            { id: agent.id, avatar: agent.presenter },
+            { id: agent.id, avatar: agent.avatar },
             { version: StreamApiVersion.V2, ...v2StreamOptions },
             optionsWithMicrophone
         );

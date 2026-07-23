@@ -6,6 +6,7 @@ import {
     createStreamingManager,
 } from '@sdk/services/streaming-manager';
 import {
+    Agent,
     AgentActivityState,
     AgentManagerOptions,
     AgentsAPI,
@@ -16,7 +17,6 @@ import {
     ConnectionState,
     CreateSessionV2Options,
     CreateStreamOptions,
-    RuntimeAgent,
     StreamEvents,
     StreamType,
     StreamingState,
@@ -64,7 +64,7 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
     return { ...streamArgs, ...(endUserData && { end_user_data: endUserData }) };
 }
 
-function getAgentStreamOptions(agent: RuntimeAgent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
+function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
     return isStreamsV2Agent(agent.avatar.type)
         ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options() }
         : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
@@ -76,7 +76,7 @@ function trackConnectionStateChangeAnalytics(state: ConnectionState, reason: str
 
 function trackVideoStateChangeAnalytics(
     state: StreamingState,
-    agent: RuntimeAgent,
+    agent: Agent,
     statsReport: any,
     analytics: Analytics,
     streamType: StreamType
@@ -90,7 +90,7 @@ function trackVideoStateChangeAnalytics(
 
 function trackVideoStreamAnalytics(
     state: StreamingState,
-    agent: RuntimeAgent,
+    agent: Agent,
     statsReport: any,
     analytics: Analytics,
     streamType: StreamType
@@ -108,7 +108,7 @@ function trackVideoStreamAnalytics(
 
 function trackAgentActivityAnalytics(
     state: StreamingState,
-    agent: RuntimeAgent,
+    agent: Agent,
     analytics: Analytics,
     streamType: StreamType,
     metrics?: AudioDetectionMetrics
@@ -132,7 +132,7 @@ function trackAgentActivityAnalytics(
 
 function trackLegacyVideoAnalytics(
     state: StreamingState,
-    agent: RuntimeAgent,
+    agent: Agent,
     statsReport: any,
     analytics: Analytics,
     streamType: StreamType
@@ -193,7 +193,7 @@ type ConnectToManagerOptions = AgentManagerOptions & {
 };
 
 function connectToManager(
-    agent: RuntimeAgent,
+    agent: Agent,
     options: ConnectToManagerOptions,
     analytics: Analytics,
     signal?: AbortSignal
@@ -303,7 +303,7 @@ function connectToManager(
 }
 
 export async function initializeStreamAndChat(
-    agent: RuntimeAgent,
+    agent: Agent,
     options: ConnectToManagerOptions,
     agentsApi: AgentsAPI,
     analytics: Analytics,
