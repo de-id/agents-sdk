@@ -24,9 +24,6 @@ export function createAgentsApi(
         getRuntimeById(id: string, options?: RequestOptions) {
             return client.get<Agent>(`/${id}/runtime`, options);
         },
-        delete(id: string, options?: RequestOptions) {
-            return client.delete(`/${id}`, undefined, options);
-        },
         newChat(agentId: string, payload: { persist: boolean }, options?: RequestOptions) {
             return client.post<Chat>(`/${agentId}/chat`, payload, options);
         },
