@@ -92,7 +92,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const agentEntity = await agentsApi.getRuntimeById(agent);
     options.debug = options.debug || agentEntity?.advanced_settings?.ui_debug_mode;
 
-    const isStreamsV2 = isStreamsV2Agent(agentEntity.presenter.type);
+    const isStreamsV2 = isStreamsV2Agent(agentEntity.avatar.type);
     analytics.enrich(getAgentInfo(agentEntity));
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () => {

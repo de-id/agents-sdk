@@ -66,7 +66,11 @@ describe('createAgentManager', () => {
     beforeEach(() => {
         jest.clearAllMocks();
 
-        mockAgent = { ...AgentFactory.build(), starter_message: ['Hello!', 'How can I help?'] } as Agent;
+        mockAgent = {
+            ...AgentFactory.build(),
+            starter_message: ['Hello!', 'How can I help?'],
+            avatar: { type: 'talk', voice: { language: 'en-US' } },
+        } as Agent;
         mockOptions = AgentManagerOptionsFactory.build();
         mockStreamingManager = StreamingManagerFactory.build({ streamType: StreamType.Legacy });
         mockChat = ChatFactory.build();

@@ -49,7 +49,7 @@ describe('connect-to-manager', () => {
         mockAgent = {
             id: 'agent-123',
             name: 'Test Agent',
-            presenter: {
+            avatar: {
                 type: 'clip',
                 voice: { language: 'en-US' },
             },
@@ -367,7 +367,7 @@ describe('connect-to-manager', () => {
             });
 
             it('should handle video state with non-clip presenter', () => {
-                mockAgent.presenter.type = 'talk';
+                mockAgent.avatar.type = 'talk';
 
                 onVideoStateChange(StreamingState.Stop);
 
@@ -664,7 +664,7 @@ describe('connect-to-manager', () => {
         it('should use CreateStreamV2Options for expressive agents', async () => {
             const expressiveAgent: RuntimeAgent = {
                 ...mockAgent,
-                presenter: {
+                avatar: {
                     type: 'expressive',
                     voice: { language: 'en-US' },
                 },

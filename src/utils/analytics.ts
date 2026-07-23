@@ -18,7 +18,7 @@ export function getAnalyticsInfo(agent: RuntimeAgent) {
             return 'Unknown'; // Unable to determine the OS
         }
     };
-    const presenter = agent.presenter;
+    const presenter = agent.avatar;
 
     return {
         $os: `${getUserOS()}`,
@@ -27,15 +27,15 @@ export function getAnalyticsInfo(agent: RuntimeAgent) {
         origin: window.location.origin,
         agentType: getAgentType(presenter),
         agentVoice: {
-            language: agent.presenter?.voice?.language,
+            language: agent.avatar?.voice?.language,
         },
     };
 }
 
 export function getAgentInfo(agent: RuntimeAgent) {
     return {
-        agentType: getAgentType(agent.presenter),
-        presenterType: getPresenterType(agent.presenter),
+        agentType: getAgentType(agent.avatar),
+        presenterType: getPresenterType(agent.avatar),
         owner_id: agent.owner_id ?? '',
         starterQuestionsCount: agent.starter_message?.length,
         agentId: agent.id,
@@ -75,7 +75,7 @@ export const safe = <T>(fn: () => T, fallback: T): T => {
 export function getStreamAnalyticsProps(data: any, agent: RuntimeAgent, additionalProps: Record<string, any>) {
     const { event, ...baseProps } = data;
 
-    const { language } = agent?.presenter?.voice || {};
+    const { language } = agent?.avatar?.voice || {};
 
     const props = {
         ...baseProps,

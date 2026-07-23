@@ -65,7 +65,7 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
 }
 
 function getAgentStreamOptions(agent: RuntimeAgent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
-    return isStreamsV2Agent(agent.presenter.type)
+    return isStreamsV2Agent(agent.avatar.type)
         ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options() }
         : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
 }
@@ -212,7 +212,7 @@ function connectToManager(
             });
 
             let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
-            const isExpressive = agent.presenter.type === 'expressive';
+            const isExpressive = agent.avatar.type === 'expressive';
 
             streamingManager = await createStreamingManager(
                 agent,
@@ -310,7 +310,7 @@ export async function initializeStreamAndChat(
     chat?: Chat
 ): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions | CreateSessionV2Options> }> {
     const resolveStreamAndChat = async () => {
-        if (isStreamsV2Agent(agent.presenter.type)) {
+        if (isStreamsV2Agent(agent.avatar.type)) {
             const streamingManager = await connectToManager(agent, options, analytics);
             const chatId = `${ChatPrefix}_${streamingManager.sessionId}`;
             const now = new Date().toISOString();

@@ -44,7 +44,11 @@ describe('createStreamingManager', () => {
             },
         });
 
-        await createStreamingManager(agent, { version: StreamApiVersion.V1, ...mockStreamOptions }, mockOptions);
+        await createStreamingManager(
+            { ...agent, avatar: agent.presenter },
+            { version: StreamApiVersion.V1, ...mockStreamOptions },
+            mockOptions
+        );
 
         expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(
             agent.id,
@@ -68,7 +72,11 @@ describe('createStreamingManager', () => {
             },
         });
 
-        await createStreamingManager(agent, { version: StreamApiVersion.V1, ...mockStreamOptions }, mockOptions);
+        await createStreamingManager(
+            { ...agent, avatar: agent.presenter },
+            { version: StreamApiVersion.V1, ...mockStreamOptions },
+            mockOptions
+        );
 
         expect(mockCreateWebRTCStreamingManager).toHaveBeenCalledWith(
             agent.id,
@@ -98,7 +106,11 @@ describe('createStreamingManager', () => {
             chat_persist: true,
         };
 
-        await createStreamingManager(agent, { version: StreamApiVersion.V2, ...v2StreamOptions }, mockOptions);
+        await createStreamingManager(
+            { ...agent, avatar: agent.presenter },
+            { version: StreamApiVersion.V2, ...v2StreamOptions },
+            mockOptions
+        );
 
         expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(agent.id, v2StreamOptions, mockOptions);
         expect(mockCreateWebRTCStreamingManager).not.toHaveBeenCalled();
@@ -130,7 +142,7 @@ describe('createStreamingManager', () => {
         };
 
         await createStreamingManager(
-            agent,
+            { ...agent, avatar: agent.presenter },
             { version: StreamApiVersion.V2, ...v2StreamOptions },
             optionsWithMicrophone
         );
