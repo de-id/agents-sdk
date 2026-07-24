@@ -5,7 +5,6 @@ import {
     AgentManagerOptions,
     ChatMode,
     ConnectionState,
-    Providers,
     StreamEvents,
     StreamingState,
     StreamType,
@@ -50,20 +49,15 @@ describe('connect-to-manager', () => {
         mockAgent = {
             id: 'agent-123',
             name: 'Test Agent',
-            presenter: {
+            avatar: {
                 type: 'clip',
-                driver_id: 'driver-123',
-                presenter_id: 'presenter-123',
-                is_greenscreen: true,
-                background: 'office',
-                voice: { type: Providers.Microsoft, voice_id: 'voice-123' },
+                voice: { language: 'en-US' },
             },
             knowledge: {
                 id: 'knowledge-123',
-                provider: 'pinecone' as const,
-                starter_message: ['Hello!', 'How can I help?'],
             },
-        } as Agent;
+            starter_message: ['Hello!', 'How can I help?'],
+        };
 
         mockOptions = {
             auth: { type: 'key', clientKey: 'test-key' },
@@ -356,8 +350,6 @@ describe('connect-to-manager', () => {
 
                 expect(mockAnalytics.track).toHaveBeenCalledWith('stream-session', {
                     event: 'stop',
-                    is_greenscreen: true,
-                    background: 'office',
                     'stream-type': StreamType.Fluent,
                     ...statsReport,
                 });
@@ -375,13 +367,13 @@ describe('connect-to-manager', () => {
             });
 
             it('should handle video state with non-clip presenter', () => {
-                mockAgent.presenter.type = 'talk';
+                mockAgent.avatar.type = 'talk';
 
                 onVideoStateChange(StreamingState.Stop);
 
                 expect(mockAnalytics.linkTrack).toHaveBeenCalledWith(
                     'agent-video',
-                    expect.objectContaining({ is_greenscreen: false, background: false }),
+                    expect.objectContaining({ event: 'stop', 'stream-type': StreamType.Legacy }),
                     'done',
                     [StreamEvents.StreamVideoDone]
                 );
@@ -412,8 +404,6 @@ describe('connect-to-manager', () => {
                     'agent-video',
                     expect.objectContaining({
                         event: 'stop',
-                        is_greenscreen: true,
-                        background: 'office',
                         'stream-type': StreamType.Legacy,
                     }),
                     'done',
@@ -672,12 +662,11 @@ describe('connect-to-manager', () => {
 
     describe('Streams V2 Support', () => {
         it('should use CreateStreamV2Options for expressive agents', async () => {
-            const expressiveAgent = {
+            const expressiveAgent: Agent = {
                 ...mockAgent,
-                presenter: {
-                    type: 'expressive' as const,
-                    presenter_id: 'expressive-presenter-123',
-                    voice: { type: Providers.Microsoft, voice_id: 'voice-123' },
+                avatar: {
+                    type: 'expressive',
+                    voice: { language: 'en-US' },
                 },
             };
 

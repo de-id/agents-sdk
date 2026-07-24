@@ -1,21 +1,18 @@
 import { Factory } from 'rosie';
 
-import { Agent, Providers } from '../../types';
+import { Agent } from '../../types';
 
 export const AgentFactory = new Factory<Agent>().attrs({
     id: 'agent-123',
-    username: 'Test Agent',
+    name: 'Test Agent',
     knowledge: {
         id: 'knowledge-123',
-        starter_message: ['Hello!', 'How can I help?'],
-        provider: 'pinecone' as const,
     },
-    presenter: {
+    starter_message: ['Hello!', 'How can I help?'],
+    avatar: {
         type: 'talk' as const,
-        source_url: 'https://example.com/presenter',
         voice: {
-            type: Providers.Microsoft,
-            voice_id: 'voice-123',
+            language: 'en-US',
         },
     },
 });

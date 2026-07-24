@@ -1,6 +1,5 @@
 import {
     Agent,
-    AgentPayload,
     Auth,
     Chat,
     ChatPayload,
@@ -22,20 +21,8 @@ export function createAgentsApi(
     const client = createClient(auth, `${host}/agents`, onError, externalId);
 
     return {
-        create(payload: AgentPayload, options?: RequestOptions) {
-            return client.post<Agent>(`/`, payload, options);
-        },
-        getAgents(tag?: string, options?: RequestOptions) {
-            return client.get<Agent[]>(`/${tag ? `?tag=${tag}` : ''}`, options).then(agents => agents ?? []);
-        },
-        getById(id: string, options?: RequestOptions) {
-            return client.get<Agent>(`/${id}`, options);
-        },
-        delete(id: string, options?: RequestOptions) {
-            return client.delete(`/${id}`, undefined, options);
-        },
-        update(id: string, payload: AgentPayload, options?: RequestOptions) {
-            return client.patch<Agent>(`/${id}`, payload, options);
+        getRuntimeById(id: string, options?: RequestOptions) {
+            return client.get<Agent>(`/${id}/runtime`, options);
         },
         newChat(agentId: string, payload: { persist: boolean }, options?: RequestOptions) {
             return client.post<Chat>(`/${agentId}/chat`, payload, options);
