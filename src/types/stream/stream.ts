@@ -249,6 +249,10 @@ export interface ToolCallErrorPayload {
 
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
 
+export interface TurnEventPayload {
+    turn_id: number | null;
+}
+
 export type ToolEventCallback = {
     (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
     (event: StreamEvents.ToolCallDone, data: ToolCallDonePayload): void;

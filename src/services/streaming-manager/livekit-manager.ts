@@ -15,6 +15,7 @@ import {
     ToolCallDonePayload,
     ToolCallErrorPayload,
     ToolCallStartedPayload,
+    TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
@@ -471,14 +472,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         });
     }
 
-    function handleTurnStarted(_subject: string, data: any): void {
+    function handleTurnStarted(_subject: string, data: TurnEventPayload): void {
         usingTurnEvents = true;
         currentTurnId = data?.turn_id ?? null;
         currentActivityState = AgentActivityState.Loading;
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Loading);
     }
 
-    function handleTurnEnded(_subject: string, data: any): void {
+    function handleTurnEnded(_subject: string, data: TurnEventPayload): void {
         const turnId: number | null = data?.turn_id ?? null;
         if (currentTurnId !== null && turnId !== null && turnId < currentTurnId) return;
         currentActivityState = AgentActivityState.Idle;
