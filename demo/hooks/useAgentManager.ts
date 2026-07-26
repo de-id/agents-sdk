@@ -143,8 +143,8 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         async (text: string) => {
             if (!agentManager || connectionState !== ConnectionState.Connected) {
                 return;
-            } else if (!agentManager.agent.presenter) {
-                throw new Error('No presenter');
+            } else if (!agentManager.agent.avatar) {
+                throw new Error('No avatar');
             }
 
             try {
@@ -245,7 +245,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
 
     const microphoneEnabled = useMemo(() => {
         return (
-            agentManager?.agent?.presenter?.type === 'expressive' &&
+            agentManager?.agent?.avatar?.type === 'expressive' &&
             typeof agentManager?.publishMicrophoneStream === 'function'
         );
     }, [agentManager]);

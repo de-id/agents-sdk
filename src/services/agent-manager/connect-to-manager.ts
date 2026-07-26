@@ -65,7 +65,7 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
 }
 
 function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
-    return isStreamsV2Agent(agent.presenter.type)
+    return isStreamsV2Agent(agent.avatar.type)
         ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options() }
         : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
 }
@@ -100,8 +100,6 @@ function trackVideoStreamAnalytics(
     } else if (state === StreamingState.Stop) {
         analytics.track('stream-session', {
             event: 'stop',
-            is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-            background: agent.presenter.type === 'clip' && agent.presenter.background,
             'stream-type': streamType,
             ...statsReport,
         });
@@ -124,8 +122,6 @@ function trackAgentActivityAnalytics(
             'agent-video',
             {
                 event: 'stop',
-                is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-                background: agent.presenter.type === 'clip' && agent.presenter.background,
                 'stream-type': streamType,
             },
             'done',
@@ -153,8 +149,6 @@ function trackLegacyVideoAnalytics(
             'agent-video',
             {
                 event: 'stop',
-                is_greenscreen: agent.presenter.type === 'clip' && agent.presenter.is_greenscreen,
-                background: agent.presenter.type === 'clip' && agent.presenter.background,
                 'stream-type': streamType,
                 ...statsReport,
             },
@@ -218,7 +212,7 @@ function connectToManager(
             });
 
             let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
-            const isExpressive = agent.presenter.type === 'expressive';
+            const isExpressive = agent.avatar.type === 'expressive';
 
             streamingManager = await createStreamingManager(
                 agent,
@@ -316,7 +310,7 @@ export async function initializeStreamAndChat(
     chat?: Chat
 ): Promise<{ chat?: Chat; streamingManager?: StreamingManager<CreateStreamOptions | CreateSessionV2Options> }> {
     const resolveStreamAndChat = async () => {
-        if (isStreamsV2Agent(agent.presenter.type)) {
+        if (isStreamsV2Agent(agent.avatar.type)) {
             const streamingManager = await connectToManager(agent, options, analytics);
             const chatId = `${ChatPrefix}_${streamingManager.sessionId}`;
             const now = new Date().toISOString();

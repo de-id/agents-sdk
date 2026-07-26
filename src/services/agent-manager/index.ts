@@ -1,5 +1,4 @@
 import {
-    Agent,
     AgentManager,
     AgentManagerOptions,
     Chat,
@@ -90,12 +89,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
 
-    const agentEntity = await agentsApi.getById(agent);
-    options.debug =
-        options.debug ||
-        (agentEntity as Agent & { advanced_settings?: { ui_debug_mode?: boolean } })?.advanced_settings?.ui_debug_mode;
+    const agentEntity = await agentsApi.getRuntimeById(agent);
+    options.debug = options.debug || agentEntity?.advanced_settings?.ui_debug_mode;
 
-    const isStreamsV2 = isStreamsV2Agent(agentEntity.presenter.type);
+    const isStreamsV2 = isStreamsV2Agent(agentEntity.avatar.type);
     analytics.enrich(getAgentInfo(agentEntity));
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () => {
@@ -280,7 +277,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
         getIsInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
-        starterMessages: agentEntity.knowledge?.starter_message || [],
+        starterMessages: agentEntity.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,
         enrichAnalytics: analytics.enrich,
@@ -560,26 +557,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         async speak(payload: string | SupportedStreamScript) {
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
-                    if (!agentEntity.presenter.voice) {
-                        throw new ValidationError('Presenter voice is not initialized');
-                    }
-
                     return {
                         type: 'text',
-                        provider: agentEntity.presenter.voice,
                         input: payload,
                         ssml: false,
                     };
                 }
 
                 if (payload.type === 'text' && !payload.provider) {
-                    if (!agentEntity.presenter.voice) {
-                        throw new ValidationError('Presenter voice is not initialized');
-                    }
-
                     return {
                         type: 'text',
-                        provider: agentEntity.presenter.voice,
                         input: payload.input,
                         ssml: payload.ssml,
                         should_queue_speaks: payload.should_queue_speaks,
