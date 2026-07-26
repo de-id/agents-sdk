@@ -42,6 +42,8 @@ export enum StreamEvents {
     ToolCallStarted = 'tool-call/started',
     ToolCallDone = 'tool-call/done',
     ToolCallError = 'tool-call/error',
+    TurnStarted = 'turn/started',
+    TurnEnded = 'turn/ended',
 }
 
 export enum ConnectionState {
