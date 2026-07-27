@@ -128,7 +128,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let currentInterruptible = true;
     const pendingToolCalls = new Set<string>();
     let currentTurnId: number | null = null;
-    let usingTurnEvents = false;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
@@ -175,9 +174,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function handleTranscriptionReceived(_segments: TranscriptionSegment[], participant?: Participant): void {
         if (participant?.isLocal) {
             latencyTimestampTracker.update();
-            if (!usingTurnEvents && currentActivityState === AgentActivityState.Talking) {
-                currentActivityState = AgentActivityState.Idle;
-            }
         }
     }
     async function setUserContextAttributes(): Promise<void> {
@@ -415,10 +411,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function resolvePendingToolCall(callId: string): void {
         pendingToolCalls.delete(callId);
-        if (!usingTurnEvents && pendingToolCalls.size === 0 && currentActivityState === AgentActivityState.ToolActive) {
-            currentActivityState = AgentActivityState.Idle;
-            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
-        }
     }
 
     function handleVideoActivityState(subject: string, data: any): void {
@@ -441,11 +433,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
             }
             return;
-        }
-
-        if (!usingTurnEvents && currentInterruptible) {
-            currentActivityState = AgentActivityState.Idle;
-            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         }
     }
 
@@ -473,7 +460,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     function handleTurnStarted(_subject: string, data: TurnEventPayload): void {
-        usingTurnEvents = true;
         currentTurnId = data?.turn_id ?? null;
         currentActivityState = AgentActivityState.Loading;
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Loading);
