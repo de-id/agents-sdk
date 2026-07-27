@@ -15,6 +15,7 @@ import {
     ToolCallDonePayload,
     ToolCallErrorPayload,
     ToolCallStartedPayload,
+    TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
@@ -126,6 +127,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
     const pendingToolCalls = new Set<string>();
+    let currentTurnId: number | null = null;
+    let usingTurnEvents = false;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
@@ -172,7 +175,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function handleTranscriptionReceived(_segments: TranscriptionSegment[], participant?: Participant): void {
         if (participant?.isLocal) {
             latencyTimestampTracker.update();
-            if (currentActivityState === AgentActivityState.Talking) {
+            if (!usingTurnEvents && currentActivityState === AgentActivityState.Talking) {
                 currentActivityState = AgentActivityState.Idle;
             }
         }
@@ -412,7 +415,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function resolvePendingToolCall(callId: string): void {
         pendingToolCalls.delete(callId);
-        if (pendingToolCalls.size === 0 && currentActivityState === AgentActivityState.ToolActive) {
+        if (!usingTurnEvents && pendingToolCalls.size === 0 && currentActivityState === AgentActivityState.ToolActive) {
             currentActivityState = AgentActivityState.Idle;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         }
@@ -440,7 +443,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             return;
         }
 
-        if (currentInterruptible) {
+        if (!usingTurnEvents && currentInterruptible) {
             currentActivityState = AgentActivityState.Idle;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         }
@@ -469,6 +472,20 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         });
     }
 
+    function handleTurnStarted(_subject: string, data: TurnEventPayload): void {
+        usingTurnEvents = true;
+        currentTurnId = data?.turn_id ?? null;
+        currentActivityState = AgentActivityState.Loading;
+        callbacks.onAgentActivityStateChange?.(AgentActivityState.Loading);
+    }
+
+    function handleTurnEnded(_subject: string, data: TurnEventPayload): void {
+        const turnId: number | null = data?.turn_id ?? null;
+        if (currentTurnId !== null && turnId !== null && turnId < currentTurnId) return;
+        currentActivityState = AgentActivityState.Idle;
+        callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+    }
+
     type DataChannelHandler = (subject: string, data: any) => void;
     const dataChannelHandlers: Record<string, DataChannelHandler> = {
         [StreamEvents.ChatAnswer]: handleChatEvents,
@@ -481,6 +498,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         [StreamEvents.StreamVideoError]: handleVideoEvents,
         [StreamEvents.StreamVideoRejected]: handleVideoEvents,
         [StreamEvents.ChatAudioTranscribed]: handleTranscriptionEvents,
+        [StreamEvents.TurnStarted]: handleTurnStarted,
+        [StreamEvents.TurnEnded]: handleTurnEnded,
     };
 
     function handleDataReceived(
@@ -729,6 +748,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         isConnected = false;
         hasEmittedConnected = false;
         pendingToolCalls.clear();
+        currentTurnId = null;
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         currentActivityState = AgentActivityState.Idle;
     }

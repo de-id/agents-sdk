@@ -640,6 +640,42 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             expect(mockOnAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.Idle);
         });
+
+        it('should set Loading on turn/started', () => {
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 1 });
+
+            expect(mockOnAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.Loading);
+        });
+
+        it('should return to Idle only on turn/ended, not on a mid-turn video done', () => {
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 1 });
+            sendDataEvent(StreamEvents.StreamVideoCreated, { turn_id: 1 });
+            sendDataEvent(StreamEvents.StreamVideoDone, { turn_id: 1 });
+            sendDataEvent(StreamEvents.TurnEnded, { turn_id: 1 });
+
+            const states = mockOnAgentActivityStateChange.mock.calls.map(call => call[0]);
+            expect(states).toEqual([AgentActivityState.Loading, AgentActivityState.Talking, AgentActivityState.Idle]);
+        });
+
+        it('should stay ToolActive when the last tool call resolves inside a turn', () => {
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 1 });
+            sendDataEvent(StreamEvents.ToolCallStarted, { call_id: 'tc1', name: 'form', turn_id: 1 });
+            sendDataEvent(StreamEvents.ToolCallDone, { call_id: 'tc1', name: 'form', turn_id: 1 });
+
+            expect(mockOnAgentActivityStateChange).not.toHaveBeenCalledWith(AgentActivityState.Idle);
+            expect(mockOnAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.ToolActive);
+        });
+
+        it('should drop a stale turn/ended from an older turn', () => {
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 1 });
+            sendDataEvent(StreamEvents.TurnEnded, { turn_id: 1 });
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 2 });
+            mockOnAgentActivityStateChange.mockClear();
+
+            sendDataEvent(StreamEvents.TurnEnded, { turn_id: 1 });
+
+            expect(mockOnAgentActivityStateChange).not.toHaveBeenCalled();
+        });
     });
 
     describe('Transcription Interrupt Detection', () => {
