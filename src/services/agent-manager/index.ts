@@ -21,6 +21,7 @@ import { getRandom } from '@sdk/utils';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
 import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
+import { RpcError } from 'livekit-client';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { defer } from '../../utils/defer';
@@ -41,6 +42,16 @@ export interface AgentManagerItems {
     socketManager?: SocketManager;
     messages: Message[];
     chatMode: ChatMode;
+}
+
+/**
+ * LiveKit only forwards a thrown `RpcError` to the caller — it replaces anything else with
+ * `APPLICATION_ERROR`, whose message is a fixed constant, so a plain `Error`'s message never
+ * leaves the browser. Wrapping keeps the reason for the agent that invoked the tool.
+ * `RpcError` truncates the message at 256 bytes.
+ */
+function applicationError(message: string): RpcError {
+    return new RpcError(RpcError.ErrorCode.APPLICATION_ERROR, message);
 }
 
 /**
@@ -135,13 +146,17 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         return async (data: { payload: string }): Promise<string> => {
             const handler = clientToolHandlers.get(toolName);
             if (!handler) {
-                throw new Error(`No handler registered for client tool: ${toolName}`);
+                throw applicationError(`No handler registered for client tool: ${toolName}`);
             }
             try {
                 const args = JSON.parse(data.payload);
                 return await handler(args);
             } catch (error) {
-                throw new Error(`Client tool "${toolName}" failed: ${(error as Error).message}`);
+                // A handler that threw an RpcError chose its own code/data — pass it through.
+                if (error instanceof RpcError) {
+                    throw error;
+                }
+                throw applicationError(`Client tool "${toolName}" failed: ${(error as Error).message}`);
             }
         };
     }
