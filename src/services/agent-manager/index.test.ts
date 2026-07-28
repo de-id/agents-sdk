@@ -1074,9 +1074,7 @@ describe('createAgentManager', () => {
             expect(result).toBe('result2');
         });
 
-        // LiveKit forwards a thrown RpcError verbatim but replaces anything else with
-        // APPLICATION_ERROR's fixed message, so a plain Error's reason never reaches the caller.
-        it('should throw an RpcError carrying the reason when a handler rejects', async () => {
+        it('should throw an RpcError carrying the handler reason verbatim', async () => {
             const handler = jest.fn().mockRejectedValue(new Error('No form fields configured.'));
 
             await manager.connect();
@@ -1085,9 +1083,22 @@ describe('createAgentManager', () => {
 
             await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
                 code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'Client tool "testTool" failed: No form fields configured.',
+                message: 'No form fields configured.',
             });
             await expect(rpcHandler({ payload: '{}' })).rejects.toBeInstanceOf(RpcError);
+        });
+
+        it('should fall back to a generic message when a handler throws a non-Error', async () => {
+            const handler = jest.fn().mockRejectedValue('boom');
+
+            await manager.connect();
+            manager.registerClientTool('testTool', handler);
+            const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
+
+            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
+                code: RpcError.ErrorCode.APPLICATION_ERROR,
+                message: 'Client tool failed',
+            });
         });
 
         it('should pass through an RpcError thrown by the handler, keeping its code and data', async () => {
