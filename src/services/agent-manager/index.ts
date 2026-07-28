@@ -156,7 +156,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 if (error instanceof RpcError) {
                     throw error;
                 }
-                throw applicationError(`Client tool "${toolName}" failed: ${(error as Error).message}`);
+                throw applicationError((error as Error)?.message || 'Client tool failed');
             }
         };
     }
