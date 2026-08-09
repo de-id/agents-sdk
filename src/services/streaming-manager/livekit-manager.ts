@@ -127,7 +127,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
-    const pendingToolCalls = new Set<string>();
+    const pendingToolCalls = new Map<string, boolean>();
     let currentTurnId: number | null = null;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
@@ -383,13 +383,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
             const payload = data as ToolCallStartedPayload;
-            // TODO: race condition with parallel tool calls — if one tool is interruptible
-            // and another isn't, the last tool-call/started wins instead of AND-ing the flags.
-            // Backend currently sends interruptible: false for all tools, so this works in practice.
-            // Future fix: track interruptible per toolId and derive the aggregate state.
-            currentInterruptible = payload.interruptible !== false;
-            callbacks.onInterruptibleChange?.(currentInterruptible);
-            pendingToolCalls.add(payload.call_id);
+            pendingToolCalls.set(payload.call_id, payload.interruptible !== false);
+            recomputeInterruptible();
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
             callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
@@ -412,6 +407,17 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function resolvePendingToolCall(callId: string): void {
         pendingToolCalls.delete(callId);
+        recomputeInterruptible();
+    }
+
+    // Interruptible only when nothing blocking is pending. Derived, never assigned
+    // from the latest event: async and blocking tools can overlap, and whichever
+    // started last is not the answer.
+    function recomputeInterruptible(): void {
+        const next = [...pendingToolCalls.values()].every(Boolean);
+        if (next === currentInterruptible) return;
+        currentInterruptible = next;
+        callbacks.onInterruptibleChange?.(next);
     }
 
     function handleVideoActivityState(subject: string, data: any): void {

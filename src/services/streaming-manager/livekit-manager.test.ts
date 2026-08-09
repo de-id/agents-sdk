@@ -1496,6 +1496,76 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
         });
     });
 
+    describe('handleDataReceived - interruptible across parallel tool calls', () => {
+        let onInterruptibleChange: jest.Mock;
+        let dataHandler: any;
+
+        const emitToolStarted = ({ call_id, interruptible }: { call_id: string; interruptible: boolean }) =>
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id,
+                    name: 'tool',
+                    input: {},
+                    output: {},
+                    interruptible,
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+        const emitToolDone = ({ call_id }: { call_id: string }) =>
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallDone,
+                    call_id,
+                    name: 'tool',
+                    input: {},
+                    output: {},
+                    duration_ms: 50,
+                    extra: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+        // The manager starts interruptible and only calls back on a change, so with no calls
+        // yet the observed state is the initial true.
+        const lastInterruptible = () =>
+            onInterruptibleChange.mock.calls.length > 0
+                ? onInterruptibleChange.mock.calls[onInterruptibleChange.mock.calls.length - 1][0]
+                : true;
+
+        beforeEach(async () => {
+            onInterruptibleChange = jest.fn();
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            dataHandler = getDataReceivedHandler();
+        });
+
+        it('stays non-interruptible while any blocking call is pending', () => {
+            emitToolStarted({ call_id: 'a', interruptible: true });
+            emitToolStarted({ call_id: 'b', interruptible: false });
+
+            expect(lastInterruptible()).toBe(false);
+        });
+
+        it('becomes interruptible once the blocking call resolves', () => {
+            emitToolStarted({ call_id: 'a', interruptible: true });
+            emitToolStarted({ call_id: 'b', interruptible: false });
+            emitToolDone({ call_id: 'b' });
+
+            expect(lastInterruptible()).toBe(true);
+        });
+
+        it('does not regress interruptibility when a blocking call starts after an async one', () => {
+            emitToolStarted({ call_id: 'a', interruptible: true });
+            expect(lastInterruptible()).toBe(true);
+            emitToolStarted({ call_id: 'b', interruptible: false });
+            expect(lastInterruptible()).toBe(false);
+        });
+    });
+
     describe('handleDataReceived - tool-call/done', () => {
         it('should forward payload via onToolEvent without changing activity state', async () => {
             // ARRANGE:
