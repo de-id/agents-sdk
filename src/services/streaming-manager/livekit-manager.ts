@@ -387,7 +387,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             const payload = data as ToolCallStartedPayload;
             pendingToolCalls.set(payload.call_id, {
                 interruptible: payload.interruptible !== false,
-                // A worker that predates execution_mode sends nothing, which means blocking.
                 blocking: payload.execution_mode !== 'async',
             });
             recomputeInterruptible();
