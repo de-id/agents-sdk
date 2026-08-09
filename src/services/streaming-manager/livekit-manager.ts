@@ -127,8 +127,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
-    // The agent's current speech, which the backend marks non-interruptible while it is
-    // speaking into a tool call. An input to the aggregate, not a second writer of it.
+    // Whether the speech currently playing can be barged in on. An input to the aggregate,
+    // not a second writer of it, and only meaningful while the agent is speaking.
     let videoInterruptible = true;
     const pendingToolCalls = new Map<string, boolean>();
     let currentTurnId: number | null = null;
@@ -424,10 +424,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     function handleVideoActivityState(subject: string, data: any): void {
-        videoInterruptible = data.metadata?.interruptible !== false;
-        recomputeInterruptible();
-
         if (subject === StreamEvents.StreamVideoCreated) {
+            videoInterruptible = data.metadata?.interruptible !== false;
+            recomputeInterruptible();
             currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
             audioStatsDetector?.arm({
@@ -436,6 +435,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             });
             return;
         }
+
+        // The speech is over, so there is nothing left to barge in on. Lifted explicitly:
+        // this event still carries the finished speech's own flag.
+        videoInterruptible = true;
+        recomputeInterruptible();
 
         if (pendingToolCalls.size > 0) {
             if (currentActivityState !== AgentActivityState.ToolActive) {
