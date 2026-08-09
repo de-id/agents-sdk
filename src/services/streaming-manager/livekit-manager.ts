@@ -127,6 +127,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
+    // The agent's current speech, which the backend marks non-interruptible while it is
+    // speaking into a tool call. An input to the aggregate, not a second writer of it.
+    let videoInterruptible = true;
     const pendingToolCalls = new Map<string, boolean>();
     let currentTurnId: number | null = null;
 
@@ -410,19 +413,19 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         recomputeInterruptible();
     }
 
-    // Interruptible only when nothing blocking is pending. Derived, never assigned
-    // from the latest event: async and blocking tools can overlap, and whichever
-    // started last is not the answer.
+    // Interruptible only when the speech allows it and nothing blocking is pending. Derived,
+    // never assigned from the latest event: async and blocking tools can overlap, and
+    // whichever started last is not the answer.
     function recomputeInterruptible(): void {
-        const next = [...pendingToolCalls.values()].every(Boolean);
+        const next = videoInterruptible && [...pendingToolCalls.values()].every(Boolean);
         if (next === currentInterruptible) return;
         currentInterruptible = next;
         callbacks.onInterruptibleChange?.(next);
     }
 
     function handleVideoActivityState(subject: string, data: any): void {
-        currentInterruptible = data.metadata?.interruptible !== false;
-        callbacks.onInterruptibleChange?.(currentInterruptible);
+        videoInterruptible = data.metadata?.interruptible !== false;
+        recomputeInterruptible();
 
         if (subject === StreamEvents.StreamVideoCreated) {
             currentActivityState = AgentActivityState.Talking;

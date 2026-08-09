@@ -1427,7 +1427,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onInterruptibleChange).toHaveBeenCalledWith(false);
         });
 
-        it('should emit onInterruptibleChange(true) when tool-call/started carries interruptible: true', async () => {
+        it('should not emit onInterruptibleChange when an interruptible tool-call/started leaves the aggregate unchanged', async () => {
             // ARRANGE:
             const onInterruptibleChange = jest.fn();
             options.callbacks.onInterruptibleChange = onInterruptibleChange;
@@ -1449,11 +1449,11 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ACT:
             dataHandler(payload);
 
-            // ASSERT:
-            expect(onInterruptibleChange).toHaveBeenCalledWith(true);
+            // ASSERT: the manager starts interruptible, so this is not a change
+            expect(onInterruptibleChange).not.toHaveBeenCalled();
         });
 
-        it('should not emit onInterruptibleChange on tool-call/done', async () => {
+        it('should emit onInterruptibleChange(true) on tool-call/done when the last blocking call resolves', async () => {
             // ARRANGE:
             const onInterruptibleChange = jest.fn();
             options.callbacks.onInterruptibleChange = onInterruptibleChange;
@@ -1491,8 +1491,8 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 })
             );
 
-            // ASSERT:
-            expect(onInterruptibleChange).not.toHaveBeenCalled();
+            // ASSERT: the pending map is now empty, which is interruptible
+            expect(onInterruptibleChange).toHaveBeenCalledWith(true);
         });
     });
 
@@ -1529,6 +1529,14 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
         // The manager starts interruptible and only calls back on a change, so with no calls
         // yet the observed state is the initial true.
+        const emitStreamVideoDone = (metadata?: { interruptible: boolean }) =>
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.StreamVideoDone,
+                    metadata,
+                })
+            );
+
         const lastInterruptible = () =>
             onInterruptibleChange.mock.calls.length > 0
                 ? onInterruptibleChange.mock.calls[onInterruptibleChange.mock.calls.length - 1][0]
@@ -1563,6 +1571,27 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(lastInterruptible()).toBe(true);
             emitToolStarted({ call_id: 'b', interruptible: false });
             expect(lastInterruptible()).toBe(false);
+        });
+
+        it('stays non-interruptible when a video activity event arrives while a blocking call is pending', () => {
+            emitToolStarted({ call_id: 'a', interruptible: false });
+            emitStreamVideoDone();
+
+            expect(lastInterruptible()).toBe(false);
+        });
+
+        it('becomes non-interruptible when a video activity event carries interruptible: false', () => {
+            emitStreamVideoDone({ interruptible: false });
+
+            expect(lastInterruptible()).toBe(false);
+        });
+
+        it('becomes interruptible again once the speech and every pending call allow it', () => {
+            emitStreamVideoDone({ interruptible: false });
+            emitToolStarted({ call_id: 'a', interruptible: true });
+            emitStreamVideoDone({ interruptible: true });
+
+            expect(lastInterruptible()).toBe(true);
         });
     });
 
