@@ -1622,6 +1622,129 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
         });
     });
 
+    describe('handleDataReceived - blocking-mode tool calls', () => {
+        let onBlockingToolPendingChange: jest.Mock;
+        let onInterruptibleChange: jest.Mock;
+        let dataHandler: any;
+
+        const emitToolStarted = ({
+            call_id,
+            interruptible,
+            execution_mode,
+        }: {
+            call_id: string;
+            interruptible: boolean;
+            execution_mode?: string;
+        }) =>
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id,
+                    name: 'tool',
+                    input: {},
+                    output: {},
+                    interruptible,
+                    ...(execution_mode ? { execution_mode } : {}),
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+        const emitToolDone = ({ call_id }: { call_id: string }) =>
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallDone,
+                    call_id,
+                    name: 'tool',
+                    input: {},
+                    output: {},
+                    duration_ms: 50,
+                    extra: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+        const emitStreamVideoCreated = (metadata?: { interruptible: boolean }) =>
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.StreamVideoCreated,
+                    metadata,
+                })
+            );
+
+        // Nothing is pending at start, so with no callback yet the observed state is the initial false.
+        const lastBlockingToolPending = () =>
+            onBlockingToolPendingChange.mock.calls.length > 0
+                ? onBlockingToolPendingChange.mock.calls[onBlockingToolPendingChange.mock.calls.length - 1][0]
+                : false;
+
+        beforeEach(async () => {
+            onBlockingToolPendingChange = jest.fn();
+            onInterruptibleChange = jest.fn();
+            options.callbacks.onBlockingToolPendingChange = onBlockingToolPendingChange;
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            dataHandler = getDataReceivedHandler();
+        });
+
+        it('emits true while a blocking-mode call is pending and false once it resolves', () => {
+            emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
+            expect(lastBlockingToolPending()).toBe(true);
+
+            emitToolDone({ call_id: 'a' });
+            expect(lastBlockingToolPending()).toBe(false);
+        });
+
+        it('never fires for an async-mode call', () => {
+            emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async' });
+
+            expect(onBlockingToolPendingChange).not.toHaveBeenCalled();
+        });
+
+        it('treats a missing execution_mode as blocking', () => {
+            emitToolStarted({ call_id: 'a', interruptible: false });
+
+            expect(lastBlockingToolPending()).toBe(true);
+        });
+
+        it('stays true while any blocking call is pending and drops only when the last one resolves', () => {
+            emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async' });
+            emitToolStarted({ call_id: 'b', interruptible: false, execution_mode: 'blocking' });
+            emitToolStarted({ call_id: 'c', interruptible: false, execution_mode: 'blocking' });
+            expect(lastBlockingToolPending()).toBe(true);
+
+            emitToolDone({ call_id: 'b' });
+            expect(lastBlockingToolPending()).toBe(true);
+
+            emitToolDone({ call_id: 'c' });
+            expect(lastBlockingToolPending()).toBe(false);
+        });
+
+        it('fires only on an actual change, not once per event', () => {
+            emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
+            emitToolStarted({ call_id: 'b', interruptible: false, execution_mode: 'blocking' });
+
+            expect(onBlockingToolPendingChange).toHaveBeenCalledTimes(1);
+            expect(onBlockingToolPendingChange).toHaveBeenCalledWith(true);
+        });
+
+        // The whole point of the split: a non-interruptible speech is not a blocking tool.
+        it('ignores speech interruptibility', () => {
+            emitStreamVideoCreated({ interruptible: false });
+
+            expect(onInterruptibleChange).toHaveBeenCalledWith(false);
+            expect(onBlockingToolPendingChange).not.toHaveBeenCalled();
+        });
+
+        it('reports an async call as not blocking even while the speech is non-interruptible', () => {
+            emitStreamVideoCreated({ interruptible: false });
+            emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async' });
+
+            expect(lastBlockingToolPending()).toBe(false);
+        });
+    });
+
     describe('handleDataReceived - tool-call/done', () => {
         it('should forward payload via onToolEvent without changing activity state', async () => {
             // ARRANGE:

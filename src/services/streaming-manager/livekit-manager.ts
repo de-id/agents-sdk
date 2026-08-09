@@ -127,10 +127,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
+    let currentBlockingToolPending = false;
     // Whether the speech currently playing can be barged in on. An input to the aggregate,
     // not a second writer of it, and only meaningful while the agent is speaking.
     let videoInterruptible = true;
-    const pendingToolCalls = new Map<string, boolean>();
+    // Two independent facts per call: whether the user may barge in, and whether the call
+    // occupies the agent's turn. They are not each other's negation.
+    const pendingToolCalls = new Map<string, { interruptible: boolean; blocking: boolean }>();
     let currentTurnId: number | null = null;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
@@ -386,8 +389,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
             const payload = data as ToolCallStartedPayload;
-            pendingToolCalls.set(payload.call_id, payload.interruptible !== false);
+            pendingToolCalls.set(payload.call_id, {
+                interruptible: payload.interruptible !== false,
+                // A worker that predates execution_mode sends nothing, which means blocking.
+                blocking: payload.execution_mode !== 'async',
+            });
             recomputeInterruptible();
+            recomputeBlockingToolPending();
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
             callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
@@ -411,16 +419,27 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function resolvePendingToolCall(callId: string): void {
         pendingToolCalls.delete(callId);
         recomputeInterruptible();
+        recomputeBlockingToolPending();
     }
 
     // Interruptible only when the speech allows it and nothing blocking is pending. Derived,
     // never assigned from the latest event: async and blocking tools can overlap, and
     // whichever started last is not the answer.
     function recomputeInterruptible(): void {
-        const next = videoInterruptible && [...pendingToolCalls.values()].every(Boolean);
+        const next = videoInterruptible && [...pendingToolCalls.values()].every(call => call.interruptible);
         if (next === currentInterruptible) return;
         currentInterruptible = next;
         callbacks.onInterruptibleChange?.(next);
+    }
+
+    // Whether a blocking-mode call is occupying the turn. Same discipline as the aggregate
+    // above -- derived from every pending call, never assigned from the latest event -- but a
+    // separate question: speech interruptibility is deliberately not folded in here.
+    function recomputeBlockingToolPending(): void {
+        const next = [...pendingToolCalls.values()].some(call => call.blocking);
+        if (next === currentBlockingToolPending) return;
+        currentBlockingToolPending = next;
+        callbacks.onBlockingToolPendingChange?.(next);
     }
 
     function handleVideoActivityState(subject: string, data: any): void {
@@ -748,6 +767,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         isConnected = false;
         hasEmittedConnected = false;
         pendingToolCalls.clear();
+        recomputeBlockingToolPending();
         currentTurnId = null;
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         currentActivityState = AgentActivityState.Idle;

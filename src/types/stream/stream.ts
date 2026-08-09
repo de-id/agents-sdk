@@ -75,6 +75,7 @@ export interface ManagerCallbacks {
     onStreamReady?: () => void;
     onToolEvent?: ToolEventCallback;
     onInterruptibleChange?: (interruptible: boolean) => void;
+    onBlockingToolPendingChange?: (blockingToolPending: boolean) => void;
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
 
@@ -218,12 +219,16 @@ export interface StreamInterruptPayload {
 
 export type ClientToolHandler = (args: Record<string, unknown>) => Promise<string>;
 
+export type ToolExecutionMode = 'blocking' | 'async';
+
 export interface ToolCallStartedPayload {
     call_id: string;
     name: string;
     input: Record<string, unknown>;
     output: Record<string, unknown>;
     interruptible: boolean;
+    // Absent from workers that predate the field, which is why anything but 'async' reads as blocking.
+    execution_mode?: ToolExecutionMode;
     timestamp: string;
 }
 
