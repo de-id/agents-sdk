@@ -381,7 +381,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
      * - tool-call/started -> ToolActive
      * - stream-video/created -> Talking, then back to ToolActive on stream-video/done
      *   while any tool call is still pending (e.g. a client tool waiting for user input)
-     * - last tool-call/done|error -> Idle
+     * - tool-call/done|error only drops the pending call; Idle comes from turn/ended
      */
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
