@@ -1527,14 +1527,6 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 })
             );
 
-        const emitStreamVideoCreated = (metadata?: { interruptible: boolean }) =>
-            dataHandler(
-                createDataChannelPayload({
-                    subject: StreamEvents.StreamVideoCreated,
-                    metadata,
-                })
-            );
-
         const emitStreamVideoDone = (metadata?: { interruptible: boolean }) =>
             dataHandler(
                 createDataChannelPayload({
@@ -1585,44 +1577,10 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
             expect(lastInterruptible()).toBe(false);
         });
-
-        it('becomes non-interruptible while a speech marked interruptible: false is playing', () => {
-            emitStreamVideoCreated({ interruptible: false });
-
-            expect(lastInterruptible()).toBe(false);
-        });
-
-        it('is interruptible while only an async call is pending after a non-interruptible speech', () => {
-            emitStreamVideoCreated({ interruptible: false });
-            emitStreamVideoDone({ interruptible: false });
-            emitToolStarted({ call_id: 'a', interruptible: true });
-
-            expect(lastInterruptible()).toBe(true);
-        });
-
-        it('becomes interruptible again once the speech and every pending call allow it', () => {
-            emitStreamVideoCreated({ interruptible: false });
-            expect(lastInterruptible()).toBe(false);
-
-            emitToolStarted({ call_id: 'a', interruptible: true });
-            expect(lastInterruptible()).toBe(false);
-
-            emitStreamVideoDone({ interruptible: false });
-            expect(lastInterruptible()).toBe(true);
-        });
-
-        it('stays non-interruptible after the speech ends while a blocking call is pending', () => {
-            emitStreamVideoCreated({ interruptible: false });
-            emitToolStarted({ call_id: 'a', interruptible: false });
-            emitStreamVideoDone({ interruptible: false });
-
-            expect(lastInterruptible()).toBe(false);
-        });
     });
 
     describe('handleDataReceived - blocking-mode tool calls', () => {
         let onBlockingToolPendingChange: jest.Mock;
-        let onInterruptibleChange: jest.Mock;
         let dataHandler: any;
 
         const emitToolStarted = ({
@@ -1661,14 +1619,6 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 })
             );
 
-        const emitStreamVideoCreated = (metadata?: { interruptible: boolean }) =>
-            dataHandler(
-                createDataChannelPayload({
-                    subject: StreamEvents.StreamVideoCreated,
-                    metadata,
-                })
-            );
-
         const lastBlockingToolPending = () =>
             onBlockingToolPendingChange.mock.calls.length > 0
                 ? onBlockingToolPendingChange.mock.calls[onBlockingToolPendingChange.mock.calls.length - 1][0]
@@ -1676,9 +1626,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
         beforeEach(async () => {
             onBlockingToolPendingChange = jest.fn();
-            onInterruptibleChange = jest.fn();
             options.callbacks.onBlockingToolPendingChange = onBlockingToolPendingChange;
-            options.callbacks.onInterruptibleChange = onInterruptibleChange;
 
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
@@ -1724,20 +1672,6 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
             expect(onBlockingToolPendingChange).toHaveBeenCalledTimes(1);
             expect(onBlockingToolPendingChange).toHaveBeenCalledWith(true);
-        });
-
-        it('ignores speech interruptibility', () => {
-            emitStreamVideoCreated({ interruptible: false });
-
-            expect(onInterruptibleChange).toHaveBeenCalledWith(false);
-            expect(onBlockingToolPendingChange).not.toHaveBeenCalled();
-        });
-
-        it('reports an async call as not blocking even while the speech is non-interruptible', () => {
-            emitStreamVideoCreated({ interruptible: false });
-            emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async' });
-
-            expect(lastBlockingToolPending()).toBe(false);
         });
     });
 

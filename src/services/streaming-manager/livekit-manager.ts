@@ -128,7 +128,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
     let currentBlockingToolPending = false;
-    let videoInterruptible = true;
     const pendingToolCalls = new Map<string, { interruptible: boolean; blocking: boolean }>();
     let currentTurnId: number | null = null;
 
@@ -418,7 +417,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     function recomputeInterruptible(): void {
-        const next = videoInterruptible && [...pendingToolCalls.values()].every(call => call.interruptible);
+        const next = [...pendingToolCalls.values()].every(call => call.interruptible);
         if (next === currentInterruptible) return;
         currentInterruptible = next;
         callbacks.onInterruptibleChange?.(next);
@@ -433,8 +432,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleVideoActivityState(subject: string, data: any): void {
         if (subject === StreamEvents.StreamVideoCreated) {
-            videoInterruptible = data.metadata?.interruptible !== false;
-            recomputeInterruptible();
             currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
             audioStatsDetector?.arm({
@@ -443,10 +440,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             });
             return;
         }
-
-        // The done event still carries the finished speech's own flag, so lift it explicitly.
-        videoInterruptible = true;
-        recomputeInterruptible();
 
         if (pendingToolCalls.size > 0) {
             if (currentActivityState !== AgentActivityState.ToolActive) {
