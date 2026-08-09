@@ -227,7 +227,6 @@ export interface ToolCallStartedPayload {
     input: Record<string, unknown>;
     output: Record<string, unknown>;
     interruptible: boolean;
-    // Absent from workers that predate the field, which is why anything but 'async' reads as blocking.
     execution_mode?: ToolExecutionMode;
     timestamp: string;
 }

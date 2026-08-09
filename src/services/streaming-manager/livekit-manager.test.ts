@@ -1449,7 +1449,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ACT:
             dataHandler(payload);
 
-            // ASSERT: the manager starts interruptible, so this is not a change
+            // ASSERT:
             expect(onInterruptibleChange).not.toHaveBeenCalled();
         });
 
@@ -1491,7 +1491,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 })
             );
 
-            // ASSERT: the pending map is now empty, which is interruptible
+            // ASSERT:
             expect(onInterruptibleChange).toHaveBeenCalledWith(true);
         });
     });
@@ -1543,8 +1543,6 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 })
             );
 
-        // The manager starts interruptible and only calls back on a change, so with no calls
-        // yet the observed state is the initial true.
         const lastInterruptible = () =>
             onInterruptibleChange.mock.calls.length > 0
                 ? onInterruptibleChange.mock.calls[onInterruptibleChange.mock.calls.length - 1][0]
@@ -1671,7 +1669,6 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 })
             );
 
-        // Nothing is pending at start, so with no callback yet the observed state is the initial false.
         const lastBlockingToolPending = () =>
             onBlockingToolPendingChange.mock.calls.length > 0
                 ? onBlockingToolPendingChange.mock.calls[onBlockingToolPendingChange.mock.calls.length - 1][0]
@@ -1729,7 +1726,6 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onBlockingToolPendingChange).toHaveBeenCalledWith(true);
         });
 
-        // The whole point of the split: a non-interruptible speech is not a blocking tool.
         it('ignores speech interruptibility', () => {
             emitStreamVideoCreated({ interruptible: false });
 

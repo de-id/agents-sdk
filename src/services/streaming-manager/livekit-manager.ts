@@ -128,11 +128,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
     let currentBlockingToolPending = false;
-    // Whether the speech currently playing can be barged in on. An input to the aggregate,
-    // not a second writer of it, and only meaningful while the agent is speaking.
     let videoInterruptible = true;
-    // Two independent facts per call: whether the user may barge in, and whether the call
-    // occupies the agent's turn. They are not each other's negation.
     const pendingToolCalls = new Map<string, { interruptible: boolean; blocking: boolean }>();
     let currentTurnId: number | null = null;
 
@@ -422,9 +418,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         recomputeBlockingToolPending();
     }
 
-    // Interruptible only when the speech allows it and nothing blocking is pending. Derived,
-    // never assigned from the latest event: async and blocking tools can overlap, and
-    // whichever started last is not the answer.
     function recomputeInterruptible(): void {
         const next = videoInterruptible && [...pendingToolCalls.values()].every(call => call.interruptible);
         if (next === currentInterruptible) return;
@@ -432,9 +425,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         callbacks.onInterruptibleChange?.(next);
     }
 
-    // Whether a blocking-mode call is occupying the turn. Same discipline as the aggregate
-    // above -- derived from every pending call, never assigned from the latest event -- but a
-    // separate question: speech interruptibility is deliberately not folded in here.
     function recomputeBlockingToolPending(): void {
         const next = [...pendingToolCalls.values()].some(call => call.blocking);
         if (next === currentBlockingToolPending) return;
@@ -455,8 +445,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             return;
         }
 
-        // The speech is over, so there is nothing left to barge in on. Lifted explicitly:
-        // this event still carries the finished speech's own flag.
+        // The done event still carries the finished speech's own flag, so lift it explicitly.
         videoInterruptible = true;
         recomputeInterruptible();
 

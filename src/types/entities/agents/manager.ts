@@ -117,8 +117,7 @@ interface ManagerCallbacks {
     onInterruptibleChange?: StreamManagerCallbacks['onInterruptibleChange'];
     /**
      * Optional callback function that will be triggered when the blocking-tool state changes
-     * @param blockingToolPending - Whether a blocking-mode tool call is pending. Distinct from
-     * interruptible: this is about the agent's turn being occupied, not about barge-in.
+     * @param blockingToolPending - Whether a blocking-mode tool call is pending
      */
     onBlockingToolPendingChange?: StreamManagerCallbacks['onBlockingToolPendingChange'];
 }
