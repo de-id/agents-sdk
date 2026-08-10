@@ -118,8 +118,7 @@ interface ManagerCallbacks {
     /**
      * Optional callback function that will be triggered when the set of running tool calls changes,
      * including an empty array on disconnect.
-     * @param calls - The tool calls currently running. Distinct from `onInterruptibleChange`, which
-     * answers whether the user can speak rather than whether the agent is waiting.
+     * @param calls - The tool calls currently running
      */
     onRunningToolCallsChange?: StreamManagerCallbacks['onRunningToolCallsChange'];
 }
