@@ -8,11 +8,11 @@ import {
     Interrupt,
     Message,
     PayloadType,
+    RunningToolCall,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     StreamType,
-    ToolCall,
     ToolCallDonePayload,
     ToolCallErrorPayload,
     ToolCallStartedPayload,
@@ -45,6 +45,8 @@ import { createAudioStatsDetector, createVideoStatsMonitor } from './stats/poll'
 import { VideoRTCStatsReport } from './stats/report';
 
 const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
+
+const NO_RUNNING_TOOL_CALLS: readonly RunningToolCall[] = [];
 
 interface TrackPublishState {
     isPublishing: boolean;
@@ -128,7 +130,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
-    const pendingToolCalls = new Map<string, ToolCall & { interruptible: boolean }>();
+    const pendingToolCalls = new Map<string, RunningToolCall & { interruptible: boolean; turnId: number | null }>();
     let currentTurnId: number | null = null;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
@@ -389,6 +391,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 name: payload.name,
                 executionMode: payload.execution_mode === 'async' ? 'async' : 'blocking',
                 interruptible: payload.interruptible !== false,
+                turnId: payload.turn_id ?? currentTurnId,
             });
             recomputeInterruptible();
             emitRunningToolCalls();
@@ -413,7 +416,22 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     function resolvePendingToolCall(callId: string): void {
-        pendingToolCalls.delete(callId);
+        if (!pendingToolCalls.delete(callId)) return;
+        recomputeInterruptible();
+        emitRunningToolCalls();
+    }
+
+    function dropBlockingToolCallsForTurn(turnId: number | null): void {
+        let dropped = false;
+
+        for (const [callId, call] of pendingToolCalls) {
+            if (call.executionMode !== 'blocking') continue;
+            if (turnId !== null && call.turnId !== null && call.turnId !== turnId) continue;
+            pendingToolCalls.delete(callId);
+            dropped = true;
+        }
+
+        if (!dropped) return;
         recomputeInterruptible();
         emitRunningToolCalls();
     }
@@ -427,11 +445,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function emitRunningToolCalls(): void {
         callbacks.onRunningToolCallsChange?.(
-            [...pendingToolCalls.values()].map(({ callId, name, executionMode }) => ({
-                callId,
-                name,
-                executionMode,
-            }))
+            pendingToolCalls.size === 0
+                ? NO_RUNNING_TOOL_CALLS
+                : [...pendingToolCalls.values()].map(({ callId, name, executionMode }) => ({
+                      callId,
+                      name,
+                      executionMode,
+                  }))
         );
     }
 
@@ -487,6 +507,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function handleTurnEnded(_subject: string, data: TurnEventPayload): void {
         const turnId: number | null = data?.turn_id ?? null;
         if (currentTurnId !== null && turnId !== null && turnId < currentTurnId) return;
+        dropBlockingToolCallsForTurn(turnId);
         currentActivityState = AgentActivityState.Idle;
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
     }
@@ -752,9 +773,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         cleanMediaStream();
         isConnected = false;
         hasEmittedConnected = false;
-        pendingToolCalls.clear();
-        recomputeInterruptible();
-        emitRunningToolCalls();
+        if (pendingToolCalls.size > 0) {
+            pendingToolCalls.clear();
+            recomputeInterruptible();
+            emitRunningToolCalls();
+        }
         currentTurnId = null;
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         currentActivityState = AgentActivityState.Idle;

@@ -1,7 +1,7 @@
-import { ToolCall } from '@sdk/types';
+import { RunningToolCall } from '@sdk/types';
 import { isAwaitingTool } from './tool-calls';
 
-const call = (callId: string, executionMode: ToolCall['executionMode']): ToolCall => ({
+const call = (callId: string, executionMode: RunningToolCall['executionMode']): RunningToolCall => ({
     callId,
     name: 'tool',
     executionMode,

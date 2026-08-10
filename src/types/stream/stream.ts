@@ -75,7 +75,7 @@ export interface ManagerCallbacks {
     onStreamReady?: () => void;
     onToolEvent?: ToolEventCallback;
     onInterruptibleChange?: (interruptible: boolean) => void;
-    onRunningToolCallsChange?: (calls: readonly ToolCall[]) => void;
+    onRunningToolCallsChange?: (calls: readonly RunningToolCall[]) => void;
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
 
@@ -222,14 +222,14 @@ export type ClientToolHandler = (args: Record<string, unknown>) => Promise<strin
 export type ToolExecutionMode = 'blocking' | 'async';
 
 /** A tool call currently running in the session. */
-export interface ToolCall {
+export interface RunningToolCall {
     callId: string;
     name: string;
     /**
      * 'blocking' - the agent waits for the result before it can continue.
      * 'async' - the agent keeps talking while the call runs.
      */
-    executionMode: 'blocking' | 'async';
+    executionMode: ToolExecutionMode;
 }
 
 export interface ToolCallStartedPayload {
@@ -239,6 +239,7 @@ export interface ToolCallStartedPayload {
     output: Record<string, unknown>;
     interruptible: boolean;
     execution_mode?: ToolExecutionMode;
+    turn_id?: number | null;
     timestamp: string;
 }
 
