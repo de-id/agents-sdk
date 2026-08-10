@@ -1401,7 +1401,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             );
         });
 
-        it('should emit onInterruptibleChange(false) when tool-call/started carries interruptible: false', async () => {
+        it('should emit onInterruptibleChange(false) when a blocking tool-call/started arrives', async () => {
             // ARRANGE:
             const onInterruptibleChange = jest.fn();
             options.callbacks.onInterruptibleChange = onInterruptibleChange;
@@ -1427,7 +1427,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onInterruptibleChange).toHaveBeenCalledWith(false);
         });
 
-        it('should not emit onInterruptibleChange when an interruptible tool-call/started leaves the aggregate unchanged', async () => {
+        it('should not emit onInterruptibleChange when an async tool-call/started leaves the aggregate unchanged', async () => {
             // ARRANGE:
             const onInterruptibleChange = jest.fn();
             options.callbacks.onInterruptibleChange = onInterruptibleChange;
@@ -1442,7 +1442,8 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 name: 'get_weather',
                 input: {},
                 output: {},
-                interruptible: true,
+                interruptible: false,
+                execution_mode: 'async',
                 timestamp: new Date().toISOString(),
             });
 
@@ -1505,13 +1506,13 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
         const emitToolStarted = ({
             call_id,
             name = 'tool',
-            interruptible,
+            interruptible = false,
             execution_mode,
             turn_id,
         }: {
             call_id: string;
             name?: string;
-            interruptible: boolean;
+            interruptible?: boolean;
             execution_mode?: string;
             turn_id?: number;
         }) =>
@@ -1575,37 +1576,43 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
         describe('interruptible across parallel tool calls', () => {
             it('stays non-interruptible while any blocking call is pending', () => {
-                emitToolStarted({ call_id: 'a', interruptible: true });
-                emitToolStarted({ call_id: 'b', interruptible: false });
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
 
                 expect(lastInterruptible()).toBe(false);
             });
 
             it('becomes interruptible once the blocking call resolves', () => {
-                emitToolStarted({ call_id: 'a', interruptible: true });
-                emitToolStarted({ call_id: 'b', interruptible: false });
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
                 emitToolDone({ call_id: 'b' });
 
                 expect(lastInterruptible()).toBe(true);
             });
 
             it('does not regress interruptibility when a blocking call starts after an async one', () => {
-                emitToolStarted({ call_id: 'a', interruptible: true });
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
                 expect(lastInterruptible()).toBe(true);
-                emitToolStarted({ call_id: 'b', interruptible: false });
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
                 expect(lastInterruptible()).toBe(false);
             });
 
             it('stays non-interruptible when an async call starts after a blocking one', () => {
-                emitToolStarted({ call_id: 'a', interruptible: false });
-                emitToolStarted({ call_id: 'b', interruptible: true });
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking' });
+                emitToolStarted({ call_id: 'b', execution_mode: 'async' });
 
                 expect(lastInterruptible()).toBe(false);
             });
 
             it('stays non-interruptible when a video activity event arrives while a blocking call is pending', () => {
-                emitToolStarted({ call_id: 'a', interruptible: false });
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking' });
                 emitStreamVideoDone();
+
+                expect(lastInterruptible()).toBe(false);
+            });
+
+            it('ignores the per-call interruptible flag when deriving the aggregate', () => {
+                emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'blocking' });
 
                 expect(lastInterruptible()).toBe(false);
             });
@@ -1628,7 +1635,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             });
 
             it('reports an async-mode call as async', () => {
-                emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async' });
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
 
                 expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'async' }]);
             });
@@ -1640,7 +1647,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             });
 
             it('keeps reporting the calls still running and drops only the ones that resolved', () => {
-                emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async' });
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
                 emitToolStarted({ call_id: 'b', interruptible: false, execution_mode: 'blocking' });
                 emitToolStarted({ call_id: 'c', interruptible: false, execution_mode: 'blocking' });
                 expect(lastRunningToolCalls().map((call: { callId: string }) => call.callId)).toEqual(['a', 'b', 'c']);
@@ -1716,7 +1723,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
             it('keeps an async call pending when its turn ends', () => {
                 emitTurnStarted(1);
-                emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async', turn_id: 1 });
+                emitToolStarted({ call_id: 'a', execution_mode: 'async', turn_id: 1 });
 
                 emitTurnEnded(1);
 
@@ -1735,7 +1742,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
             it('does not re-emit on turn/ended when nothing blocking is pending', () => {
                 emitTurnStarted(1);
-                emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async', turn_id: 1 });
+                emitToolStarted({ call_id: 'a', execution_mode: 'async', turn_id: 1 });
                 onRunningToolCallsChange.mockClear();
 
                 emitTurnEnded(1);

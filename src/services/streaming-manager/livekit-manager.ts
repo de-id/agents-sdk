@@ -53,6 +53,12 @@ interface TrackPublishState {
     publication: LocalTrackPublication | null;
 }
 
+interface PendingToolCall {
+    call: RunningToolCall;
+    interruptible: boolean;
+    turnId: number | null;
+}
+
 async function importLiveKit(): Promise<{
     Room: typeof Room;
     RoomEvent: typeof RoomEvent;
@@ -130,7 +136,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
-    const pendingToolCalls = new Map<string, RunningToolCall & { interruptible: boolean; turnId: number | null }>();
+    const pendingToolCalls = new Map<string, PendingToolCall>();
     let currentTurnId: number | null = null;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
@@ -387,10 +393,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (subject === StreamEvents.ToolCallStarted) {
             const payload = data as ToolCallStartedPayload;
             pendingToolCalls.set(payload.call_id, {
-                callId: payload.call_id,
-                name: payload.name,
-                executionMode: payload.execution_mode === 'async' ? 'async' : 'blocking',
-                interruptible: payload.interruptible !== false,
+                call: {
+                    callId: payload.call_id,
+                    name: payload.name,
+                    executionMode: payload.execution_mode === 'async' ? 'async' : 'blocking',
+                },
+                interruptible: payload.interruptible === true,
                 turnId: payload.turn_id ?? currentTurnId,
             });
             recomputeInterruptible();
@@ -424,9 +432,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function dropBlockingToolCallsForTurn(turnId: number | null): void {
         let dropped = false;
 
-        for (const [callId, call] of pendingToolCalls) {
-            if (call.executionMode !== 'blocking') continue;
-            if (turnId !== null && call.turnId !== null && call.turnId !== turnId) continue;
+        for (const [callId, pending] of pendingToolCalls) {
+            if (pending.call.executionMode !== 'blocking') continue;
+            if (turnId !== null && pending.turnId !== null && pending.turnId !== turnId) continue;
             pendingToolCalls.delete(callId);
             dropped = true;
         }
@@ -437,7 +445,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     function recomputeInterruptible(): void {
-        const next = [...pendingToolCalls.values()].every(call => call.interruptible);
+        const next = ![...pendingToolCalls.values()].some(({ call }) => call.executionMode === 'blocking');
         if (next === currentInterruptible) return;
         currentInterruptible = next;
         callbacks.onInterruptibleChange?.(next);
@@ -445,13 +453,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function emitRunningToolCalls(): void {
         callbacks.onRunningToolCallsChange?.(
-            pendingToolCalls.size === 0
-                ? NO_RUNNING_TOOL_CALLS
-                : [...pendingToolCalls.values()].map(({ callId, name, executionMode }) => ({
-                      callId,
-                      name,
-                      executionMode,
-                  }))
+            pendingToolCalls.size === 0 ? NO_RUNNING_TOOL_CALLS : [...pendingToolCalls.values()].map(({ call }) => call)
         );
     }
 
