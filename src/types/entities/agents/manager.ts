@@ -116,13 +116,10 @@ interface ManagerCallbacks {
      */
     onInterruptibleChange?: StreamManagerCallbacks['onInterruptibleChange'];
     /**
-     * Optional callback function that will be triggered when the set of running tool calls changes.
-     * Fires when a call starts or finishes, and with an empty array when the session disconnects.
-     *
-     * This is not the same question as `onInterruptibleChange`. That one tells you whether the user can
-     * speak right now; this one tells you whether the agent is stuck waiting. They usually move together,
-     * but not always — a tool call can hold the agent while still leaving the microphone open.
-     * @param calls - The tool calls currently running
+     * Optional callback function that will be triggered when the set of running tool calls changes,
+     * including an empty array on disconnect.
+     * @param calls - The tool calls currently running. Distinct from `onInterruptibleChange`, which
+     * answers whether the user can speak rather than whether the agent is waiting.
      */
     onRunningToolCallsChange?: StreamManagerCallbacks['onRunningToolCallsChange'];
 }
