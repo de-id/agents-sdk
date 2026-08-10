@@ -1579,16 +1579,20 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
         });
     });
 
-    describe('handleDataReceived - blocking-mode tool calls', () => {
-        let onBlockingToolPendingChange: jest.Mock;
+    describe('handleDataReceived - running tool calls', () => {
+        let onRunningToolCallsChange: jest.Mock;
+        let onInterruptibleChange: jest.Mock;
+        let manager: Awaited<ReturnType<typeof createLiveKitStreamingManager>>;
         let dataHandler: any;
 
         const emitToolStarted = ({
             call_id,
+            name = 'tool',
             interruptible,
             execution_mode,
         }: {
             call_id: string;
+            name?: string;
             interruptible: boolean;
             execution_mode?: string;
         }) =>
@@ -1596,7 +1600,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 createDataChannelPayload({
                     subject: StreamEvents.ToolCallStarted,
                     call_id,
-                    name: 'tool',
+                    name,
                     input: {},
                     output: {},
                     interruptible,
@@ -1619,59 +1623,77 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 })
             );
 
-        const lastBlockingToolPending = () =>
-            onBlockingToolPendingChange.mock.calls.length > 0
-                ? onBlockingToolPendingChange.mock.calls[onBlockingToolPendingChange.mock.calls.length - 1][0]
-                : false;
+        const lastRunningToolCalls = () =>
+            onRunningToolCallsChange.mock.calls.length > 0
+                ? onRunningToolCallsChange.mock.calls[onRunningToolCallsChange.mock.calls.length - 1][0]
+                : [];
 
         beforeEach(async () => {
-            onBlockingToolPendingChange = jest.fn();
-            options.callbacks.onBlockingToolPendingChange = onBlockingToolPendingChange;
+            onRunningToolCallsChange = jest.fn();
+            onInterruptibleChange = jest.fn();
+            options.callbacks.onRunningToolCallsChange = onRunningToolCallsChange;
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
 
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
             dataHandler = getDataReceivedHandler();
         });
 
-        it('emits true while a blocking-mode call is pending and false once it resolves', () => {
-            emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
-            expect(lastBlockingToolPending()).toBe(true);
+        it('emits the running call while it is pending and an empty array once it resolves', () => {
+            emitToolStarted({ call_id: 'a', name: 'get_weather', interruptible: false, execution_mode: 'blocking' });
+            expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'get_weather', executionMode: 'blocking' }]);
 
             emitToolDone({ call_id: 'a' });
-            expect(lastBlockingToolPending()).toBe(false);
+            expect(lastRunningToolCalls()).toEqual([]);
         });
 
-        it('never fires for an async-mode call', () => {
+        it('reports an async-mode call as async', () => {
             emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async' });
 
-            expect(onBlockingToolPendingChange).not.toHaveBeenCalled();
+            expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'async' }]);
         });
 
         it('treats a missing execution_mode as blocking', () => {
             emitToolStarted({ call_id: 'a', interruptible: false });
 
-            expect(lastBlockingToolPending()).toBe(true);
+            expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'blocking' }]);
         });
 
-        it('stays true while any blocking call is pending and drops only when the last one resolves', () => {
+        it('keeps reporting the calls still running and drops only the ones that resolved', () => {
             emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'async' });
             emitToolStarted({ call_id: 'b', interruptible: false, execution_mode: 'blocking' });
             emitToolStarted({ call_id: 'c', interruptible: false, execution_mode: 'blocking' });
-            expect(lastBlockingToolPending()).toBe(true);
+            expect(lastRunningToolCalls().map((call: { callId: string }) => call.callId)).toEqual(['a', 'b', 'c']);
 
             emitToolDone({ call_id: 'b' });
-            expect(lastBlockingToolPending()).toBe(true);
+            expect(lastRunningToolCalls().map((call: { callId: string }) => call.callId)).toEqual(['a', 'c']);
 
             emitToolDone({ call_id: 'c' });
-            expect(lastBlockingToolPending()).toBe(false);
+            expect(lastRunningToolCalls().map((call: { callId: string }) => call.callId)).toEqual(['a']);
         });
 
-        it('fires only on an actual change, not once per event', () => {
+        it('fires once per start, not only when the blocking aggregate flips', () => {
             emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
             emitToolStarted({ call_id: 'b', interruptible: false, execution_mode: 'blocking' });
 
-            expect(onBlockingToolPendingChange).toHaveBeenCalledTimes(1);
-            expect(onBlockingToolPendingChange).toHaveBeenCalledWith(true);
+            expect(onRunningToolCallsChange).toHaveBeenCalledTimes(2);
+        });
+
+        it('does not leak the internal interruptible flag into the emitted calls', () => {
+            emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
+
+            expect(Object.keys(lastRunningToolCalls()[0])).toEqual(['callId', 'name', 'executionMode']);
+        });
+
+        it('emits an empty array and restores interruptible on disconnect', async () => {
+            emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
+            expect(onInterruptibleChange).toHaveBeenLastCalledWith(false);
+            onRunningToolCallsChange.mockClear();
+
+            await manager.disconnect();
+
+            expect(onRunningToolCallsChange).toHaveBeenCalledWith([]);
+            expect(onInterruptibleChange).toHaveBeenLastCalledWith(true);
         });
     });
 

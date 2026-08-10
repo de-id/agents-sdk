@@ -75,7 +75,7 @@ export interface ManagerCallbacks {
     onStreamReady?: () => void;
     onToolEvent?: ToolEventCallback;
     onInterruptibleChange?: (interruptible: boolean) => void;
-    onBlockingToolPendingChange?: (blockingToolPending: boolean) => void;
+    onRunningToolCallsChange?: (calls: readonly ToolCall[]) => void;
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
 
@@ -220,6 +220,17 @@ export interface StreamInterruptPayload {
 export type ClientToolHandler = (args: Record<string, unknown>) => Promise<string>;
 
 export type ToolExecutionMode = 'blocking' | 'async';
+
+/** A tool call currently running in the session. */
+export interface ToolCall {
+    callId: string;
+    name: string;
+    /**
+     * 'blocking' - the agent waits for the result before it can continue.
+     * 'async' - the agent keeps talking while the call runs.
+     */
+    executionMode: 'blocking' | 'async';
+}
 
 export interface ToolCallStartedPayload {
     call_id: string;

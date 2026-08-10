@@ -12,6 +12,7 @@ import {
     StreamingManagerOptions,
     StreamingState,
     StreamType,
+    ToolCall,
     ToolCallDonePayload,
     ToolCallErrorPayload,
     ToolCallStartedPayload,
@@ -127,8 +128,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
-    let currentBlockingToolPending = false;
-    const pendingToolCalls = new Map<string, { interruptible: boolean; blocking: boolean }>();
+    const pendingToolCalls = new Map<string, ToolCall & { interruptible: boolean }>();
     let currentTurnId: number | null = null;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
@@ -385,11 +385,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (subject === StreamEvents.ToolCallStarted) {
             const payload = data as ToolCallStartedPayload;
             pendingToolCalls.set(payload.call_id, {
+                callId: payload.call_id,
+                name: payload.name,
+                executionMode: payload.execution_mode === 'async' ? 'async' : 'blocking',
                 interruptible: payload.interruptible !== false,
-                blocking: payload.execution_mode !== 'async',
             });
             recomputeInterruptible();
-            recomputeBlockingToolPending();
+            emitRunningToolCalls();
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
             callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
@@ -413,7 +415,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function resolvePendingToolCall(callId: string): void {
         pendingToolCalls.delete(callId);
         recomputeInterruptible();
-        recomputeBlockingToolPending();
+        emitRunningToolCalls();
     }
 
     function recomputeInterruptible(): void {
@@ -423,11 +425,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         callbacks.onInterruptibleChange?.(next);
     }
 
-    function recomputeBlockingToolPending(): void {
-        const next = [...pendingToolCalls.values()].some(call => call.blocking);
-        if (next === currentBlockingToolPending) return;
-        currentBlockingToolPending = next;
-        callbacks.onBlockingToolPendingChange?.(next);
+    function emitRunningToolCalls(): void {
+        callbacks.onRunningToolCallsChange?.(
+            [...pendingToolCalls.values()].map(({ callId, name, executionMode }) => ({
+                callId,
+                name,
+                executionMode,
+            }))
+        );
     }
 
     function handleVideoActivityState(subject: string, data: any): void {
@@ -748,7 +753,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         isConnected = false;
         hasEmittedConnected = false;
         pendingToolCalls.clear();
-        recomputeBlockingToolPending();
+        recomputeInterruptible();
+        emitRunningToolCalls();
         currentTurnId = null;
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         currentActivityState = AgentActivityState.Idle;
