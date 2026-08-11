@@ -305,8 +305,8 @@ export interface AgentManager {
     interrupt: (interrupt: Interrupt) => void;
 
     /**
-     * Switch the server-side STT language mid-session
-     * Only available for Fluent (LiveKit) streams
+     * Switch the STT language mid-session
+     * Only available for Expressive (V4) agents
      * @param language - Language name or BCP-47 code (e.g. "English" or "en-US")
      */
     setSttLanguage: (language: string) => Promise<void>;
