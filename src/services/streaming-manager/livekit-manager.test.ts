@@ -7,7 +7,7 @@ import {
     StreamingState,
     TransportProvider,
 } from '../../types/index';
-import { createLiveKitStreamingManager } from './livekit-manager';
+import { createLiveKitStreamingManager, DataChannelTopic } from './livekit-manager';
 
 // Mock livekit-client
 const mockPublishTrack = jest.fn();
@@ -318,6 +318,28 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
                 source: 'microphone',
             });
             expect(mockPublishTrack).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('STT Language Switching', () => {
+        it('should send did.stt-language message with the language payload', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await manager.setSttLanguage?.('French');
+
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(JSON.stringify({ language: 'French' }), {
+                topic: DataChannelTopic.SttLanguage,
+            });
+        });
+
+        it('should not send did.stt-language message before the room connects', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            await manager.setSttLanguage?.('French');
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+            expect(options.callbacks.onError).toHaveBeenCalled();
         });
     });
 

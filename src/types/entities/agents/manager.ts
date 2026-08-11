@@ -305,6 +305,13 @@ export interface AgentManager {
     interrupt: (interrupt: Interrupt) => void;
 
     /**
+     * Switch the STT language mid-session
+     * Only available for Expressive (V4) agents
+     * @param language - Language name or BCP-47 code (e.g. "English" or "en-US")
+     */
+    setSttLanguage: (language: string) => Promise<void>;
+
+    /**
      * Register a handler for a client tool. When the agent's LLM calls this tool,
      * the handler executes on the client and returns the result to the LLM.
      * @param name - Tool name (must match the tool name defined in the agent config)
