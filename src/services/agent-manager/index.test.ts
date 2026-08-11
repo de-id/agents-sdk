@@ -869,6 +869,33 @@ describe('createAgentManager', () => {
         });
     });
 
+    describe('setSttLanguage', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+        });
+
+        it('should set STT language when available', async () => {
+            const mockSetSttLanguage = jest.fn().mockResolvedValue(undefined);
+            mockStreamingManager.setSttLanguage = mockSetSttLanguage;
+
+            await manager.setSttLanguage('French');
+
+            expect(mockSetSttLanguage).toHaveBeenCalledWith('French');
+            expect(mockAnalytics.track).toHaveBeenCalledWith('agent-stt-language-change', { language: 'French' });
+        });
+
+        it('should throw error when setSttLanguage is not available', async () => {
+            mockStreamingManager.setSttLanguage = undefined;
+
+            await expect(manager.setSttLanguage('French')).rejects.toThrow(
+                'setSttLanguage is not available for this streaming manager'
+            );
+        });
+    });
+
     describe('unpublishMicrophoneStream', () => {
         let manager: AgentManager;
 

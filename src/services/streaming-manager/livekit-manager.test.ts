@@ -7,7 +7,7 @@ import {
     StreamingState,
     TransportProvider,
 } from '../../types/index';
-import { createLiveKitStreamingManager } from './livekit-manager';
+import { createLiveKitStreamingManager, DataChannelTopic } from './livekit-manager';
 
 // Mock livekit-client
 const mockPublishTrack = jest.fn();
@@ -318,6 +318,28 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
                 source: 'microphone',
             });
             expect(mockPublishTrack).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('STT Language Switching', () => {
+        it('should send did.stt-language message with the language payload', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await manager.setSttLanguage?.('French');
+
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(JSON.stringify({ language: 'French' }), {
+                topic: DataChannelTopic.SttLanguage,
+            });
+        });
+
+        it('should not send did.stt-language message before the room connects', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            await manager.setSttLanguage?.('French');
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+            expect(options.callbacks.onError).toHaveBeenCalled();
         });
     });
 
@@ -1379,7 +1401,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             );
         });
 
-        it('should emit onInterruptibleChange(false) when tool-call/started carries interruptible: false', async () => {
+        it('should emit onInterruptibleChange(false) when a blocking tool-call/started arrives', async () => {
             // ARRANGE:
             const onInterruptibleChange = jest.fn();
             options.callbacks.onInterruptibleChange = onInterruptibleChange;
@@ -1405,7 +1427,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onInterruptibleChange).toHaveBeenCalledWith(false);
         });
 
-        it('should emit onInterruptibleChange(true) when tool-call/started carries interruptible: true', async () => {
+        it('should not emit onInterruptibleChange when an async tool-call/started leaves the aggregate unchanged', async () => {
             // ARRANGE:
             const onInterruptibleChange = jest.fn();
             options.callbacks.onInterruptibleChange = onInterruptibleChange;
@@ -1420,7 +1442,8 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 name: 'get_weather',
                 input: {},
                 output: {},
-                interruptible: true,
+                interruptible: false,
+                execution_mode: 'async',
                 timestamp: new Date().toISOString(),
             });
 
@@ -1428,10 +1451,10 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             dataHandler(payload);
 
             // ASSERT:
-            expect(onInterruptibleChange).toHaveBeenCalledWith(true);
+            expect(onInterruptibleChange).not.toHaveBeenCalled();
         });
 
-        it('should not emit onInterruptibleChange on tool-call/done', async () => {
+        it('should emit onInterruptibleChange(true) on tool-call/done when the last blocking call resolves', async () => {
             // ARRANGE:
             const onInterruptibleChange = jest.fn();
             options.callbacks.onInterruptibleChange = onInterruptibleChange;
@@ -1470,7 +1493,262 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             );
 
             // ASSERT:
-            expect(onInterruptibleChange).not.toHaveBeenCalled();
+            expect(onInterruptibleChange).toHaveBeenCalledWith(true);
+        });
+    });
+
+    describe('handleDataReceived - pending tool calls', () => {
+        let onInterruptibleChange: jest.Mock;
+        let onRunningToolCallsChange: jest.Mock;
+        let manager: Awaited<ReturnType<typeof createLiveKitStreamingManager>>;
+        let dataHandler: any;
+
+        const emitToolStarted = ({
+            call_id,
+            name = 'tool',
+            interruptible = false,
+            execution_mode,
+            turn_id,
+        }: {
+            call_id: string;
+            name?: string;
+            interruptible?: boolean;
+            execution_mode?: string;
+            turn_id?: number;
+        }) =>
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id,
+                    name,
+                    input: {},
+                    output: {},
+                    interruptible,
+                    ...(execution_mode ? { execution_mode } : {}),
+                    ...(turn_id !== undefined ? { turn_id } : {}),
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+        const emitToolDone = ({ call_id }: { call_id: string }) =>
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallDone,
+                    call_id,
+                    name: 'tool',
+                    input: {},
+                    output: {},
+                    duration_ms: 50,
+                    extra: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+        const emitStreamVideoDone = () =>
+            dataHandler(createDataChannelPayload({ subject: StreamEvents.StreamVideoDone }));
+
+        const emitTurnStarted = (turn_id: number) =>
+            dataHandler(createDataChannelPayload({ subject: StreamEvents.TurnStarted, turn_id }));
+
+        const emitTurnEnded = (turn_id: number) =>
+            dataHandler(createDataChannelPayload({ subject: StreamEvents.TurnEnded, turn_id }));
+
+        const lastInterruptible = () =>
+            onInterruptibleChange.mock.calls.length > 0
+                ? onInterruptibleChange.mock.calls[onInterruptibleChange.mock.calls.length - 1][0]
+                : true;
+
+        const lastRunningToolCalls = () =>
+            onRunningToolCallsChange.mock.calls.length > 0
+                ? onRunningToolCallsChange.mock.calls[onRunningToolCallsChange.mock.calls.length - 1][0]
+                : [];
+
+        beforeEach(async () => {
+            onInterruptibleChange = jest.fn();
+            onRunningToolCallsChange = jest.fn();
+            options.callbacks.onInterruptibleChange = onInterruptibleChange;
+            options.callbacks.onRunningToolCallsChange = onRunningToolCallsChange;
+
+            manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            dataHandler = getDataReceivedHandler();
+        });
+
+        describe('interruptible across parallel tool calls', () => {
+            it('stays non-interruptible while any blocking call is pending', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
+
+                expect(lastInterruptible()).toBe(false);
+            });
+
+            it('becomes interruptible once the blocking call resolves', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
+                emitToolDone({ call_id: 'b' });
+
+                expect(lastInterruptible()).toBe(true);
+            });
+
+            it('does not regress interruptibility when a blocking call starts after an async one', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
+                expect(lastInterruptible()).toBe(true);
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
+                expect(lastInterruptible()).toBe(false);
+            });
+
+            it('stays non-interruptible when an async call starts after a blocking one', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking' });
+                emitToolStarted({ call_id: 'b', execution_mode: 'async' });
+
+                expect(lastInterruptible()).toBe(false);
+            });
+
+            it('stays non-interruptible when a video activity event arrives while a blocking call is pending', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking' });
+                emitStreamVideoDone();
+
+                expect(lastInterruptible()).toBe(false);
+            });
+
+            it('ignores the per-call interruptible flag when deriving the aggregate', () => {
+                emitToolStarted({ call_id: 'a', interruptible: true, execution_mode: 'blocking' });
+
+                expect(lastInterruptible()).toBe(false);
+            });
+        });
+
+        describe('running tool calls', () => {
+            it('emits the running call while it is pending and an empty array once it resolves', () => {
+                emitToolStarted({
+                    call_id: 'a',
+                    name: 'get_weather',
+                    interruptible: false,
+                    execution_mode: 'blocking',
+                });
+                expect(lastRunningToolCalls()).toEqual([
+                    { callId: 'a', name: 'get_weather', executionMode: 'blocking' },
+                ]);
+
+                emitToolDone({ call_id: 'a' });
+                expect(lastRunningToolCalls()).toEqual([]);
+            });
+
+            it('reports an async-mode call as async', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
+
+                expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'async' }]);
+            });
+
+            it('treats a missing execution_mode as blocking', () => {
+                emitToolStarted({ call_id: 'a', interruptible: false });
+
+                expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'blocking' }]);
+            });
+
+            it('keeps reporting the calls still running and drops only the ones that resolved', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
+                emitToolStarted({ call_id: 'b', interruptible: false, execution_mode: 'blocking' });
+                emitToolStarted({ call_id: 'c', interruptible: false, execution_mode: 'blocking' });
+                expect(lastRunningToolCalls().map((call: { callId: string }) => call.callId)).toEqual(['a', 'b', 'c']);
+
+                emitToolDone({ call_id: 'b' });
+                expect(lastRunningToolCalls().map((call: { callId: string }) => call.callId)).toEqual(['a', 'c']);
+
+                emitToolDone({ call_id: 'c' });
+                expect(lastRunningToolCalls().map((call: { callId: string }) => call.callId)).toEqual(['a']);
+            });
+
+            it('fires once per start, not only when the blocking aggregate flips', () => {
+                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
+                emitToolStarted({ call_id: 'b', interruptible: false, execution_mode: 'blocking' });
+
+                expect(onRunningToolCallsChange).toHaveBeenCalledTimes(2);
+            });
+
+            it('does not leak the internal bookkeeping fields into the emitted calls', () => {
+                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking', turn_id: 1 });
+
+                expect(Object.keys(lastRunningToolCalls()[0])).toEqual(['callId', 'name', 'executionMode']);
+            });
+
+            it('does not re-emit when a call that is not pending resolves', () => {
+                emitToolDone({ call_id: 'never-started' });
+
+                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
+            });
+
+            it('emits the same empty-collection reference every time nothing is running', () => {
+                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
+                emitToolDone({ call_id: 'a' });
+                const first = lastRunningToolCalls();
+
+                emitToolStarted({ call_id: 'b', interruptible: false, execution_mode: 'blocking' });
+                emitToolDone({ call_id: 'b' });
+
+                expect(lastRunningToolCalls()).toBe(first);
+            });
+
+            it('emits an empty array and restores interruptible on disconnect', async () => {
+                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
+                expect(onInterruptibleChange).toHaveBeenLastCalledWith(false);
+                onRunningToolCallsChange.mockClear();
+
+                await manager.disconnect();
+
+                expect(onRunningToolCallsChange).toHaveBeenCalledWith([]);
+                expect(onInterruptibleChange).toHaveBeenLastCalledWith(true);
+            });
+
+            it('does not emit on disconnect when nothing was running', async () => {
+                onRunningToolCallsChange.mockClear();
+
+                await manager.disconnect();
+
+                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('turn/ended reaping a leaked pending call', () => {
+            it('drops a blocking call whose turn ended and recovers interruptibility', () => {
+                emitTurnStarted(1);
+                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking', turn_id: 1 });
+                expect(lastInterruptible()).toBe(false);
+
+                emitTurnEnded(1);
+
+                expect(lastRunningToolCalls()).toEqual([]);
+                expect(lastInterruptible()).toBe(true);
+            });
+
+            it('keeps an async call pending when its turn ends', () => {
+                emitTurnStarted(1);
+                emitToolStarted({ call_id: 'a', execution_mode: 'async', turn_id: 1 });
+
+                emitTurnEnded(1);
+
+                expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'async' }]);
+            });
+
+            it('keeps a blocking call from a later turn when an earlier turn ends', () => {
+                emitTurnStarted(1);
+                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking', turn_id: 2 });
+
+                emitTurnEnded(1);
+
+                expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'blocking' }]);
+                expect(lastInterruptible()).toBe(false);
+            });
+
+            it('does not re-emit on turn/ended when nothing blocking is pending', () => {
+                emitTurnStarted(1);
+                emitToolStarted({ call_id: 'a', execution_mode: 'async', turn_id: 1 });
+                onRunningToolCallsChange.mockClear();
+
+                emitTurnEnded(1);
+
+                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
+            });
         });
     });
 
@@ -1578,8 +1856,8 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
         });
     });
 
-    describe('handleDataReceived - stream-video/done with interruptible', () => {
-        it('should stay ToolActive on stream-video/done while a tool call is pending (interruptible true)', async () => {
+    describe('handleDataReceived - stream-video/done while a tool call is pending', () => {
+        it('should stay ToolActive on stream-video/done while a tool call is pending', async () => {
             // ARRANGE:
             const onAgentActivityStateChange = jest.fn();
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
@@ -1602,82 +1880,8 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             );
             onAgentActivityStateChange.mockClear();
 
-            const streamVideoDonePayload = createDataChannelPayload({
-                subject: StreamEvents.StreamVideoDone,
-                metadata: { interruptible: true },
-            });
-
             // ACT:
-            dataHandler(streamVideoDonePayload);
-
-            // ASSERT:
-            expect(onAgentActivityStateChange).not.toHaveBeenCalled();
-        });
-
-        it('should stay ToolActive on stream-video/done while a tool call is pending (interruptible absent)', async () => {
-            // ARRANGE:
-            const onAgentActivityStateChange = jest.fn();
-            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
-
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
-            await simulateConnection();
-
-            const dataHandler = getDataReceivedHandler();
-
-            // Set ToolActive state first
-            dataHandler(
-                createDataChannelPayload({
-                    subject: StreamEvents.ToolCallStarted,
-                    call_id: 'call-123',
-                    name: 'test',
-                    input: {},
-                    output: {},
-                    timestamp: new Date().toISOString(),
-                })
-            );
-            onAgentActivityStateChange.mockClear();
-
-            const streamVideoDonePayload = createDataChannelPayload({
-                subject: StreamEvents.StreamVideoDone,
-            });
-
-            // ACT:
-            dataHandler(streamVideoDonePayload);
-
-            // ASSERT:
-            expect(onAgentActivityStateChange).not.toHaveBeenCalled();
-        });
-
-        it('should stay in ToolActive on stream-video/done when interruptible is false', async () => {
-            // ARRANGE:
-            const onAgentActivityStateChange = jest.fn();
-            options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
-
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
-            await simulateConnection();
-
-            const dataHandler = getDataReceivedHandler();
-
-            // Set ToolActive state first
-            dataHandler(
-                createDataChannelPayload({
-                    subject: StreamEvents.ToolCallStarted,
-                    call_id: 'call-123',
-                    name: 'test',
-                    input: {},
-                    output: {},
-                    timestamp: new Date().toISOString(),
-                })
-            );
-            onAgentActivityStateChange.mockClear();
-
-            const streamVideoDonePayload = createDataChannelPayload({
-                subject: StreamEvents.StreamVideoDone,
-                metadata: { interruptible: false },
-            });
-
-            // ACT:
-            dataHandler(streamVideoDonePayload);
+            dataHandler(createDataChannelPayload({ subject: StreamEvents.StreamVideoDone }));
 
             // ASSERT:
             expect(onAgentActivityStateChange).not.toHaveBeenCalled();

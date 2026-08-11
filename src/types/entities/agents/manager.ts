@@ -115,6 +115,12 @@ interface ManagerCallbacks {
      * @param interruptible - Whether the agent can be interrupted by the user
      */
     onInterruptibleChange?: StreamManagerCallbacks['onInterruptibleChange'];
+    /**
+     * Optional callback function that will be triggered when the set of running tool calls changes,
+     * including an empty array on disconnect.
+     * @param calls - The tool calls currently running
+     */
+    onRunningToolCallsChange?: StreamManagerCallbacks['onRunningToolCallsChange'];
 }
 
 interface StreamOptions {
@@ -303,6 +309,13 @@ export interface AgentManager {
      * Only available for Fluent streams and when there's an active video to interrupt
      */
     interrupt: (interrupt: Interrupt) => void;
+
+    /**
+     * Switch the STT language mid-session
+     * Only available for Expressive (V4) agents
+     * @param language - Language name or BCP-47 code (e.g. "English" or "en-US")
+     */
+    setSttLanguage: (language: string) => Promise<void>;
 
     /**
      * Register a handler for a client tool. When the agent's LLM calls this tool,
