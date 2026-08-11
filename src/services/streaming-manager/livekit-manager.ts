@@ -80,6 +80,7 @@ export enum DataChannelTopic {
     Chat = 'lk.chat',
     Speak = 'did.speak',
     Interrupt = 'did.interrupt',
+    SttLanguage = 'did.stt-language',
 }
 
 type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
@@ -809,6 +810,15 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // a previous one is still settling causes races.
             if (type === 'text') return;
             sendDataChannelMessage(JSON.stringify({ topic: DataChannelTopic.Interrupt }));
+        },
+
+        /**
+         * Switches the server-side STT language mid-session.
+         * @param language - Language name or BCP-47 code (e.g. "French" or "fr-FR").
+         * @returns Promise that resolves after the send attempt completes; failures are reported via onError.
+         */
+        setSttLanguage(language: string) {
+            return sendMessage(JSON.stringify({ language }), DataChannelTopic.SttLanguage);
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {

@@ -327,6 +327,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
             return items.streamingManager.publishMicrophoneStream(stream);
         },
+        setSttLanguage(language: string): Promise<void> {
+            if (!items.streamingManager?.setSttLanguage) {
+                return Promise.reject(new Error('setSttLanguage is not available for this streaming manager'));
+            }
+
+            analytics.track('agent-stt-language-change', { language });
+
+            return items.streamingManager.setSttLanguage(language);
+        },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
                 return Promise.resolve();

@@ -105,6 +105,13 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     interrupt(type: Interrupt['type']): void;
 
     /**
+     * Switch the STT language mid-session.
+     * supported only for livekit manager
+     * @param language Language name or BCP-47 code (e.g. "English" or "en-US")
+     */
+    setSttLanguage?(language: string): Promise<void>;
+
+    /**
      * Register an RPC method handler on the LiveKit room.
      * Used internally by the agent-manager for client tool delegation.
      * supported only for livekit manager
