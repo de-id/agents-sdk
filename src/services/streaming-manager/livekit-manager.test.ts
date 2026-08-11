@@ -609,14 +609,11 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             };
         });
 
-        it.each([
-            [StreamEvents.StreamVideoCreated, AgentActivityState.Talking],
-            [StreamEvents.StreamVideoDone, AgentActivityState.Idle],
-        ])('should set activity state on %s event', (event, expectedState) => {
-            sendDataEvent(event);
+        it('should set Talking on stream-video/created event', () => {
+            sendDataEvent(StreamEvents.StreamVideoCreated);
 
             expect(mockOnAgentActivityStateChange).toHaveBeenCalledTimes(1);
-            expect(mockOnAgentActivityStateChange).toHaveBeenCalledWith(expectedState);
+            expect(mockOnAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Talking);
         });
 
         it('should set activity state to Loading on ChatAudioTranscribed event', async () => {
@@ -626,15 +623,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             expect(mockOnAgentActivityStateChange).toHaveBeenCalledTimes(1);
             expect(mockOnAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Loading);
-        });
-
-        it('should transition from Talking to Idle when video ends', () => {
-            sendDataEvent(StreamEvents.StreamVideoCreated);
-            sendDataEvent(StreamEvents.StreamVideoDone);
-
-            expect(mockOnAgentActivityStateChange).toHaveBeenCalledTimes(2);
-            expect(mockOnAgentActivityStateChange).toHaveBeenNthCalledWith(1, AgentActivityState.Talking);
-            expect(mockOnAgentActivityStateChange).toHaveBeenNthCalledWith(2, AgentActivityState.Idle);
         });
 
         it('should return to ToolActive when video ends while a tool call is pending', () => {
@@ -647,20 +635,40 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             expect(mockOnAgentActivityStateChange).toHaveBeenNthCalledWith(3, AgentActivityState.ToolActive);
         });
 
-        it('should set Idle when the last pending tool call resolves', () => {
-            sendDataEvent(StreamEvents.ToolCallStarted, { call_id: 'tc1', name: 'form' });
-            sendDataEvent(StreamEvents.ToolCallDone, { call_id: 'tc1', name: 'form' });
+        it('should set Loading on turn/started', () => {
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 1 });
 
-            expect(mockOnAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.Idle);
+            expect(mockOnAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.Loading);
         });
 
-        it('should set Idle when video ends after all tool calls resolved', () => {
-            sendDataEvent(StreamEvents.ToolCallStarted, { call_id: 'tc1', name: 'form' });
-            sendDataEvent(StreamEvents.ToolCallDone, { call_id: 'tc1', name: 'form' });
-            sendDataEvent(StreamEvents.StreamVideoCreated);
-            sendDataEvent(StreamEvents.StreamVideoDone);
+        it('should return to Idle only on turn/ended, not on a mid-turn video done', () => {
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 1 });
+            sendDataEvent(StreamEvents.StreamVideoCreated, { turn_id: 1 });
+            sendDataEvent(StreamEvents.StreamVideoDone, { turn_id: 1 });
+            sendDataEvent(StreamEvents.TurnEnded, { turn_id: 1 });
 
-            expect(mockOnAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.Idle);
+            const states = mockOnAgentActivityStateChange.mock.calls.map(call => call[0]);
+            expect(states).toEqual([AgentActivityState.Loading, AgentActivityState.Talking, AgentActivityState.Idle]);
+        });
+
+        it('should stay ToolActive when the last tool call resolves inside a turn', () => {
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 1 });
+            sendDataEvent(StreamEvents.ToolCallStarted, { call_id: 'tc1', name: 'form', turn_id: 1 });
+            sendDataEvent(StreamEvents.ToolCallDone, { call_id: 'tc1', name: 'form', turn_id: 1 });
+
+            expect(mockOnAgentActivityStateChange).not.toHaveBeenCalledWith(AgentActivityState.Idle);
+            expect(mockOnAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.ToolActive);
+        });
+
+        it('should drop a stale turn/ended from an older turn', () => {
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 1 });
+            sendDataEvent(StreamEvents.TurnEnded, { turn_id: 1 });
+            sendDataEvent(StreamEvents.TurnStarted, { turn_id: 2 });
+            mockOnAgentActivityStateChange.mockClear();
+
+            sendDataEvent(StreamEvents.TurnEnded, { turn_id: 1 });
+
+            expect(mockOnAgentActivityStateChange).not.toHaveBeenCalled();
         });
     });
 
@@ -1489,7 +1497,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
     });
 
     describe('handleDataReceived - tool-call/done', () => {
-        it('should forward payload via onToolEvent and release the last pending tool to Idle', async () => {
+        it('should forward payload via onToolEvent without changing activity state', async () => {
             // ARRANGE:
             const onAgentActivityStateChange = jest.fn();
             const onToolEvent = jest.fn();
@@ -1529,7 +1537,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             dataHandler(donePayload);
 
             // ASSERT:
-            expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
+            expect(onAgentActivityStateChange).not.toHaveBeenCalled();
             expect(onToolEvent).toHaveBeenCalledWith(
                 StreamEvents.ToolCallDone,
                 expect.objectContaining({
@@ -1542,7 +1550,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
     });
 
     describe('handleDataReceived - tool-call/error', () => {
-        it('should forward payload via onToolEvent and release the last pending tool to Idle', async () => {
+        it('should forward payload via onToolEvent without changing activity state', async () => {
             // ARRANGE:
             const onAgentActivityStateChange = jest.fn();
             const onToolEvent = jest.fn();
@@ -1581,7 +1589,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             dataHandler(errorPayload);
 
             // ASSERT:
-            expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
+            expect(onAgentActivityStateChange).not.toHaveBeenCalled();
             expect(onToolEvent).toHaveBeenCalledWith(
                 StreamEvents.ToolCallError,
                 expect.objectContaining({
@@ -1699,7 +1707,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
     });
 
     describe('Chained tools', () => {
-        it('should stay ToolActive until all pending tool calls resolve', async () => {
+        it('should not emit Idle as chained tool calls resolve', async () => {
             // ARRANGE:
             const onAgentActivityStateChange = jest.fn();
             options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
@@ -1718,22 +1726,19 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     timestamp: new Date().toISOString(),
                 });
 
-            // ACT: two parallel tool calls; the first resolves while the second is still pending
+            // ACT: two parallel tool calls resolve; idle is driven by turn/ended, not tool resolution
             dataHandler(toolEvent(StreamEvents.ToolCallStarted, 'call-1'));
             dataHandler(toolEvent(StreamEvents.ToolCallStarted, 'call-2'));
             dataHandler(toolEvent(StreamEvents.ToolCallDone, 'call-1'));
-
-            // ASSERT: still ToolActive — no Idle until the last tool resolves
-            expect(onAgentActivityStateChange).not.toHaveBeenCalledWith(AgentActivityState.Idle);
-
             dataHandler(toolEvent(StreamEvents.ToolCallDone, 'call-2'));
 
-            expect(onAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.Idle);
+            // ASSERT: resolving tool calls never drives Idle
+            expect(onAgentActivityStateChange).not.toHaveBeenCalledWith(AgentActivityState.Idle);
         });
     });
 
     describe('No regression - sessions without tools', () => {
-        it('should handle stream-video/done without metadata (backwards compatible)', async () => {
+        it('should forward stream-video/done via onMessage without emitting Idle', async () => {
             // ARRANGE:
             const onAgentActivityStateChange = jest.fn();
             const onMessage = jest.fn();
@@ -1754,7 +1759,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             dataHandler(payload);
 
             // ASSERT:
-            expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Idle);
+            expect(onAgentActivityStateChange).not.toHaveBeenCalledWith(AgentActivityState.Idle);
             expect(onMessage).toHaveBeenCalled();
         });
     });

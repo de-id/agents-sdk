@@ -42,6 +42,8 @@ export enum StreamEvents {
     ToolCallStarted = 'tool-call/started',
     ToolCallDone = 'tool-call/done',
     ToolCallError = 'tool-call/error',
+    TurnStarted = 'turn/started',
+    TurnEnded = 'turn/ended',
 }
 
 export enum ConnectionState {
@@ -246,6 +248,10 @@ export interface ToolCallErrorPayload {
 }
 
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
+
+export interface TurnEventPayload {
+    turn_id: number | null;
+}
 
 export type ToolEventCallback = {
     (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
