@@ -115,6 +115,12 @@ interface ManagerCallbacks {
      * @param interruptible - Whether the agent can be interrupted by the user
      */
     onInterruptibleChange?: StreamManagerCallbacks['onInterruptibleChange'];
+    /**
+     * Optional callback function that will be triggered when the set of running tool calls changes,
+     * including an empty array on disconnect.
+     * @param calls - The tool calls currently running
+     */
+    onRunningToolCallsChange?: StreamManagerCallbacks['onRunningToolCallsChange'];
 }
 
 interface StreamOptions {
