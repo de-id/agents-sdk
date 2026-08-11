@@ -819,7 +819,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         },
 
         /**
-         * Switches the server-side STT language mid-session.
+         * Switch the STT language mid-session.
+         * Only available for Expressive (V4) agents.
          * @param language - Language name or BCP-47 code (e.g. "French" or "fr-FR").
          * @returns Promise that resolves after the send attempt completes; failures are reported via onError.
          */

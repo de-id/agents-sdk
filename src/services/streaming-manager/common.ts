@@ -106,6 +106,7 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
 
     /**
      * Switch the STT language mid-session.
+     * Only available for Expressive (V4) agents.
      * supported only for livekit manager
      * @param language Language name or BCP-47 code (e.g. "English" or "en-US")
      */
