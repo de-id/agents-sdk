@@ -25,7 +25,7 @@ export interface Agent {
     vision?: { enabled: boolean };
     end_of_call_feedback?: EndOfCallFeedbackConfig;
     triggers_available?: boolean;
-    advanced_settings?: { ui_debug_mode?: boolean; vm_account_id?: string };
+    advanced_settings?: { ui_debug_mode?: boolean; vm_account_id?: string; closed_captions_enabled?: boolean };
 }
 
 export interface AgentsAPI {

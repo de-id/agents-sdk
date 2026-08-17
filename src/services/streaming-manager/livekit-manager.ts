@@ -8,6 +8,7 @@ import {
     Interrupt,
     Message,
     PayloadType,
+    RunningToolCall,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
@@ -15,6 +16,7 @@ import {
     ToolCallDonePayload,
     ToolCallErrorPayload,
     ToolCallStartedPayload,
+    TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
 import { noop } from '@sdk/utils';
@@ -44,9 +46,17 @@ import { VideoRTCStatsReport } from './stats/report';
 
 const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
 
+const NO_RUNNING_TOOL_CALLS: readonly RunningToolCall[] = [];
+
 interface TrackPublishState {
     isPublishing: boolean;
     publication: LocalTrackPublication | null;
+}
+
+interface PendingToolCall {
+    call: RunningToolCall;
+    interruptible: boolean;
+    turnId: number | null;
 }
 
 async function importLiveKit(): Promise<{
@@ -80,6 +90,7 @@ export enum DataChannelTopic {
     Chat = 'lk.chat',
     Speak = 'did.speak',
     Interrupt = 'did.interrupt',
+    SttLanguage = 'did.stt-language',
 }
 
 type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
@@ -125,7 +136,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
-    const pendingToolCalls = new Set<string>();
+    const pendingToolCalls = new Map<string, PendingToolCall>();
+    let currentTurnId: number | null = null;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
@@ -172,9 +184,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     function handleTranscriptionReceived(_segments: TranscriptionSegment[], participant?: Participant): void {
         if (participant?.isLocal) {
             latencyTimestampTracker.update();
-            if (currentActivityState === AgentActivityState.Talking) {
-                currentActivityState = AgentActivityState.Idle;
-            }
         }
     }
     async function setUserContextAttributes(): Promise<void> {
@@ -378,18 +387,22 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
      * - tool-call/started -> ToolActive
      * - stream-video/created -> Talking, then back to ToolActive on stream-video/done
      *   while any tool call is still pending (e.g. a client tool waiting for user input)
-     * - last tool-call/done|error -> Idle
+     * - tool-call/done|error only drops the pending call; Idle comes from turn/ended
      */
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
             const payload = data as ToolCallStartedPayload;
-            // TODO: race condition with parallel tool calls — if one tool is interruptible
-            // and another isn't, the last tool-call/started wins instead of AND-ing the flags.
-            // Backend currently sends interruptible: false for all tools, so this works in practice.
-            // Future fix: track interruptible per toolId and derive the aggregate state.
-            currentInterruptible = payload.interruptible !== false;
-            callbacks.onInterruptibleChange?.(currentInterruptible);
-            pendingToolCalls.add(payload.call_id);
+            pendingToolCalls.set(payload.call_id, {
+                call: {
+                    callId: payload.call_id,
+                    name: payload.name,
+                    executionMode: payload.execution_mode === 'async' ? 'async' : 'blocking',
+                },
+                interruptible: payload.interruptible === true,
+                turnId: payload.turn_id ?? currentTurnId,
+            });
+            recomputeInterruptible();
+            emitRunningToolCalls();
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
             callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
@@ -411,17 +424,40 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     function resolvePendingToolCall(callId: string): void {
-        pendingToolCalls.delete(callId);
-        if (pendingToolCalls.size === 0 && currentActivityState === AgentActivityState.ToolActive) {
-            currentActivityState = AgentActivityState.Idle;
-            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+        if (!pendingToolCalls.delete(callId)) return;
+        recomputeInterruptible();
+        emitRunningToolCalls();
+    }
+
+    function dropBlockingToolCallsForTurn(turnId: number | null): void {
+        let dropped = false;
+
+        for (const [callId, pending] of pendingToolCalls) {
+            if (pending.call.executionMode !== 'blocking') continue;
+            if (turnId !== null && pending.turnId !== null && pending.turnId !== turnId) continue;
+            pendingToolCalls.delete(callId);
+            dropped = true;
         }
+
+        if (!dropped) return;
+        recomputeInterruptible();
+        emitRunningToolCalls();
+    }
+
+    function recomputeInterruptible(): void {
+        const next = ![...pendingToolCalls.values()].some(({ call }) => call.executionMode === 'blocking');
+        if (next === currentInterruptible) return;
+        currentInterruptible = next;
+        callbacks.onInterruptibleChange?.(next);
+    }
+
+    function emitRunningToolCalls(): void {
+        callbacks.onRunningToolCallsChange?.(
+            pendingToolCalls.size === 0 ? NO_RUNNING_TOOL_CALLS : [...pendingToolCalls.values()].map(({ call }) => call)
+        );
     }
 
     function handleVideoActivityState(subject: string, data: any): void {
-        currentInterruptible = data.metadata?.interruptible !== false;
-        callbacks.onInterruptibleChange?.(currentInterruptible);
-
         if (subject === StreamEvents.StreamVideoCreated) {
             currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
@@ -438,11 +474,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
             }
             return;
-        }
-
-        if (currentInterruptible) {
-            currentActivityState = AgentActivityState.Idle;
-            callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         }
     }
 
@@ -469,6 +500,20 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         });
     }
 
+    function handleTurnStarted(_subject: string, data: TurnEventPayload): void {
+        currentTurnId = data?.turn_id ?? null;
+        currentActivityState = AgentActivityState.Loading;
+        callbacks.onAgentActivityStateChange?.(AgentActivityState.Loading);
+    }
+
+    function handleTurnEnded(_subject: string, data: TurnEventPayload): void {
+        const turnId: number | null = data?.turn_id ?? null;
+        if (currentTurnId !== null && turnId !== null && turnId < currentTurnId) return;
+        dropBlockingToolCallsForTurn(turnId);
+        currentActivityState = AgentActivityState.Idle;
+        callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
+    }
+
     type DataChannelHandler = (subject: string, data: any) => void;
     const dataChannelHandlers: Record<string, DataChannelHandler> = {
         [StreamEvents.ChatAnswer]: handleChatEvents,
@@ -481,6 +526,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         [StreamEvents.StreamVideoError]: handleVideoEvents,
         [StreamEvents.StreamVideoRejected]: handleVideoEvents,
         [StreamEvents.ChatAudioTranscribed]: handleTranscriptionEvents,
+        [StreamEvents.TurnStarted]: handleTurnStarted,
+        [StreamEvents.TurnEnded]: handleTurnEnded,
     };
 
     function handleDataReceived(
@@ -728,7 +775,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         cleanMediaStream();
         isConnected = false;
         hasEmittedConnected = false;
-        pendingToolCalls.clear();
+        if (pendingToolCalls.size > 0) {
+            pendingToolCalls.clear();
+            recomputeInterruptible();
+            emitRunningToolCalls();
+        }
+        currentTurnId = null;
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
         currentActivityState = AgentActivityState.Idle;
     }
@@ -809,6 +861,16 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // a previous one is still settling causes races.
             if (type === 'text') return;
             sendDataChannelMessage(JSON.stringify({ topic: DataChannelTopic.Interrupt }));
+        },
+
+        /**
+         * Switch the STT language mid-session.
+         * Only available for Expressive (V4) agents.
+         * @param language - Language name or BCP-47 code (e.g. "English" or "en-US").
+         * @returns Promise that resolves after the send attempt completes; failures are reported via onError.
+         */
+        setSttLanguage(language: string) {
+            return sendMessage(JSON.stringify({ language }), DataChannelTopic.SttLanguage);
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {

@@ -42,6 +42,8 @@ export enum StreamEvents {
     ToolCallStarted = 'tool-call/started',
     ToolCallDone = 'tool-call/done',
     ToolCallError = 'tool-call/error',
+    TurnStarted = 'turn/started',
+    TurnEnded = 'turn/ended',
 }
 
 export enum ConnectionState {
@@ -73,6 +75,7 @@ export interface ManagerCallbacks {
     onStreamReady?: () => void;
     onToolEvent?: ToolEventCallback;
     onInterruptibleChange?: (interruptible: boolean) => void;
+    onRunningToolCallsChange?: (calls: readonly RunningToolCall[]) => void;
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
 
@@ -216,12 +219,27 @@ export interface StreamInterruptPayload {
 
 export type ClientToolHandler = (args: Record<string, unknown>) => Promise<string>;
 
+export type ToolExecutionMode = 'blocking' | 'async';
+
+/** A tool call currently running in the session. */
+export interface RunningToolCall {
+    callId: string;
+    name: string;
+    /**
+     * 'blocking' - the agent waits for the result before it can continue.
+     * 'async' - the agent keeps talking while the call runs.
+     */
+    executionMode: ToolExecutionMode;
+}
+
 export interface ToolCallStartedPayload {
     call_id: string;
     name: string;
     input: Record<string, unknown>;
     output: Record<string, unknown>;
     interruptible: boolean;
+    execution_mode?: ToolExecutionMode;
+    turn_id?: number | null;
     timestamp: string;
 }
 
@@ -246,6 +264,10 @@ export interface ToolCallErrorPayload {
 }
 
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
+
+export interface TurnEventPayload {
+    turn_id: number | null;
+}
 
 export type ToolEventCallback = {
     (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
