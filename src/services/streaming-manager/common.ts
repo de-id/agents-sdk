@@ -1,4 +1,5 @@
 import { CreateSessionV2Options, CreateStreamOptions, Interrupt, PayloadType, StreamType } from '@sdk/types';
+import type { DataChannelTopic } from './livekit-manager';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');
@@ -111,6 +112,14 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * @param language Language name or BCP-47 code (e.g. "English" or "en-US")
      */
     setSttLanguage?(language: string): Promise<void>;
+
+    /**
+     * Send a JSON payload to the agent over a data-channel topic.
+     * supported only for livekit manager
+     * @param topic Data-channel topic to send on
+     * @param payload Plain object, serialized as JSON
+     */
+    sendDataMessage?(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void>;
 
     /**
      * Register an RPC method handler on the LiveKit room.

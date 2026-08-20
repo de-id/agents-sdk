@@ -24,6 +24,7 @@ import { createChat } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
 import { createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
+import { DataChannelTopic } from '../streaming-manager/livekit-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 import { createAgentManager } from './index';
 
@@ -892,6 +893,35 @@ describe('createAgentManager', () => {
 
             await expect(manager.setSttLanguage('French')).rejects.toThrow(
                 'setSttLanguage is not available for this streaming manager'
+            );
+        });
+    });
+
+    describe('sendDataMessage', () => {
+        let manager: AgentManager;
+
+        beforeEach(async () => {
+            manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+        });
+
+        it('should delegate to the streaming manager when available', async () => {
+            const mockSendDataMessage = jest.fn().mockResolvedValue(undefined);
+            mockStreamingManager.sendDataMessage = mockSendDataMessage;
+
+            await manager.sendDataMessage(DataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
+
+            expect(mockSendDataMessage).toHaveBeenCalledWith(DataChannelTopic.Presentation, {
+                type: 'navigate',
+                slide: 3,
+            });
+        });
+
+        it('should throw error when sendDataMessage is not available', async () => {
+            mockStreamingManager.sendDataMessage = undefined;
+
+            await expect(manager.sendDataMessage(DataChannelTopic.Presentation, { slide: 1 })).rejects.toThrow(
+                'sendDataMessage is not available for this streaming manager'
             );
         });
     });

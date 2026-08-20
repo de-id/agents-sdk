@@ -91,6 +91,7 @@ export enum DataChannelTopic {
     Speak = 'did.speak',
     Interrupt = 'did.interrupt',
     SttLanguage = 'did.stt-language',
+    Presentation = 'did.presentation',
 }
 
 type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
@@ -871,6 +872,16 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
          */
         setSttLanguage(language: string) {
             return sendMessage(JSON.stringify({ language }), DataChannelTopic.SttLanguage);
+        },
+
+        /**
+         * Send a JSON payload to the agent over a data-channel topic.
+         * @param topic - The topic to send on.
+         * @param payload - Plain object, serialized as JSON.
+         * @returns Promise that resolves after the send attempt completes; failures are reported via onError.
+         */
+        sendDataMessage(topic: DataChannelTopic, payload: Record<string, unknown>) {
+            return sendMessage(JSON.stringify(payload), topic);
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {

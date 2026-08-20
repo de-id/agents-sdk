@@ -171,6 +171,16 @@ The `agentManager` object created during initialization has several built-in met
   await agentManager.unpublishMicrophoneStream();
   ```
 
+- **`agentManager.sendDataMessage(topic, payload)`**
+  **Supported only with Expressive (V4) agents.**
+  Method to send a JSON payload to the agent over a data-channel topic. `DataChannelTopic` is exported from the package root.
+
+  ```javascript
+  import { DataChannelTopic } from '@d-id/client-sdk';
+
+  await agentManager.sendDataMessage(DataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
+  ```
+
 ### ➤ ✴️ Callback Functions
 
 Callback functions enable you to manage various events throughout the SDK lifecycle. Each function is linked to one or more methods within the built-in `agentManager` and triggers automatically to handle specific events efficiently

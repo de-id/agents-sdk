@@ -343,6 +343,29 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
     });
 
+    describe('Generic Data Message', () => {
+        it('sends a JSON payload over the given topic', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await manager.sendDataMessage?.(DataChannelTopic.Presentation, { type: 'navigate', slide: 12 });
+
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(
+                JSON.stringify({ type: 'navigate', slide: 12 }),
+                { topic: DataChannelTopic.Presentation }
+            );
+        });
+
+        it('does not send and reports error when not connected', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            await manager.sendDataMessage?.(DataChannelTopic.Presentation, { type: 'navigate', slide: 1 });
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+            expect(options.callbacks.onError).toHaveBeenCalled();
+        });
+    });
+
     describe('Error Handling', () => {
         it('should throw error on publish failure', async () => {
             const mockStream = createMockStream();

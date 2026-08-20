@@ -34,6 +34,7 @@ import { getInitialMessages } from '../chat/intial-messages';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
+import type { DataChannelTopic } from '../streaming-manager/livekit-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 export interface AgentManagerItems {
@@ -350,6 +351,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-stt-language-change', { language });
 
             return items.streamingManager.setSttLanguage(language);
+        },
+        sendDataMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
+            if (!items.streamingManager?.sendDataMessage) {
+                return Promise.reject(new Error('sendDataMessage is not available for this streaming manager'));
+            }
+
+            return items.streamingManager.sendDataMessage(topic, payload);
         },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
