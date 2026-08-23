@@ -744,17 +744,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendDataChannelMessage(payload: string) {
-        try {
-            const parsed = JSON.parse(payload);
-            const topic = parsed.topic;
-            return sendMessage('', topic);
-        } catch (error) {
-            log('Failed to send data channel message:', error);
-            callbacks.onError?.(streamError(), { sessionId });
-        }
-    }
-
     function sendTextMessage(message: string) {
         return sendMessage(message, DataChannelTopic.Chat);
     }
@@ -848,7 +837,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             }
         },
 
-        sendDataChannelMessage,
         sendTextMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
@@ -861,7 +849,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // cancel the in-flight LLM token stream, and an extra interrupt while
             // a previous one is still settling causes races.
             if (type === 'text') return;
-            sendDataChannelMessage(JSON.stringify({ topic: DataChannelTopic.Interrupt }));
+            sendMessage('', DataChannelTopic.Interrupt);
         },
 
         /**

@@ -149,7 +149,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     streamOptions: T,
     { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions,
     signal?: AbortSignal
-): Promise<StreamingManager<T>> {
+): Promise<StreamingManager<T> & { sendDataChannelMessage(payload: string): void }> {
     const log = createStreamingLogger(debug, 'WebRTCStreamingManager');
     const parseDataChannelMessage = createParseDataChannelMessage(log);
 

@@ -23,8 +23,9 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     /**
      * Method to send data channel messages to the server
      * @param payload The message payload to send
+     * supported only for webrtc manager
      */
-    sendDataChannelMessage(payload: string): void;
+    sendDataChannelMessage?(payload: string): void;
 
     /**
      * Method to send text messages to the server
