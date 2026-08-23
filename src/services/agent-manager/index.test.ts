@@ -915,6 +915,9 @@ describe('createAgentManager', () => {
                 type: 'navigate',
                 slide: 3,
             });
+            expect(mockAnalytics.track).toHaveBeenCalledWith('agent-data-message', {
+                topic: DataChannelTopic.Presentation,
+            });
         });
 
         it('should throw error when sendDataMessage is not available', async () => {

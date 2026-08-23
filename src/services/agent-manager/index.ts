@@ -357,6 +357,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 return Promise.reject(new Error('sendDataMessage is not available for this streaming manager'));
             }
 
+            analytics.track('agent-data-message', { topic });
+
             return items.streamingManager.sendDataMessage(topic, payload);
         },
         unpublishMicrophoneStream(): Promise<void> {
