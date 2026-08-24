@@ -895,6 +895,28 @@ describe('createAgentManager', () => {
             );
             expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
+
+        it('resolves only once the send settles', async () => {
+            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            let settleSend = () => {};
+            mockStreamingManager.sendDataChannelMessage = jest.fn(
+                () => new Promise<void>(resolve => (settleSend = resolve))
+            );
+
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            const onSettled = jest.fn();
+            const pending = manager.setSttLanguage('French').then(onSettled);
+            await Promise.resolve();
+
+            expect(onSettled).not.toHaveBeenCalled();
+
+            settleSend();
+            await pending;
+
+            expect(onSettled).toHaveBeenCalled();
+        });
     });
 
     describe('sendDataMessage', () => {
@@ -923,6 +945,28 @@ describe('createAgentManager', () => {
                 'sendDataMessage is not available for this streaming manager'
             );
             expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
+        });
+
+        it('resolves only once the send settles', async () => {
+            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            let settleSend = () => {};
+            mockStreamingManager.sendDataChannelMessage = jest.fn(
+                () => new Promise<void>(resolve => (settleSend = resolve))
+            );
+
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            const onSettled = jest.fn();
+            const pending = manager.sendDataMessage(DataChannelTopic.Presentation, { slide: 3 }).then(onSettled);
+            await Promise.resolve();
+
+            expect(onSettled).not.toHaveBeenCalled();
+
+            settleSend();
+            await pending;
+
+            expect(onSettled).toHaveBeenCalled();
         });
     });
 

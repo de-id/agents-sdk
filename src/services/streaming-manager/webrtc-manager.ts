@@ -326,7 +326,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     await startConnection(streamIdFromServer, sessionClientAnswer, session_id, signal);
     log('start connection OK');
 
-    function sendDataChannelMessage(_topic: DataChannelTopic, payload: string) {
+    async function sendDataChannelMessage(_topic: DataChannelTopic, payload: string) {
         if (!isConnected || pcDataChannel.readyState !== 'open') {
             log('Data channel is not ready for sending messages');
             callbacks.onError?.(new StreamError('Data channel is not ready for sending messages'), {

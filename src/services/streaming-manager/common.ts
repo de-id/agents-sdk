@@ -37,10 +37,12 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * topic rather than getting a method of their own; only `speak` and
      * `interrupt` keep members, because their mechanics genuinely differ per
      * transport, and whatever they put on the data channel goes through here.
+     * The returned promise tracks the send attempt and never rejects - send
+     * failures are reported through `callbacks.onError`.
      * @param topic Data-channel topic to send on
      * @param payload The message payload to send, already serialized
      */
-    sendDataChannelMessage(topic: DataChannelTopic, payload: string): void;
+    sendDataChannelMessage(topic: DataChannelTopic, payload: string): Promise<void>;
 
     /**
      * Publish a microphone stream to the DataChannel

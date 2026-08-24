@@ -350,9 +350,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-stt-language-change', { language });
 
-            items.streamingManager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language }));
-
-            return Promise.resolve();
+            return items.streamingManager.sendDataChannelMessage(
+                DataChannelTopic.SttLanguage,
+                JSON.stringify({ language })
+            );
         },
         sendDataMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
@@ -361,9 +362,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-data-message', { topic });
 
-            items.streamingManager.sendDataChannelMessage(topic, JSON.stringify(payload));
-
-            return Promise.resolve();
+            return items.streamingManager.sendDataChannelMessage(topic, JSON.stringify(payload));
         },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
@@ -437,7 +436,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 const chatRequestFn = useV2Path
                     ? async () => {
-                          items.streamingManager?.sendDataChannelMessage(DataChannelTopic.Chat, userMessage);
+                          await items.streamingManager?.sendDataChannelMessage(DataChannelTopic.Chat, userMessage);
                           return Promise.resolve({} as ChatResponse);
                       }
                     : async () => {
