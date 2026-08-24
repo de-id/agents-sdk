@@ -34,7 +34,7 @@ import { getInitialMessages } from '../chat/intial-messages';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
-import type { DataChannelTopic } from '../streaming-manager/livekit-manager';
+import { DataChannelTopic } from '../streaming-manager/livekit-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 export interface AgentManagerItems {
@@ -344,13 +344,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return items.streamingManager.publishMicrophoneStream(stream);
         },
         setSttLanguage(language: string): Promise<void> {
-            if (!items.streamingManager?.setSttLanguage) {
+            if (!isStreamsV2 || !items.streamingManager) {
                 return Promise.reject(new Error('setSttLanguage is not available for this streaming manager'));
             }
 
             analytics.track('agent-stt-language-change', { language });
 
-            return items.streamingManager.setSttLanguage(language);
+            items.streamingManager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language }));
+
+            return Promise.resolve();
         },
         sendDataMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
             if (!items.streamingManager?.sendDataChannelMessage) {
@@ -435,7 +437,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 const chatRequestFn = useV2Path
                     ? async () => {
-                          await items.streamingManager?.sendTextMessage?.(userMessage);
+                          items.streamingManager?.sendDataChannelMessage(DataChannelTopic.Chat, userMessage);
                           return Promise.resolve({} as ChatResponse);
                       }
                     : async () => {

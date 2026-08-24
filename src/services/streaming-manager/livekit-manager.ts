@@ -726,7 +726,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendMessage(message: string, topic: string) {
+    async function sendDataChannelMessage(topic: string, payload: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(streamError(), {
@@ -736,20 +736,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         try {
-            await room.localParticipant.sendText(message, { topic });
-            log('Message sent successfully:', message);
+            await room.localParticipant.sendText(payload, { topic });
+            log('Message sent successfully:', payload);
         } catch (error) {
             log('Failed to send message:', error);
             callbacks.onError?.(streamError(), { sessionId });
         }
-    }
-
-    function sendDataChannelMessage(topic: string, payload: string) {
-        return sendMessage(payload, topic);
-    }
-
-    function sendTextMessage(message: string) {
-        return sendDataChannelMessage(DataChannelTopic.Chat, message);
     }
 
     async function disconnect(reason: string) {
@@ -841,7 +833,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             }
         },
 
-        sendTextMessage,
         sendDataChannelMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
@@ -855,16 +846,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // a previous one is still settling causes races.
             if (type === 'text') return;
             sendDataChannelMessage(DataChannelTopic.Interrupt, '');
-        },
-
-        /**
-         * Switch the STT language mid-session.
-         * Only available for Expressive (V4) agents.
-         * @param language - Language name or BCP-47 code (e.g. "English" or "en-US").
-         * @returns Promise that resolves after the send attempt completes; failures are reported via onError.
-         */
-        setSttLanguage(language: string) {
-            return sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language }));
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {

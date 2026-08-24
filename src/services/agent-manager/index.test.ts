@@ -871,29 +871,29 @@ describe('createAgentManager', () => {
     });
 
     describe('setSttLanguage', () => {
-        let manager: AgentManager;
+        it('should send the language on the stt-language topic for v2 agents', async () => {
+            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
 
-        beforeEach(async () => {
-            manager = await createAgentManager('agent-123', mockOptions);
+            const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
-        });
-
-        it('should set STT language when available', async () => {
-            const mockSetSttLanguage = jest.fn().mockResolvedValue(undefined);
-            mockStreamingManager.setSttLanguage = mockSetSttLanguage;
 
             await manager.setSttLanguage('French');
 
-            expect(mockSetSttLanguage).toHaveBeenCalledWith('French');
+            expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
+                DataChannelTopic.SttLanguage,
+                JSON.stringify({ language: 'French' })
+            );
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-stt-language-change', { language: 'French' });
         });
 
-        it('should throw error when setSttLanguage is not available', async () => {
-            mockStreamingManager.setSttLanguage = undefined;
+        it('should throw error when the agent is not a v2 agent', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
 
             await expect(manager.setSttLanguage('French')).rejects.toThrow(
                 'setSttLanguage is not available for this streaming manager'
             );
+            expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
     });
 

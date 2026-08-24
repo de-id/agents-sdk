@@ -9,7 +9,9 @@ export const createStreamingLogger = (debug: boolean, prefix: string) => (messag
  */
 export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Options> = {
     /**
-     * Method to send request to server to get clip or talk depending on payload
+     * Method to send request to server to get clip or talk depending on payload.
+     * Each implementation owns the transport details (V1 posts a stream request
+     * to the API; V2 sends the serialized payload on the `did.speak` topic).
      * @param payload The payload to send to the streaming service
      */
     speak(payload: PayloadType<T>): Promise<any>;
@@ -20,21 +22,18 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     disconnect(): Promise<void>;
 
     /**
-     * Method to send a serialized message to the agent over the data channel.
-     * LiveKit sends it as a text stream on the given topic; WebRTC sends the
-     * payload as-is on the RTC data channel and ignores the topic, having no
-     * topic concept.
+     * The single send primitive: every message leaving the client goes out
+     * through here. LiveKit sends it as a text stream on the given topic;
+     * WebRTC sends the payload as-is on the RTC data channel and ignores the
+     * topic, having no topic concept. Callers that need a specific message
+     * (chat, STT language, presentation, ...) call this with the matching
+     * topic rather than getting a method of their own; only `speak` and
+     * `interrupt` keep members, because their mechanics genuinely differ per
+     * transport, and whatever they put on the data channel goes through here.
      * @param topic Data-channel topic to send on (see `DataChannelTopic`)
      * @param payload The message payload to send, already serialized
      */
     sendDataChannelMessage(topic: string, payload: string): void;
-
-    /**
-     * Method to send text messages to the server
-     * @param payload The message payload to send
-     * supported only for livekit manager
-     */
-    sendTextMessage?(payload: string): Promise<void>;
 
     /**
      * Publish a microphone stream to the DataChannel
@@ -107,14 +106,6 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * `did.interrupt` and ignores `text` interrupts to avoid races).
      */
     interrupt(type: Interrupt['type']): void;
-
-    /**
-     * Switch the STT language mid-session.
-     * Only available for Expressive (V4) agents.
-     * supported only for livekit manager
-     * @param language Language name or BCP-47 code (e.g. "English" or "en-US")
-     */
-    setSttLanguage?(language: string): Promise<void>;
 
     /**
      * Register an RPC method handler on the LiveKit room.

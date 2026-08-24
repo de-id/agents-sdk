@@ -326,7 +326,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
-            await manager.setSttLanguage?.('French');
+            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(JSON.stringify({ language: 'French' }), {
                 topic: DataChannelTopic.SttLanguage,
@@ -336,7 +336,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         it('should not send did.stt-language message before the room connects', async () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
-            await manager.setSttLanguage?.('French');
+            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
 
             expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
