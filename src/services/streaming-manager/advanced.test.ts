@@ -201,7 +201,7 @@ describe('Streaming Manager Advanced', () => {
 
             mockDC.readyState = 'connecting';
 
-            manager.sendDataChannelMessage('test-message');
+            manager.sendDataChannelMessage('did.test', 'test-message');
 
             expect(options.callbacks.onError).toHaveBeenCalledWith(expect.any(Error), { streamId: 'streamId' });
         });

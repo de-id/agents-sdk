@@ -149,7 +149,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     streamOptions: T,
     { debug = false, callbacks, auth, baseURL = didApiUrl, analytics }: StreamingManagerOptions,
     signal?: AbortSignal
-): Promise<StreamingManager<T> & { sendDataChannelMessage(payload: string): void }> {
+): Promise<StreamingManager<T>> {
     const log = createStreamingLogger(debug, 'WebRTCStreamingManager');
     const parseDataChannelMessage = createParseDataChannelMessage(log);
 
@@ -325,7 +325,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     await startConnection(streamIdFromServer, sessionClientAnswer, session_id, signal);
     log('start connection OK');
 
-    function sendDataChannelMessage(payload: string) {
+    function sendDataChannelMessage(_topic: string, payload: string) {
         if (!isConnected || pcDataChannel.readyState !== 'open') {
             log('Data channel is not ready for sending messages');
             callbacks.onError?.(new StreamError('Data channel is not ready for sending messages'), {
@@ -418,7 +418,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 videoId: currentVideoId,
                 timestamp: Date.now(),
             };
-            sendDataChannelMessage(JSON.stringify(payload));
+            sendDataChannelMessage(StreamEvents.StreamInterrupt, JSON.stringify(payload));
         },
     };
 }

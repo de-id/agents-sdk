@@ -1,5 +1,4 @@
 import { CreateSessionV2Options, CreateStreamOptions, Interrupt, PayloadType, StreamType } from '@sdk/types';
-import type { DataChannelTopic } from './livekit-manager';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');
@@ -21,11 +20,14 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     disconnect(): Promise<void>;
 
     /**
-     * Method to send data channel messages to the server
-     * @param payload The message payload to send
-     * supported only for webrtc manager
+     * Method to send a serialized message to the agent over the data channel.
+     * LiveKit sends it as a text stream on the given topic; WebRTC sends the
+     * payload as-is on the RTC data channel and ignores the topic, having no
+     * topic concept.
+     * @param topic Data-channel topic to send on (see `DataChannelTopic`)
+     * @param payload The message payload to send, already serialized
      */
-    sendDataChannelMessage?(payload: string): void;
+    sendDataChannelMessage(topic: string, payload: string): void;
 
     /**
      * Method to send text messages to the server
@@ -113,14 +115,6 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * @param language Language name or BCP-47 code (e.g. "English" or "en-US")
      */
     setSttLanguage?(language: string): Promise<void>;
-
-    /**
-     * Send a JSON payload to the agent over a data-channel topic.
-     * supported only for livekit manager
-     * @param topic Data-channel topic to send on
-     * @param payload Plain object, serialized as JSON
-     */
-    sendDataMessage?(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void>;
 
     /**
      * Register an RPC method handler on the LiveKit room.

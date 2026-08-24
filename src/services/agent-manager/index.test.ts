@@ -906,25 +906,25 @@ describe('createAgentManager', () => {
         });
 
         it('should delegate to the streaming manager when available', async () => {
-            const mockSendDataMessage = jest.fn().mockResolvedValue(undefined);
-            mockStreamingManager.sendDataMessage = mockSendDataMessage;
+            const mockSendDataChannelMessage = jest.fn();
+            mockStreamingManager.sendDataChannelMessage = mockSendDataChannelMessage;
 
             await manager.sendDataMessage(DataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
 
-            expect(mockSendDataMessage).toHaveBeenCalledWith(DataChannelTopic.Presentation, {
-                type: 'navigate',
-                slide: 3,
-            });
+            expect(mockSendDataChannelMessage).toHaveBeenCalledWith(
+                DataChannelTopic.Presentation,
+                JSON.stringify({ type: 'navigate', slide: 3 })
+            );
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-data-message', {
                 topic: DataChannelTopic.Presentation,
             });
         });
 
-        it('should throw error when sendDataMessage is not available', async () => {
-            mockStreamingManager.sendDataMessage = undefined;
+        it('should throw error when sendDataChannelMessage is not available', async () => {
+            mockStreamingManager.sendDataChannelMessage = undefined;
 
             await expect(manager.sendDataMessage(DataChannelTopic.Presentation, { slide: 1 })).rejects.toThrow(
-                'sendDataMessage is not available for this streaming manager'
+                'sendDataChannelMessage is not available for this streaming manager'
             );
         });
     });

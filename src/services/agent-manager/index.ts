@@ -353,13 +353,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return items.streamingManager.setSttLanguage(language);
         },
         sendDataMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
-            if (!items.streamingManager?.sendDataMessage) {
-                return Promise.reject(new Error('sendDataMessage is not available for this streaming manager'));
+            if (!items.streamingManager?.sendDataChannelMessage) {
+                return Promise.reject(new Error('sendDataChannelMessage is not available for this streaming manager'));
             }
 
             analytics.track('agent-data-message', { topic });
 
-            return items.streamingManager.sendDataMessage(topic, payload);
+            items.streamingManager.sendDataChannelMessage(topic, JSON.stringify(payload));
+
+            return Promise.resolve();
         },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {

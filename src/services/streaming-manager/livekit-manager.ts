@@ -726,7 +726,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendMessage(message: string, topic: DataChannelTopic) {
+    async function sendMessage(message: string, topic: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(streamError(), {
@@ -744,8 +744,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
+    function sendDataChannelMessage(topic: string, payload: string) {
+        return sendMessage(payload, topic);
+    }
+
     function sendTextMessage(message: string) {
-        return sendMessage(message, DataChannelTopic.Chat);
+        return sendDataChannelMessage(DataChannelTopic.Chat, message);
     }
 
     async function disconnect(reason: string) {
@@ -778,7 +782,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            return sendMessage(message, DataChannelTopic.Speak);
+            return sendDataChannelMessage(DataChannelTopic.Speak, message);
         },
 
         disconnect: () => disconnect('user:disconnect'),
@@ -838,6 +842,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         },
 
         sendTextMessage,
+        sendDataChannelMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
         replaceMicrophoneTrack,
@@ -849,7 +854,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // cancel the in-flight LLM token stream, and an extra interrupt while
             // a previous one is still settling causes races.
             if (type === 'text') return;
-            sendMessage('', DataChannelTopic.Interrupt);
+            sendDataChannelMessage(DataChannelTopic.Interrupt, '');
         },
 
         /**
@@ -859,17 +864,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
          * @returns Promise that resolves after the send attempt completes; failures are reported via onError.
          */
         setSttLanguage(language: string) {
-            return sendMessage(JSON.stringify({ language }), DataChannelTopic.SttLanguage);
-        },
-
-        /**
-         * Send a JSON payload to the agent over a data-channel topic.
-         * @param topic - The topic to send on.
-         * @param payload - Plain object, serialized as JSON.
-         * @returns Promise that resolves after the send attempt completes; failures are reported via onError.
-         */
-        sendDataMessage(topic: DataChannelTopic, payload: Record<string, unknown>) {
-            return sendMessage(JSON.stringify(payload), topic);
+            return sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language }));
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {

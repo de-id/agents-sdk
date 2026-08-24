@@ -348,7 +348,10 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
-            await manager.sendDataMessage?.(DataChannelTopic.Presentation, { type: 'navigate', slide: 12 });
+            manager.sendDataChannelMessage(
+                DataChannelTopic.Presentation,
+                JSON.stringify({ type: 'navigate', slide: 12 })
+            );
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(
                 JSON.stringify({ type: 'navigate', slide: 12 }),
@@ -359,7 +362,10 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         it('does not send and reports error when not connected', async () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
-            await manager.sendDataMessage?.(DataChannelTopic.Presentation, { type: 'navigate', slide: 1 });
+            manager.sendDataChannelMessage(
+                DataChannelTopic.Presentation,
+                JSON.stringify({ type: 'navigate', slide: 1 })
+            );
 
             expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
