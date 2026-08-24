@@ -16,9 +16,7 @@ export const createStreamingLogger = (debug: boolean, prefix: string) => (messag
  */
 export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Options> = {
     /**
-     * Method to send request to server to get clip or talk depending on payload.
-     * Each implementation owns the transport details (V1 posts a stream request
-     * to the API; V2 sends the serialized payload on the `did.speak` topic).
+     * Method to send request to server to get clip or talk depending on payload
      * @param payload The payload to send to the streaming service
      */
     speak(payload: PayloadType<T>): Promise<any>;
@@ -29,16 +27,9 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     disconnect(): Promise<void>;
 
     /**
-     * The single send primitive: every message leaving the client goes out
-     * through here. LiveKit sends it as a text stream on the given topic;
-     * WebRTC sends the payload as-is on the RTC data channel and ignores the
-     * topic, having no topic concept. Callers that need a specific message
-     * (chat, STT language, presentation, ...) call this with the matching
-     * topic rather than getting a method of their own; only `speak` and
-     * `interrupt` keep members, because their mechanics genuinely differ per
-     * transport, and whatever they put on the data channel goes through here.
-     * The returned promise tracks the send attempt and never rejects - send
-     * failures are reported through `callbacks.onError`.
+     * The single send primitive: every message leaving the client goes out through here.
+     * V2 routes on the topic; V1 has no topic concept and ignores it.
+     * The promise tracks the send attempt and never rejects - failures go to `callbacks.onError`.
      * @param topic Data-channel topic to send on
      * @param payload The message payload to send, already serialized
      */
@@ -109,10 +100,7 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     isInterruptible: boolean;
 
     /**
-     * Send an interrupt for the current stream segment.
-     * Each implementation owns the validation/transport details (e.g. V1
-     * sends a `stream/interrupt` payload over the data channel; V2 sends
-     * `did.interrupt` and ignores `text` interrupts to avoid races).
+     * Send an interrupt for the current stream segment
      */
     interrupt(type: Interrupt['type']): void;
 
