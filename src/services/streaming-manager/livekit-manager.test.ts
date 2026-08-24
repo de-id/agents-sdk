@@ -2,12 +2,13 @@ import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
     CreateSessionV2Options,
+    DataChannelTopic,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     TransportProvider,
 } from '../../types/index';
-import { createLiveKitStreamingManager, DataChannelTopic } from './livekit-manager';
+import { createLiveKitStreamingManager } from './livekit-manager';
 
 // Mock livekit-client
 const mockPublishTrack = jest.fn();

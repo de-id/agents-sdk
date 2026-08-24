@@ -5,6 +5,7 @@ import {
     ConnectivityState,
     CreateSessionV2Options,
     CreateStreamOptions,
+    DataChannelTopic,
     Interrupt,
     Message,
     PayloadType,
@@ -85,14 +86,6 @@ const connectivityQualityToState = {
 };
 
 const streamError = (message = 'Stream Error') => new StreamError(message);
-
-export enum DataChannelTopic {
-    Chat = 'lk.chat',
-    Speak = 'did.speak',
-    Interrupt = 'did.interrupt',
-    SttLanguage = 'did.stt-language',
-    Presentation = 'did.presentation',
-}
 
 type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
 
@@ -726,7 +719,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendDataChannelMessage(topic: string, payload: string) {
+    async function sendDataChannelMessage(topic: DataChannelTopic, payload: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(streamError(), {

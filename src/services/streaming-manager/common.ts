@@ -1,4 +1,11 @@
-import { CreateSessionV2Options, CreateStreamOptions, Interrupt, PayloadType, StreamType } from '@sdk/types';
+import {
+    CreateSessionV2Options,
+    CreateStreamOptions,
+    DataChannelTopic,
+    Interrupt,
+    PayloadType,
+    StreamType,
+} from '@sdk/types';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');
@@ -30,10 +37,10 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * topic rather than getting a method of their own; only `speak` and
      * `interrupt` keep members, because their mechanics genuinely differ per
      * transport, and whatever they put on the data channel goes through here.
-     * @param topic Data-channel topic to send on (see `DataChannelTopic`)
+     * @param topic Data-channel topic to send on
      * @param payload The message payload to send, already serialized
      */
-    sendDataChannelMessage(topic: string, payload: string): void;
+    sendDataChannelMessage(topic: DataChannelTopic, payload: string): void;
 
     /**
      * Publish a microphone stream to the DataChannel

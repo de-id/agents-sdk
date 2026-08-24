@@ -7,6 +7,7 @@ import {
     ClientToolHandler,
     ConnectionState,
     CreateStreamOptions,
+    DataChannelTopic,
     Interrupt,
     Message,
     StreamScript,
@@ -34,7 +35,6 @@ import { getInitialMessages } from '../chat/intial-messages';
 import { SocketManager, createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
-import { DataChannelTopic } from '../streaming-manager/livekit-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
 export interface AgentManagerItems {

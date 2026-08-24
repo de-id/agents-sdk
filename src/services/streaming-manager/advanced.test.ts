@@ -4,7 +4,7 @@
  */
 
 import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
+import { CreateStreamOptions, DataChannelTopic, StreamType, StreamingManagerOptions } from '../../types/index';
 import { createVideoStatsMonitor } from './stats/poll';
 import {
     createParseDataChannelMessage,
@@ -201,7 +201,7 @@ describe('Streaming Manager Advanced', () => {
 
             mockDC.readyState = 'connecting';
 
-            manager.sendDataChannelMessage('did.test', 'test-message');
+            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test-message');
 
             expect(options.callbacks.onError).toHaveBeenCalledWith(expect.any(Error), { streamId: 'streamId' });
         });

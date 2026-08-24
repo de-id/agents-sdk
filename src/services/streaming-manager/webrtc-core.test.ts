@@ -4,7 +4,13 @@
  */
 
 import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { ConnectionState, CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
+import {
+    ConnectionState,
+    CreateStreamOptions,
+    DataChannelTopic,
+    StreamType,
+    StreamingManagerOptions,
+} from '../../types/index';
 import { createVideoStatsMonitor } from './stats/poll';
 import { createWebRTCStreamingManager as createStreamingManager } from './webrtc-manager';
 
@@ -168,7 +174,7 @@ describe('Streaming Manager Core', () => {
         it('should send data channel message when connected', async () => {
             const manager = await createStreamingManager(agentId, agentStreamOptions, options);
 
-            expect(() => manager.sendDataChannelMessage('did.test', 'test:message')).not.toThrow();
+            expect(() => manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test:message')).not.toThrow();
             expect(typeof manager.sendDataChannelMessage).toBe('function');
             expect(typeof manager.speak).toBe('function');
             expect(typeof manager.disconnect).toBe('function');
@@ -180,7 +186,7 @@ describe('Streaming Manager Core', () => {
             const mockDC = mockPC.createDataChannel.mock.results[0].value;
             mockPC.iceConnectionState = 'new';
             mockDC.readyState = 'closed';
-            manager.sendDataChannelMessage('did.test', 'test:message');
+            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test:message');
             expect(mockDC.send).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
         });
@@ -204,7 +210,7 @@ describe('Streaming Manager Core', () => {
                 throw new Error('Send failed');
             });
 
-            manager.sendDataChannelMessage('did.test', 'test:message');
+            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test:message');
             expect(options.callbacks.onError).toHaveBeenCalledWith(expect.any(Error), { streamId: 'streamId' });
         });
     });

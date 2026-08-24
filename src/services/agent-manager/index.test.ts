@@ -16,6 +16,7 @@ import {
     AgentManagerOptions,
     ChatMode,
     ConnectionState,
+    DataChannelTopic,
     Providers,
     StreamType,
 } from '../../types';
@@ -24,7 +25,6 @@ import { createChat } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
 import { createSocketManager } from '../socket-manager';
 import { createMessageEventQueue } from '../socket-manager/message-queue';
-import { DataChannelTopic } from '../streaming-manager/livekit-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 import { createAgentManager } from './index';
 

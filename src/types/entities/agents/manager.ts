@@ -1,4 +1,3 @@
-import type { DataChannelTopic } from '@sdk/services/streaming-manager/livekit-manager';
 import { STTTokenResponse } from '@sdk/types';
 import { Auth } from '@sdk/types/auth';
 import {
@@ -7,6 +6,7 @@ import {
     CompatibilityMode,
     ConnectionState,
     ConnectivityState,
+    DataChannelTopic,
     SendStreamPayloadResponse,
     StreamEvents,
     StreamType,

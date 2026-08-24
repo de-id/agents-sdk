@@ -5,6 +5,7 @@ import {
     AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
+    DataChannelTopic,
     Interrupt,
     PayloadType,
     StreamEvents,
@@ -325,7 +326,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     await startConnection(streamIdFromServer, sessionClientAnswer, session_id, signal);
     log('start connection OK');
 
-    function sendDataChannelMessage(_topic: string, payload: string) {
+    function sendDataChannelMessage(_topic: DataChannelTopic, payload: string) {
         if (!isConnected || pcDataChannel.readyState !== 'open') {
             log('Data channel is not ready for sending messages');
             callbacks.onError?.(new StreamError('Data channel is not ready for sending messages'), {
@@ -418,7 +419,9 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 videoId: currentVideoId,
                 timestamp: Date.now(),
             };
-            sendDataChannelMessage(StreamEvents.StreamInterrupt, JSON.stringify(payload));
+            // The topic is ignored here - V1 has no topic concept and the interrupt
+            // is identified by the payload's `type`.
+            sendDataChannelMessage(DataChannelTopic.Interrupt, JSON.stringify(payload));
         },
     };
 }

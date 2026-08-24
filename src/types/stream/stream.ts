@@ -46,6 +46,18 @@ export enum StreamEvents {
     TurnEnded = 'turn/ended',
 }
 
+/**
+ * Data-channel topics messages can be sent on.
+ * V2 (LiveKit) routes by topic; V1 (WebRTC) has no topic concept and ignores it.
+ */
+export enum DataChannelTopic {
+    Chat = 'lk.chat',
+    Speak = 'did.speak',
+    Interrupt = 'did.interrupt',
+    SttLanguage = 'did.stt-language',
+    Presentation = 'did.presentation',
+}
+
 export enum ConnectionState {
     New = 'new',
     Fail = 'fail',
