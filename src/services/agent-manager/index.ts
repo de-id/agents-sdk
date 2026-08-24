@@ -355,9 +355,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 JSON.stringify({ language })
             );
         },
-        sendDataMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
+        sendDataChannelMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
-                return Promise.reject(new Error('sendDataMessage is not available for this streaming manager'));
+                return Promise.reject(new Error('sendDataChannelMessage is not available for this streaming manager'));
             }
 
             analytics.track('agent-data-message', { topic });

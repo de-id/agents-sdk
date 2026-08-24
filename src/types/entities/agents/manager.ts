@@ -324,7 +324,7 @@ export interface AgentManager {
      * @param topic - Data-channel topic to send on (see `DataChannelTopic`)
      * @param payload - Plain object, serialized as JSON
      */
-    sendDataMessage: (topic: DataChannelTopic, payload: Record<string, unknown>) => Promise<void>;
+    sendDataChannelMessage: (topic: DataChannelTopic, payload: Record<string, unknown>) => Promise<void>;
 
     /**
      * Register a handler for a client tool. When the agent's LLM calls this tool,
