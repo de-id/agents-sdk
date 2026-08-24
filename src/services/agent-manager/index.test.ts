@@ -898,20 +898,15 @@ describe('createAgentManager', () => {
     });
 
     describe('sendDataMessage', () => {
-        let manager: AgentManager;
+        it('should delegate to the streaming manager for v2 agents', async () => {
+            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
 
-        beforeEach(async () => {
-            manager = await createAgentManager('agent-123', mockOptions);
+            const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
-        });
-
-        it('should delegate to the streaming manager when available', async () => {
-            const mockSendDataChannelMessage = jest.fn();
-            mockStreamingManager.sendDataChannelMessage = mockSendDataChannelMessage;
 
             await manager.sendDataMessage(DataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
 
-            expect(mockSendDataChannelMessage).toHaveBeenCalledWith(
+            expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
                 DataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 3 })
             );
@@ -920,12 +915,14 @@ describe('createAgentManager', () => {
             });
         });
 
-        it('should throw error when sendDataChannelMessage is not available', async () => {
-            mockStreamingManager.sendDataChannelMessage = undefined;
+        it('should throw error when the agent is not a v2 agent', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
 
             await expect(manager.sendDataMessage(DataChannelTopic.Presentation, { slide: 1 })).rejects.toThrow(
-                'sendDataChannelMessage is not available for this streaming manager'
+                'sendDataMessage is not available for this streaming manager'
             );
+            expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
     });
 
