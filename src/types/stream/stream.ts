@@ -3,6 +3,7 @@ import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/repor
 import { Auth } from '../auth';
 import { ChatProgressCallback } from '../entities/agents/manager';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
+import { DataChannelTopic } from './data-channel';
 import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
 
 export type CompatibilityMode = 'on' | 'off' | 'auto';
@@ -47,16 +48,17 @@ export enum StreamEvents {
 }
 
 /**
- * Data-channel topics messages can be sent on.
- * V2 (LiveKit) routes by topic; V1 (WebRTC) has no topic concept and ignores it.
+ * Topics a customer can send on via `agentManager.sendDataChannelMessage`.
+ * The remaining `DataChannelTopic` members are driven by their own methods
+ * (`chat`, `speak`, `interrupt`, `setSttLanguage`), which own the payload shape
+ * and bookkeeping those topics expect, so they stay internal.
+ *
+ * A const object rather than a second enum: it borrows the value from
+ * `DataChannelTopic`, so there is one source of truth for the wire string and
+ * no cast is needed where the topic reaches the transport.
  */
-export enum DataChannelTopic {
-    Chat = 'lk.chat',
-    Speak = 'did.speak',
-    Interrupt = 'did.interrupt',
-    SttLanguage = 'did.stt-language',
-    Presentation = 'did.presentation',
-}
+export const PublicDataChannelTopic = { Presentation: DataChannelTopic.Presentation } as const;
+export type PublicDataChannelTopic = (typeof PublicDataChannelTopic)[keyof typeof PublicDataChannelTopic];
 
 export enum ConnectionState {
     New = 'new',

@@ -1,16 +1,11 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 /**
  * Core functionality tests for streaming manager
  * Tests basic streaming manager creation, connection, and operations
  */
 
 import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import {
-    ConnectionState,
-    CreateStreamOptions,
-    DataChannelTopic,
-    StreamType,
-    StreamingManagerOptions,
-} from '../../types/index';
+import { ConnectionState, CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
 import { createVideoStatsMonitor } from './stats/poll';
 import { createWebRTCStreamingManager as createStreamingManager } from './webrtc-manager';
 

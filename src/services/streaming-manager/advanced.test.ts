@@ -1,10 +1,11 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 /**
  * Advanced functionality tests for streaming manager
  * Tests complex scenarios, edge cases, and advanced features
  */
 
 import { StreamApiFactory, StreamingAgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { CreateStreamOptions, DataChannelTopic, StreamType, StreamingManagerOptions } from '../../types/index';
+import { CreateStreamOptions, StreamType, StreamingManagerOptions } from '../../types/index';
 import { createVideoStatsMonitor } from './stats/poll';
 import {
     createParseDataChannelMessage,

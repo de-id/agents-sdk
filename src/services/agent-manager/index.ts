@@ -1,3 +1,4 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import {
     AgentManager,
     AgentManagerOptions,
@@ -7,9 +8,9 @@ import {
     ClientToolHandler,
     ConnectionState,
     CreateStreamOptions,
-    DataChannelTopic,
     Interrupt,
     Message,
+    PublicDataChannelTopic,
     StreamScript,
     SupportedStreamScript,
 } from '../../types';
@@ -355,7 +356,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 JSON.stringify({ language })
             );
         },
-        sendDataChannelMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
+        sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
                 return Promise.reject(new Error('sendDataChannelMessage is not available for this streaming manager'));
             }

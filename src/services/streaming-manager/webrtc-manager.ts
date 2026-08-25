@@ -5,7 +5,6 @@ import {
     AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
-    DataChannelTopic,
     Interrupt,
     PayloadType,
     StreamEvents,
@@ -14,6 +13,7 @@ import {
     StreamInterruptPayload,
     StreamType,
 } from '@sdk/types';
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { createStreamingLogger, StreamingManager } from './common';
 import { createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';

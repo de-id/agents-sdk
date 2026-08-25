@@ -1,8 +1,8 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
     CreateSessionV2Options,
-    DataChannelTopic,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,

@@ -1,4 +1,5 @@
 import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { RpcError } from 'livekit-client';
 import { createAgentsApi } from '../../api/agents';
 import {
@@ -16,8 +17,8 @@ import {
     AgentManagerOptions,
     ChatMode,
     ConnectionState,
-    DataChannelTopic,
     Providers,
+    PublicDataChannelTopic,
     StreamType,
 } from '../../types';
 import { initializeAnalytics } from '../analytics/mixpanel';
@@ -926,14 +927,14 @@ describe('createAgentManager', () => {
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
 
-            await manager.sendDataChannelMessage(DataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
+            await manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
 
             expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
-                DataChannelTopic.Presentation,
+                PublicDataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 3 })
             );
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-data-message', {
-                topic: DataChannelTopic.Presentation,
+                topic: PublicDataChannelTopic.Presentation,
             });
         });
 
@@ -941,9 +942,9 @@ describe('createAgentManager', () => {
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
 
-            await expect(manager.sendDataChannelMessage(DataChannelTopic.Presentation, { slide: 1 })).rejects.toThrow(
-                'sendDataChannelMessage is not available for this streaming manager'
-            );
+            await expect(
+                manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 1 })
+            ).rejects.toThrow('sendDataChannelMessage is not available for this streaming manager');
             expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
 
@@ -958,7 +959,9 @@ describe('createAgentManager', () => {
             await manager.connect();
 
             const onSettled = jest.fn();
-            const pending = manager.sendDataChannelMessage(DataChannelTopic.Presentation, { slide: 3 }).then(onSettled);
+            const pending = manager
+                .sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 3 })
+                .then(onSettled);
             await Promise.resolve();
 
             expect(onSettled).not.toHaveBeenCalled();

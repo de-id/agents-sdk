@@ -1,3 +1,4 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 /**
  * Edge cases and branch coverage tests for streaming manager
  * Tests detailed edge cases, error conditions, and branch coverage scenarios
@@ -8,7 +9,6 @@ import {
     AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
-    DataChannelTopic,
     StreamType,
     StreamingManagerOptions,
 } from '../../types/index';

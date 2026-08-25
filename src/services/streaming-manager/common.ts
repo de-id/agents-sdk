@@ -1,11 +1,5 @@
-import {
-    CreateSessionV2Options,
-    CreateStreamOptions,
-    DataChannelTopic,
-    Interrupt,
-    PayloadType,
-    StreamType,
-} from '@sdk/types';
+import { CreateSessionV2Options, CreateStreamOptions, Interrupt, PayloadType, StreamType } from '@sdk/types';
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');

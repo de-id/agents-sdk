@@ -5,7 +5,6 @@ import {
     ConnectivityState,
     CreateSessionV2Options,
     CreateStreamOptions,
-    DataChannelTopic,
     Interrupt,
     Message,
     PayloadType,
@@ -20,6 +19,7 @@ import {
     TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { noop } from '@sdk/utils';
 import { getUserContextAttributes } from '@sdk/utils/user-context';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';

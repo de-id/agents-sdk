@@ -173,12 +173,12 @@ The `agentManager` object created during initialization has several built-in met
 
 - **`agentManager.sendDataChannelMessage(topic, payload)`**
   **Supported only with Expressive (V4) agents.**
-  Method to send a JSON payload to the agent over a data-channel topic. `DataChannelTopic` is exported from the package root.
+  Method to send a JSON payload to the agent over a data-channel topic. `PublicDataChannelTopic` is exported from the package root and lists every topic this method accepts.
 
   ```javascript
-  import { DataChannelTopic } from '@d-id/client-sdk';
+  import { PublicDataChannelTopic } from '@d-id/client-sdk';
 
-  await agentManager.sendDataChannelMessage(DataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
+  await agentManager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
   ```
 
 ### ➤ ✴️ Callback Functions
