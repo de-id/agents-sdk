@@ -19,6 +19,7 @@ import {
     TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { noop } from '@sdk/utils';
 import { getUserContextAttributes } from '@sdk/utils/user-context';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
@@ -85,13 +86,6 @@ const connectivityQualityToState = {
 };
 
 const streamError = (message = 'Stream Error') => new StreamError(message);
-
-export enum DataChannelTopic {
-    Chat = 'lk.chat',
-    Speak = 'did.speak',
-    Interrupt = 'did.interrupt',
-    SttLanguage = 'did.stt-language',
-}
 
 type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
 
@@ -725,7 +719,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendMessage(message: string, topic: DataChannelTopic) {
+    async function sendDataChannelMessage(topic: DataChannelTopic, payload: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(streamError(), {
@@ -735,27 +729,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         try {
-            await room.localParticipant.sendText(message, { topic });
-            log('Message sent successfully:', message);
+            await room.localParticipant.sendText(payload, { topic });
+            log('Message sent successfully:', payload);
         } catch (error) {
             log('Failed to send message:', error);
             callbacks.onError?.(streamError(), { sessionId });
         }
-    }
-
-    async function sendDataChannelMessage(payload: string) {
-        try {
-            const parsed = JSON.parse(payload);
-            const topic = parsed.topic;
-            return sendMessage('', topic);
-        } catch (error) {
-            log('Failed to send data channel message:', error);
-            callbacks.onError?.(streamError(), { sessionId });
-        }
-    }
-
-    function sendTextMessage(message: string) {
-        return sendMessage(message, DataChannelTopic.Chat);
     }
 
     async function disconnect(reason: string) {
@@ -788,7 +767,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            return sendMessage(message, DataChannelTopic.Speak);
+            return sendDataChannelMessage(DataChannelTopic.Speak, message);
         },
 
         disconnect: () => disconnect('user:disconnect'),
@@ -848,7 +827,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         },
 
         sendDataChannelMessage,
-        sendTextMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
         replaceMicrophoneTrack,
@@ -860,17 +838,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // cancel the in-flight LLM token stream, and an extra interrupt while
             // a previous one is still settling causes races.
             if (type === 'text') return;
-            sendDataChannelMessage(JSON.stringify({ topic: DataChannelTopic.Interrupt }));
-        },
-
-        /**
-         * Switch the STT language mid-session.
-         * Only available for Expressive (V4) agents.
-         * @param language - Language name or BCP-47 code (e.g. "English" or "en-US").
-         * @returns Promise that resolves after the send attempt completes; failures are reported via onError.
-         */
-        setSttLanguage(language: string) {
-            return sendMessage(JSON.stringify({ language }), DataChannelTopic.SttLanguage);
+            sendDataChannelMessage(DataChannelTopic.Interrupt, '');
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {

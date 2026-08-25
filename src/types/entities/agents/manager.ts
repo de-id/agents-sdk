@@ -6,6 +6,7 @@ import {
     CompatibilityMode,
     ConnectionState,
     ConnectivityState,
+    PublicDataChannelTopic,
     SendStreamPayloadResponse,
     StreamEvents,
     StreamType,
@@ -316,6 +317,14 @@ export interface AgentManager {
      * @param language - Language name or BCP-47 code (e.g. "English" or "en-US")
      */
     setSttLanguage: (language: string) => Promise<void>;
+
+    /**
+     * Send a JSON payload to the agent over a data-channel topic
+     * Only available for Expressive (V4) agents
+     * @param topic - Data-channel topic to send on (see `PublicDataChannelTopic`)
+     * @param payload - Plain object, serialized as JSON
+     */
+    sendDataChannelMessage: (topic: PublicDataChannelTopic, payload: Record<string, unknown>) => Promise<void>;
 
     /**
      * Register a handler for a client tool. When the agent's LLM calls this tool,
