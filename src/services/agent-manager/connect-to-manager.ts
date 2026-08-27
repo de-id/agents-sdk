@@ -35,11 +35,12 @@ import {
 import { createChat } from '../chat';
 
 const ChatPrefix = 'cht';
-function getAgentStreamV2Options(): CreateSessionV2Options {
+function getAgentStreamV2Options(options?: ConnectToManagerOptions): CreateSessionV2Options {
     return {
         transport: {
             provider: TransportProvider.Livekit,
         },
+        ...(options?.persistentChat !== undefined && { chat_persist: options.persistentChat }),
     };
 }
 
@@ -66,7 +67,7 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
 
 function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
     return isStreamsV2Agent(agent.avatar.type)
-        ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options() }
+        ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options(options) }
         : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
 }
 
