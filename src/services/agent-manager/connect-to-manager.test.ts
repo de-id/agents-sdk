@@ -679,6 +679,7 @@ describe('connect-to-manager', () => {
                     transport: {
                         provider: TransportProvider.Livekit,
                     },
+                    chat_persist: true,
                 },
                 expect.not.objectContaining({
                     chatId: expect.anything(),
@@ -695,6 +696,43 @@ describe('connect-to-manager', () => {
 
             // Verify createChat is NOT called for V2 agents (chat is created internally)
             expect(createChat).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['forwards persistentChat: false as chat_persist: false', false, { chat_persist: false }],
+            ['forwards persistentChat: true as chat_persist: true', true, { chat_persist: true }],
+        ])('%s', async (_name, persistentChat, expectedSessionOptions) => {
+            const expressiveAgent: Agent = {
+                ...mockAgent,
+                avatar: { type: 'expressive', voice: { language: 'en-US' } },
+            };
+
+            await initializeStreamAndChat(
+                expressiveAgent,
+                { ...mockOptions, persistentChat },
+                mockAgentsApi,
+                mockAnalytics
+            );
+
+            expect(createStreamingManager).toHaveBeenCalledWith(
+                expressiveAgent,
+                expect.objectContaining({ version: StreamApiVersion.V2, ...expectedSessionOptions }),
+                expect.anything(),
+                undefined
+            );
+        });
+
+        it('should omit chat_persist when persistentChat is not set', async () => {
+            const expressiveAgent: Agent = {
+                ...mockAgent,
+                avatar: { type: 'expressive', voice: { language: 'en-US' } },
+            };
+            const { persistentChat: _persistentChat, ...optionsWithoutPersistentChat } = mockOptions;
+
+            await initializeStreamAndChat(expressiveAgent, optionsWithoutPersistentChat, mockAgentsApi, mockAnalytics);
+
+            const [, sessionOptions] = (createStreamingManager as jest.Mock).mock.calls[0];
+            expect(sessionOptions).not.toHaveProperty('chat_persist');
         });
 
         it('should use CreateStreamOptions for non-expressive agents', async () => {

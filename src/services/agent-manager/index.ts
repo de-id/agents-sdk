@@ -1,3 +1,4 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import {
     AgentManager,
     AgentManagerOptions,
@@ -9,6 +10,7 @@ import {
     CreateStreamOptions,
     Interrupt,
     Message,
+    PublicDataChannelTopic,
     StreamScript,
     SupportedStreamScript,
 } from '../../types';
@@ -343,13 +345,25 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return items.streamingManager.publishMicrophoneStream(stream);
         },
         setSttLanguage(language: string): Promise<void> {
-            if (!items.streamingManager?.setSttLanguage) {
+            if (!isStreamsV2 || !items.streamingManager) {
                 return Promise.reject(new Error('setSttLanguage is not available for this streaming manager'));
             }
 
             analytics.track('agent-stt-language-change', { language });
 
-            return items.streamingManager.setSttLanguage(language);
+            return items.streamingManager.sendDataChannelMessage(
+                DataChannelTopic.SttLanguage,
+                JSON.stringify({ language })
+            );
+        },
+        sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void> {
+            if (!isStreamsV2 || !items.streamingManager) {
+                return Promise.reject(new Error('sendDataChannelMessage is not available for this streaming manager'));
+            }
+
+            analytics.track('agent-data-message', { topic });
+
+            return items.streamingManager.sendDataChannelMessage(topic, JSON.stringify(payload));
         },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
@@ -423,7 +437,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 const chatRequestFn = useV2Path
                     ? async () => {
-                          await items.streamingManager?.sendTextMessage?.(userMessage);
+                          await items.streamingManager?.sendDataChannelMessage(DataChannelTopic.Chat, userMessage);
                           return Promise.resolve({} as ChatResponse);
                       }
                     : async () => {

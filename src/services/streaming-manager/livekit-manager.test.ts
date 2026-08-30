@@ -1,3 +1,4 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
@@ -7,7 +8,7 @@ import {
     StreamingState,
     TransportProvider,
 } from '../../types/index';
-import { createLiveKitStreamingManager, DataChannelTopic } from './livekit-manager';
+import { createLiveKitStreamingManager } from './livekit-manager';
 
 // Mock livekit-client
 const mockPublishTrack = jest.fn();
@@ -326,7 +327,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
-            await manager.setSttLanguage?.('French');
+            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(JSON.stringify({ language: 'French' }), {
                 topic: DataChannelTopic.SttLanguage,
@@ -336,7 +337,36 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         it('should not send did.stt-language message before the room connects', async () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
-            await manager.setSttLanguage?.('French');
+            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+            expect(options.callbacks.onError).toHaveBeenCalled();
+        });
+    });
+
+    describe('Generic Data Message', () => {
+        it('sends a JSON payload over the given topic', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            manager.sendDataChannelMessage(
+                DataChannelTopic.Presentation,
+                JSON.stringify({ type: 'navigate', slide: 12 })
+            );
+
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(
+                JSON.stringify({ type: 'navigate', slide: 12 }),
+                { topic: DataChannelTopic.Presentation }
+            );
+        });
+
+        it('does not send and reports error when not connected', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            manager.sendDataChannelMessage(
+                DataChannelTopic.Presentation,
+                JSON.stringify({ type: 'navigate', slide: 1 })
+            );
 
             expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
@@ -1331,6 +1361,20 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
         await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ verbose: false }));
+    });
+
+    it('sends chat_persist: false in the createStream request when explicitly disabled', async () => {
+        await createLiveKitStreamingManager(agentId, { ...sessionOptions, chat_persist: false }, options);
+
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: false }));
+    });
+
+    it('defaults chat_persist to true in the createStream request when unset', async () => {
+        const { chat_persist: _chatPersist, ...sessionOptionsWithoutChatPersist } = sessionOptions;
+
+        await createLiveKitStreamingManager(agentId, sessionOptionsWithoutChatPersist, options);
+
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: true }));
     });
 });
 

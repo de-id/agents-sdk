@@ -3,6 +3,7 @@ import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/repor
 import { Auth } from '../auth';
 import { ChatProgressCallback } from '../entities/agents/manager';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
+import { DataChannelTopic } from './data-channel';
 import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
 
 export type CompatibilityMode = 'on' | 'off' | 'auto';
@@ -45,6 +46,19 @@ export enum StreamEvents {
     TurnStarted = 'turn/started',
     TurnEnded = 'turn/ended',
 }
+
+/**
+ * Topics a customer can send on via `agentManager.sendDataChannelMessage`.
+ * The remaining `DataChannelTopic` members are driven by their own methods
+ * (`chat`, `speak`, `interrupt`, `setSttLanguage`), which own the payload shape
+ * and bookkeeping those topics expect, so they stay internal.
+ *
+ * A const object rather than a second enum: it borrows the value from
+ * `DataChannelTopic`, so there is one source of truth for the wire string and
+ * no cast is needed where the topic reaches the transport.
+ */
+export const PublicDataChannelTopic = { Presentation: DataChannelTopic.Presentation } as const;
+export type PublicDataChannelTopic = (typeof PublicDataChannelTopic)[keyof typeof PublicDataChannelTopic];
 
 export enum ConnectionState {
     New = 'new',
