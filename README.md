@@ -243,16 +243,7 @@ Callback functions enable you to manage various events throughout the SDK lifecy
     ```
 
     ```javascript Example Values
-    reason: [
-        'ok',
-        'user_left',
-        'unknown_error',
-        'network_issue',
-        'message_limit',
-        'time_limit',
-        'inactivity',
-        'ended_by_agent',
-    ];
+    reason: ['ok', 'unknown_error', 'network_issue', 'message_limit', 'time_limit', 'inactivity', 'ended_by_agent'];
     ```
 
 - **`onNewMessage(messages, type)`:**
