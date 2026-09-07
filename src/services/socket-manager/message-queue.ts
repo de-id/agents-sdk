@@ -1,10 +1,11 @@
 import { StreamError } from '@sdk/errors';
-import { Agent, AgentManagerOptions, ChatProgress, StreamEvents } from '@sdk/types';
+import { Agent, AgentManagerOptions, ChatProgress, StreamEndedPayload, StreamEvents } from '@sdk/types';
 import { Message } from '@sdk/types/entities/agents/chat';
 import { getStreamAnalyticsProps } from '@sdk/utils/analytics';
 import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
 import { AgentManagerItems } from '../agent-manager';
 import { Analytics } from '../analytics/mixpanel';
+import { toStreamEnded } from './stream-end';
 
 export interface ChatEventQueue {
     [sequence: number]: string;
@@ -132,7 +133,7 @@ export function createMessageEventQueue(
     items: AgentManagerItems,
     options: AgentManagerOptions,
     agentEntity: Agent,
-    onStreamDone: () => void
+    onStreamDone: (payload: StreamEndedPayload) => void
 ) {
     const chatEventQueue: ChatEventQueue = {};
     const clearQueue = () => {
@@ -233,7 +234,7 @@ export function createMessageEventQueue(
                 }
 
                 if (data.event === SEvent.StreamDone) {
-                    onStreamDone();
+                    onStreamDone(toStreamEnded(data));
                 }
             }
         },

@@ -8,6 +8,7 @@ import {
     ConnectivityState,
     PublicDataChannelTopic,
     SendStreamPayloadResponse,
+    StreamEndedPayload,
     StreamEvents,
     StreamType,
     StreamingState,
@@ -105,6 +106,13 @@ interface ManagerCallbacks {
      * @param stream - object containing stream_id, session_id and agent_id
      */
     onStreamCreated?: StreamManagerCallbacks['onStreamCreated'];
+    /**
+     * Optional callback function that will be triggered when the agent ends the stream on purpose
+     * (end-call tool, inactivity, time or message limit), right before the connection closes.
+     * Use it to tell a deliberate hang-up from a dropped connection.
+     * @param payload - `status` (`done` or `error`), `reason` (see StreamEndReason) and `timestamp` (epoch ms)
+     */
+    onStreamEnded?(payload: StreamEndedPayload): void;
     /**
      * Optional callback function that will be triggered when tool-call events occur during the call
      * (tool-call/started, tool-call/done, tool-call/error).

@@ -3,6 +3,7 @@ import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
     CreateSessionV2Options,
+    StreamEndReason,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
@@ -1988,5 +1989,78 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onAgentActivityStateChange).not.toHaveBeenCalledWith(AgentActivityState.Idle);
             expect(onMessage).toHaveBeenCalled();
         });
+    });
+});
+
+describe('LiveKit Streaming Manager - Stream Ended', () => {
+    let agentId: string;
+    let sessionOptions: CreateSessionV2Options;
+    let options: StreamingManagerOptions;
+    let onStreamEnded: jest.Mock;
+    let onConnectionStateChange: jest.Mock;
+
+    const notice = { reason: StreamEndReason.EndedByAgent, timestamp: 1700000000000 };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRoom.connect.mockResolvedValue(undefined);
+        mockRoom.prepareConnection.mockResolvedValue(undefined);
+        mockRoom.disconnect.mockResolvedValue(undefined);
+        mockRoom.on.mockReturnThis();
+        mockLocalParticipant.audioTrackPublications = new Map();
+        mockLocalParticipant.videoTrackPublications = new Map();
+        agentId = TEST_AGENT_ID;
+        sessionOptions = {
+            chat_persist: true,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
+        };
+        options = StreamingManagerOptionsFactory.build();
+        onStreamEnded = jest.fn();
+        onConnectionStateChange = jest.fn();
+        options.callbacks.onStreamEnded = onStreamEnded;
+        options.callbacks.onConnectionStateChange = onConnectionStateChange;
+    });
+
+    async function connectAndReceive(topic: string, data: object) {
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        await simulateConnection();
+        onConnectionStateChange.mockClear();
+
+        getDataReceivedHandler()(createDataChannelPayload(data), undefined, undefined, topic);
+        await new Promise(resolve => setTimeout(resolve, ASYNC_WAIT_TIME));
+
+        return manager;
+    }
+
+    it('should forward the payload to onStreamEnded', async () => {
+        await connectAndReceive(StreamEvents.StreamDone, notice);
+
+        expect(onStreamEnded).toHaveBeenCalledTimes(1);
+        expect(onStreamEnded).toHaveBeenCalledWith({ ...notice, status: 'done' });
+    });
+
+    it('should report stream/error as an error status', async () => {
+        const failure = { reason: StreamEndReason.UnknownError, timestamp: 1700000000000 };
+
+        await connectAndReceive(StreamEvents.StreamFailed, failure);
+
+        expect(onStreamEnded).toHaveBeenCalledWith({ ...failure, status: 'error' });
+    });
+
+    it('should leave the connection alone, the agent leaving the room ends it', async () => {
+        await connectAndReceive(StreamEvents.StreamDone, notice);
+
+        expect(onConnectionStateChange).not.toHaveBeenCalled();
+        expect(mockRoom.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('should ignore data received on an unknown topic', async () => {
+        await connectAndReceive('stream/unknown', notice);
+
+        expect(onStreamEnded).not.toHaveBeenCalled();
+        expect(onConnectionStateChange).not.toHaveBeenCalled();
+        expect(mockRoom.disconnect).not.toHaveBeenCalled();
     });
 });

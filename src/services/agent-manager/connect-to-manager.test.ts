@@ -5,6 +5,8 @@ import {
     AgentManagerOptions,
     ChatMode,
     ConnectionState,
+    StreamEndedPayload,
+    StreamEndReason,
     StreamEvents,
     StreamingState,
     StreamType,
@@ -81,6 +83,7 @@ describe('connect-to-manager', () => {
                 onNewMessage: jest.fn(),
                 onNewChat: jest.fn(),
                 onToolEvent: jest.fn(),
+                onStreamEnded: jest.fn(),
             },
         };
 
@@ -235,6 +238,7 @@ describe('connect-to-manager', () => {
         let onFirstAudioDetected: ((metrics: { latency?: number; networkLatency?: number }) => void) | undefined;
         let onStreamReady: (() => void) | undefined;
         let onToolEvent: ((event: StreamEvents, data: any) => void) | undefined;
+        let onStreamEnded: ((payload: StreamEndedPayload) => void) | undefined;
 
         beforeEach(async () => {
             // Initialize callbacks to avoid undefined errors
@@ -249,6 +253,7 @@ describe('connect-to-manager', () => {
                 onFirstAudioDetected = options.callbacks.onFirstAudioDetected;
                 onStreamReady = options.callbacks.onStreamReady;
                 onToolEvent = options.callbacks.onToolEvent;
+                onStreamEnded = options.callbacks.onStreamEnded;
 
                 return new Promise(resolve => {
                     setTimeout(() => {
@@ -511,6 +516,28 @@ describe('connect-to-manager', () => {
                     'agent-tool-call',
                     expect.objectContaining({ extra_keys: 0 })
                 );
+            });
+        });
+
+        describe('onStreamEnded', () => {
+            const streamEndedPayload: StreamEndedPayload = {
+                status: 'done',
+                reason: StreamEndReason.Inactivity,
+                timestamp: 1700000000000,
+            };
+
+            beforeEach(() => {
+                (mockAnalytics.track as jest.Mock).mockClear();
+            });
+
+            it('forwards the payload to user callback and tracks agent-stream-ended', () => {
+                onStreamEnded?.(streamEndedPayload);
+
+                expect(mockOptions.callbacks.onStreamEnded).toHaveBeenCalledWith(streamEndedPayload);
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-stream-ended', {
+                    status: 'done',
+                    reason: StreamEndReason.Inactivity,
+                });
             });
         });
     });

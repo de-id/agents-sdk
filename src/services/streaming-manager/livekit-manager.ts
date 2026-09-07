@@ -9,6 +9,7 @@ import {
     Message,
     PayloadType,
     RunningToolCall,
+    StreamEndedPayload,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
@@ -508,6 +509,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
     }
 
+    function handleStreamEnded(subject: string, data: Omit<StreamEndedPayload, 'status'>): void {
+        const status = subject === StreamEvents.StreamFailed ? 'error' : 'done';
+        callbacks.onStreamEnded?.({ ...data, status });
+    }
+
     type DataChannelHandler = (subject: string, data: any) => void;
     const dataChannelHandlers: Record<string, DataChannelHandler> = {
         [StreamEvents.ChatAnswer]: handleChatEvents,
@@ -522,6 +528,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         [StreamEvents.ChatAudioTranscribed]: handleTranscriptionEvents,
         [StreamEvents.TurnStarted]: handleTurnStarted,
         [StreamEvents.TurnEnded]: handleTurnEnded,
+        [StreamEvents.StreamDone]: handleStreamEnded,
+        [StreamEvents.StreamFailed]: handleStreamEnded,
     };
 
     function handleDataReceived(

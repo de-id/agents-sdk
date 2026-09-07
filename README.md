@@ -234,6 +234,22 @@ Callback functions enable you to manage various events throughout the SDK lifecy
     state: ['new', 'fail', 'connecting', 'connected', 'disconnected', 'closed'];
     ```
 
+- **`onStreamEnded(payload)`:**
+  Triggered when the server ends the stream on purpose (end-call tool, inactivity, time or message limit), just before the connection closes. Use it to tell a deliberate hang-up from a dropped connection. The `reason` codes are exported as the `StreamEndReason` enum.
+  The connection then closes as it always has, so `onConnectionStateChange` is unaffected.
+
+    ```javascript
+    onStreamEnded(payload) {
+        console.log("onStreamEnded(): ", payload.status, payload.reason)
+    }
+    ```
+
+    ```javascript Example Values
+    payload: { status: 'done', reason: 'ended_by_agent', timestamp: 1700000000000 };
+    status: ['done', 'error'];
+    reason: ['ok', 'unknown_error', 'network_issue', 'message_limit', 'time_limit', 'inactivity', 'ended_by_agent'];
+    ```
+
 - **`onNewMessage(messages, type)`:**
   Displaying the chat messages array when a new message is sent to the chat.
   `type`: `answer` indicates the full answer replied in the streamed video.
