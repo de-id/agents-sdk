@@ -3,9 +3,9 @@ import { Agent, AgentManagerOptions, ChatProgress, StreamEndReason, StreamEvents
 import { Message } from '@sdk/types/entities/agents/chat';
 import { getStreamAnalyticsProps } from '@sdk/utils/analytics';
 import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
+import { toStreamEndReason } from '@sdk/utils/stream-end';
 import { AgentManagerItems } from '../agent-manager';
 import { Analytics } from '../analytics/mixpanel';
-import { toStreamEndReason } from './stream-end';
 
 export interface ChatEventQueue {
     [sequence: number]: string;
