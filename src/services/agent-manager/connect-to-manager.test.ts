@@ -5,7 +5,6 @@ import {
     AgentManagerOptions,
     ChatMode,
     ConnectionState,
-    StreamEndedPayload,
     StreamEndReason,
     StreamEvents,
     StreamingState,
@@ -83,7 +82,6 @@ describe('connect-to-manager', () => {
                 onNewMessage: jest.fn(),
                 onNewChat: jest.fn(),
                 onToolEvent: jest.fn(),
-                onStreamEnded: jest.fn(),
             },
         };
 
@@ -232,13 +230,12 @@ describe('connect-to-manager', () => {
     });
 
     describe('Streaming Manager Callbacks', () => {
-        let onConnectionStateChange: (state: ConnectionState) => void;
+        let onConnectionStateChange: (state: ConnectionState, reason?: string) => void;
         let onVideoStateChange: (state: StreamingState, statsReport?: any) => void;
         let onAgentActivityStateChange: (state: AgentActivityState) => void;
         let onFirstAudioDetected: ((metrics: { latency?: number; networkLatency?: number }) => void) | undefined;
         let onStreamReady: (() => void) | undefined;
         let onToolEvent: ((event: StreamEvents, data: any) => void) | undefined;
-        let onStreamEnded: ((payload: StreamEndedPayload) => void) | undefined;
 
         beforeEach(async () => {
             // Initialize callbacks to avoid undefined errors
@@ -253,7 +250,6 @@ describe('connect-to-manager', () => {
                 onFirstAudioDetected = options.callbacks.onFirstAudioDetected;
                 onStreamReady = options.callbacks.onStreamReady;
                 onToolEvent = options.callbacks.onToolEvent;
-                onStreamEnded = options.callbacks.onStreamEnded;
 
                 return new Promise(resolve => {
                     setTimeout(() => {
@@ -269,10 +265,13 @@ describe('connect-to-manager', () => {
         });
 
         describe('onConnectionStateChange', () => {
-            it('should forward connection state changes', () => {
-                onConnectionStateChange(ConnectionState.Connecting);
+            it('should forward connection state changes with their reason', () => {
+                onConnectionStateChange(ConnectionState.Connecting, 'livekit:connecting');
 
-                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Connecting);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Connecting,
+                    'livekit:connecting'
+                );
             });
         });
 
@@ -519,23 +518,16 @@ describe('connect-to-manager', () => {
             });
         });
 
-        describe('onStreamEnded', () => {
-            const streamEndedPayload: StreamEndedPayload = {
-                status: 'done',
-                reason: StreamEndReason.Inactivity,
-                timestamp: 1700000000000,
-            };
+        describe('stream end reason', () => {
+            it('forwards the disconnect reason to the app and tracks it', () => {
+                onConnectionStateChange(ConnectionState.Disconnected, StreamEndReason.Inactivity);
 
-            beforeEach(() => {
-                (mockAnalytics.track as jest.Mock).mockClear();
-            });
-
-            it('forwards the payload to user callback and tracks agent-stream-ended', () => {
-                onStreamEnded?.(streamEndedPayload);
-
-                expect(mockOptions.callbacks.onStreamEnded).toHaveBeenCalledWith(streamEndedPayload);
-                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-stream-ended', {
-                    status: 'done',
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Disconnected,
+                    StreamEndReason.Inactivity
+                );
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-connection-state-change', {
+                    state: ConnectionState.Disconnected,
                     reason: StreamEndReason.Inactivity,
                 });
             });

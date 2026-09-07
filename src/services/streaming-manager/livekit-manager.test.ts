@@ -1992,14 +1992,11 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
     });
 });
 
-describe('LiveKit Streaming Manager - Stream Ended', () => {
+describe('LiveKit Streaming Manager - Stream End Reason', () => {
     let agentId: string;
     let sessionOptions: CreateSessionV2Options;
     let options: StreamingManagerOptions;
-    let onStreamEnded: jest.Mock;
     let onConnectionStateChange: jest.Mock;
-
-    const notice = { reason: StreamEndReason.EndedByAgent, timestamp: 1700000000000 };
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -2017,50 +2014,42 @@ describe('LiveKit Streaming Manager - Stream Ended', () => {
             },
         };
         options = StreamingManagerOptionsFactory.build();
-        onStreamEnded = jest.fn();
         onConnectionStateChange = jest.fn();
-        options.callbacks.onStreamEnded = onStreamEnded;
         options.callbacks.onConnectionStateChange = onConnectionStateChange;
     });
 
-    async function connectAndReceive(topic: string, data: object) {
-        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
-        await simulateConnection();
+    async function receiveThenDisconnect(topic: string | null, data: object) {
+        await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+        if (topic) {
+            getDataReceivedHandler()(createDataChannelPayload(data), undefined, undefined, topic);
+        }
+
         onConnectionStateChange.mockClear();
-
-        getDataReceivedHandler()(createDataChannelPayload(data), undefined, undefined, topic);
-        await new Promise(resolve => setTimeout(resolve, ASYNC_WAIT_TIME));
-
-        return manager;
+        getConnectionStateHandler()('disconnected');
     }
 
-    it('should forward the payload to onStreamEnded', async () => {
-        await connectAndReceive(StreamEvents.StreamDone, notice);
+    it('should report the disconnect with the reason the server sent', async () => {
+        await receiveThenDisconnect(StreamEvents.StreamDone, { reason: StreamEndReason.EndedByAgent });
 
-        expect(onStreamEnded).toHaveBeenCalledTimes(1);
-        expect(onStreamEnded).toHaveBeenCalledWith({ ...notice, status: 'done' });
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', StreamEndReason.EndedByAgent);
     });
 
-    it('should report stream/error as an error status', async () => {
-        const failure = { reason: StreamEndReason.UnknownError, timestamp: 1700000000000 };
+    it('should report a failed stream the same way', async () => {
+        await receiveThenDisconnect(StreamEvents.StreamFailed, { reason: StreamEndReason.UnknownError });
 
-        await connectAndReceive(StreamEvents.StreamFailed, failure);
-
-        expect(onStreamEnded).toHaveBeenCalledWith({ ...failure, status: 'error' });
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', StreamEndReason.UnknownError);
     });
 
-    it('should leave the connection alone, the agent leaving the room ends it', async () => {
-        await connectAndReceive(StreamEvents.StreamDone, notice);
+    it('should keep the transport diagnostic when the server sent no reason', async () => {
+        await receiveThenDisconnect(null, {});
 
-        expect(onConnectionStateChange).not.toHaveBeenCalled();
-        expect(mockRoom.disconnect).not.toHaveBeenCalled();
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
     });
 
-    it('should ignore data received on an unknown topic', async () => {
-        await connectAndReceive('stream/unknown', notice);
+    it('should ignore an end reason on an unknown topic', async () => {
+        await receiveThenDisconnect('stream/unknown', { reason: StreamEndReason.EndedByAgent });
 
-        expect(onStreamEnded).not.toHaveBeenCalled();
-        expect(onConnectionStateChange).not.toHaveBeenCalled();
-        expect(mockRoom.disconnect).not.toHaveBeenCalled();
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
     });
 });

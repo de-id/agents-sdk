@@ -1,4 +1,4 @@
-import { StreamEndReason, StreamEndedPayload } from '@sdk/types';
+import { StreamEndReason } from '@sdk/types';
 
 const CLOSE_REASONS: Record<string, StreamEndReason> = {
     manual: StreamEndReason.Ok,
@@ -8,10 +8,6 @@ const CLOSE_REASONS: Record<string, StreamEndReason> = {
 };
 
 /** Legacy streams report the session end as `stream/done` with a `close_reason`. */
-export function toStreamEnded(data: any): StreamEndedPayload {
-    return {
-        status: 'done',
-        reason: CLOSE_REASONS[data.close_reason] ?? StreamEndReason.UnknownError,
-        timestamp: Date.parse(data.completed_at) || Date.now(),
-    };
+export function toStreamEndReason(data: any): StreamEndReason {
+    return CLOSE_REASONS[data.close_reason] ?? StreamEndReason.UnknownError;
 }

@@ -17,7 +17,6 @@ import {
     ConnectionState,
     CreateSessionV2Options,
     CreateStreamOptions,
-    StreamEndedPayload,
     StreamEvents,
     StreamType,
     StreamingState,
@@ -184,10 +183,6 @@ function trackToolEventAnalytics(
     });
 }
 
-function trackStreamEndedAnalytics(payload: StreamEndedPayload, analytics: Analytics) {
-    analytics.track('agent-stream-ended', { status: payload.status, reason: payload.reason });
-}
-
 type ConnectToManagerOptions = AgentManagerOptions & {
     callbacks: AgentManagerOptions['callbacks'] & {
         onVideoIdChange?: (videoId: string | null) => void;
@@ -229,7 +224,7 @@ function connectToManager(
                     callbacks: {
                         ...options.callbacks,
                         onConnectionStateChange: (state, reason) => {
-                            options.callbacks.onConnectionStateChange?.(state);
+                            options.callbacks.onConnectionStateChange?.(state, reason);
 
                             trackConnectionStateChangeAnalytics(state, reason, analytics);
 
@@ -294,10 +289,6 @@ function connectToManager(
                             options.callbacks.onToolEvent?.(event, data);
                             trackToolEventAnalytics(event, data, analytics);
                         }) as typeof options.callbacks.onToolEvent,
-                        onStreamEnded: payload => {
-                            options.callbacks.onStreamEnded?.(payload);
-                            trackStreamEndedAnalytics(payload, analytics);
-                        },
                     },
                 },
                 signal

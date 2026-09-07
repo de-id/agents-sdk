@@ -87,7 +87,6 @@ export interface ManagerCallbacks {
     onVideoIdChange?: (videoId: string | null) => void;
     onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
     onStreamReady?: () => void;
-    onStreamEnded?: (payload: StreamEndedPayload) => void;
     onToolEvent?: ToolEventCallback;
     onInterruptibleChange?: (interruptible: boolean) => void;
     onRunningToolCallsChange?: (calls: readonly RunningToolCall[]) => void;
@@ -284,8 +283,6 @@ export interface TurnEventPayload {
     turn_id: number | null;
 }
 
-export type StreamEndStatus = 'done' | 'error';
-
 export enum StreamEndReason {
     Ok = 'ok',
     UnknownError = 'unknown_error',
@@ -294,12 +291,6 @@ export enum StreamEndReason {
     TimeLimit = 'time_limit',
     Inactivity = 'inactivity',
     EndedByAgent = 'ended_by_agent',
-}
-
-export interface StreamEndedPayload {
-    status: StreamEndStatus;
-    reason: StreamEndReason;
-    timestamp: number;
 }
 
 export type ToolEventCallback = {
