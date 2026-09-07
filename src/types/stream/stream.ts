@@ -285,7 +285,6 @@ export interface TurnEventPayload {
 
 export enum StreamEndReason {
     Ok = 'ok',
-    UserLeft = 'user_left',
     UnknownError = 'unknown_error',
     NetworkIssue = 'network_issue',
     MessageLimit = 'message_limit',
