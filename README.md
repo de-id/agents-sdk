@@ -126,12 +126,10 @@ The `agentManager` object created during initialization has several built-in met
     ```
 
     ```javascript Audio File - JavaScript
-    let speak = agentManager.speak(
-        {
-          type: "audio",
-          audio_url: "http://www.yourwebsite.com/audio.mp3"
-        }
-    );
+    let speak = agentManager.speak({
+        type: 'audio',
+        audio_url: 'http://www.yourwebsite.com/audio.mp3',
+    });
     ```
 
 - **`agentManager.chat(string)`**
@@ -158,28 +156,28 @@ The `agentManager` object created during initialization has several built-in met
   **Supported only with Expressive (V4) agents.**
   Method to publish a microphone audio track to the session. Call after `connect()` to enable voice input.
 
-  ```javascript
-  const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  await agentManager.publishMicrophoneStream(micStream);
-  ```
+    ```javascript
+    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    await agentManager.publishMicrophoneStream(micStream);
+    ```
 
 - **`agentManager.unpublishMicrophoneStream()`**
   **Supported only with Expressive (V4) agents.**
   Method to stop and remove the currently published microphone track from the session.
 
-  ```javascript
-  await agentManager.unpublishMicrophoneStream();
-  ```
+    ```javascript
+    await agentManager.unpublishMicrophoneStream();
+    ```
 
 - **`agentManager.sendDataChannelMessage(topic, payload)`**
   **Supported only with Expressive (V4) agents.**
   Method to send a JSON payload to the agent over a data-channel topic. `PublicDataChannelTopic` is exported from the package root and lists every topic this method accepts.
 
-  ```javascript
-  import { PublicDataChannelTopic } from '@d-id/client-sdk';
+    ```javascript
+    import { PublicDataChannelTopic } from '@d-id/client-sdk';
 
-  await agentManager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
-  ```
+    await agentManager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
+    ```
 
 ### ➤ ✴️ Callback Functions
 
@@ -245,7 +243,16 @@ Callback functions enable you to manage various events throughout the SDK lifecy
     ```
 
     ```javascript Example Values
-    reason: ['ok', 'unknown_error', 'network_issue', 'message_limit', 'time_limit', 'inactivity', 'ended_by_agent'];
+    reason: [
+        'ok',
+        'user_left',
+        'unknown_error',
+        'network_issue',
+        'message_limit',
+        'time_limit',
+        'inactivity',
+        'ended_by_agent',
+    ];
     ```
 
 - **`onNewMessage(messages, type)`:**
