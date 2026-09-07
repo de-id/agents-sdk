@@ -127,6 +127,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         dynacast: true,
     });
 
+    for (const [method, handler] of options.rpcMethods ?? []) {
+        room.registerRpcMethod(method, handler);
+    }
+
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
