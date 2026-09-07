@@ -1,6 +1,6 @@
 import { StreamEndReason } from '@sdk/types';
 
-const CLOSE_REASONS: Record<string, StreamEndReason> = {
+const LEGACY_CLOSE_REASON_TO_END_REASON: Record<string, StreamEndReason> = {
     manual: StreamEndReason.Ok,
     inactivity: StreamEndReason.Inactivity,
     peer_disconnected: StreamEndReason.NetworkIssue,
@@ -9,5 +9,5 @@ const CLOSE_REASONS: Record<string, StreamEndReason> = {
 
 /** Legacy streams report the session end as `stream/done` with a `close_reason`. */
 export function toStreamEndReason(data: any): StreamEndReason {
-    return CLOSE_REASONS[data.close_reason] ?? StreamEndReason.UnknownError;
+    return LEGACY_CLOSE_REASON_TO_END_REASON[data.close_reason] ?? StreamEndReason.UnknownError;
 }
