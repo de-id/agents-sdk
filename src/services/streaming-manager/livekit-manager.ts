@@ -9,6 +9,7 @@ import {
     Message,
     PayloadType,
     RunningToolCall,
+    StreamEndReason,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
@@ -132,6 +133,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let currentInterruptible = true;
     const pendingToolCalls = new Map<string, PendingToolCall>();
     let currentTurnId: number | null = null;
+    let streamEndReason: StreamEndReason | null = null;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
@@ -236,7 +238,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 hasEmittedConnected = false;
                 microphoneState.publication = null;
                 cameraState.publication = null;
-                callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, 'livekit:disconnected');
+                callbacks.onConnectionStateChange?.(
+                    ConnectionState.Disconnected,
+                    streamEndReason ?? 'livekit:disconnected'
+                );
                 break;
             case LiveKitConnectionState.Reconnecting:
                 log('LiveKit room reconnecting...');
@@ -508,6 +513,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
     }
 
+    function handleStreamEnded(_subject: string, data: { reason: StreamEndReason }): void {
+        streamEndReason = data?.reason ?? null;
+    }
+
     type DataChannelHandler = (subject: string, data: any) => void;
     const dataChannelHandlers: Record<string, DataChannelHandler> = {
         [StreamEvents.ChatAnswer]: handleChatEvents,
@@ -522,6 +531,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         [StreamEvents.ChatAudioTranscribed]: handleTranscriptionEvents,
         [StreamEvents.TurnStarted]: handleTurnStarted,
         [StreamEvents.TurnEnded]: handleTurnEnded,
+        [StreamEvents.StreamDone]: handleStreamEnded,
+        [StreamEvents.StreamFailed]: handleStreamEnded,
     };
 
     function handleDataReceived(

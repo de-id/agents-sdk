@@ -108,9 +108,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const isStreamsV2 = isStreamsV2Agent(agentEntity.avatar.type);
     analytics.enrich(getAgentInfo(agentEntity));
 
-    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () => {
+    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, reason => {
         items.socketManager?.disconnect();
-        options.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+        options.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, reason);
     });
 
     items.messages = getInitialMessages(options.initialMessages);

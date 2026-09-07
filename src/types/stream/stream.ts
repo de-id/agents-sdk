@@ -283,6 +283,16 @@ export interface TurnEventPayload {
     turn_id: number | null;
 }
 
+export enum StreamEndReason {
+    Ok = 'ok',
+    UnknownError = 'unknown_error',
+    NetworkIssue = 'network_issue',
+    MessageLimit = 'message_limit',
+    TimeLimit = 'time_limit',
+    Inactivity = 'inactivity',
+    EndedByAgent = 'ended_by_agent',
+}
+
 export type ToolEventCallback = {
     (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
     (event: StreamEvents.ToolCallDone, data: ToolCallDonePayload): void;
