@@ -2019,7 +2019,7 @@ describe('LiveKit Streaming Manager - Stream End Reason', () => {
     });
 
     async function receiveThenDisconnect(topic: string | null, data: object) {
-        await createLiveKitStreamingManager(agentId, sessionOptions, options);
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
         if (topic) {
             getDataReceivedHandler()(createDataChannelPayload(data), undefined, undefined, topic);
@@ -2027,6 +2027,8 @@ describe('LiveKit Streaming Manager - Stream End Reason', () => {
 
         onConnectionStateChange.mockClear();
         getConnectionStateHandler()('disconnected');
+
+        return manager;
     }
 
     it('should report the disconnect with the reason the server sent', async () => {
@@ -2049,6 +2051,20 @@ describe('LiveKit Streaming Manager - Stream End Reason', () => {
 
     it('should ignore an end reason on an unknown topic', async () => {
         await receiveThenDisconnect('stream/unknown', { reason: StreamEndReason.EndedByAgent });
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
+    });
+
+    it('should not carry a reason from an ended stream into the next connection', async () => {
+        const manager = await receiveThenDisconnect(StreamEvents.StreamDone, {
+            reason: StreamEndReason.Inactivity,
+        });
+        (mockRoom as any).state = 'disconnected';
+        (mockRoom as any).remoteParticipants = { size: 1 };
+
+        await manager.reconnect();
+        onConnectionStateChange.mockClear();
+        getConnectionStateHandler()('disconnected');
 
         expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
     });

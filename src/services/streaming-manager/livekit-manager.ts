@@ -796,6 +796,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
             log('Reconnecting to LiveKit room, state:', room.state);
             hasEmittedConnected = false;
+            streamEndReason = null;
             callbacks.onConnectionStateChange?.(ConnectionState.Connecting, 'user:reconnect');
 
             try {
