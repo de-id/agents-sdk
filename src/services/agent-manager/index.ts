@@ -221,6 +221,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                             onVideoIdChange: updateVideoId,
                             onMessage,
                         },
+                        rpcMethods: new Map([...clientToolHandlers.keys()].map(name => [name, createRpcHandler(name)])),
                     },
                     agentsApi,
                     analytics,
