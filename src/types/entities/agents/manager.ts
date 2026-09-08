@@ -55,9 +55,7 @@ interface ManagerCallbacks {
     /**
      * Optional callback will be triggered each time the RTC connection changes state
      * @param state
-     * @param reason - why the connection reached this state. On disconnect this is a
-     * `StreamEndReason` when the server ended the stream on purpose (the agent's end-call
-     * tool, inactivity, a time or message limit); otherwise an opaque diagnostic string.
+     * @param reason - a `StreamEndReason` when the server ended the stream, otherwise a diagnostic string
      */
     onConnectionStateChange?(state: ConnectionState, reason?: string): void;
     /**
