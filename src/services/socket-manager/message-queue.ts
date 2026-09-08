@@ -1,5 +1,5 @@
 import { StreamError } from '@sdk/errors';
-import { Agent, AgentManagerOptions, ChatProgress, StreamEndReason, StreamEvents } from '@sdk/types';
+import { Agent, AgentManagerOptions, ChatProgress, StreamEvents } from '@sdk/types';
 import { Message } from '@sdk/types/entities/agents/chat';
 import { getStreamAnalyticsProps } from '@sdk/utils/analytics';
 import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
@@ -133,7 +133,7 @@ export function createMessageEventQueue(
     items: AgentManagerItems,
     options: AgentManagerOptions,
     agentEntity: Agent,
-    onStreamDone: (reason: StreamEndReason) => void
+    onStreamDone: (reason?: string) => void
 ) {
     const chatEventQueue: ChatEventQueue = {};
     const clearQueue = () => {
