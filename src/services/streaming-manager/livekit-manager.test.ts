@@ -919,13 +919,25 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             });
             sendVideoStarted();
 
-            expect(warnSpy).toHaveBeenCalledWith(
-                'Data channel handler failed',
-                StreamEvents.StreamVideoCreated,
-                expect.any(TypeError)
-            );
+            expect(warnSpy).toHaveBeenCalledWith('[LiveKitStreamingManager] Data channel handler failed', {
+                subject: StreamEvents.StreamVideoCreated,
+                error: expect.any(TypeError),
+            });
             // A throwing handler still costs the event - the point is that it is no longer silent.
             expect(options.callbacks.onMessage).not.toHaveBeenCalled();
+
+            warnSpy.mockRestore();
+        });
+
+        it('should not warn when the payload is not valid JSON', async () => {
+            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            getDataReceivedHandler()(Buffer.from('not json'), undefined, undefined, undefined);
+
+            expect(warnSpy).not.toHaveBeenCalled();
 
             warnSpy.mockRestore();
         });

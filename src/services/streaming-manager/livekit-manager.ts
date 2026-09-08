@@ -546,23 +546,30 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         topic?: string
     ): void {
         const message = new TextDecoder().decode(payload);
-        let subject: string | undefined;
+
+        let data: any;
+        try {
+            data = JSON.parse(message);
+        } catch (e) {
+            log('Failed to parse data channel message:', e);
+            return;
+        }
+
+        const subject: string | undefined = topic || data.subject;
+
+        log('Data received:', { subject, data });
+
+        if (!subject) return;
+
+        const handler = dataChannelHandlers[subject];
+        if (!handler) return;
 
         try {
-            const data = JSON.parse(message);
-            subject = topic || data.subject;
-
-            log('Data received:', { subject, data });
-
-            if (!subject) return;
-
-            const handler = dataChannelHandlers[subject];
-            handler?.(subject, data);
+            handler(subject, data);
         } catch (e) {
-            // Warn unconditionally: this catch also covers handler exceptions, and a debug-gated
-            // log made those silently drop the whole event (no onMessage, no state transition).
-            log('Failed to parse data channel message:', e);
-            console.warn('Data channel handler failed', subject, e);
+            // Always on: a handler exception drops the whole event (no onMessage, no state
+            // transition), and a debug-gated log made that symptom invisible in production.
+            log.warn('Data channel handler failed', { subject, error: e });
         }
     }
 
