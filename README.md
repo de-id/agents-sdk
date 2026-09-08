@@ -215,34 +215,23 @@ Callback functions enable you to manage various events throughout the SDK lifecy
     }
     ```
 
-- **`onConnectionStateChange(state):`**
+- **`onConnectionStateChange(state, reason):`**
   Displaying the different connection states with the Agent's WebRTC stream connection
   Triggered when `agentManager.connect(), agentManager.reconnect(), agentManager.disconnect()` are called.
 
     ```javascript
-    onConnectionStateChange(state) {
-        console.log("onConnectionStateChange(): ", state)
+    onConnectionStateChange(state, reason) {
+        console.log("onConnectionStateChange(): ", state, reason)
         if (state == "connected") {
             console.log("I'm ready to go!")
         }
     }
     ```
 
+    The second `reason` argument says why the connection reached that state. On `disconnected` it is a `StreamEndReason` when the server ended the stream on purpose, which lets you tell a deliberate end from a dropped connection. Any other value is an opaque transport diagnostic. `agentManager.reconnect()` still works after a deliberate end; it starts a new stream rather than resuming the old one.
+
     ```javascript Example Values
     state: ['new', 'fail', 'connecting', 'connected', 'disconnected', 'closed'];
-    ```
-
-    A second `reason` argument says why the connection reached that state. On `disconnected` it is a `StreamEndReason` when the server ended the stream on purpose, so you can tell a deliberate hang-up from a dropped connection. Any other value is an opaque transport diagnostic.
-
-    ```javascript
-    onConnectionStateChange(state, reason) {
-        if (state === 'disconnected' && reason === StreamEndReason.EndedByAgent) {
-            // the agent hung up; reconnecting will not help
-        }
-    }
-    ```
-
-    ```javascript Example Values
     reason: ['ok', 'unknown_error', 'network_issue', 'message_limit', 'time_limit', 'inactivity', 'ended_by_agent'];
     ```
 
