@@ -372,7 +372,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         if (track.kind === 'video') {
-            handleVideoStopped(videoStatsMonitor?.getReport());
+            handleVideoStopped(videoStatsMonitor?.getReport() ?? undefined);
             videoStatsMonitor?.stop();
             videoStatsMonitor = null;
         }
@@ -546,10 +546,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         topic?: string
     ): void {
         const message = new TextDecoder().decode(payload);
+        let subject: string | undefined;
 
         try {
             const data = JSON.parse(message);
-            const subject = topic || data.subject;
+            subject = topic || data.subject;
 
             log('Data received:', { subject, data });
 
@@ -558,7 +559,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             const handler = dataChannelHandlers[subject];
             handler?.(subject, data);
         } catch (e) {
+            // Warn unconditionally: this catch also covers handler exceptions, and a debug-gated
+            // log made those silently drop the whole event (no onMessage, no state transition).
             log('Failed to parse data channel message:', e);
+            console.warn('Data channel handler failed', subject, e);
         }
     }
 
