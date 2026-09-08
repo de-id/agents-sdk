@@ -14,7 +14,7 @@ import {
     StreamType,
 } from '@sdk/types';
 import { DataChannelTopic } from '@sdk/types/stream/data-channel';
-import { createStreamingLogger, StreamingLog, StreamingManager } from './common';
+import { createStreamingLogger, StreamingManager } from './common';
 import { createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
@@ -49,7 +49,7 @@ export function mapConnectionState(state: RTCIceConnectionState): ConnectionStat
 }
 
 export const createParseDataChannelMessage =
-    (log: StreamingLog) =>
+    (log: ReturnType<typeof createStreamingLogger>) =>
     (message: string): { subject: StreamEvents; data: DataChannelPayload } => {
         const [subject, rawData = ''] = message.split(/:(.+)/);
         try {
@@ -73,7 +73,7 @@ function handleLegacyStreamState({
     dataChannelSignal?: StreamingState;
     onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'];
     report?: VideoRTCStatsReport;
-    log: StreamingLog;
+    log: ReturnType<typeof createStreamingLogger>;
 }) {
     if (statsSignal === StreamingState.Start && dataChannelSignal === StreamingState.Start) {
         log('CALLBACK: onVideoStateChange(Start)');
@@ -97,7 +97,7 @@ function handleFluentStreamState({
     onVideoStateChange: StreamingManagerOptions['callbacks']['onVideoStateChange'];
     onAgentActivityStateChange?: StreamingManagerOptions['callbacks']['onAgentActivityStateChange'];
     report?: VideoRTCStatsReport;
-    log: StreamingLog;
+    log: ReturnType<typeof createStreamingLogger>;
 }) {
     if (statsSignal === StreamingState.Start) {
         log('CALLBACK: onVideoStateChange(Start)');
@@ -129,7 +129,7 @@ function handleStreamState({
     onAgentActivityStateChange?: StreamingManagerOptions['callbacks']['onAgentActivityStateChange'];
     streamType: StreamType;
     report?: VideoRTCStatsReport;
-    log: StreamingLog;
+    log: ReturnType<typeof createStreamingLogger>;
 }) {
     if (streamType === StreamType.Legacy) {
         handleLegacyStreamState({ statsSignal, dataChannelSignal, onVideoStateChange, report, log });

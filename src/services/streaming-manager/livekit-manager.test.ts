@@ -885,6 +885,16 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
     });
 
     describe('Video Events Without Stats Samples', () => {
+        let warnSpy: jest.SpyInstance;
+
+        beforeEach(() => {
+            warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            warnSpy.mockRestore();
+        });
+
         function sendVideoStarted() {
             const payload = createDataChannelPayload({ subject: StreamEvents.StreamVideoCreated });
             getDataReceivedHandler()(payload, undefined, undefined, StreamEvents.StreamVideoCreated);
@@ -908,8 +918,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
 
         it('should warn when a data channel handler throws instead of dropping it silently', async () => {
-            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
             getTrackSubscribedHandler()(createMockVideoTrack(), {}, createMockRemoteParticipant());
@@ -925,21 +933,15 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             });
             // A throwing handler still costs the event - the point is that it is no longer silent.
             expect(options.callbacks.onMessage).not.toHaveBeenCalled();
-
-            warnSpy.mockRestore();
         });
 
         it('should not warn when the payload is not valid JSON', async () => {
-            const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
             getDataReceivedHandler()(Buffer.from('not json'), undefined, undefined, undefined);
 
             expect(warnSpy).not.toHaveBeenCalled();
-
-            warnSpy.mockRestore();
         });
     });
 

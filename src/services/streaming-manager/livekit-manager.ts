@@ -567,9 +567,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         try {
             handler(subject, data);
         } catch (e) {
-            // Always on: a handler exception drops the whole event (no onMessage, no state
-            // transition), and a debug-gated log made that symptom invisible in production.
-            log.warn('Data channel handler failed', { subject, error: e });
+            // Always on: a debug-gated log made a dropped event invisible in production.
+            console.warn('[LiveKitStreamingManager] Data channel handler failed', { subject, error: e });
         }
     }
 

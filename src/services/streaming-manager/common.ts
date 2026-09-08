@@ -1,24 +1,8 @@
 import { CreateSessionV2Options, CreateStreamOptions, Interrupt, PayloadType, StreamType } from '@sdk/types';
 import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 
-/** A log channel. Accept this where only logging is needed - it fits `log` and `log.warn` both. */
-export type StreamingLog = (message: string, extra?: any) => void;
-
-export type StreamingLogger = StreamingLog & { warn: StreamingLog };
-
-export const createStreamingLogger = (debug: boolean, prefix: string): StreamingLogger => {
-    const log: StreamingLog = (message, extra) => {
-        debug && console.log(`[${prefix}] ${message}`, extra ?? '');
-    };
-
-    // The only always-on channel. Reserved for failures a consumer cannot otherwise observe -
-    // gating those behind `debug` is what let a swallowed handler exception go unnoticed.
-    const warn: StreamingLog = (message, extra) => {
-        console.warn(`[${prefix}] ${message}`, extra ?? '');
-    };
-
-    return Object.assign(log, { warn });
-};
+export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
+    debug && console.log(`[${prefix}] ${message}`, extra ?? '');
 
 /**
  * Shared type for all streaming managers (LiveKit, WebRTC, etc.)
