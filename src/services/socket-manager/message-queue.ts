@@ -94,7 +94,10 @@ function processChatEvent(
         currentMessage = {
             id: data.id || `assistant-${Date.now()}`,
             role: data.role || 'assistant',
-            content: data.content || '',
+            // Starts empty so the content-change check below fires for this message's first chat
+            // event. Seeding it with `data.content` made that check a no-op, so a message carried
+            // by a single partial (e.g. a worker `say` greeting) never reached `onNewMessage`.
+            content: '',
             parts: [],
             created_at: data.created_at || new Date().toISOString(),
         };
