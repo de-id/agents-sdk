@@ -1227,5 +1227,47 @@ describe('createAgentManager', () => {
                 message: 'No handler registered for client tool: testTool',
             });
         });
+
+        function rpcMethodsFromStream() {
+            return (initializeStreamAndChat as jest.Mock).mock.calls[0][1].rpcMethods;
+        }
+
+        it('should hand tools registered before connect to the stream so they are live on join', async () => {
+            manager.registerClientTool('did.presentation', jest.fn().mockResolvedValue('{}'));
+
+            await manager.connect();
+
+            expect([...rpcMethodsFromStream().keys()]).toEqual(['did.presentation']);
+        });
+
+        it('should dispatch a method handed to the stream to the registered tool handler', async () => {
+            const handler = jest.fn().mockResolvedValue('{"ok":true}');
+            manager.registerClientTool('did.presentation', handler);
+
+            await manager.connect();
+
+            const rpcHandler = rpcMethodsFromStream().get('did.presentation');
+            await expect(rpcHandler({ payload: '{"type":"show_slide"}' })).resolves.toBe('{"ok":true}');
+            expect(handler).toHaveBeenCalledWith({ type: 'show_slide' });
+        });
+
+        it('should hand an empty map when no tools were registered before connect', async () => {
+            await manager.connect();
+
+            expect(rpcMethodsFromStream().size).toBe(0);
+        });
+
+        it('should unregister before re-registering a tool that was already registered pre-connect', async () => {
+            // Room.registerRpcMethod throws on a duplicate method, and the pre-connect hook has
+            // already registered this name by the time the post-connect flush runs.
+            manager.registerClientTool('did.presentation', jest.fn());
+
+            await manager.connect();
+
+            expect(mockStreamingManager.unregisterRpcMethod).toHaveBeenCalledWith('did.presentation');
+            expect(mockStreamingManager.unregisterRpcMethod.mock.invocationCallOrder[0]).toBeLessThan(
+                mockStreamingManager.registerRpcMethod.mock.invocationCallOrder[0]
+            );
+        });
     });
 });

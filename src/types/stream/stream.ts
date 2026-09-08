@@ -76,6 +76,9 @@ export enum StreamType {
     Fluent = 'fluent',
 }
 
+/** @internal */
+export type RpcMethodHandler = (data: { payload: string }) => Promise<string>;
+
 export interface ManagerCallbacks {
     onMessage?: ChatProgressCallback;
     onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
@@ -157,6 +160,12 @@ export interface StreamingManagerOptions {
      * Supported by LiveKit streaming managers.
      */
     microphoneStream?: MediaStream;
+    /**
+     * RPC methods to register on the room before it connects, so the agent can
+     * call them from the moment this participant joins.
+     * @internal
+     */
+    rpcMethods?: ReadonlyMap<string, RpcMethodHandler>;
 }
 
 export interface SlimRTCStatsReport {

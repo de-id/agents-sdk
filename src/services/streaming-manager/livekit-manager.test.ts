@@ -27,6 +27,7 @@ const mockRoom = {
     connect: jest.fn().mockResolvedValue(undefined),
     prepareConnection: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
+    registerRpcMethod: jest.fn(),
     localParticipant: mockLocalParticipant,
 };
 
@@ -1224,6 +1225,33 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
 
             // ASSERT:
             expect(mockPublishTrack).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('RPC method registration', () => {
+        it('registers the given rpc methods on the room before connecting', async () => {
+            // ARRANGE:
+            const handler = jest.fn().mockResolvedValue('{}');
+
+            // ACT:
+            await createLiveKitStreamingManager(agentId, sessionOptions, {
+                ...options,
+                rpcMethods: new Map([['did.presentation', handler]]),
+            });
+
+            // ASSERT:
+            expect(mockRoom.registerRpcMethod).toHaveBeenCalledWith('did.presentation', handler);
+            expect(mockRoom.registerRpcMethod.mock.invocationCallOrder[0]).toBeLessThan(
+                mockRoom.connect.mock.invocationCallOrder[0]
+            );
+        });
+
+        it('registers nothing when no rpc methods are given', async () => {
+            // ACT:
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            // ASSERT:
+            expect(mockRoom.registerRpcMethod).not.toHaveBeenCalled();
         });
     });
 });

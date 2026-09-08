@@ -227,6 +227,17 @@ describe('connect-to-manager', () => {
             expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
             expect(result.streamingManager).toBe(mockStreamingManager);
         });
+
+        it('should forward rpcMethods through to the streaming manager', async () => {
+            const rpcMethods = new Map([['did.presentation', jest.fn()]]);
+
+            await initializeStreamAndChat(mockAgent, { ...mockOptions, rpcMethods }, mockAgentsApi, mockAnalytics);
+
+            // Identity, not equality: expect.objectContaining compares a nested Map loosely,
+            // so a wrapper that replaced the map would still satisfy it.
+            const streamingManagerOptions = (createStreamingManager as jest.Mock).mock.calls[0][2];
+            expect(streamingManagerOptions.rpcMethods).toBe(rpcMethods);
+        });
     });
 
     describe('Streaming Manager Callbacks', () => {

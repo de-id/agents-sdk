@@ -19,6 +19,7 @@ import {
     CreateStreamOptions,
     StreamEvents,
     StreamType,
+    StreamingManagerOptions,
     StreamingState,
     ToolCallDonePayload,
     ToolCallErrorPayload,
@@ -191,6 +192,7 @@ type ConnectToManagerOptions = AgentManagerOptions & {
         onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
     };
     chatId?: string;
+    rpcMethods?: StreamingManagerOptions['rpcMethods'];
 };
 
 function connectToManager(
