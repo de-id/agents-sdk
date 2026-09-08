@@ -3,6 +3,7 @@ import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
     CreateSessionV2Options,
+    StreamEndReason,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
@@ -26,6 +27,7 @@ const mockRoom = {
     connect: jest.fn().mockResolvedValue(undefined),
     prepareConnection: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
+    registerRpcMethod: jest.fn(),
     localParticipant: mockLocalParticipant,
 };
 
@@ -1225,6 +1227,33 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             expect(mockPublishTrack).toHaveBeenCalledTimes(1);
         });
     });
+
+    describe('RPC method registration', () => {
+        it('registers the given rpc methods on the room before connecting', async () => {
+            // ARRANGE:
+            const handler = jest.fn().mockResolvedValue('{}');
+
+            // ACT:
+            await createLiveKitStreamingManager(agentId, sessionOptions, {
+                ...options,
+                rpcMethods: new Map([['did.presentation', handler]]),
+            });
+
+            // ASSERT:
+            expect(mockRoom.registerRpcMethod).toHaveBeenCalledWith('did.presentation', handler);
+            expect(mockRoom.registerRpcMethod.mock.invocationCallOrder[0]).toBeLessThan(
+                mockRoom.connect.mock.invocationCallOrder[0]
+            );
+        });
+
+        it('registers nothing when no rpc methods are given', async () => {
+            // ACT:
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            // ASSERT:
+            expect(mockRoom.registerRpcMethod).not.toHaveBeenCalled();
+        });
+    });
 });
 
 describe('LiveKit Streaming Manager - Disconnect Behavior', () => {
@@ -1988,5 +2017,83 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onAgentActivityStateChange).not.toHaveBeenCalledWith(AgentActivityState.Idle);
             expect(onMessage).toHaveBeenCalled();
         });
+    });
+});
+
+describe('LiveKit Streaming Manager - Stream End Reason', () => {
+    let agentId: string;
+    let sessionOptions: CreateSessionV2Options;
+    let options: StreamingManagerOptions;
+    let onConnectionStateChange: jest.Mock;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRoom.connect.mockResolvedValue(undefined);
+        mockRoom.prepareConnection.mockResolvedValue(undefined);
+        mockRoom.disconnect.mockResolvedValue(undefined);
+        mockRoom.on.mockReturnThis();
+        mockLocalParticipant.audioTrackPublications = new Map();
+        mockLocalParticipant.videoTrackPublications = new Map();
+        agentId = TEST_AGENT_ID;
+        sessionOptions = {
+            chat_persist: true,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
+        };
+        options = StreamingManagerOptionsFactory.build();
+        onConnectionStateChange = jest.fn();
+        options.callbacks.onConnectionStateChange = onConnectionStateChange;
+    });
+
+    async function receiveThenDisconnect(topic: string | null, data: object) {
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+        if (topic) {
+            getDataReceivedHandler()(createDataChannelPayload(data), undefined, undefined, topic);
+        }
+
+        onConnectionStateChange.mockClear();
+        getConnectionStateHandler()('disconnected');
+
+        return manager;
+    }
+
+    it('should report the disconnect with the reason the server sent', async () => {
+        await receiveThenDisconnect(StreamEvents.StreamDone, { reason: StreamEndReason.EndedByAgent });
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', StreamEndReason.EndedByAgent);
+    });
+
+    it('should report a failed stream the same way', async () => {
+        await receiveThenDisconnect(StreamEvents.StreamFailed, { reason: StreamEndReason.UnknownError });
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', StreamEndReason.UnknownError);
+    });
+
+    it('should keep the transport diagnostic when the server sent no reason', async () => {
+        await receiveThenDisconnect(null, {});
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
+    });
+
+    it('should ignore an end reason on an unknown topic', async () => {
+        await receiveThenDisconnect('stream/unknown', { reason: StreamEndReason.EndedByAgent });
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
+    });
+
+    it('should not carry a reason from an ended stream into the next connection', async () => {
+        const manager = await receiveThenDisconnect(StreamEvents.StreamDone, {
+            reason: StreamEndReason.Inactivity,
+        });
+        (mockRoom as any).state = 'disconnected';
+        (mockRoom as any).remoteParticipants = { size: 1 };
+
+        await manager.reconnect();
+        onConnectionStateChange.mockClear();
+        getConnectionStateHandler()('disconnected');
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
     });
 });

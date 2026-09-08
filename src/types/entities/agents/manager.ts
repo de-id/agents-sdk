@@ -55,8 +55,9 @@ interface ManagerCallbacks {
     /**
      * Optional callback will be triggered each time the RTC connection changes state
      * @param state
+     * @param reason - a `StreamEndReason` when the server ended the stream, otherwise a diagnostic string
      */
-    onConnectionStateChange?(state: ConnectionState): void;
+    onConnectionStateChange?(state: ConnectionState, reason?: string): void;
     /**
      * Optional callback function that will be triggered each time video events happen
      * @param state
