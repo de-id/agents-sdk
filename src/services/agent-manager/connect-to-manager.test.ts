@@ -5,6 +5,7 @@ import {
     AgentManagerOptions,
     ChatMode,
     ConnectionState,
+    StreamEndReason,
     StreamEvents,
     StreamingState,
     StreamType,
@@ -240,7 +241,7 @@ describe('connect-to-manager', () => {
     });
 
     describe('Streaming Manager Callbacks', () => {
-        let onConnectionStateChange: (state: ConnectionState) => void;
+        let onConnectionStateChange: (state: ConnectionState, reason?: string) => void;
         let onVideoStateChange: (state: StreamingState, statsReport?: any) => void;
         let onAgentActivityStateChange: (state: AgentActivityState) => void;
         let onFirstAudioDetected: ((metrics: { latency?: number; networkLatency?: number }) => void) | undefined;
@@ -275,10 +276,13 @@ describe('connect-to-manager', () => {
         });
 
         describe('onConnectionStateChange', () => {
-            it('should forward connection state changes', () => {
-                onConnectionStateChange(ConnectionState.Connecting);
+            it('should forward connection state changes with their reason', () => {
+                onConnectionStateChange(ConnectionState.Connecting, 'livekit:connecting');
 
-                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Connecting);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Connecting,
+                    'livekit:connecting'
+                );
             });
         });
 
@@ -522,6 +526,21 @@ describe('connect-to-manager', () => {
                     'agent-tool-call',
                     expect.objectContaining({ extra_keys: 0 })
                 );
+            });
+        });
+
+        describe('stream end reason', () => {
+            it('forwards the disconnect reason to the app and tracks it', () => {
+                onConnectionStateChange(ConnectionState.Disconnected, StreamEndReason.Inactivity);
+
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Disconnected,
+                    StreamEndReason.Inactivity
+                );
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-connection-state-change', {
+                    state: ConnectionState.Disconnected,
+                    reason: StreamEndReason.Inactivity,
+                });
             });
         });
     });

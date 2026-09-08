@@ -226,7 +226,7 @@ function connectToManager(
                     callbacks: {
                         ...options.callbacks,
                         onConnectionStateChange: (state, reason) => {
-                            options.callbacks.onConnectionStateChange?.(state);
+                            options.callbacks.onConnectionStateChange?.(state, reason);
 
                             trackConnectionStateChangeAnalytics(state, reason, analytics);
 
