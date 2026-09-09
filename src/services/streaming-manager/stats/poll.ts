@@ -193,7 +193,7 @@ export function createVideoStatsMonitor(
             if (notReceivingNumIntervals >= notReceivingIntervalsThreshold) {
                 const statsReport = createVideoStatsReport(allStats, interval, previousStats);
 
-                onVideoStateChange?.(StreamingState.Stop, statsReport);
+                onVideoStateChange?.(StreamingState.Stop, statsReport ?? undefined);
 
                 if (!getIsConnected()) {
                     onConnected();
@@ -217,7 +217,7 @@ export function createVideoStatsMonitor(
             clearInterval(intervalId);
             intervalId = null;
         },
-        getReport: (): VideoRTCStatsReport => {
+        getReport: (): VideoRTCStatsReport | null => {
             return createVideoStatsReport(allStats, interval, previousStats);
         },
     };
