@@ -159,7 +159,14 @@ export function createVideoStatsReport(
     stats: SlimRTCStatsReport[],
     interval: number,
     previousStats?: SlimRTCStatsReport
-): VideoRTCStatsReport {
+): VideoRTCStatsReport | null {
+    // Callers can ask for a report before the first stats sample exists (e.g. a video event
+    // arriving right after the track is subscribed). The aggregate below indexes stats[0], so
+    // return null instead of throwing into the caller.
+    if (stats.length === 0) {
+        return null;
+    }
+
     const differentialReport = stats.map((report, index) => {
         if (index === 0) {
             if (!previousStats) {

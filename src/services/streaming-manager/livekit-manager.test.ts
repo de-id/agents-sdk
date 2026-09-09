@@ -10,6 +10,7 @@ import {
     TransportProvider,
 } from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
+import { createVideoStatsReport } from './stats/report';
 
 // Mock livekit-client
 const mockPublishTrack = jest.fn();
@@ -85,7 +86,7 @@ jest.mock('../../config/environment', () => ({ didApiUrl: 'http://test-api.com' 
 const mockVideoStatsMonitor = {
     start: jest.fn(),
     stop: jest.fn(),
-    getReport: jest.fn(() => ({})),
+    getReport: jest.fn((): any => ({})),
     _onVideoStateChange: null as any | null,
     invokeStateChange(state: StreamingState, report?: unknown) {
         this._onVideoStateChange?.(state, report);
@@ -880,6 +881,67 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             expect(onVideoStateChange).toHaveBeenCalledTimes(1);
             expect(onVideoStateChange).toHaveBeenCalledWith(StreamingState.Stop, report);
+        });
+    });
+
+    describe('Video Events Without Stats Samples', () => {
+        let warnSpy: jest.SpyInstance;
+
+        beforeEach(() => {
+            warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            warnSpy.mockRestore();
+        });
+
+        function sendVideoStarted() {
+            const payload = createDataChannelPayload({ subject: StreamEvents.StreamVideoCreated });
+            getDataReceivedHandler()(payload, undefined, undefined, StreamEvents.StreamVideoCreated);
+        }
+
+        it('should deliver stream-video/started when the stats report has no samples yet', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            getTrackSubscribedHandler()(createMockVideoTrack(), {}, createMockRemoteParticipant());
+
+            // Real report builder over an empty sample set - the state the monitor is in before
+            // the first stats poll lands, which used to throw straight through the handler.
+            mockVideoStatsMonitor.getReport.mockImplementationOnce(() => createVideoStatsReport([], 100));
+            sendVideoStarted();
+
+            expect(options.callbacks.onMessage).toHaveBeenCalledWith(
+                StreamEvents.StreamVideoCreated,
+                expect.objectContaining({ downstreamNetworkLatency: 0 })
+            );
+            expect(options.callbacks.onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Talking);
+        });
+
+        it('should warn when a data channel handler throws instead of dropping it silently', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            getTrackSubscribedHandler()(createMockVideoTrack(), {}, createMockRemoteParticipant());
+
+            mockVideoStatsMonitor.getReport.mockImplementationOnce(() => {
+                throw new TypeError('no samples');
+            });
+            sendVideoStarted();
+
+            expect(warnSpy).toHaveBeenCalledWith('[LiveKitStreamingManager] Data channel handler failed', {
+                subject: StreamEvents.StreamVideoCreated,
+                error: expect.any(TypeError),
+            });
+            // A throwing handler still costs the event - the point is that it is no longer silent.
+            expect(options.callbacks.onMessage).not.toHaveBeenCalled();
+        });
+
+        it('should not warn when the payload is not valid JSON', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            getDataReceivedHandler()(Buffer.from('not json'), undefined, undefined, undefined);
+
+            expect(warnSpy).not.toHaveBeenCalled();
         });
     });
 
