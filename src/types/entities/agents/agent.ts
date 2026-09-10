@@ -26,6 +26,7 @@ export interface Agent {
     end_of_call_feedback?: EndOfCallFeedbackConfig;
     triggers_available?: boolean;
     advanced_settings?: { ui_debug_mode?: boolean; vm_account_id?: string; closed_captions_enabled?: boolean };
+    ld_context?: { key: string; hash_key: string; plan_group: string };
 }
 
 export interface AgentsAPI {

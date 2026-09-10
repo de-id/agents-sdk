@@ -1,13 +1,16 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
     CreateSessionV2Options,
+    StreamEndReason,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
     TransportProvider,
 } from '../../types/index';
-import { createLiveKitStreamingManager, DataChannelTopic } from './livekit-manager';
+import { createLiveKitStreamingManager } from './livekit-manager';
+import { createVideoStatsReport } from './stats/report';
 
 // Mock livekit-client
 const mockPublishTrack = jest.fn();
@@ -25,6 +28,7 @@ const mockRoom = {
     connect: jest.fn().mockResolvedValue(undefined),
     prepareConnection: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
+    registerRpcMethod: jest.fn(),
     localParticipant: mockLocalParticipant,
 };
 
@@ -82,7 +86,7 @@ jest.mock('../../config/environment', () => ({ didApiUrl: 'http://test-api.com' 
 const mockVideoStatsMonitor = {
     start: jest.fn(),
     stop: jest.fn(),
-    getReport: jest.fn(() => ({})),
+    getReport: jest.fn((): any => ({})),
     _onVideoStateChange: null as any | null,
     invokeStateChange(state: StreamingState, report?: unknown) {
         this._onVideoStateChange?.(state, report);
@@ -326,7 +330,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
-            await manager.setSttLanguage?.('French');
+            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(JSON.stringify({ language: 'French' }), {
                 topic: DataChannelTopic.SttLanguage,
@@ -336,7 +340,36 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         it('should not send did.stt-language message before the room connects', async () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
-            await manager.setSttLanguage?.('French');
+            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+            expect(options.callbacks.onError).toHaveBeenCalled();
+        });
+    });
+
+    describe('Generic Data Message', () => {
+        it('sends a JSON payload over the given topic', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            manager.sendDataChannelMessage(
+                DataChannelTopic.Presentation,
+                JSON.stringify({ type: 'navigate', slide: 12 })
+            );
+
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(
+                JSON.stringify({ type: 'navigate', slide: 12 }),
+                { topic: DataChannelTopic.Presentation }
+            );
+        });
+
+        it('does not send and reports error when not connected', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            manager.sendDataChannelMessage(
+                DataChannelTopic.Presentation,
+                JSON.stringify({ type: 'navigate', slide: 1 })
+            );
 
             expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
@@ -851,6 +884,67 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
     });
 
+    describe('Video Events Without Stats Samples', () => {
+        let warnSpy: jest.SpyInstance;
+
+        beforeEach(() => {
+            warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            warnSpy.mockRestore();
+        });
+
+        function sendVideoStarted() {
+            const payload = createDataChannelPayload({ subject: StreamEvents.StreamVideoCreated });
+            getDataReceivedHandler()(payload, undefined, undefined, StreamEvents.StreamVideoCreated);
+        }
+
+        it('should deliver stream-video/started when the stats report has no samples yet', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            getTrackSubscribedHandler()(createMockVideoTrack(), {}, createMockRemoteParticipant());
+
+            // Real report builder over an empty sample set - the state the monitor is in before
+            // the first stats poll lands, which used to throw straight through the handler.
+            mockVideoStatsMonitor.getReport.mockImplementationOnce(() => createVideoStatsReport([], 100));
+            sendVideoStarted();
+
+            expect(options.callbacks.onMessage).toHaveBeenCalledWith(
+                StreamEvents.StreamVideoCreated,
+                expect.objectContaining({ downstreamNetworkLatency: 0 })
+            );
+            expect(options.callbacks.onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.Talking);
+        });
+
+        it('should warn when a data channel handler throws instead of dropping it silently', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+            getTrackSubscribedHandler()(createMockVideoTrack(), {}, createMockRemoteParticipant());
+
+            mockVideoStatsMonitor.getReport.mockImplementationOnce(() => {
+                throw new TypeError('no samples');
+            });
+            sendVideoStarted();
+
+            expect(warnSpy).toHaveBeenCalledWith('[LiveKitStreamingManager] Data channel handler failed', {
+                subject: StreamEvents.StreamVideoCreated,
+                error: expect.any(TypeError),
+            });
+            // A throwing handler still costs the event - the point is that it is no longer silent.
+            expect(options.callbacks.onMessage).not.toHaveBeenCalled();
+        });
+
+        it('should not warn when the payload is not valid JSON', async () => {
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            getDataReceivedHandler()(Buffer.from('not json'), undefined, undefined, undefined);
+
+            expect(warnSpy).not.toHaveBeenCalled();
+        });
+    });
+
     describe('Connection State Change Reasons', () => {
         let mockOnConnectionStateChange: jest.Mock;
 
@@ -1195,6 +1289,33 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
             expect(mockPublishTrack).toHaveBeenCalledTimes(1);
         });
     });
+
+    describe('RPC method registration', () => {
+        it('registers the given rpc methods on the room before connecting', async () => {
+            // ARRANGE:
+            const handler = jest.fn().mockResolvedValue('{}');
+
+            // ACT:
+            await createLiveKitStreamingManager(agentId, sessionOptions, {
+                ...options,
+                rpcMethods: new Map([['did.presentation', handler]]),
+            });
+
+            // ASSERT:
+            expect(mockRoom.registerRpcMethod).toHaveBeenCalledWith('did.presentation', handler);
+            expect(mockRoom.registerRpcMethod.mock.invocationCallOrder[0]).toBeLessThan(
+                mockRoom.connect.mock.invocationCallOrder[0]
+            );
+        });
+
+        it('registers nothing when no rpc methods are given', async () => {
+            // ACT:
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            // ASSERT:
+            expect(mockRoom.registerRpcMethod).not.toHaveBeenCalled();
+        });
+    });
 });
 
 describe('LiveKit Streaming Manager - Disconnect Behavior', () => {
@@ -1331,6 +1452,20 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
         await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ verbose: false }));
+    });
+
+    it('sends chat_persist: false in the createStream request when explicitly disabled', async () => {
+        await createLiveKitStreamingManager(agentId, { ...sessionOptions, chat_persist: false }, options);
+
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: false }));
+    });
+
+    it('defaults chat_persist to true in the createStream request when unset', async () => {
+        const { chat_persist: _chatPersist, ...sessionOptionsWithoutChatPersist } = sessionOptions;
+
+        await createLiveKitStreamingManager(agentId, sessionOptionsWithoutChatPersist, options);
+
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: true }));
     });
 });
 
@@ -1944,5 +2079,83 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onAgentActivityStateChange).not.toHaveBeenCalledWith(AgentActivityState.Idle);
             expect(onMessage).toHaveBeenCalled();
         });
+    });
+});
+
+describe('LiveKit Streaming Manager - Stream End Reason', () => {
+    let agentId: string;
+    let sessionOptions: CreateSessionV2Options;
+    let options: StreamingManagerOptions;
+    let onConnectionStateChange: jest.Mock;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRoom.connect.mockResolvedValue(undefined);
+        mockRoom.prepareConnection.mockResolvedValue(undefined);
+        mockRoom.disconnect.mockResolvedValue(undefined);
+        mockRoom.on.mockReturnThis();
+        mockLocalParticipant.audioTrackPublications = new Map();
+        mockLocalParticipant.videoTrackPublications = new Map();
+        agentId = TEST_AGENT_ID;
+        sessionOptions = {
+            chat_persist: true,
+            transport: {
+                provider: TransportProvider.Livekit,
+            },
+        };
+        options = StreamingManagerOptionsFactory.build();
+        onConnectionStateChange = jest.fn();
+        options.callbacks.onConnectionStateChange = onConnectionStateChange;
+    });
+
+    async function receiveThenDisconnect(topic: string | null, data: object) {
+        const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+        if (topic) {
+            getDataReceivedHandler()(createDataChannelPayload(data), undefined, undefined, topic);
+        }
+
+        onConnectionStateChange.mockClear();
+        getConnectionStateHandler()('disconnected');
+
+        return manager;
+    }
+
+    it('should report the disconnect with the reason the server sent', async () => {
+        await receiveThenDisconnect(StreamEvents.StreamDone, { reason: StreamEndReason.EndedByAgent });
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', StreamEndReason.EndedByAgent);
+    });
+
+    it('should report a failed stream the same way', async () => {
+        await receiveThenDisconnect(StreamEvents.StreamFailed, { reason: StreamEndReason.UnknownError });
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', StreamEndReason.UnknownError);
+    });
+
+    it('should keep the transport diagnostic when the server sent no reason', async () => {
+        await receiveThenDisconnect(null, {});
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
+    });
+
+    it('should ignore an end reason on an unknown topic', async () => {
+        await receiveThenDisconnect('stream/unknown', { reason: StreamEndReason.EndedByAgent });
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
+    });
+
+    it('should not carry a reason from an ended stream into the next connection', async () => {
+        const manager = await receiveThenDisconnect(StreamEvents.StreamDone, {
+            reason: StreamEndReason.Inactivity,
+        });
+        (mockRoom as any).state = 'disconnected';
+        (mockRoom as any).remoteParticipants = { size: 1 };
+
+        await manager.reconnect();
+        onConnectionStateChange.mockClear();
+        getConnectionStateHandler()('disconnected');
+
+        expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
     });
 });

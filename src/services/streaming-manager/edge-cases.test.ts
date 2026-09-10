@@ -1,3 +1,4 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 /**
  * Edge cases and branch coverage tests for streaming manager
  * Tests detailed edge cases, error conditions, and branch coverage scenarios
@@ -68,7 +69,7 @@ describe('Streaming Manager Edge Cases', () => {
             const mockDC = mockPC.createDataChannel.mock.results[0].value;
 
             mockDC.readyState = 'connecting';
-            manager.sendDataChannelMessage('test');
+            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test');
             expect(options.callbacks.onError).toHaveBeenCalled();
 
             mockDC.readyState = 'open';
@@ -232,15 +233,15 @@ describe('Streaming Manager Edge Cases', () => {
             const mockDC = mockPC.createDataChannel.mock.results[0].value;
 
             mockDC.readyState = 'connecting';
-            manager.sendDataChannelMessage('test1');
+            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test1');
             expect(options.callbacks.onError).toHaveBeenCalled();
 
             mockDC.readyState = 'closing';
-            manager.sendDataChannelMessage('test2');
+            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test2');
             expect(options.callbacks.onError).toHaveBeenCalled();
 
             mockDC.readyState = 'closed';
-            manager.sendDataChannelMessage('test3');
+            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test3');
             expect(options.callbacks.onError).toHaveBeenCalled();
         });
 
@@ -538,7 +539,7 @@ describe('Streaming Manager Edge Cases', () => {
             mockPC.iceConnectionState = 'connected';
             mockPC.oniceconnectionstatechange();
 
-            manager.sendDataChannelMessage('test-message');
+            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test-message');
 
             await manager.disconnect();
 

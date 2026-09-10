@@ -1,4 +1,5 @@
 import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { RpcError } from 'livekit-client';
 import { createAgentsApi } from '../../api/agents';
 import {
@@ -17,6 +18,7 @@ import {
     ChatMode,
     ConnectionState,
     Providers,
+    PublicDataChannelTopic,
     StreamType,
 } from '../../types';
 import { initializeAnalytics } from '../analytics/mixpanel';
@@ -870,29 +872,104 @@ describe('createAgentManager', () => {
     });
 
     describe('setSttLanguage', () => {
-        let manager: AgentManager;
+        it('should send the language on the stt-language topic for v2 agents', async () => {
+            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
 
-        beforeEach(async () => {
-            manager = await createAgentManager('agent-123', mockOptions);
+            const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
-        });
-
-        it('should set STT language when available', async () => {
-            const mockSetSttLanguage = jest.fn().mockResolvedValue(undefined);
-            mockStreamingManager.setSttLanguage = mockSetSttLanguage;
 
             await manager.setSttLanguage('French');
 
-            expect(mockSetSttLanguage).toHaveBeenCalledWith('French');
+            expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
+                DataChannelTopic.SttLanguage,
+                JSON.stringify({ language: 'French' })
+            );
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-stt-language-change', { language: 'French' });
         });
 
-        it('should throw error when setSttLanguage is not available', async () => {
-            mockStreamingManager.setSttLanguage = undefined;
+        it('should throw error when the agent is not a v2 agent', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
 
             await expect(manager.setSttLanguage('French')).rejects.toThrow(
                 'setSttLanguage is not available for this streaming manager'
             );
+            expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
+        });
+
+        it('resolves only once the send settles', async () => {
+            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            let settleSend = () => {};
+            mockStreamingManager.sendDataChannelMessage = jest.fn(
+                () => new Promise<void>(resolve => (settleSend = resolve))
+            );
+
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            const onSettled = jest.fn();
+            const pending = manager.setSttLanguage('French').then(onSettled);
+            await Promise.resolve();
+
+            expect(onSettled).not.toHaveBeenCalled();
+
+            settleSend();
+            await pending;
+
+            expect(onSettled).toHaveBeenCalled();
+        });
+    });
+
+    describe('sendDataChannelMessage', () => {
+        it('should delegate to the streaming manager for v2 agents', async () => {
+            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            await manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
+
+            expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
+                PublicDataChannelTopic.Presentation,
+                JSON.stringify({ type: 'navigate', slide: 3 })
+            );
+            expect(mockAnalytics.track).toHaveBeenCalledWith('agent-data-message', {
+                topic: PublicDataChannelTopic.Presentation,
+            });
+        });
+
+        it('should throw error when the agent is not a v2 agent', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            await expect(
+                manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 1 })
+            ).rejects.toThrow('sendDataChannelMessage is not available for this streaming manager');
+            expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
+        });
+
+        it('resolves only once the send settles', async () => {
+            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            let settleSend = () => {};
+            mockStreamingManager.sendDataChannelMessage = jest.fn(
+                () => new Promise<void>(resolve => (settleSend = resolve))
+            );
+
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            const onSettled = jest.fn();
+            const pending = manager
+                .sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 3 })
+                .then(onSettled);
+            await Promise.resolve();
+
+            expect(onSettled).not.toHaveBeenCalled();
+
+            settleSend();
+            await pending;
+
+            expect(onSettled).toHaveBeenCalled();
         });
     });
 
@@ -1149,6 +1226,48 @@ describe('createAgentManager', () => {
                 code: RpcError.ErrorCode.APPLICATION_ERROR,
                 message: 'No handler registered for client tool: testTool',
             });
+        });
+
+        function rpcMethodsFromStream() {
+            return (initializeStreamAndChat as jest.Mock).mock.calls[0][1].rpcMethods;
+        }
+
+        it('should hand tools registered before connect to the stream so they are live on join', async () => {
+            manager.registerClientTool('did.presentation', jest.fn().mockResolvedValue('{}'));
+
+            await manager.connect();
+
+            expect([...rpcMethodsFromStream().keys()]).toEqual(['did.presentation']);
+        });
+
+        it('should dispatch a method handed to the stream to the registered tool handler', async () => {
+            const handler = jest.fn().mockResolvedValue('{"ok":true}');
+            manager.registerClientTool('did.presentation', handler);
+
+            await manager.connect();
+
+            const rpcHandler = rpcMethodsFromStream().get('did.presentation');
+            await expect(rpcHandler({ payload: '{"type":"show_slide"}' })).resolves.toBe('{"ok":true}');
+            expect(handler).toHaveBeenCalledWith({ type: 'show_slide' });
+        });
+
+        it('should hand an empty map when no tools were registered before connect', async () => {
+            await manager.connect();
+
+            expect(rpcMethodsFromStream().size).toBe(0);
+        });
+
+        it('should unregister before re-registering a tool that was already registered pre-connect', async () => {
+            // Room.registerRpcMethod throws on a duplicate method, and the pre-connect hook has
+            // already registered this name by the time the post-connect flush runs.
+            manager.registerClientTool('did.presentation', jest.fn());
+
+            await manager.connect();
+
+            expect(mockStreamingManager.unregisterRpcMethod).toHaveBeenCalledWith('did.presentation');
+            expect(mockStreamingManager.unregisterRpcMethod.mock.invocationCallOrder[0]).toBeLessThan(
+                mockStreamingManager.registerRpcMethod.mock.invocationCallOrder[0]
+            );
         });
     });
 });

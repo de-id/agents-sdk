@@ -1,7 +1,7 @@
 {
   "name": "@d-id/client-sdk",
   "private": false,
-  "version": "2.0.6",
+  "version": "2.0.10",
   "type": "module",
   "description": "d-id client sdk",
   "repository": {
@@ -39,7 +39,7 @@
     "ci:test": "yarn type-check && yarn test:ci"
   },
   "dependencies": {
-    "livekit-client": "^2.17.2"
+    "livekit-client": "2.18.4"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.8.1",

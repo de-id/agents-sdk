@@ -217,6 +217,43 @@ describe('createMessageEventQueue', () => {
             expect(mockOnNewMessage).toHaveBeenCalled();
         });
 
+        it('emits the first partial of a new assistant message', () => {
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            onMessage(ChatProgress.Partial, { content: 'Hey there!', sequence: 0 });
+
+            expect(mockOnNewMessage).toHaveBeenCalledTimes(1);
+            expect(mockOnNewMessage).toHaveBeenCalledWith(expect.any(Array), ChatProgress.Partial);
+            const [messages] = mockOnNewMessage.mock.calls[0];
+            expect(messages).toHaveLength(1);
+            expect(messages[0]).toMatchObject({ role: 'assistant', content: 'Hey there!' });
+            expect(mockItems.messages[0].content).toBe('Hey there!');
+        });
+
+        it('yields one message when a single partial is followed by an identical answer', () => {
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            onMessage(ChatProgress.Partial, { content: 'Hey there!', sequence: 0 });
+            onMessage(ChatProgress.Answer, { content: 'Hey there!' });
+
+            expect(mockItems.messages).toHaveLength(1);
+            expect(mockItems.messages[0]).toMatchObject({ role: 'assistant', content: 'Hey there!' });
+            const lastCall = mockOnNewMessage.mock.calls[mockOnNewMessage.mock.calls.length - 1];
+            expect(lastCall[1]).toBe(ChatProgress.Answer);
+        });
+
         it('streams partials live for a greeting before the final answer', () => {
             const { onMessage } = createMessageEventQueue(
                 mockAnalytics,

@@ -126,12 +126,10 @@ The `agentManager` object created during initialization has several built-in met
     ```
 
     ```javascript Audio File - JavaScript
-    let speak = agentManager.speak(
-        {
-          type: "audio",
-          audio_url: "http://www.yourwebsite.com/audio.mp3"
-        }
-    );
+    let speak = agentManager.speak({
+        type: 'audio',
+        audio_url: 'http://www.yourwebsite.com/audio.mp3',
+    });
     ```
 
 - **`agentManager.chat(string)`**
@@ -158,18 +156,28 @@ The `agentManager` object created during initialization has several built-in met
   **Supported only with Expressive (V4) agents.**
   Method to publish a microphone audio track to the session. Call after `connect()` to enable voice input.
 
-  ```javascript
-  const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  await agentManager.publishMicrophoneStream(micStream);
-  ```
+    ```javascript
+    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    await agentManager.publishMicrophoneStream(micStream);
+    ```
 
 - **`agentManager.unpublishMicrophoneStream()`**
   **Supported only with Expressive (V4) agents.**
   Method to stop and remove the currently published microphone track from the session.
 
-  ```javascript
-  await agentManager.unpublishMicrophoneStream();
-  ```
+    ```javascript
+    await agentManager.unpublishMicrophoneStream();
+    ```
+
+- **`agentManager.sendDataChannelMessage(topic, payload)`**
+  **Supported only with Expressive (V4) agents.**
+  Method to send a JSON payload to the agent over a data-channel topic. `PublicDataChannelTopic` is exported from the package root and lists every topic this method accepts.
+
+    ```javascript
+    import { PublicDataChannelTopic } from '@d-id/client-sdk';
+
+    await agentManager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
+    ```
 
 ### ➤ ✴️ Callback Functions
 
@@ -207,21 +215,24 @@ Callback functions enable you to manage various events throughout the SDK lifecy
     }
     ```
 
-- **`onConnectionStateChange(state):`**
+- **`onConnectionStateChange(state, reason):`**
   Displaying the different connection states with the Agent's WebRTC stream connection
   Triggered when `agentManager.connect(), agentManager.reconnect(), agentManager.disconnect()` are called.
 
     ```javascript
-    onConnectionStateChange(state) {
-        console.log("onConnectionStateChange(): ", state)
+    onConnectionStateChange(state, reason) {
+        console.log("onConnectionStateChange(): ", state, reason)
         if (state == "connected") {
             console.log("I'm ready to go!")
         }
     }
     ```
 
+    The second `reason` argument says why the connection reached that state. On `disconnected` it is a `StreamEndReason` when the server ended the stream on purpose, which lets you tell a deliberate end from a dropped connection. Any other value is an opaque transport diagnostic. `agentManager.reconnect()` still works after a deliberate end; it starts a new stream rather than resuming the old one.
+
     ```javascript Example Values
     state: ['new', 'fail', 'connecting', 'connected', 'disconnected', 'closed'];
+    reason: ['ok', 'unknown_error', 'network_issue', 'message_limit', 'time_limit', 'inactivity', 'ended_by_agent'];
     ```
 
 - **`onNewMessage(messages, type)`:**

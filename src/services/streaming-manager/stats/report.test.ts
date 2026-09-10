@@ -1,4 +1,4 @@
-import { formatStats } from './report';
+import { createVideoStatsReport, formatStats } from './report';
 
 type StatEntry = Record<string, any>;
 
@@ -152,6 +152,27 @@ describe('formatStats', () => {
         it('ignores candidate-pair entries with non-positive RTT', () => {
             const zeroRttPair = { ...backupPair, currentRoundTripTime: 0 };
             expect(rttFromPairs([zeroRttPair])).toBe(0);
+        });
+    });
+});
+
+describe('createVideoStatsReport', () => {
+    const interval = 100;
+
+    it('returns null when no stats samples have been collected', () => {
+        expect(createVideoStatsReport([], interval)).toBeNull();
+    });
+
+    it('does not throw when no stats samples have been collected', () => {
+        expect(() => createVideoStatsReport([], interval)).not.toThrow();
+    });
+
+    it('returns a report once a sample exists', () => {
+        const sample = formatStats(buildStats([codecVp8, inboundRtpVideo]));
+
+        expect(createVideoStatsReport([sample], interval)).toMatchObject({
+            codec: 'VP8',
+            resolution: `${inboundRtpVideo.frameWidth}x${inboundRtpVideo.frameHeight}`,
         });
     });
 });

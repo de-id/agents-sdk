@@ -1,3 +1,4 @@
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import {
     AgentManager,
     AgentManagerOptions,
@@ -9,6 +10,7 @@ import {
     CreateStreamOptions,
     Interrupt,
     Message,
+    PublicDataChannelTopic,
     StreamScript,
     SupportedStreamScript,
 } from '../../types';
@@ -106,9 +108,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const isStreamsV2 = isStreamsV2Agent(agentEntity.avatar.type);
     analytics.enrich(getAgentInfo(agentEntity));
 
-    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, () => {
+    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, reason => {
         items.socketManager?.disconnect();
-        options.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+        options.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, reason);
     });
 
     items.messages = getInitialMessages(options.initialMessages);
@@ -219,6 +221,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                             onVideoIdChange: updateVideoId,
                             onMessage,
                         },
+                        rpcMethods: new Map([...clientToolHandlers.keys()].map(name => [name, createRpcHandler(name)])),
                     },
                     agentsApi,
                     analytics,
@@ -343,13 +346,25 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return items.streamingManager.publishMicrophoneStream(stream);
         },
         setSttLanguage(language: string): Promise<void> {
-            if (!items.streamingManager?.setSttLanguage) {
+            if (!isStreamsV2 || !items.streamingManager) {
                 return Promise.reject(new Error('setSttLanguage is not available for this streaming manager'));
             }
 
             analytics.track('agent-stt-language-change', { language });
 
-            return items.streamingManager.setSttLanguage(language);
+            return items.streamingManager.sendDataChannelMessage(
+                DataChannelTopic.SttLanguage,
+                JSON.stringify({ language })
+            );
+        },
+        sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void> {
+            if (!isStreamsV2 || !items.streamingManager) {
+                return Promise.reject(new Error('sendDataChannelMessage is not available for this streaming manager'));
+            }
+
+            analytics.track('agent-data-message', { topic });
+
+            return items.streamingManager.sendDataChannelMessage(topic, JSON.stringify(payload));
         },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
@@ -423,7 +438,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 const chatRequestFn = useV2Path
                     ? async () => {
-                          await items.streamingManager?.sendTextMessage?.(userMessage);
+                          await items.streamingManager?.sendDataChannelMessage(DataChannelTopic.Chat, userMessage);
                           return Promise.resolve({} as ChatResponse);
                       }
                     : async () => {

@@ -5,6 +5,7 @@ import {
     AgentManagerOptions,
     ChatMode,
     ConnectionState,
+    StreamEndReason,
     StreamEvents,
     StreamingState,
     StreamType,
@@ -226,10 +227,21 @@ describe('connect-to-manager', () => {
             expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
             expect(result.streamingManager).toBe(mockStreamingManager);
         });
+
+        it('should forward rpcMethods through to the streaming manager', async () => {
+            const rpcMethods = new Map([['did.presentation', jest.fn()]]);
+
+            await initializeStreamAndChat(mockAgent, { ...mockOptions, rpcMethods }, mockAgentsApi, mockAnalytics);
+
+            // Identity, not equality: expect.objectContaining compares a nested Map loosely,
+            // so a wrapper that replaced the map would still satisfy it.
+            const streamingManagerOptions = (createStreamingManager as jest.Mock).mock.calls[0][2];
+            expect(streamingManagerOptions.rpcMethods).toBe(rpcMethods);
+        });
     });
 
     describe('Streaming Manager Callbacks', () => {
-        let onConnectionStateChange: (state: ConnectionState) => void;
+        let onConnectionStateChange: (state: ConnectionState, reason?: string) => void;
         let onVideoStateChange: (state: StreamingState, statsReport?: any) => void;
         let onAgentActivityStateChange: (state: AgentActivityState) => void;
         let onFirstAudioDetected: ((metrics: { latency?: number; networkLatency?: number }) => void) | undefined;
@@ -264,10 +276,13 @@ describe('connect-to-manager', () => {
         });
 
         describe('onConnectionStateChange', () => {
-            it('should forward connection state changes', () => {
-                onConnectionStateChange(ConnectionState.Connecting);
+            it('should forward connection state changes with their reason', () => {
+                onConnectionStateChange(ConnectionState.Connecting, 'livekit:connecting');
 
-                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Connecting);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Connecting,
+                    'livekit:connecting'
+                );
             });
         });
 
@@ -513,6 +528,21 @@ describe('connect-to-manager', () => {
                 );
             });
         });
+
+        describe('stream end reason', () => {
+            it('forwards the disconnect reason to the app and tracks it', () => {
+                onConnectionStateChange(ConnectionState.Disconnected, StreamEndReason.Inactivity);
+
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Disconnected,
+                    StreamEndReason.Inactivity
+                );
+                expect(mockAnalytics.track).toHaveBeenCalledWith('agent-connection-state-change', {
+                    state: ConnectionState.Disconnected,
+                    reason: StreamEndReason.Inactivity,
+                });
+            });
+        });
     });
 
     describe('Stream Options Mapping', () => {
@@ -679,6 +709,7 @@ describe('connect-to-manager', () => {
                     transport: {
                         provider: TransportProvider.Livekit,
                     },
+                    chat_persist: true,
                 },
                 expect.not.objectContaining({
                     chatId: expect.anything(),
@@ -695,6 +726,43 @@ describe('connect-to-manager', () => {
 
             // Verify createChat is NOT called for V2 agents (chat is created internally)
             expect(createChat).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ['forwards persistentChat: false as chat_persist: false', false, { chat_persist: false }],
+            ['forwards persistentChat: true as chat_persist: true', true, { chat_persist: true }],
+        ])('%s', async (_name, persistentChat, expectedSessionOptions) => {
+            const expressiveAgent: Agent = {
+                ...mockAgent,
+                avatar: { type: 'expressive', voice: { language: 'en-US' } },
+            };
+
+            await initializeStreamAndChat(
+                expressiveAgent,
+                { ...mockOptions, persistentChat },
+                mockAgentsApi,
+                mockAnalytics
+            );
+
+            expect(createStreamingManager).toHaveBeenCalledWith(
+                expressiveAgent,
+                expect.objectContaining({ version: StreamApiVersion.V2, ...expectedSessionOptions }),
+                expect.anything(),
+                undefined
+            );
+        });
+
+        it('should omit chat_persist when persistentChat is not set', async () => {
+            const expressiveAgent: Agent = {
+                ...mockAgent,
+                avatar: { type: 'expressive', voice: { language: 'en-US' } },
+            };
+            const { persistentChat: _persistentChat, ...optionsWithoutPersistentChat } = mockOptions;
+
+            await initializeStreamAndChat(expressiveAgent, optionsWithoutPersistentChat, mockAgentsApi, mockAnalytics);
+
+            const [, sessionOptions] = (createStreamingManager as jest.Mock).mock.calls[0];
+            expect(sessionOptions).not.toHaveProperty('chat_persist');
         });
 
         it('should use CreateStreamOptions for non-expressive agents', async () => {

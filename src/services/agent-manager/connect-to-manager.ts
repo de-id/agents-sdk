@@ -19,6 +19,7 @@ import {
     CreateStreamOptions,
     StreamEvents,
     StreamType,
+    StreamingManagerOptions,
     StreamingState,
     ToolCallDonePayload,
     ToolCallErrorPayload,
@@ -35,7 +36,7 @@ import {
 import { createChat } from '../chat';
 
 const ChatPrefix = 'cht';
-function getAgentStreamV2Options(): CreateSessionV2Options {
+function getAgentStreamV2Options(options?: ConnectToManagerOptions): CreateSessionV2Options {
     const livekitUrl = import.meta.env.VITE_LIVEKIT_URL;
     const livekitApiKey = import.meta.env.VITE_LIVEKIT_API_KEY;
     const livekitApiSecret = import.meta.env.VITE_LIVEKIT_API_SECRET;
@@ -50,6 +51,7 @@ function getAgentStreamV2Options(): CreateSessionV2Options {
             provider: TransportProvider.Livekit,
             credentials,
         },
+        ...(options?.persistentChat !== undefined && { chat_persist: options.persistentChat }),
     };
 }
 
@@ -76,7 +78,7 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
 
 function getAgentStreamOptions(agent: Agent, options?: ConnectToManagerOptions): ExtendedStreamOptions {
     return isStreamsV2Agent(agent.avatar.type)
-        ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options() }
+        ? { version: StreamApiVersion.V2, ...getAgentStreamV2Options(options) }
         : { version: StreamApiVersion.V1, ...getAgentStreamV1Options(options) };
 }
 
@@ -200,6 +202,7 @@ type ConnectToManagerOptions = AgentManagerOptions & {
         onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
     };
     chatId?: string;
+    rpcMethods?: StreamingManagerOptions['rpcMethods'];
 };
 
 function connectToManager(
@@ -233,7 +236,7 @@ function connectToManager(
                     callbacks: {
                         ...options.callbacks,
                         onConnectionStateChange: (state, reason) => {
-                            options.callbacks.onConnectionStateChange?.(state);
+                            options.callbacks.onConnectionStateChange?.(state, reason);
 
                             trackConnectionStateChangeAnalytics(state, reason, analytics);
 

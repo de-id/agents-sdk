@@ -9,6 +9,7 @@ import {
     Message,
     PayloadType,
     RunningToolCall,
+    StreamEndReason,
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
@@ -19,6 +20,7 @@ import {
     TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
+import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { noop } from '@sdk/utils';
 import { getUserContextAttributes } from '@sdk/utils/user-context';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
@@ -86,13 +88,6 @@ const connectivityQualityToState = {
 
 const streamError = (message = 'Stream Error') => new StreamError(message);
 
-export enum DataChannelTopic {
-    Chat = 'lk.chat',
-    Speak = 'did.speak',
-    Interrupt = 'did.interrupt',
-    SttLanguage = 'did.stt-language',
-}
-
 type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
 
 export function handleInitError(
@@ -133,11 +128,16 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         dynacast: true,
     });
 
+    for (const [method, handler] of options.rpcMethods ?? []) {
+        room.registerRpcMethod(method, handler);
+    }
+
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
     const pendingToolCalls = new Map<string, PendingToolCall>();
     let currentTurnId: number | null = null;
+    let streamEndReason: StreamEndReason | null = null;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
@@ -242,7 +242,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 hasEmittedConnected = false;
                 microphoneState.publication = null;
                 cameraState.publication = null;
-                callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, 'livekit:disconnected');
+                callbacks.onConnectionStateChange?.(
+                    ConnectionState.Disconnected,
+                    streamEndReason ?? 'livekit:disconnected'
+                );
                 break;
             case LiveKitConnectionState.Reconnecting:
                 log('LiveKit room reconnecting...');
@@ -369,7 +372,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         if (track.kind === 'video') {
-            handleVideoStopped(videoStatsMonitor?.getReport());
+            handleVideoStopped(videoStatsMonitor?.getReport() ?? undefined);
             videoStatsMonitor?.stop();
             videoStatsMonitor = null;
         }
@@ -514,6 +517,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         callbacks.onAgentActivityStateChange?.(AgentActivityState.Idle);
     }
 
+    function handleStreamEnded(_subject: string, data: { reason: StreamEndReason }): void {
+        streamEndReason = data?.reason ?? null;
+    }
+
     type DataChannelHandler = (subject: string, data: any) => void;
     const dataChannelHandlers: Record<string, DataChannelHandler> = {
         [StreamEvents.ChatAnswer]: handleChatEvents,
@@ -528,6 +535,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         [StreamEvents.ChatAudioTranscribed]: handleTranscriptionEvents,
         [StreamEvents.TurnStarted]: handleTurnStarted,
         [StreamEvents.TurnEnded]: handleTurnEnded,
+        [StreamEvents.StreamDone]: handleStreamEnded,
+        [StreamEvents.StreamFailed]: handleStreamEnded,
     };
 
     function handleDataReceived(
@@ -538,18 +547,28 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     ): void {
         const message = new TextDecoder().decode(payload);
 
+        let data: any;
         try {
-            const data = JSON.parse(message);
-            const subject = topic || data.subject;
-
-            log('Data received:', { subject, data });
-
-            if (!subject) return;
-
-            const handler = dataChannelHandlers[subject];
-            handler?.(subject, data);
+            data = JSON.parse(message);
         } catch (e) {
             log('Failed to parse data channel message:', e);
+            return;
+        }
+
+        const subject: string | undefined = topic || data.subject;
+
+        log('Data received:', { subject, data });
+
+        if (!subject) return;
+
+        const handler = dataChannelHandlers[subject];
+        if (!handler) return;
+
+        try {
+            handler(subject, data);
+        } catch (e) {
+            // Always on: a debug-gated log made a dropped event invisible in production.
+            console.warn('[LiveKitStreamingManager] Data channel handler failed', { subject, error: e });
         }
     }
 
@@ -725,7 +744,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendMessage(message: string, topic: DataChannelTopic) {
+    async function sendDataChannelMessage(topic: DataChannelTopic, payload: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(streamError(), {
@@ -735,27 +754,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         try {
-            await room.localParticipant.sendText(message, { topic });
-            log('Message sent successfully:', message);
+            await room.localParticipant.sendText(payload, { topic });
+            log('Message sent successfully:', payload);
         } catch (error) {
             log('Failed to send message:', error);
             callbacks.onError?.(streamError(), { sessionId });
         }
-    }
-
-    async function sendDataChannelMessage(payload: string) {
-        try {
-            const parsed = JSON.parse(payload);
-            const topic = parsed.topic;
-            return sendMessage('', topic);
-        } catch (error) {
-            log('Failed to send data channel message:', error);
-            callbacks.onError?.(streamError(), { sessionId });
-        }
-    }
-
-    function sendTextMessage(message: string) {
-        return sendMessage(message, DataChannelTopic.Chat);
     }
 
     async function disconnect(reason: string) {
@@ -788,7 +792,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            return sendMessage(message, DataChannelTopic.Speak);
+            return sendDataChannelMessage(DataChannelTopic.Speak, message);
         },
 
         disconnect: () => disconnect('user:disconnect'),
@@ -806,6 +810,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
             log('Reconnecting to LiveKit room, state:', room.state);
             hasEmittedConnected = false;
+            streamEndReason = null;
             callbacks.onConnectionStateChange?.(ConnectionState.Connecting, 'user:reconnect');
 
             try {
@@ -848,7 +853,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         },
 
         sendDataChannelMessage,
-        sendTextMessage,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
         replaceMicrophoneTrack,
@@ -860,17 +864,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // cancel the in-flight LLM token stream, and an extra interrupt while
             // a previous one is still settling causes races.
             if (type === 'text') return;
-            sendDataChannelMessage(JSON.stringify({ topic: DataChannelTopic.Interrupt }));
-        },
-
-        /**
-         * Switch the STT language mid-session.
-         * Only available for Expressive (V4) agents.
-         * @param language - Language name or BCP-47 code (e.g. "English" or "en-US").
-         * @returns Promise that resolves after the send attempt completes; failures are reported via onError.
-         */
-        setSttLanguage(language: string) {
-            return sendMessage(JSON.stringify({ language }), DataChannelTopic.SttLanguage);
+            sendDataChannelMessage(DataChannelTopic.Interrupt, '');
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {
