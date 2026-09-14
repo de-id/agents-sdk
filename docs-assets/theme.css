@@ -1,7 +1,7 @@
-/* D-ID brand on TypeDoc's default theme. Only variables are overridden,
+/* D-ID brand on TypeDoc's default theme. Only variables and the toolbar logo are overridden,
    so TypeDoc upgrades stay safe. Palette matches docs.d-id.com.
-   Note: the toolbar logo could not be inlined here — the official D-ID logo SVG
-   was unavailable (see task-7-report.md) — so no logo rule is included. */
+   Logo: the official D-ID app icon served by docs.d-id.com (ReadMe-hosted); the
+   staging-host SVG was unreachable (HTTP 401), so the PNG app icon is used instead. */
 :root {
     --light-color-accent: #ff882e;
     --light-color-link: #b85a0d; /* darker orange: 4.5:1 on white */
@@ -13,4 +13,18 @@
     --dark-color-link: #ffa15c;
     --dark-color-background: #090604;
     --dark-color-background-secondary: #161616;
+}
+
+/* Logo in front of the site title (data URI, no extra asset to copy). */
+.tsd-page-toolbar .title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.tsd-page-toolbar .title::before {
+    content: '';
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+    background: url('data:image/png;base64,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') no-repeat left center / contain;
 }

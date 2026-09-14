@@ -26,7 +26,7 @@ const config = {
     useHostedBaseUrlForAbsoluteLinks: true,
     cname: 'sdk.d-id.com',
     githubPages: true,
-    favicon: 'docs-assets/favicon.svg',
+    favicon: 'docs-assets/favicon.png',
     customCss: 'docs-assets/theme.css',
     titleLink: 'https://sdk.d-id.com/',
     navigationLinks: {
