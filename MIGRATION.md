@@ -1,3 +1,23 @@
+# Migration Guide: v2 → v3
+
+`@d-id/client-sdk` v3 is a **breaking** release that cleans up the package's public surface so the generated API reference (https://sdk.d-id.com/) describes exactly what the SDK supports. Nothing about runtime behaviour changes.
+
+## Implementation types are no longer exported
+
+Around fifty internal types leaked from the package root in v2 through a wildcard export (RTC wire shapes such as `ICreateStreamRequestResponse`, streaming-manager options, knowledge entities the SDK never uses). They are not exported any more. If you imported one, you were depending on an implementation detail; the public equivalents are listed in the reference under Agent Manager, Callbacks & Events and Streaming Options.
+
+Removed from the root: `AgentManagerItems`, `AgentsAPI`, `AnalyticsRTCStatsReport`, `AudioDetectionMetrics`, `AvSyncReport`, `AvSyncSample`, `ChatPayload`, `ChatProgress`, `ChatProgressCallback`, `ClipStreamOptions`, `CreateClipStreamRequest`, `CreateDocumentPayload`, `CreateRecordPayload`, `CreateSessionV2Options`, `CreateSessionV2Response`, `CreateStreamOptions`, `CreateTalkStreamRequest`, `DocumentData`, `DocumentStatus`, `DocumentType`, `IceCandidate`, `IceServer`, `ICreateStreamRequestResponse`, `IParserResult`, `KnowledgeData`, `KnowledgePayload`, `KnowledgeType`, `ManagerCallbackKeys`, `ManagerCallbacks`, `PayloadType`, `QueryResult`, `RatingPayload`, `RecordData`, `RpcMethodHandler`, `RtcApi`, `SendClipStreamPayload`, `SendTalkStreamPayload`, `SlimRTCStatsReport`, `Stream_LLM_Script`, `StreamEndUserData`, `StreamingManagerCallbacks`, `StreamingManagerOptions`, `StreamInterruptPayload`, `StreamScript`, `Subject`, `TalkStreamOptions`, `TransportProvider`, `TurnEventPayload`.
+
+## `ManagerCallbacks` → `AgentManagerCallbacks`
+
+The callbacks type accepted by `createAgentManager` was never exported in v2; the exported `ManagerCallbacks` was an unrelated internal type with a similar shape. Import `AgentManagerCallbacks` instead:
+
+```ts
+import type { AgentManagerCallbacks } from '@d-id/client-sdk';
+```
+
+---
+
 # Migration Guide: v1 → v2
 
 `@d-id/client-sdk` v2 is a **breaking** release. Two things change for consumers:

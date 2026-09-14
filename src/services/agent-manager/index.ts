@@ -41,7 +41,6 @@ import { initializeStreamAndChat } from './connect-to-manager';
 /**
  * Mutable state shared between the agent manager's connect/chat/stream helpers.
  * @internal Implementation type; not part of the public SDK surface.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export interface AgentManagerItems {
     chat?: Chat;

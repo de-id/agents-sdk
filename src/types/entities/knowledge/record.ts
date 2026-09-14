@@ -3,7 +3,6 @@ import { KnowledgeType } from './knowledge';
 /**
  * A record (chunk of a document) as returned by the Knowledge API.
  * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export interface RecordData {
     created_at: string;
@@ -23,7 +22,6 @@ export interface RecordData {
 /**
  * Request payload for creating a record, derived from `RecordData`.
  * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export type CreateRecordPayload = Omit<
     RecordData,

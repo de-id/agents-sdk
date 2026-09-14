@@ -31,7 +31,6 @@ interface ClipConfig {
 /**
  * Wire request body for creating a clip stream.
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export interface CreateClipStreamRequest {
     /**
@@ -69,7 +68,6 @@ export interface CreateClipStreamRequest {
 /**
  * Wire payload sent to advance a clip stream with a new script.
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export interface SendClipStreamPayload extends StickyRequest {
     script: StreamScript;

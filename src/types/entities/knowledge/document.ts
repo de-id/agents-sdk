@@ -5,7 +5,6 @@ import { DocumentType, KnowledgeType } from './knowledge';
  * status as a prefixed event subject (`document/done`) but strips the prefix on read,
  * so the wire value is always bare.
  * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export type DocumentStatus = 'created' | 'processed' | 'done' | 'rejected' | 'error';
 
@@ -25,7 +24,6 @@ export enum Subject {
 /**
  * A document as returned by the Knowledge API.
  * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export interface DocumentData {
     created_at: string;
@@ -44,7 +42,6 @@ export interface DocumentData {
 /**
  * Request payload for creating a document, derived from `DocumentData`.
  * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export type CreateDocumentPayload = Omit<
     DocumentData,

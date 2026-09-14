@@ -98,7 +98,3 @@ export {
     isDIDError,
 } from './errors';
 export type { ErrorJson, NetworkErrorMeta } from './errors';
-
-// Leaked implementation types, kept exported for backwards compatibility only.
-// Hidden from the reference (@internal) and deprecated; deleted in the next major.
-export * from './types/internal';

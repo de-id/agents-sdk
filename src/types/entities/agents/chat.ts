@@ -22,7 +22,6 @@ export interface RatingEntity {
 /**
  * Request payload for rating a chat message, derived from `RatingEntity`.
  * @internal Implementation type; not part of the public SDK surface.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export type RatingPayload = Omit<
     RatingEntity,
@@ -62,7 +61,6 @@ export interface Message {
 /**
  * Request payload for sending a chat message to the Agents API.
  * @internal Implementation type; not part of the public SDK surface.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export interface ChatPayload {
     messages: Message[];

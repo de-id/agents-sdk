@@ -4,7 +4,6 @@ import { CompatibilityMode } from '../stream';
 /**
  * Wire request body for creating a legacy (talk) stream.
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export interface CreateTalkStreamRequest {
     driver_url?: string;
@@ -61,7 +60,6 @@ export interface CreateTalkStreamRequest {
 /**
  * Wire payload sent to advance a talk stream with a new script.
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export interface SendTalkStreamPayload {
     script: StreamScript;

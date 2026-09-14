@@ -20,7 +20,6 @@ import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity, SubmitFeedbac
 /**
  * Types of events provided in Chat Progress Callback
  * @internal Implementation type; not part of the public SDK surface.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export enum ChatProgress {
     /**
@@ -52,7 +51,6 @@ export enum ChatProgress {
 /**
  * Callback signature for {@link ChatProgress} events emitted internally during a chat exchange.
  * @internal Implementation type; not part of the public SDK surface.
- * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data: any) => void;
 export type ConnectionStateChangeCallback = (state: ConnectionState) => void;

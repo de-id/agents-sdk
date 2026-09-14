@@ -12,6 +12,8 @@ import * as sdk from './index';
  * Runtime exports of the package root (enums, classes, functions, consts).
  * Types are erased and are not listed here. If you change this list you are
  * changing the public API: that requires a major version and a MIGRATION.md entry.
+ * Changed in 3.0.0: the five enums reachable only through the old types barrel are no
+ * longer exported from the root (see MIGRATION.md).
  */
 const RUNTIME_EXPORTS = [
     'AgentActivityState',
@@ -19,12 +21,9 @@ const RUNTIME_EXPORTS = [
     'ChatCreationFailed',
     'ChatMode',
     'ChatModeDowngraded',
-    'ChatProgress',
     'ConnectionState',
     'ConnectivityState',
-    'DocumentType',
     'HttpError',
-    'KnowledgeType',
     'NetworkError',
     'Providers',
     'PublicDataChannelTopic',
@@ -35,8 +34,6 @@ const RUNTIME_EXPORTS = [
     'StreamEvents',
     'StreamType',
     'StreamingState',
-    'Subject',
-    'TransportProvider',
     'ValidationError',
     'VideoType',
     'VoiceAccess',
