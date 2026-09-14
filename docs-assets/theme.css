@@ -1,1 +1,16 @@
-/* replaced in Task 7 */
+/* D-ID brand on TypeDoc's default theme. Only variables are overridden,
+   so TypeDoc upgrades stay safe. Palette matches docs.d-id.com.
+   Note: the toolbar logo could not be inlined here — the official D-ID logo SVG
+   was unavailable (see task-7-report.md) — so no logo rule is included. */
+:root {
+    --light-color-accent: #ff882e;
+    --light-color-link: #b85a0d; /* darker orange: 4.5:1 on white */
+    --light-color-text: #161616;
+    --light-color-background: #ffffff;
+    --light-color-background-secondary: #f3f3f3;
+
+    --dark-color-accent: #ff882e;
+    --dark-color-link: #ffa15c;
+    --dark-color-background: #090604;
+    --dark-color-background-secondary: #161616;
+}
