@@ -21,7 +21,7 @@ The SDK supports three avatar types:
 
 **Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/docs/agent-quickstart) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
 
-> 📚 **Full API reference:** [sdk.d-id.com](https://sdk.d-id.com/) — every method, callback, option and type, generated from the source on each release. ![Docs coverage](https://sdk.d-id.com/coverage.svg)
+> 📚 **Full API reference:** [sdk.d-id.com](https://sdk.d-id.com/) — every method, callback, option and type, generated from the source on each release.
 
 ## ✴️ Getting Started
 

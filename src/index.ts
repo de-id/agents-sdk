@@ -86,7 +86,18 @@ export type {
 } from './types/voice/tts';
 
 // Errors
-export * from './errors';
+export {
+    BaseError,
+    ChatCreationFailed,
+    ChatModeDowngraded,
+    HttpError,
+    NetworkError,
+    StreamError,
+    ValidationError,
+    WsError,
+    isDIDError,
+} from './errors';
+export type { ErrorJson, NetworkErrorMeta } from './errors';
 
 // Leaked implementation types, kept exported for backwards compatibility only.
 // Hidden from the reference (@internal) and deprecated; deleted in the next major.

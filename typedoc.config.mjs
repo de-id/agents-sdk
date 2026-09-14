@@ -15,10 +15,12 @@ const config = {
     excludeProtected: true,
     excludeInternal: true,
     excludeExternals: true,
-    alwaysCreateEntryPointModule: false,
 
     // Output
     out: 'docs-site',
+    // Keep page URLs as interfaces/AgentManager.html (not interfaces/index.AgentManager.html);
+    // projectDocuments would otherwise make TypeDoc keep the single entry point as a module.
+    alwaysCreateEntryPointModule: false,
     name: 'D-ID Client SDK',
     includeVersion: true,
     readme: 'README.md',

@@ -30,7 +30,7 @@
     "preview": "vite preview",
     "test-build": "node .infra/build.js -m development",
     "docs:build": "typedoc",
-    "docs:check": "typedoc --emit none",
+    "docs:check": "typedoc --out .docs-check-site",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:ci": "jest --watchAll=false --passWithNoTests --verbose=false",

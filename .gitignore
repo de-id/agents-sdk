@@ -70,3 +70,4 @@ yarn-error.log*
 
 # TypeDoc output (built in CI, never committed)
 docs-site
+.docs-check-site
