@@ -79,7 +79,12 @@ export enum StreamType {
 /** @internal */
 export type RpcMethodHandler = (data: { payload: string }) => Promise<string>;
 
-export interface ManagerCallbacks {
+/**
+ * Callback set consumed by the streaming managers (WebRTC and LiveKit).
+ * The agent manager adapts these into the public {@link AgentManagerCallbacks}.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
+export interface StreamingManagerCallbacks {
     onMessage?: ChatProgressCallback;
     onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
@@ -96,12 +101,20 @@ export interface ManagerCallbacks {
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
 
+/**
+ * Former name of {@link StreamingManagerCallbacks}.
+ * @internal
+ * @deprecated This was never the callbacks type accepted by `createAgentManager`; use
+ * {@link AgentManagerCallbacks}. Removed from the package exports in the next major.
+ */
+export type ManagerCallbacks = StreamingManagerCallbacks;
+
 export interface AudioDetectionMetrics {
     latency?: number;
     networkLatency?: number;
 }
 
-export type ManagerCallbackKeys = keyof ManagerCallbacks;
+export type ManagerCallbackKeys = keyof StreamingManagerCallbacks;
 
 export interface StreamEndUserData {
     plan?: string;
@@ -148,7 +161,7 @@ export interface RtcApi {
 }
 
 export interface StreamingManagerOptions {
-    callbacks: ManagerCallbacks;
+    callbacks: StreamingManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
     verbose?: boolean;

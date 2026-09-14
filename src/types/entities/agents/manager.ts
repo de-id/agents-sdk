@@ -13,7 +13,7 @@ import {
     StreamingState,
 } from '@sdk/types/stream';
 import { SupportedStreamScript } from '@sdk/types/stream-script';
-import type { ManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
+import type { StreamingManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity, SubmitFeedbackResponse } from './chat';
 
