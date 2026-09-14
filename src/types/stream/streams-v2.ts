@@ -1,6 +1,6 @@
 /**
  * Transport used to establish a session created via the v2 sessions API.
- * @internal Implementation type; not part of the public SDK surface.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
  * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export enum TransportProvider {

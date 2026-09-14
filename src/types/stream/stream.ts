@@ -87,6 +87,7 @@ export type RpcMethodHandler = (data: { payload: string }) => Promise<string>;
  * Callback set consumed by the streaming managers (WebRTC and LiveKit).
  * The agent manager adapts these into the public {@link AgentManagerCallbacks}.
  * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
 export interface StreamingManagerCallbacks {
     onMessage?: ChatProgressCallback;
@@ -167,7 +168,7 @@ export interface ClipStreamOptions extends CreateClipStreamRequest {
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;
 
 /**
- * Maps a {@link CreateStreamOptions} variant to the payload type sent when starting that stream.
+ * Maps a {@link CreateStreamOptions} variant to the payload type sent to drive that stream.
  * @internal Implementation type; not part of the public SDK surface.
  * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
@@ -231,7 +232,7 @@ export interface StreamingManagerOptions {
 }
 
 /**
- * Trimmed set of WebRTC inbound video stats sampled from `RTCStatsReport`, used for internal av-sync analysis.
+ * Trimmed set of WebRTC inbound video stats sampled from `RTCStatsReport`, sampled for internal quality analytics.
  * @internal Implementation type; not part of the public SDK surface.
  * @deprecated Not intended for consumers. Removed from the package exports in the next major.
  */
