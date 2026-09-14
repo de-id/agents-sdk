@@ -14,6 +14,7 @@ on:
 permissions:
   id-token: write # Required for Trusted Publisher on NPMJS
   contents: write
+  pages: write
 
 jobs:
   publish:
@@ -164,6 +165,19 @@ jobs:
           logger -l info -m "Pushing Git tag to origin"
           git push origin "v${{ steps.version.outputs.version }}"
 
+      - name: Build API reference (prod only)
+        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        run: |
+          logger -l info -m "Building API reference for v${{ steps.version.outputs.version }}"
+          yarn docs:build --gitRevision "v${{ steps.version.outputs.version }}" \
+            || logger -l error -m "Failed to build API reference"
+
+      - name: Upload API reference for Pages (prod only)
+        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site
+
       - name: Commit version bump (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
         run: |
@@ -298,3 +312,19 @@ jobs:
             --base main \
             --head "chore/bump-sdk-version-${{ steps.version.outputs.version }}" \
             --label "dependencies"
+
+  deploy-docs:
+    name: Deploy API reference to sdk.d-id.com
+    needs: publish
+    if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
