@@ -15,6 +15,7 @@ const config = {
     excludeProtected: true,
     excludeInternal: true,
     excludeExternals: true,
+    alwaysCreateEntryPointModule: false,
 
     // Output
     out: 'docs-site',
