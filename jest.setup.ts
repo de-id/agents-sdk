@@ -1,5 +1,8 @@
 import { TextDecoder, TextEncoder } from 'util';
 
+// Enable manual mock for environment module
+jest.mock('./src/config/environment');
+
 global.TextDecoder = TextDecoder as any;
 global.TextEncoder = TextEncoder as any;
 
