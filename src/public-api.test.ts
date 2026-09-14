@@ -1,3 +1,11 @@
+jest.mock('@sdk/config/environment', () => ({
+    nodeEnv: 'test',
+    didApiUrl: 'http://localhost',
+    didSocketApiUrl: 'ws://localhost',
+    mixpanelKey: '',
+    agentId: '',
+}));
+
 import * as sdk from './index';
 
 /**
