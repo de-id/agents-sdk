@@ -14,7 +14,6 @@ on:
 permissions:
   id-token: write # Required for Trusted Publisher on NPMJS
   contents: write
-  pages: write
 
 jobs:
   publish:
@@ -165,8 +164,10 @@ jobs:
           logger -l info -m "Pushing Git tag to origin"
           git push origin "v${{ steps.version.outputs.version }}"
 
+      # A docs failure must not abort the release after npm publish; deploy-docs fails visibly on its own.
       - name: Build API reference (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        continue-on-error: true
         run: |
           logger -l info -m "Building API reference for v${{ steps.version.outputs.version }}"
           yarn docs:build --gitRevision "v${{ steps.version.outputs.version }}" \
@@ -174,6 +175,7 @@ jobs:
 
       - name: Upload API reference for Pages (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        continue-on-error: true
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs-site
