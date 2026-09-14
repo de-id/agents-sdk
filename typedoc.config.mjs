@@ -89,8 +89,7 @@ const config = {
         'Variable',
         'Parameter',
     ],
-    // Flipped to true in Task 6 once the notExported warnings are gone
-    treatWarningsAsErrors: false,
+    treatWarningsAsErrors: true,
 };
 
 export default config;
