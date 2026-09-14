@@ -59,6 +59,11 @@ export interface Stream_Audio_Script extends BaseStreamScript {
     audio_url: string;
 }
 
+/**
+ * Script variant that has the agent's LLM generate the response to speak, rather than supplying text or audio directly.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface Stream_LLM_Script {
     type: 'llm';
     provider: StreamTextToSpeechProviders;
@@ -71,5 +76,10 @@ export interface Stream_LLM_Script {
     stream_audio?: boolean;
 }
 
+/**
+ * Union of every script variant accepted internally, including the LLM-generated variant not exposed to consumers.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export type StreamScript = Stream_Text_Script | Stream_Audio_Script | Stream_LLM_Script;
 export type SupportedStreamScript = Stream_Text_Script | Stream_Audio_Script;

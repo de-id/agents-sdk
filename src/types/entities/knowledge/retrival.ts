@@ -1,3 +1,8 @@
+/**
+ * Result of a knowledge-base query against the Knowledge API.
+ * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface QueryResult {
     documentIds: string[];
     result: any;

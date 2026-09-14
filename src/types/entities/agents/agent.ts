@@ -29,6 +29,11 @@ export interface Agent {
     ld_context?: { key: string; hash_key: string; plan_group: string };
 }
 
+/**
+ * Internal HTTP client surface used by the agent manager to talk to the Agents API.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface AgentsAPI {
     getRuntimeById(id: string, options?: RequestInit): Promise<Agent>;
     newChat(agentId: string, payload: { persist: boolean }, options?: RequestInit): Promise<Chat>;

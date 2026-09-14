@@ -19,6 +19,11 @@ export interface RatingEntity {
     message_id: string;
 }
 
+/**
+ * Request payload for rating a chat message, derived from `RatingEntity`.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export type RatingPayload = Omit<
     RatingEntity,
     'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id' | 'agent_id' | 'chat_id'
@@ -54,6 +59,11 @@ export interface Message {
     };
 }
 
+/**
+ * Request payload for sending a chat message to the Agents API.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface ChatPayload {
     messages: Message[];
     streamId?: string;

@@ -1,6 +1,11 @@
 import { StreamScript } from '../..';
 import { CompatibilityMode } from '../stream';
 
+/**
+ * Wire request body for creating a legacy (talk) stream.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface CreateTalkStreamRequest {
     driver_url?: string;
     face?: {
@@ -53,6 +58,11 @@ export interface CreateTalkStreamRequest {
     session_timeout?: number;
 }
 
+/**
+ * Wire payload sent to advance a talk stream with a new script.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface SendTalkStreamPayload {
     script: StreamScript;
     resultUrl?: string;

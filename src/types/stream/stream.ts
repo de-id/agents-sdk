@@ -76,7 +76,11 @@ export enum StreamType {
     Fluent = 'fluent',
 }
 
-/** @internal */
+/**
+ * Handler for an RPC method registered on the LiveKit room before it connects.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export type RpcMethodHandler = (data: { payload: string }) => Promise<string>;
 
 /**
@@ -109,35 +113,75 @@ export interface StreamingManagerCallbacks {
  */
 export type ManagerCallbacks = StreamingManagerCallbacks;
 
+/**
+ * Latency measurements captured when the first audio frame of a stream is detected.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface AudioDetectionMetrics {
     latency?: number;
     networkLatency?: number;
 }
 
+/**
+ * Union of callback names accepted by {@link StreamingManagerCallbacks}.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export type ManagerCallbackKeys = keyof StreamingManagerCallbacks;
 
+/**
+ * Custom end-user metadata attached to a stream creation request.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface StreamEndUserData {
     plan?: string;
 }
 
+/**
+ * Options for creating a legacy (talk) stream, combining the wire request with fluent-mode extras.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
     fluent?: boolean;
     end_user_data?: StreamEndUserData;
 }
 
+/**
+ * Options for creating a clip stream, combining the wire request with fluent-mode extras.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface ClipStreamOptions extends CreateClipStreamRequest {
     fluent?: boolean;
     end_user_data?: StreamEndUserData;
 }
 
+/**
+ * Options accepted when creating a stream, discriminated by the underlying stream type (talk or clip).
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;
 
+/**
+ * Maps a {@link CreateStreamOptions} variant to the payload type sent when starting that stream.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export type PayloadType<T> = T extends TalkStreamOptions
     ? SendTalkStreamPayload
     : T extends ClipStreamOptions
       ? SendClipStreamPayload
       : never;
 
+/**
+ * HTTP client surface used by the streaming managers to create and drive a WebRTC stream.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface RtcApi {
     createStream(options: CreateStreamOptions, signal?: AbortSignal): Promise<ICreateStreamRequestResponse>;
     startConnection(
@@ -160,6 +204,11 @@ export interface RtcApi {
     close(streamId: string, sessionId: string): Promise<Status>;
 }
 
+/**
+ * Options used to construct a streaming manager (WebRTC or LiveKit) instance.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface StreamingManagerOptions {
     callbacks: StreamingManagerCallbacks;
     baseURL?: string;
@@ -181,6 +230,11 @@ export interface StreamingManagerOptions {
     rpcMethods?: ReadonlyMap<string, RpcMethodHandler>;
 }
 
+/**
+ * Trimmed set of WebRTC inbound video stats sampled from `RTCStatsReport`, used for internal av-sync analysis.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface SlimRTCStatsReport {
     index: number;
     codec: string;
@@ -205,6 +259,11 @@ export interface SlimRTCStatsReport {
     av?: AvSyncSample;
 }
 
+/**
+ * A single audio/video playout timestamp pair sampled during an utterance, used to compute lip-sync drift.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface AvSyncSample {
     /** Audio estimatedPlayoutTimestamp (ms, NTP) — playout time of the audio sample currently being rendered. */
     audioPlayout: number;
@@ -214,6 +273,11 @@ export interface AvSyncSample {
     localTs: number;
 }
 
+/**
+ * Lip-sync (audio/video) drift analysis computed over an utterance's `AvSyncSample`s.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface AvSyncReport {
     /** Measurable samples in this utterance (both audio and video playout present). Report is null if fewer than 2. */
     sampleCount: number;
@@ -227,6 +291,11 @@ export interface AvSyncReport {
     residualOffsetMs: number;
 }
 
+/**
+ * WebRTC video stats reported to analytics (Mixpanel) at stream end.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface AnalyticsRTCStatsReport {
     timestamp?: number;
     duration: number;
@@ -247,6 +316,11 @@ export interface AnalyticsRTCStatsReport {
     causes?: string[];
 }
 
+/**
+ * Data-channel payload notifying that the current stream utterance was interrupted.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface StreamInterruptPayload {
     type: StreamEvents.StreamInterrupt;
     videoId: string;
@@ -301,6 +375,11 @@ export interface ToolCallErrorPayload {
 
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
 
+/**
+ * Data-channel payload identifying the conversational turn a `turn/started` or `turn/ended` event belongs to.
+ * @internal Implementation type; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface TurnEventPayload {
     turn_id: number | null;
 }

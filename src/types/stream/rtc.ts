@@ -17,6 +17,11 @@ interface Jsep {
     sdp: string;
 }
 
+/**
+ * STUN/TURN server credentials returned by the D-ID API for establishing the WebRTC connection.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface IceServer {
     /**
      * URL of the server - can be multiple addresses
@@ -32,6 +37,11 @@ export interface IceServer {
     credential?: string;
 }
 
+/**
+ * Response of `POST /agents/{id}/streams`: the SDP offer and ICE servers for the WebRTC handshake.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface ICreateStreamRequestResponse extends StickyRequest {
     id: string;
     jsep: Jsep;
@@ -41,6 +51,11 @@ export interface ICreateStreamRequestResponse extends StickyRequest {
     interrupt_enabled?: boolean;
 }
 
+/**
+ * A single ICE candidate exchanged during the WebRTC connection handshake.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ * @deprecated Not intended for consumers. Removed from the package exports in the next major.
+ */
 export interface IceCandidate {
     /**
      * A string representing the transport address for the candidate that can be used for connectivity checks.
