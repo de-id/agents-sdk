@@ -19,7 +19,7 @@ The SDK supports three avatar types:
 - **Clips (V3)** — Pre-built presenter avatars using WebRTC streaming.
 - **Expressives (V4)** — Next-generation avatars using LiveKit-based streaming, supporting microphone input and always-on fluent mode.
 
-**Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/reference/agents-overview) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
+**Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/docs/agent-quickstart) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
 
 ## ✴️ Getting Started
 
@@ -93,7 +93,7 @@ let agentManager = await sdk.createAgentManager(agentId, { auth, callbacks, stre
 The `agentManager` object created during initialization has several built-in parameters that might come in handy.
 
 - **`agentManager.agent`**
-  Displaying all of the Agent's saved information (Same as the following [endpoint](/reference/getagent))
+  Displaying all of the Agent's saved information (Same as the following [endpoint](https://docs.d-id.com/reference/agent-get))
 - **`agentManager.starterMessages`**
   Displaying the Agent's defined Starter Messages.
 
