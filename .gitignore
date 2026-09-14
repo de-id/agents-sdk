@@ -67,3 +67,6 @@ storybook-static
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# TypeDoc output (built in CI, never committed)
+docs-site
