@@ -51,7 +51,7 @@ export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data:
 export type ConnectionStateChangeCallback = (state: ConnectionState) => void;
 export type VideoStateChangeCallback = (state: StreamingState, data: any) => void;
 
-interface ManagerCallbacks {
+export interface AgentManagerCallbacks {
     /**
      * Optional callback will be triggered each time the RTC connection changes state
      * @param state
@@ -125,7 +125,7 @@ interface ManagerCallbacks {
     onRunningToolCallsChange?: StreamManagerCallbacks['onRunningToolCallsChange'];
 }
 
-interface StreamOptions {
+export interface StreamOptions {
     /**
      * Defines the video codec to be used in the stream.
      * When set to on: VP8 will be used.
@@ -167,7 +167,7 @@ interface StreamOptions {
 
 export interface AgentManagerOptions {
     auth: Auth;
-    callbacks: ManagerCallbacks;
+    callbacks: AgentManagerCallbacks;
     mode?: ChatMode;
     baseURL?: string;
     wsURL?: string;
@@ -268,14 +268,14 @@ export interface AgentManager {
     unpublishCameraStream?: () => Promise<void>;
     /**
      * Method to send a chat message to existing chat with the agent
-     * @param messages
+     * @param userMessage - The user's message text to send to the agent.
      */
     chat: (userMessage: string) => Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
-     * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
-     * @param matches - array of matches that were used to find the answer
-     * @param id - id of Rating entity. Leave it empty to create a new, one or pass it to work with the existing one
+     * @param messageId - Id of the message being rated.
+     * @param score - 1 for a positive rating, -1 for a negative one.
+     * @param rateId - Id of an existing rating to update; omit to create a new one.
      */
     rate: (messageId: string, score: 1 | -1, rateId?: string) => Promise<RatingEntity>;
     /**
