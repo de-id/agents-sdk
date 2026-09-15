@@ -199,12 +199,6 @@ export interface StreamingManagerOptions {
     auth: Auth;
     analytics: Analytics;
     /**
-     * Optional MediaStream to use for microphone input.
-     * If provided, the audio track from this stream will be published to the data channel.
-     * Supported by LiveKit streaming managers.
-     */
-    microphoneStream?: MediaStream;
-    /**
      * RPC methods to register on the room before it connects, so the agent can
      * call them from the moment this participant joins.
      * @internal

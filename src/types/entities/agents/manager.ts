@@ -189,7 +189,6 @@ export interface AgentManagerOptions {
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
     persistentChat?: boolean;
-    microphoneStream?: MediaStream;
 }
 
 export interface AgentManager {
@@ -233,15 +232,15 @@ export interface AgentManager {
      * Publish a microphone stream to the data channel
      * Can be called after connection to add microphone input
      * @param stream The MediaStream containing the microphone audio track
-     * supported only for livekit manager
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
      */
-    publishMicrophoneStream?: (stream: MediaStream) => Promise<void>;
+    publishMicrophoneStream: (stream: MediaStream) => Promise<void>;
     /**
      * Unpublish the currently published microphone stream
      * Can be called after connection to remove microphone input
-     * supported only for livekit manager
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents it resolves without doing anything.
      */
-    unpublishMicrophoneStream?: () => Promise<void>;
+    unpublishMicrophoneStream: () => Promise<void>;
     /**
      * Replace the live microphone track on the current publication without
      * unpublishing. Preserves the LiveKit publication (SSRC, trackSid) so the
@@ -249,21 +248,21 @@ export interface AgentManager {
      * LiveKit has switched the underlying RTCRtpSender's track.
      * Rejects if there is no active publication — callers should fall back to
      * `publishMicrophoneStream` in that case.
-     * Supported only for the LiveKit streaming manager.
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
      */
-    replaceMicrophoneTrack?: (track: MediaStreamTrack) => Promise<void>;
+    replaceMicrophoneTrack: (track: MediaStreamTrack) => Promise<void>;
     /**
      * Publish a camera video stream to the LiveKit room.
      * Can be called after connection to enable vision.
-     * supported only for livekit manager
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
      */
-    publishCameraStream?: (stream: MediaStream) => Promise<void>;
+    publishCameraStream: (stream: MediaStream) => Promise<void>;
     /**
      * Unpublish the currently published camera stream.
      * Can be called after connection to disable vision.
-     * supported only for livekit manager
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents it resolves without doing anything.
      */
-    unpublishCameraStream?: () => Promise<void>;
+    unpublishCameraStream: () => Promise<void>;
     /**
      * Method to send a chat message to existing chat with the agent
      * @param userMessage - The user's message text to send to the agent.
