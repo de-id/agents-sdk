@@ -5,10 +5,10 @@
  * TypeDoc's default theme puts the same `<meta name="description">` on every page and emits no
  * social-card tags. This plugin replaces the description with the page's own summary and adds
  * OpenGraph and Twitter tags, annotates the `modules.html` index with each symbol's summary, writes
- * an `llms.txt` index of every page with its summary, and copies a `404.html` into the site for
- * GitHub Pages.
+ * an `llms.txt` index of every page with its summary, points the sitemap at the site root instead
+ * of `index.html`, and copies a `404.html` into the site for GitHub Pages.
  */
-import { copyFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +25,13 @@ const PAGE_DESCRIPTIONS = {
     'modules.html': 'Every export of @d-id/client-sdk, grouped by category.',
     'hierarchy.html': 'The class hierarchy of @d-id/client-sdk, including every SDK error type.',
 };
+
+// The same three pages also share one `<title>`, which makes them indistinguishable in a tab strip
+// or a history list. The landing page keeps the project title; these two say what they are.
+const PAGE_TITLES = {
+    'modules.html': `All exports | ${SITE_NAME}`,
+    'hierarchy.html': `Class hierarchy | ${SITE_NAME}`,
+};
 const ASSETS_DIR = dirname(fileURLToPath(import.meta.url));
 
 /** @param {import('typedoc').Application} app */
@@ -32,6 +39,12 @@ export function load(app) {
     app.renderer.on(PageEvent.END, page => {
         if (!page.contents) return;
         const base = String(app.options.getValue('hostedBaseUrl') || '');
+        if (Object.hasOwn(PAGE_TITLES, page.url)) {
+            page.contents = page.contents.replace(
+                /<title>[^<]*<\/title>/,
+                `<title>${escapeText(PAGE_TITLES[page.url])}</title>`
+            );
+        }
         const title = /<title>([^<]*)<\/title>/.exec(page.contents)?.[1] ?? SITE_NAME;
         const description = Object.hasOwn(PAGE_DESCRIPTIONS, page.url)
             ? PAGE_DESCRIPTIONS[page.url]
@@ -67,7 +80,24 @@ export function load(app) {
     app.renderer.on(Renderer.EVENT_END, event => {
         copyFileSync(join(ASSETS_DIR, '404.html'), join(event.outputDirectory, '404.html'));
         writeFileSync(join(event.outputDirectory, 'llms.txt'), llmsTxt(app, event.project));
+        rewriteSitemapRoot(app, event.outputDirectory);
     });
+}
+
+/**
+ * TypeDoc builds the sitemap from page urls, so the landing page is listed as `…/index.html` while
+ * its own canonical link and every llms.txt row use `…/`. Point the sitemap at the root too, so a
+ * crawler sees one URL for the page instead of two.
+ *
+ * @param {import('typedoc').Application} app
+ * @param {string} outputDirectory
+ */
+function rewriteSitemapRoot(app, outputDirectory) {
+    const base = String(app.options.getValue('hostedBaseUrl') || '');
+    const sitemap = join(outputDirectory, 'sitemap.xml');
+    if (!base || !existsSync(sitemap)) return;
+    const contents = readFileSync(sitemap, 'utf8');
+    writeFileSync(sitemap, contents.replace(`<loc>${base}index.html</loc>`, `<loc>${base}</loc>`));
 }
 
 /**
