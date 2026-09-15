@@ -12,6 +12,7 @@ export type {
     AgentManagerOptions,
     StreamOptions,
 } from './types/entities/agents/manager';
+export { VideoType } from './types/entities/video';
 export type { STTTokenResponse } from './types/voice/stt';
 export { SDK_VERSION } from './version';
 
@@ -37,7 +38,6 @@ export type {
 } from './types/stream/stream';
 
 // Streaming Options
-export { VideoType } from './types/entities/video';
 export type { SendStreamPayloadResponse } from './types/stream/rtc';
 export { StreamType } from './types/stream/stream';
 export type { CompatibilityMode } from './types/stream/stream';
