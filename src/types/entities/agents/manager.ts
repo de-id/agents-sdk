@@ -160,13 +160,6 @@ export interface StreamOptions {
     sessionTimeout?: number;
 
     /**
-     * Desired stream resolution for the session
-     * @minimum 150
-     * @maximum 1080
-     */
-    outputResolution?: number;
-
-    /**
      * Whether to request fluent stream.
      * @default false
      */

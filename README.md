@@ -319,11 +319,6 @@ Callback functions enable you to manage various events throughout the SDK lifecy
   Maximum duration (in seconds) between messages before the session times out.
   Max value: `300`
   <br />
-- **`outputResolution`**:
-  **Supported only with Talk presenters (photo-based).**
-  The output resolution sets the maximum height or width pixels of the streamed video.
-  When resolution is not configured, it defaults to the agent output resolution.
-  Allowed values: `150 - 1080`
 
 - **`fluent`**:
   **Supported with Agents created with V3 Pro Avatars. Always enabled for V4 Avatars.**

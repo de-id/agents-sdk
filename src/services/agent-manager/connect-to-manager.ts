@@ -58,7 +58,6 @@ function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStrea
             : undefined;
 
     const streamArgs = {
-        output_resolution: streamOptions?.outputResolution,
         session_timeout: streamOptions?.sessionTimeout,
         stream_warmup: streamOptions?.streamWarmup,
         compatibility_mode: streamOptions?.compatibilityMode,

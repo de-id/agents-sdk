@@ -66,7 +66,6 @@ describe('connect-to-manager', () => {
             mode: ChatMode.Functional,
             persistentChat: true,
             streamOptions: {
-                outputResolution: 1080,
                 sessionTimeout: 30000,
                 streamWarmup: true,
                 compatibilityMode: 'auto' as const,
@@ -155,7 +154,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 {
                     version: StreamApiVersion.V1,
-                    output_resolution: 1080,
                     session_timeout: 30000,
                     stream_warmup: true,
                     compatibility_mode: 'auto',
@@ -551,7 +549,6 @@ describe('connect-to-manager', () => {
             const customOptions = {
                 ...mockOptions,
                 streamOptions: {
-                    outputResolution: 720,
                     sessionTimeout: 60000,
                     streamWarmup: false,
                     compatibilityMode: 'on' as const,
@@ -565,7 +562,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 {
                     version: StreamApiVersion.V1,
-                    output_resolution: 720,
                     session_timeout: 60000,
                     stream_warmup: false,
                     compatibility_mode: 'on',
@@ -587,7 +583,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 {
                     version: StreamApiVersion.V1,
-                    output_resolution: undefined,
                     session_timeout: undefined,
                     stream_warmup: undefined,
                     compatibility_mode: undefined,
@@ -773,7 +768,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 expect.objectContaining({
                     version: StreamApiVersion.V1,
-                    output_resolution: 1080,
                     session_timeout: 30000,
                 }),
                 expect.not.objectContaining({
