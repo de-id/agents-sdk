@@ -1,10 +1,17 @@
 /**
- * Carrier of the `session_id` that keeps successive streaming requests on the same server session.
- * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ * The session identifier carried by every request and response of a Talks (V2) or Clips (V3)
+ * stream.
+ *
+ * The SDK holds on to the id created with the stream and sends it back on each subsequent
+ * streaming request, which is what keeps the requests on the same stream. Applications rarely need
+ * it; it is part of the public surface because {@link SendStreamPayloadResponse} extends it.
+ *
+ * @category Streaming Options
  */
 export interface StickyRequest {
     /**
-     * session identifier information, should be returned in the body of all streaming requests
+     * Session identifier information, which should be returned in the body of all streaming
+     * requests.
      */
     session_id?: string;
 }
@@ -79,23 +86,40 @@ export interface IceCandidate {
 }
 
 /**
- * Bare `{ status }` envelope returned by the streaming endpoints that report only success or failure.
- * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ * The outcome the Agents API reported for a streaming request.
+ *
+ * The base of {@link SendStreamPayloadResponse}, and the shape returned by the streaming requests
+ * that have nothing else to report.
+ *
+ * @category Streaming Options
  */
 export interface Status {
+    /** How the request ended, as reported by the server — for example `success`. */
     status: string;
 }
 
+/**
+ * What {@link AgentManager.speak | speak()} resolves with: the video the agent is about to stream.
+ *
+ * The fields come from the Talks (V2) and Clips (V3) API, which generates the video while answering
+ * the request. In a text-only chat mode ({@link ChatMode.TextOnly}, {@link ChatMode.Playground} or
+ * {@link ChatMode.Maintenance}) no video is produced, so the call resolves with `duration` `0` and
+ * an empty `video_id`; Expressive (V4) agents send the script over the data channel and resolve
+ * without these fields.
+ *
+ * @category Streaming Options
+ */
 export interface SendStreamPayloadResponse {
-    /**
-     * Whether the server accepted the speak request.
-     */
     status: string;
-    /**
-     * Identifier of the session the video was queued on; the SDK sends it back on the streaming
-     * requests that follow.
-     */
     session_id?: string;
+    /** Length of the generated video, in seconds. */
     duration: number;
+    /**
+     * Id of the generated video.
+     *
+     * Use it to correlate this call with the video the agent then plays, which
+     * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} reports the start and
+     * end of, and which {@link AgentManager.interrupt | interrupt()} cancels.
+     */
     video_id: string;
 }
