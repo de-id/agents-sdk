@@ -372,8 +372,8 @@ export interface AgentManagerOptions {
      * Three shapes are accepted:
      *
      * - `{ type: 'key', clientKey }` — the browser-safe one. `clientKey` is the `data-client-key`
-     *   from the agent's Embed snippet in D-ID Studio, and works only from the domains allowed for
-     *   that agent. See {@link ClientKeyAuth}.
+     *   from the agent's Embed snippet (or a key created with the Agents API), and works only from the
+     *   domains allowed for that agent. See {@link ClientKeyAuth}.
      * - `{ type: 'bearer', token }` — a bearer token.
      * - `{ type: 'basic', token }` or `{ type: 'basic', username, password }` — basic credentials.
      *
@@ -399,24 +399,22 @@ export interface AgentManagerOptions {
      */
     mode?: ChatMode;
     /**
-     * Base URL of the D-ID Agents API.
+     * Base URL of the D-ID Agents API. Used by D-ID to point the SDK at a test environment.
      *
-     * Defaults to the D-ID production endpoint. Override it only to point the SDK at a test
-     * environment.
+     * @internal
      */
     baseURL?: string;
     /**
-     * URL of the D-ID notifications web socket.
+     * URL of the D-ID notifications web socket. Used by D-ID to point the SDK at a test environment.
      *
-     * Defaults to the D-ID production endpoint. Override it only to point the SDK at a test
-     * environment. Expressive (V4) agents do not use the web socket.
+     * @internal
      */
     wsURL?: string;
     /**
      * Whether the SDK logs its streaming lifecycle to the browser console.
      *
      * It is also switched on for everyone when the agent's `ui_debug_mode` advanced setting is
-     * enabled in D-ID Studio, regardless of the value passed here.
+     * enabled, regardless of the value passed here.
      *
      * @default false
      */
@@ -467,13 +465,9 @@ export interface AgentManagerOptions {
     /**
      * Messages the chat starts with, for example a transcript restored from your own storage.
      *
-     * They are handed straight to
-     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} so the UI can render them. On Talks
-     * (V2) and Clips (V3) agents the whole array is sent with the next
-     * {@link AgentManager.chat | chat()} request, so it is context the agent answers from; on
-     * Expressive (V4) agents only the new user message goes over the data channel, so the history
-     * is rendered locally but not resent. When the option is omitted the chat starts empty. See
-     * {@link Message}.
+     * They are delivered to {@link AgentManagerCallbacks.onNewMessage | onNewMessage} so the UI can
+     * render them. On Talks (V2) and Clips (V3) agents they are also sent as context with the next
+     * {@link AgentManager.chat | chat()} request. See {@link Message}.
      */
     initialMessages?: Message[];
     /**
@@ -536,7 +530,7 @@ export interface AgentManager {
     getIsInterruptAvailable(): boolean;
 
     /**
-     * The agent's starter messages, as configured in D-ID Studio.
+     * The agent's starter messages.
      *
      * Suggested openers to offer the user as buttons; empty when the agent defines none. Available
      * before {@link AgentManager.connect | connect()}.
@@ -712,8 +706,10 @@ export interface AgentManager {
      * scripts also accept an optional `sentiment`, for Expressive (V4) agents only; if the
      * requested sentiment is not supported by the agent, the default sentiment is used.
      *
-     * @see https://docs.d-id.com/reference/talks-streams-overview
-     * @see https://docs.d-id.com/reference/clips-streams-overview
+     * @see [Create a video stream](https://docs.d-id.com/reference/createvideoagentstream) — the request
+     * sent for Talks (V2) and Clips (V3) agents.
+     * @see [Control the Agent](https://docs.d-id.com/docs/livekit-commands) — the `did.speak` command
+     * sent over the data channel for Expressive (V4) agents.
      * @param payload - A text or audio script, or a string treated as the text to speak.
      * @returns The {@link SendStreamPayloadResponse} for the video that was produced, or the same
      * response with `duration` `0` and an empty `video_id` when the call produced no discrete video
@@ -792,8 +788,8 @@ export interface AgentManager {
     /**
      * Switches the speech-to-text language in the middle of a session.
      *
-     * Expressive (V4) agents only; for Talks (V2) and Clips (V3) agents, and before
-     * {@link AgentManager.connect | connect()}, the returned promise rejects.
+     * Expressive (V4) agents only, after {@link AgentManager.connect | connect()}; otherwise the
+     * returned promise rejects.
      *
      * @param language - Language name or BCP-47 code (e.g. "English" or "en-US")
      * @returns Resolves once the new language has been sent to the agent.
@@ -804,8 +800,8 @@ export interface AgentManager {
      * Sends a JSON payload to the agent over a data-channel topic.
      *
      * Use it for application-specific messages that are not speech, such as telling a presentation
-     * to change slide. Expressive (V4) agents only; for Talks (V2) and Clips (V3) agents, and
-     * before {@link AgentManager.connect | connect()}, the returned promise rejects.
+     * to change slide. Expressive (V4) agents only, after {@link AgentManager.connect | connect()};
+     * otherwise the returned promise rejects.
      *
      * @param topic - Data-channel topic to send on. {@link PublicDataChannelTopic} is exported from
      * the package root and lists every topic this method accepts.

@@ -62,12 +62,14 @@ export type BasicAuth =
  * A client key for the D-ID API — the credential to use in a browser.
  *
  * This is the one shape that is safe to ship in a page: a client key is scoped to a single agent
- * and only works from the domains allowed for it in D-ID Studio, so it cannot be reused elsewhere.
- * Copy it from the agent's Embed snippet, where it appears as `data-client-key`. The SDK sends it
+ * and only works from the domains allowed for it, so it cannot be reused elsewhere. Copy it from the
+ * agent's Embed snippet, where it appears as `data-client-key`, or create one with the Agents API
+ * (see the link below). The SDK sends it
  * as `Authorization: Client-Key <clientKey>.<externalId>_<connectionId>`, where the external id is
  * either {@link AgentManagerOptions.externalId | externalId} or a per-browser id the SDK keeps in
  * `localStorage`.
  *
+ * @see https://docs.d-id.com/reference/createclientkey
  * @category Agent Manager
  */
 export interface ClientKeyAuth {
@@ -76,7 +78,8 @@ export interface ClientKeyAuth {
      */
     type: 'key';
     /**
-     * The client key, the `data-client-key` value from the agent's Embed snippet in D-ID Studio.
+     * The client key: the `data-client-key` value from the agent's Embed snippet, or a key created with
+     * the Agents API.
      */
     clientKey: string;
 }

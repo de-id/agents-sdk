@@ -83,7 +83,8 @@ export interface ElevenlabsTtsProvider {
     type: Providers.Elevenlabs;
 
     /**
-     * The voice_id from the list of available voices. https://api.elevenlabs.io/v1/voices.
+     * The voice_id from the list of available voices. For the list of voices:
+     * https://docs.d-id.com/docs/tts-elevenlabs
      * @example "21m00Tcm4TlvDq8ikWAM"
      * @default 21m00Tcm4TlvDq8ikWAM
      */
@@ -111,7 +112,7 @@ export interface MicrosoftTtsProvider {
 
     /**
      * The voice_id from the list of available voices.
-     * For full list of voice_ids: https://docs.d-id.com/reference/microsoft-azure
+     * For the list of voices: https://docs.d-id.com/docs/tts-microsoft
      * @example "en-US-JennyNeural"
      * @default en-US-JennyNeural
      */
@@ -161,7 +162,7 @@ export interface AmazonTtsProvider {
 
     /**
      * The voice_id from the list of available voices.
-     * For full list of voice_ids: https://docs.d-id.com/reference/text-to-speech-providers
+     * For the list of voices: https://docs.d-id.com/docs/tts-amazon
      * @example "Joanna"
      */
     voice_id: string;

@@ -2,7 +2,7 @@ import { AvatarType } from '../avatar';
 import { Chat, ChatPayload, ChatResponse } from './chat';
 
 /**
- * The end-of-call feedback form configured for an agent in D-ID Studio.
+ * The end-of-call feedback form configured on an agent.
  *
  * It describes what to ask the user when the conversation ends; the SDK does not render anything
  * itself. Read it from {@link Agent.end_of_call_feedback}, show your own form when
@@ -44,8 +44,9 @@ export interface AgentAvatar {
  * The SDK fetches it once while {@link createAgentManager} runs and exposes it as
  * {@link AgentManager.agent}, so everything here is available before
  * {@link AgentManager.connect | connect()} — which is what makes it useful for rendering the agent
- * before the video exists. The fields are the agent's configuration in D-ID Studio; most of them
- * are for the application to use, and each one below says where the SDK itself reads it.
+ * before the video exists. The fields are the agent's configuration, whether it was set in D-ID Studio
+ * or through the Agents API; most of them are for the application to use, and each one below says
+ * where the SDK itself reads it.
  *
  * @see https://docs.d-id.com/reference/agent-get
  * @category Agent Manager
@@ -55,7 +56,7 @@ export interface Agent {
     id: string;
     /** Id of the D-ID account that owns the agent. Set by the API. */
     owner_id?: string;
-    /** The agent's display name, as configured in D-ID Studio. */
+    /** The agent's display name. */
     name?: string;
     /** `'public'` when the agent is configured for public access; omitted otherwise. */
     access?: 'public';
@@ -150,8 +151,7 @@ export interface Agent {
      * {@link EndOfCallFeedbackConfig}.
      */
     end_of_call_feedback?: EndOfCallFeedbackConfig;
-    /** Whether the agent has triggers configured in D-ID Studio. Exposed for completeness; the SDK
-     * does not read it. */
+    /** Whether the agent has triggers configured. Exposed for completeness; the SDK does not read it. */
     triggers_available?: boolean;
     /** Settings that change how D-ID's own surfaces present the agent. */
     advanced_settings?: {

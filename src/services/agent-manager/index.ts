@@ -74,8 +74,8 @@ function applicationError(message: string): RpcError {
  * {@link ValidationError} rejected by the method that was called on the returned manager, such as
  * {@link AgentManager.chat | chat()} or {@link AgentManager.speak | speak()}.
  *
- * @param agent - Id of the agent to talk to — the `data-agent-id` from its Embed snippet in D-ID
- * Studio.
+ * @param agent - Id of the agent to talk to: the `data-agent-id` from its Embed snippet, or the `id`
+ * returned by the Agents API.
  * @param options - Credentials, callbacks and everything else the manager needs. See
  * {@link AgentManagerOptions}.
  * @returns A manager for that agent, ready to {@link AgentManager.connect | connect()}.
