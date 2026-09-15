@@ -70,6 +70,10 @@ function applicationError(message: string): RpcError {
  * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady}, which is what attaches the
  * streamed media to a video element.
  *
+ * The options themselves are not validated here: bad arguments surface later, as a
+ * {@link ValidationError} rejected by the method that was called on the returned manager, such as
+ * {@link AgentManager.chat | chat()} or {@link AgentManager.speak | speak()}.
+ *
  * @param agent - Id of the agent to talk to — the `data-agent-id` from its Embed snippet in D-ID
  * Studio.
  * @param options - Credentials, callbacks and everything else the manager needs. See
@@ -77,10 +81,8 @@ function applicationError(message: string): RpcError {
  * @returns A manager for that agent, ready to {@link AgentManager.connect | connect()}.
  * @throws {@link HttpError} When the agent cannot be fetched — an unknown id, or a client key that
  * is not authorized for the agent or the calling domain.
- * @throws {@link ValidationError} From the returned manager's methods, such as
- * {@link AgentManager.chat | chat()} and {@link AgentManager.speak | speak()}, when they are called
- * with invalid arguments or before the manager is connected. `createAgentManager` itself does not
- * validate the options it is given.
+ * @throws {@link NetworkError} When the request for the agent never reaches the server: the browser
+ * is offline, DNS or TLS fails, or the request is blocked.
  *
  * @example
  * ```ts

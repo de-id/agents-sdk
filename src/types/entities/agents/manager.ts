@@ -56,7 +56,16 @@ export enum ChatProgress {
 export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data: any) => void;
 
 /**
- * Handlers the SDK calls as the connection, the video stream and the chat progress.
+ * Standalone signature of {@link AgentManagerCallbacks.onConnectionStateChange}.
+ *
+ * Exported so a handler that lives outside the callbacks object can be typed. The callbacks object
+ * itself also receives a second `reason` argument, which this alias omits.
+ *
+ * @param state - The state the connection to the agent's stream has just reached.
+ * @category Callbacks & Events
+ */
+/**
+ * Handlers the SDK calls as the connection, the video stream and the chat change state.
  *
  * Pass the object as {@link AgentManagerOptions.callbacks}. Only
  * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is required — without it there
@@ -112,7 +121,7 @@ export interface AgentManagerCallbacks {
      *
      *     if (state === 'STOP') {
      *         videoElement.srcObject = undefined;
-     *         videoElement.src = agentManager.agent.idle_video;
+     *         videoElement.src = agentManager.agent.idle_video ?? '';
      *     } else {
      *         videoElement.src = '';
      *         videoElement.srcObject = srcObject;
@@ -149,9 +158,12 @@ export interface AgentManagerCallbacks {
      * Called with the whole chat transcript every time a message is added or updated.
      *
      * Triggered by {@link AgentManager.chat | chat()}, by {@link AgentManager.speak | speak()} for
-     * text scripts, and as the agent's answer streams in. The array is a fresh copy on each call,
-     * oldest message first; every {@link Message} carries an `id`, a `role` of `user` or
-     * `assistant` (the agent), its `content` and a `created_at` timestamp.
+     * text scripts, and as the agent's answer streams in. It also fires once while the manager is
+     * created, with whatever {@link AgentManagerOptions.initialMessages | initialMessages} were
+     * given, and again when {@link AgentManager.connect | connect()} starts a new chat — both with
+     * type `answer`. The array is a fresh copy on each call, oldest message first; every
+     * {@link Message} carries an `id`, a `role` of `user` or `assistant` (the agent), its `content`
+     * and a `created_at` timestamp.
      *
      * @param messages - The chat so far.
      * @param type - `partial` while the agent's answer is still streaming in, `answer` for the full
@@ -207,8 +219,12 @@ export interface AgentManagerCallbacks {
     /**
      * Called when the SDK fails, so the application can surface the problem.
      *
-     * Receives failures from the Agents API requests, the stream and the web socket. The error is
-     * one of the SDK error classes, such as {@link HttpError} or {@link ValidationError}.
+     * Receives failures from the Agents API requests, the stream and the web socket — an
+     * {@link HttpError} when a request comes back non-2xx, a {@link NetworkError} when it never
+     * reaches the server, and also {@link ChatModeDowngraded} and {@link StreamError}. Validation
+     * failures do not arrive here: {@link ValidationError} is thrown to whoever called the method
+     * ({@link AgentManager.chat | chat()}, {@link AgentManager.speak | speak()} and the rating
+     * methods), so it surfaces as a rejected promise rather than through this callback.
      *
      * @param error - The error that occurred.
      * @param errorData - Extra context about the failure, such as the request URL and options.
@@ -288,7 +304,8 @@ export interface StreamOptions {
      *
      * If set to `true`, a warmup video is streamed once the connection is established, which hides
      * the delay before the first real answer. At the end of the warmup video a message containing
-     * `stream/ready` is sent on the data channel.
+     * `stream/ready` is sent on the data channel. Fluent streams ignore it — the warmup only runs
+     * on legacy streams (see {@link StreamOptions.fluent | fluent}).
      *
      * @default false
      */
@@ -352,7 +369,7 @@ export interface AgentManagerOptions {
      */
     auth: Auth;
     /**
-     * Handlers the SDK calls as the session, the video stream and the chat progress.
+     * Handlers the SDK calls as the connection, the video stream and the chat change state.
      *
      * See {@link AgentManagerCallbacks}.
      * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is mandatory — it is what
@@ -438,16 +455,20 @@ export interface AgentManagerOptions {
      * Messages the chat starts with, for example a transcript restored from your own storage.
      *
      * They are handed straight to
-     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} so the UI can render them, and are
-     * sent to the agent as context for the first answer. When it is omitted the chat starts empty.
-     * See {@link Message}.
+     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} so the UI can render them. On Talks
+     * (V2) and Clips (V3) agents the whole array is sent with the next
+     * {@link AgentManager.chat | chat()} request, so it is context the agent answers from; on
+     * Expressive (V4) agents only the new user message goes over the data channel, so the history
+     * is rendered locally but not resent. When the option is omitted the chat starts empty. See
+     * {@link Message}.
      */
     initialMessages?: Message[];
     /**
      * Whether the server keeps the chat so it can be resumed in a later session.
      *
      * Without it a chat lives only as long as the connection.
-     * {@link AgentManager.reconnect | reconnect()} continues the same chat either way.
+     * {@link AgentManager.reconnect | reconnect()} normally continues the same chat either way —
+     * see the caveat there for Expressive (V4) agents.
      *
      * @default false
      */
@@ -532,9 +553,10 @@ export interface AgentManager {
     /**
      * Reopens the stream when the session expires, and continues the conversation on the same chat.
      *
-     * The chat id does not change, so the agent keeps its context. It starts a new stream —
-     * including after the server ended the previous one deliberately — rather than resuming the old
-     * one.
+     * The chat id normally does not change, so the agent keeps its context. It starts a new stream
+     * — including after the server ended the previous one deliberately — rather than resuming the
+     * old one. On Expressive (V4) agents the transport is asked to reconnect first; if that fails
+     * the SDK falls back to a disconnect and a fresh connect, which starts a new chat id.
      *
      * @returns Resolves when the new stream is connected.
      */
@@ -667,8 +689,12 @@ export interface AgentManager {
      *
      * Unlike {@link AgentManager.chat | chat()} the agent's LLM is not involved, so this is how you
      * script greetings and canned lines. Pass a plain string as a shorthand for a text script. See
-     * {@link SupportedStreamScript}, {@link TextStreamScript} and {@link AudioStreamScript}.
+     * {@link SupportedStreamScript}, {@link TextStreamScript} and {@link AudioStreamScript}. Text
+     * scripts also accept an optional `sentiment`, for Expressive (V4) agents only; if the
+     * requested sentiment is not supported by the agent, the default sentiment is used.
      *
+     * @see https://docs.d-id.com/reference/talks-streams-overview
+     * @see https://docs.d-id.com/reference/clips-streams-overview
      * @param payload - A text or audio script, or a string treated as the text to speak.
      * @returns The {@link SendStreamPayloadResponse} for the video that was produced.
      * @throws {@link ValidationError} When the manager is not connected to a stream yet.
@@ -716,7 +742,8 @@ export interface AgentManager {
      * {@link AgentManagerOptions.mixpanelAdditionalProperties | mixpanelAdditionalProperties} does
      * at creation time, for values you only learn later.
      *
-     * @param properties flat json object with properties that will be added to analytics events fired from the sdk
+     * @param properties - Flat json object with properties that will be added to analytics events
+     * fired from the sdk.
      */
     enrichAnalytics(properties: Record<string, unknown>): void;
 
@@ -731,7 +758,8 @@ export interface AgentManager {
      * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
      *
      * @param interrupt - What caused the interruption, as an {@link Interrupt}: `text`, `audio`,
-     * `click` or `manual`.
+     * `click` or `manual`. Expressive (V4) agents drop `text` interrupts, because the orchestrator
+     * does not cancel the in-flight answer for them.
      */
     interrupt(interrupt: Interrupt): void;
 
@@ -770,10 +798,10 @@ export interface AgentManager {
     sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void>;
 
     /**
-     * Register a handler for a client tool. When the agent's LLM calls this tool,
-     * the handler executes on the client and returns the result to the LLM.
+     * Registers a handler for a client tool, run in the browser when the agent's LLM calls it.
      *
-     * Register the handlers before {@link AgentManager.connect | connect()} so the agent can call
+     * The handler executes on the client and its result is returned to the LLM. Register the
+     * handlers before {@link AgentManager.connect | connect()} so the agent can call
      * them from the moment the session starts; registering the same name again replaces the
      * handler. Progress is reported through
      * {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
@@ -785,7 +813,7 @@ export interface AgentManager {
     registerClientTool(name: string, handler: ClientToolHandler): void;
 
     /**
-     * Remove a previously registered client tool handler.
+     * Removes a previously registered client tool handler.
      *
      * After this the agent's calls to that tool fail rather than reaching your code.
      *
