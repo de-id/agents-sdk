@@ -87,6 +87,9 @@ export interface Status {
 }
 
 export interface SendStreamPayloadResponse {
+    /**
+     * Whether the server accepted the speak request.
+     */
     status: string;
     /**
      * Identifier of the session the video was queued on; the SDK sends it back on the streaming

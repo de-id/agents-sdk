@@ -1,21 +1,7 @@
 import { Message } from './entities';
 import { StreamTextToSpeechProviders } from './voice/tts';
 
-/**
- * Discriminator values of the script variants a consumer can pass to `speak()`.
- * @internal Implementation type; not part of the public SDK surface.
- */
-export type StreamScriptType = 'text' | 'audio';
-
-/**
- * Common base of the script variants, carrying only the `type` discriminator.
- * @internal Implementation type; not part of the public SDK surface.
- */
-export interface BaseStreamScript {
-    type: StreamScriptType;
-}
-
-export interface TextStreamScript extends BaseStreamScript {
+export interface TextStreamScript {
     /**
      * The type of the script.
      */
@@ -55,7 +41,7 @@ export interface TextStreamScript extends BaseStreamScript {
     sentiment?: string;
 }
 
-export interface AudioStreamScript extends BaseStreamScript {
+export interface AudioStreamScript {
     /**
      * The type of the script.
      */

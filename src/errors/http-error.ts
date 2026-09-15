@@ -1,5 +1,5 @@
 import { BaseError, ErrorJson } from './base-error';
-import { RequestMeta } from './network-error';
+import { RequestMeta } from './request-meta';
 
 interface ServerErrorBody {
     kind?: string;

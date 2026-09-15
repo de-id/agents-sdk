@@ -47,7 +47,7 @@ Shapes are unchanged; only the names differ.
 - `StreamEvents.StreamCreated` — never emitted; use the `onStreamCreated` callback.
 - `Status` and `StickyRequest` — their `status` and `session_id` fields are declared directly on `SendStreamPayloadResponse`.
 - `ToolEventPayload` — use the payload the `onToolEvent` overloads narrow to: `ToolCallStartedPayload`, `ToolCallDonePayload` or `ToolCallErrorPayload`.
-- `BaseStreamScript` and `StreamScriptType` — use `SupportedStreamScript`, or `TextStreamScript`/`AudioStreamScript` directly.
+- `BaseStreamScript` and `StreamScriptType` — deleted; use `SupportedStreamScript`, or `TextStreamScript`/`AudioStreamScript` directly.
 - `Chat` — no public method returns one; `onNewChat` reports the new chat's id.
 - `RateState` — the SDK never produced or consumed it; `rate()` takes `1 | -1` and returns a `RatingEntity`.
 - `GetAuthParams` — a shape no SDK call accepts; declare it in your own code and pass an `Auth` to `createAgentManager`.
@@ -56,8 +56,8 @@ Shapes are unchanged; only the names differ.
 ## Behaviour clarifications
 
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, video_id: '' }` instead of `undefined`, matching its declared type.
-- The Expressive-only media methods (`publishMicrophoneStream`, `unpublishMicrophoneStream`, `replaceMicrophoneTrack`, `publishCameraStream`, `unpublishCameraStream`) are required members of `AgentManager` instead of optional; remove any `?.` guards.
-- `Agent.avatar` is typed `AgentAvatar` and its `type` is the `VideoType` enum; compare with `VideoType.Expressive` rather than the string `'expressive'`.
+- The five Expressive-only media methods are required members of `AgentManager` instead of optional; remove any `?.` guards.
+- `Agent.avatar` is typed `AgentAvatar` and its `type` is the `VideoType` enum: build `Agent` values with `VideoType.Talk`/`VideoType.Clip`/`VideoType.Expressive`; `===` comparisons against the string still compile but no longer narrow.
 - `AgentManagerOptions.mixpanelAdditionalProperties` and `enrichAnalytics()` are typed `Record<string, unknown>`; callers passing `Record<string, any>` are unaffected unless they rely on inference.
 
 ---

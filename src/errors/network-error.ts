@@ -1,17 +1,5 @@
 import { BaseError, ErrorJson } from './base-error';
-
-/**
- * Request context recorded on an error: what was requested, how long it took and what the tab
- * could see of the network at the time.
- * @internal Implementation type; not part of the public SDK surface.
- */
-export interface RequestMeta {
-    url?: string;
-    method?: string;
-    durationMs?: number;
-    online?: boolean;
-    visibility?: DocumentVisibilityState;
-}
+import { RequestMeta } from './request-meta';
 
 // Transport failure: fetch rejected with no response. Distinct from HttpError (server responded non-2xx).
 export class NetworkError extends BaseError {

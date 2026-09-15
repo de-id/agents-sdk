@@ -33,7 +33,9 @@ export function load(app) {
         if (!page.contents) return;
         const base = String(app.options.getValue('hostedBaseUrl') || '');
         const title = /<title>([^<]*)<\/title>/.exec(page.contents)?.[1] ?? SITE_NAME;
-        const description = PAGE_DESCRIPTIONS[page.url] ?? describe(page.model);
+        const description = Object.hasOwn(PAGE_DESCRIPTIONS, page.url)
+            ? PAGE_DESCRIPTIONS[page.url]
+            : describe(page.model);
         const url = base + (page.url === 'index.html' ? '' : page.url);
         const tags = [
             ['name', 'description', description],
@@ -107,6 +109,12 @@ function llmsTxt(app, project) {
  * name's summary after its link, matching the member-summary markup TypeDoc emits:
  * `<a href="…">Name</a>` immediately followed by the permalink anchor.
  *
+ * Only real summaries are appended — `describe()`'s "X in the … API reference" fallback would
+ * double each row's weight while saying nothing, so undocumented symbols keep their bare name.
+ *
+ * The map is keyed by name, not by reflection: a name that owns two pages (`PublicDataChannelTopic`
+ * is both a type and a variable) is last-wins, so both of its rows show the same sentence.
+ *
  * @param {string} contents
  * @param {ProjectReflection} project
  */
@@ -114,7 +122,7 @@ function annotateIndex(contents, project) {
     /** @type {Map<string, string>} */
     const summaries = new Map();
     for (const doc of project.documents ?? []) summaries.set(doc.name, describe(doc));
-    for (const child of project.children ?? []) summaries.set(child.name, describe(child));
+    for (const child of project.children ?? []) summaries.set(child.name, summaryOf(child));
 
     return contents.replace(
         /(<a href="[^"]+\.html">([^<]+)<\/a>)(<a href="#[^"]*" aria-label="Permalink")/g,
@@ -125,20 +133,35 @@ function annotateIndex(contents, project) {
     );
 }
 
-/** @param {import('typedoc').Reflection} model */
-function describe(model) {
+/**
+ * The reflection's own first sentence, or `''` when it carries no doc comment.
+ * @param {import('typedoc').Reflection} model
+ */
+function summaryOf(model) {
     if (model instanceof ProjectReflection) return SITE_DESCRIPTION;
     if (model instanceof DocumentReflection) {
         const paragraph = partsToText(model.content)
             .split(/\n\s*\n/)
             .map(s => s.trim())
             .find(s => s && !s.startsWith('#'));
-        return truncate(paragraph || `${model.name} for @d-id/client-sdk.`);
+        return paragraph ? truncate(paragraph) : '';
     }
     const summary =
         firstParagraph(partsToText(model.comment?.summary)) ||
         firstParagraph(partsToText(/** @type {any} */ (model).signatures?.[0]?.comment?.summary));
-    return truncate(summary || `${model.name} in the ${SITE_NAME} API reference.`);
+    return summary ? truncate(summary) : '';
+}
+
+/**
+ * Like {@link summaryOf}, but never empty: a meta description and an llms.txt row have to say
+ * something, so an undocumented symbol falls back to its own name.
+ * @param {import('typedoc').Reflection} model
+ */
+function describe(model) {
+    const summary = summaryOf(model);
+    if (summary) return summary;
+    if (model instanceof DocumentReflection) return truncate(`${model.name} for @d-id/client-sdk.`);
+    return truncate(`${model.name} in the ${SITE_NAME} API reference.`);
 }
 
 /** @param {readonly import('typedoc').CommentDisplayPart[] | undefined} parts */

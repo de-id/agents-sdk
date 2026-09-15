@@ -97,6 +97,7 @@ export interface StreamCreatedInfo {
 
     /**
      * Id of the session; the SDK sends it back on every subsequent request for this stream.
+     * On Expressive (V4) agents it is the same value as `stream_id`.
      */
     session_id: string;
 

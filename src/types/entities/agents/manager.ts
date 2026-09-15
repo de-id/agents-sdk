@@ -100,7 +100,8 @@ export interface AgentManagerCallbacks {
      * Optional callback function that will be triggered on fetch request errors
      * @param error - the error the SDK raised; narrow it with `isDIDError`
      * @param errorData - context for this failure; the keys depend on which error it is
-     * (`url` and `options` for a failed request, `sessionId` or `streamId` for a stream failure)
+     * (`url`, `options` and sometimes `headers` for a failed request, `sessionId` or `streamId` for
+     * a stream failure, `data` for a stream event)
      */
     onError?: (error: Error, errorData?: Record<string, unknown>) => void;
     /**
