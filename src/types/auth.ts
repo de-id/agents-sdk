@@ -7,7 +7,7 @@
  * `Authorization: Bearer <token>~<connectionId>`, appending a per-connection id the D-ID
  * authorizer strips before it validates the token.
  *
- * @category Agent Manager
+ * @category Authentication
  */
 export interface BearerToken {
     /**
@@ -30,7 +30,7 @@ export interface BearerToken {
  * base64-encoded as `username:password` first; the trailing per-connection id is stripped by the
  * D-ID authorizer before the credentials are validated.
  *
- * @category Agent Manager
+ * @category Authentication
  */
 export type BasicAuth =
     | {
@@ -71,7 +71,7 @@ export type BasicAuth =
  * `localStorage`.
  *
  * @see [Create a client key](https://docs.d-id.com/reference/createclientkey)
- * @category Agent Manager
+ * @category Authentication
  */
 export interface ClientKeyAuth {
     /**
@@ -95,6 +95,6 @@ export interface ClientKeyAuth {
  * you pass is used for every request the SDK makes — the REST calls, the video stream and the
  * notifications web socket.
  *
- * @category Agent Manager
+ * @category Authentication
  */
 export type Auth = BearerToken | BasicAuth | ClientKeyAuth;
