@@ -8,9 +8,10 @@ import { BaseError } from '../base-error';
  * Raised while {@link AgentManager.connect | connect()} runs, when the chat the server created came
  * back in a mode other than the requested {@link AgentManagerOptions.mode | mode} and that mode is
  * not {@link ChatMode.Functional | Functional} — {@link ChatMode.TextOnly | TextOnly} or
- * {@link ChatMode.Maintenance | Maintenance}, for instance. The SDK disconnects the stream it had
- * just opened and `connect()` resolves anyway, so no video will play and
- * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} will not fire again: the
+ * {@link ChatMode.Maintenance | Maintenance}, for instance. The comparison only runs when `mode` was
+ * set in the options, so a session that never asked for a mode never sees this error. The SDK
+ * disconnects the stream it had just opened and `connect()` resolves anyway, so no video will play
+ * and {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} will not fire again: the
  * session continues as a text chat.
  *
  * It is delivered to {@link AgentManagerCallbacks.onError | onError} and never thrown, so

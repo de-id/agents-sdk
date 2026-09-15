@@ -10,8 +10,8 @@ import { BaseError, ErrorJson } from './base-error';
  */
 import { RequestMeta } from './request-meta';
 /**
- * Path of the request that failed, relative to the API host — for example `/agents/agt_x/chat`.
- * Recorded as `endpoint`.
+ * Path of the request that failed, relative to the API client's base path — for example
+ * `/agt_x/chat/cht_y`. Recorded as `endpoint`.
  */
 /**
  * HTTP method of the request that failed, such as `GET` or `POST`.
@@ -40,8 +40,10 @@ import { RequestMeta } from './request-meta';
  * browser's `fetch` rejected outright because the device is offline, DNS or TLS failed, the
  * connection was refused or the request was blocked, for instance by CORS or an extension. Like
  * {@link HttpError} it is both handed to {@link AgentManagerCallbacks.onError | onError} and
- * thrown, so it also rejects the promise of the method that made the request. A request the SDK
- * cancelled itself is not reported this way — the browser's own `AbortError` is rethrown unchanged.
+ * thrown, so it also rejects the promise of the method that made the request; for the message-send
+ * request behind {@link AgentManager.chat | chat()} the callback may not fire, but the error is
+ * still thrown. A request the SDK cancelled itself is not reported this way — the browser's own
+ * `AbortError` is rethrown unchanged.
  *
  * The message is always `'Network request failed'`; the browser's own wording, such as
  * `'Failed to fetch'`, is kept in {@link BaseError.originalError | originalError} and appears as
@@ -53,8 +55,8 @@ import { RequestMeta } from './request-meta';
  */
 export class NetworkError extends BaseError {
     /**
-     * Path of the request that failed, relative to the API host. Taken from
-     * {@link NetworkErrorMeta.url | meta.url}.
+     * Path of the request that failed, relative to the API client's base path — for example
+     * `/agt_x/chat/cht_y`. Taken from {@link NetworkErrorMeta.url | meta.url}.
      */
     readonly endpoint?: string;
     /**

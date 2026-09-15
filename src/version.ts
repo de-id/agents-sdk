@@ -2,7 +2,8 @@
 declare const __SDK_VERSION__: string;
 
 /**
- * Version of `@d-id/client-sdk` this bundle was built from, such as `'3.0.0'`.
+ * Version of `@d-id/client-sdk` this bundle was built from, such as `'3.0.0'`, or
+ * `'3.0.0-staging.12'` for the prerelease builds published from `main`.
  *
  * The build replaces it with the `version` field of the package's `package.json`, so it is the
  * published version of the SDK rather than anything about the agent or the account. Running the

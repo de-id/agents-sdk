@@ -28,14 +28,15 @@ function parseServerError(body: string): ServerErrorBody | undefined {
  * {@link AgentManager.chat | chat()}, and the rating and feedback calls. The same error is both
  * handed to {@link AgentManagerCallbacks.onError | onError} and thrown, so it also rejects the
  * promise of whichever method made the request — catch it around that call, or handle it centrally
- * in the callback. Common cases are `401` or `403` for a client key that is not authorized for the
- * agent or the calling domain, `404` for an unknown agent id, and `402` when the account is out of
- * credits. A `429` is retried first: the SDK makes up to three attempts a second apart, and only
- * the last failure surfaces.
+ * in the callback. For the message-send request behind {@link AgentManager.chat | chat()} the
+ * callback may not fire; the error is still thrown. Typical cases are `401` or `403` for a client
+ * key that is not authorized for the agent or the calling domain, and `404` for an unknown agent
+ * id; an account that is out of credits comes back with {@link BaseError.kind | kind}
+ * `'InsufficientCreditsError'`.
  *
  * {@link BaseError.kind | kind} is the server's own classification when the response body is D-ID's
- * `{ kind, description }` envelope — for example `'InsufficientCreditsError'` — and `'HttpError'`
- * otherwise, so a message-independent branch on a specific API failure is possible.
+ * `{ kind, description }` envelope — the `'InsufficientCreditsError'` above is one — and
+ * `'HttpError'` otherwise, so a message-independent branch on a specific API failure is possible.
  *
  * @category Errors
  */
@@ -45,7 +46,8 @@ export class HttpError extends BaseError {
      */
     readonly status: number;
     /**
-     * Path of the request that failed, relative to the API host — for example `/agents/agt_x/chat`.
+     * Path of the request that failed, relative to the API client's base path — for example
+     * `/agt_x/chat/cht_y` for a message sent to a chat.
      *
      * Absent when the error was constructed without call context.
      */

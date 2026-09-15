@@ -12,8 +12,9 @@ import { BaseError } from './base-error';
  * around `connect()` for it; if every attempt fails, `connect()` rejects with the browser's own
  * socket event instead.
  *
- * Expressive (V4) agents do not open this socket — they receive the same events over the LiveKit
- * data channel — so the error cannot occur for them.
+ * The socket is not opened at all for Expressive (V4) agents, which receive the same events over
+ * the LiveKit data channel, nor in {@link ChatMode.DirectPlayback | DirectPlayback} mode, so the
+ * error cannot occur in either case.
  *
  * {@link BaseError.kind | kind} is `'WSError'`.
  *
