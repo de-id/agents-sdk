@@ -1,19 +1,4 @@
 /**
- * The rating a user has given an answer, as an application usually tracks it in its UI.
- *
- * {@link AgentManager.rate | rate()} takes a numeric score rather than this enum — `1` for
- * {@link RateState.Positive} and `-1` for {@link RateState.Negative} — and the SDK never returns a
- * `RateState`. It is exported so an application can keep the thumbs-up/thumbs-down state of each
- * message in one shared vocabulary.
- *
- * @category Chat
- */
-/** No rating has been given yet, or an existing one was removed with
- * {@link AgentManager.deleteRate | deleteRate()}. */
-/** A thumbs-up: the score `1` passed to {@link AgentManager.rate | rate()}. */
-/** A thumbs-down: the score `-1` passed to {@link AgentManager.rate | rate()}. */
-
-/**
  * A rating stored against one message of a chat, as the Agents API returns it.
  *
  * Produced by {@link AgentManager.rate | rate()} and returned again by
@@ -58,7 +43,8 @@ export interface RatingEntity {
     external_id: string;
     /** Identity the API attributed the rating to. Set by the API. */
     created_by: string;
-    /** Id of the {@link Chat} the rated message belongs to. */
+    /** Id of the chat the rated message belongs to — the value
+     * {@link AgentManagerCallbacks.onNewChat | onNewChat} reported. */
     chat_id: string;
     /** The score itself: `1` for a positive rating, `-1` for a negative one. */
     score: 1 | -1;
@@ -88,7 +74,8 @@ export type RatingPayload = Omit<
  * @category Chat
  */
 export interface SubmitFeedbackResponse {
-    /** Id of the {@link Chat} the feedback belongs to. */
+    /** Id of the chat the feedback belongs to — the value
+     * {@link AgentManagerCallbacks.onNewChat | onNewChat} reported. */
     chat_id: string;
     /** The score that was submitted, on the agent's end-of-call scale of 1 to 5. */
     rating: number;
@@ -425,14 +412,9 @@ export interface ChatResponse {
 
 /**
  * A conversation with an agent, as the Agents API stores it.
- *
- * One is created while {@link AgentManager.connect | connect()} runs, and lazily on the first
- * {@link AgentManager.chat | chat()} when none exists yet; its id is what
- * {@link AgentManagerCallbacks.onNewChat | onNewChat} reports. Unless
- * {@link AgentManagerOptions.persistentChat | persistentChat} is set, the chat lives only as long
- * as the session.
- *
- * @category Chat
+ * @internal Wire type of the Agents API; not part of the public SDK surface. The only part an
+ * application sees is the chat id, reported by
+ * {@link AgentManagerCallbacks.onNewChat | onNewChat}.
  */
 export interface Chat {
     /** Id of the chat. The value handed to

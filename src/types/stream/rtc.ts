@@ -1,18 +1,8 @@
 /**
- * The session identifier carried by every request and response of a Talks (V2) or Clips (V3)
- * stream.
- *
- * The SDK holds on to the id created with the stream and sends it back on each subsequent
- * streaming request, which is what keeps the requests on the same stream. Applications rarely need
- * it; it is part of the public surface because {@link SendStreamPayloadResponse} extends it.
- *
- * @category Streaming Options
+ * Carrier of the `session_id` that keeps successive streaming requests on the same server session.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
  */
 export interface StickyRequest {
-    /**
-     * Session identifier information, which should be returned in the body of all streaming
-     * requests.
-     */
     session_id?: string;
 }
 
@@ -86,15 +76,10 @@ export interface IceCandidate {
 }
 
 /**
- * The outcome the Agents API reported for a streaming request.
- *
- * The base of {@link SendStreamPayloadResponse}, and the shape returned by the streaming requests
- * that have nothing else to report.
- *
- * @category Streaming Options
+ * Bare `{ status }` envelope returned by the streaming endpoints that report only success or failure.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
  */
 export interface Status {
-    /** How the request ended, as reported by the server — for example `success`. */
     status: string;
 }
 
@@ -111,7 +96,13 @@ export interface Status {
  * @category Streaming Options
  */
 export interface SendStreamPayloadResponse {
+    /**
+     * Whether the server accepted the speak request — `'success'` when it did.
+     */
     status: string;
+    /**
+     * Id of the session this call was made on; the SDK sends it back on later streaming requests.
+     */
     session_id?: string;
     /**
      * Duration of the generated video as reported by the streams API for Talks (V2) and Clips (V3)

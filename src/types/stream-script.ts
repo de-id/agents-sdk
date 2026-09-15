@@ -2,58 +2,36 @@ import { Message } from './entities';
 import { StreamTextToSpeechProviders } from './voice/tts';
 
 /**
- * The two kinds of script {@link AgentManager.speak | speak()} accepts.
+ * A script that makes the agent say text you supply, synthesised by a text-to-speech provider.
  *
- * The value of {@link BaseStreamScript.type}, and the discriminant that separates a
- * {@link TextStreamScript} from an {@link AudioStreamScript}: `text` has a text-to-speech provider
- * synthesise the text you supply, `audio` plays an audio file you host.
+ * The usual payload for {@link AgentManager.speak | speak()}. The agent's LLM is not involved, so
+ * the agent says exactly what {@link TextStreamScript.input | input} contains — which is what makes
+ * it the right script for greetings and other canned lines. Passing a plain string to
+ * {@link AgentManager.speak | speak()} is shorthand for this script with `ssml` set to `false`.
  *
+ * @example Text
+ * ```ts
+ * const speak = await agentManager.speak({
+ *     type: 'text',
+ *     input: "Hi! I'm Alice!",
+ * });
+ * ```
+ * @example Text with sentiment
+ * `sentiment` is for Expressive (V4) agents only. If the requested sentiment is not supported by
+ * the agent, the default sentiment is used.
+ * ```ts
+ * const speak = await agentManager.speak({
+ *     type: 'text',
+ *     input: "Hi! I'm Alice!",
+ *     sentiment: 'friendly',
+ * });
+ * ```
  * @category Speak & Scripts
  */
 export interface TextStreamScript {
     /**
-     * The one field every speak script has.
-     *
-     * {@link TextStreamScript} and {@link AudioStreamScript} both extend it and narrow
-     * {@link BaseStreamScript.type | type} to their own literal, so a payload you pass to
-     * {@link AgentManager.speak | speak()} is written as one of those two rather than as this
-     * interface.
-     *
-     * @category Speak & Scripts
-     */
-    /**
-     * Which kind of script this is — `text` or `audio`. See {@link StreamScriptType}.
-     */
-
-    /**
-     * A script that makes the agent say text you supply, synthesised by a text-to-speech provider.
-     *
-     * The usual payload for {@link AgentManager.speak | speak()}. The agent's LLM is not involved, so
-     * the agent says exactly what {@link TextStreamScript.input | input} contains — which is what makes
-     * it the right script for greetings and other canned lines. Passing a plain string to
-     * {@link AgentManager.speak | speak()} is shorthand for this script with `ssml` set to `false`.
-     *
-     * @example Text
-     * ```ts
-     * const speak = await agentManager.speak({
-     *     type: 'text',
-     *     input: "Hi! I'm Alice!",
-     * });
-     * ```
-     * @example Text with sentiment
-     * `sentiment` is for Expressive (V4) agents only. If the requested sentiment is not supported by
-     * the agent, the default sentiment is used.
-     * ```ts
-     * const speak = await agentManager.speak({
-     *     type: 'text',
-     *     input: "Hi! I'm Alice!",
-     *     sentiment: 'friendly',
-     * });
-     * ```
-     * @category Speak & Scripts
-     */
-    /**
-     * The type of the script. Always `text` for this variant.
+     * Which kind of script this is. Always `text` for this variant; an
+     * {@link AudioStreamScript} carries `audio` instead.
      */
     type: 'text';
 
@@ -118,7 +96,8 @@ export interface TextStreamScript {
  */
 export interface AudioStreamScript {
     /**
-     * The type of the script. Always `audio` for this variant.
+     * Which kind of script this is. Always `audio` for this variant; a
+     * {@link TextStreamScript} carries `text` instead.
      */
     type: 'audio';
 
@@ -158,8 +137,8 @@ export type StreamScript = TextStreamScript | AudioStreamScript | LlmStreamScrip
 /**
  * The script payload {@link AgentManager.speak | speak()} accepts: text or audio.
  *
- * Discriminated by {@link BaseStreamScript.type | type}, so `'text'` narrows the object to
- * {@link TextStreamScript} and `'audio'` to {@link AudioStreamScript}.
+ * Discriminated by its `type` field, so `'text'` narrows the object to {@link TextStreamScript}
+ * and `'audio'` to {@link AudioStreamScript}.
  * {@link AgentManager.speak | speak()} additionally takes a plain string, as shorthand for a
  * {@link TextStreamScript} with that string as its `input`.
  *

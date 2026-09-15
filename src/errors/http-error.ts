@@ -38,6 +38,10 @@ function parseServerError(body: string): ServerErrorBody | undefined {
  * `{ kind, description }` envelope — the `'InsufficientCreditsError'` above is one — and
  * `'HttpError'` otherwise, so a message-independent branch on a specific API failure is possible.
  *
+ * The message is the envelope's `description` when the body is that JSON, and the raw body
+ * otherwise — truncated to 256 characters either way, because a gateway can answer a 5xx with a
+ * whole HTML page.
+ *
  * @category Errors
  */
 export class HttpError extends BaseError {
@@ -60,18 +64,8 @@ export class HttpError extends BaseError {
     readonly method?: string;
 
     /**
-     * Builds the error from the failing response. The SDK does this itself when a request is not
-     * `ok`.
-     *
-     * The message is the envelope's `description` when the body is D-ID's `{ kind, description }`
-     * JSON, and the raw body otherwise — truncated to 256 characters either way, because a gateway
-     * can answer a 5xx with a whole HTML page.
-     *
-     * @param status - HTTP status code of the response.
-     * @param body - Raw response body, parsed as the `{ kind, description }` envelope when it is
-     * one.
-     * @param meta - The call that failed: its `url` and `method`. Both end up in
-     * {@link HttpError.toJson | toJson()} when given.
+     * Builds the error from the failing response.
+     * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */
     constructor(status: number, body: string, meta: RequestMeta = {}) {
         const parsed = parseServerError(body);

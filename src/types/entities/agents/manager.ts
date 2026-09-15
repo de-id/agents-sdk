@@ -501,7 +501,10 @@ export interface AgentManagerOptions {
  * {@link AgentManager.speak | speak()} makes it say exactly what you give it. Call
  * {@link AgentManager.disconnect | disconnect()} when the user leaves.
  *
- * Some members work only with some avatar types: each one says so.
+ * Two properties, {@link AgentManager.agent | agent} and
+ * {@link AgentManager.starterMessages | starterMessages}, are readable as soon as the manager
+ * exists; everything else is a method. Some methods work only with some avatar types: each one
+ * says so, and {@link AgentAvatar} is where the session's tier is read from.
  *
  * @category Agent Manager
  */

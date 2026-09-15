@@ -1,40 +1,9 @@
 import { BaseError, ErrorJson } from './base-error';
 
-/**
- * Context captured about the request that failed, recorded on a {@link NetworkError}.
- *
- * Everything is optional: the SDK fills in what the browser can tell it at the moment of the
- * failure, and each field it has is copied into {@link NetworkError.toJson | toJson()}.
- *
- * @category Errors
- */
 import { RequestMeta } from './request-meta';
-/**
- * Path of the request that failed, relative to the API client's base path — for example
- * `/agt_x/chat/cht_y`. Recorded as `endpoint`.
- */
-/**
- * HTTP method of the request that failed, such as `GET` or `POST`.
- */
-/**
- * How long the request ran before it failed, in milliseconds.
- *
- * A value close to zero usually means the request never left the browser; a large one points at
- * a connection that was established and then lost.
- */
-/**
- * The browser's `navigator.onLine` at the moment of the failure — `false` when the device
- * reported itself offline.
- */
-/**
- * The page's `document.visibilityState` at the moment of the failure.
- *
- * `'hidden'` means the tab was in the background, where browsers throttle or suspend network
- * activity.
- */
 
 /**
- * A request to the D-ID API never reached the server, so no response came back.
+ * A request to the Agents API never reached the server, so no response came back.
  *
  * This is the transport failure counterpart of {@link HttpError}, where the server did answer: the
  * browser's `fetch` rejected outright because the device is offline, DNS or TLS failed, the
@@ -56,7 +25,7 @@ import { RequestMeta } from './request-meta';
 export class NetworkError extends BaseError {
     /**
      * Path of the request that failed, relative to the API client's base path — for example
-     * `/agt_x/chat/cht_y`. Taken from {@link NetworkErrorMeta.url | meta.url}.
+     * `/agt_x/chat/cht_y`.
      */
     readonly endpoint?: string;
     /**
@@ -65,24 +34,27 @@ export class NetworkError extends BaseError {
     readonly method?: string;
     /**
      * How long the request ran before it failed, in milliseconds.
+     *
+     * A value close to zero usually means the request never left the browser; a large one points
+     * at a connection that was established and then lost.
      */
     readonly durationMs?: number;
     /**
-     * The browser's `navigator.onLine` at the moment of the failure.
+     * The browser's `navigator.onLine` at the moment of the failure — `false` when the device
+     * reported itself offline.
      */
     readonly online?: boolean;
     /**
      * The page's `document.visibilityState` at the moment of the failure.
+     *
+     * `'hidden'` means the tab was in the background, where browsers throttle or suspend network
+     * activity.
      */
     readonly visibility?: DocumentVisibilityState;
 
     /**
-     * Wraps a rejected `fetch` together with what was known about the call. The SDK builds this
-     * itself.
-     *
-     * @param originalError - The browser's own rejection, kept as
-     * {@link BaseError.originalError | originalError}.
-     * @param meta - Context about the failing request. See {@link NetworkErrorMeta}.
+     * Wraps a rejected `fetch` together with what was known about the call.
+     * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */
     constructor(originalError?: unknown, meta: RequestMeta = {}) {
         super('Network request failed', 'NetworkError', originalError);

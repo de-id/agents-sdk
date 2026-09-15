@@ -272,8 +272,9 @@ export type RpcMethodHandler = (data: { payload: string }) => Promise<string>;
 /**
  * Identifiers of the stream the SDK has just opened for the session.
  *
- * Handed to `onStreamCreated` once the server has accepted the stream, before the first video frame
- * arrives. Log the three ids together: they are what identifies the session in D-ID's own records.
+ * Handed to {@link AgentManagerCallbacks.onStreamCreated | onStreamCreated} once the server has
+ * accepted the stream, before the first video frame arrives. Log the three ids together: they are
+ * what identifies the session in D-ID's own records.
  *
  * @category Callbacks & Events
  */
@@ -563,7 +564,7 @@ export type ToolExecutionMode = 'blocking' | 'async';
  * @category Callbacks & Events
  */
 export interface RunningToolCall {
-    /** Id of this call, matching the `call_id` of the {@link ToolEventPayload} that announced it. */
+    /** Id of this call, matching the `call_id` of the {@link ToolCallStartedPayload} that announced it. */
     callId: string;
     /** Name of the tool being called, as configured on the agent. */
     name: string;
@@ -662,13 +663,8 @@ export interface ToolCallErrorPayload {
 }
 
 /**
- * Any of the three tool-call payloads, discriminated by the event they arrive with.
- *
- * The second argument of {@link AgentManagerCallbacks.onToolEvent | onToolEvent}. The overloads on
- * {@link ToolEventCallback} narrow it for you, so a handler typed with that callback sees the
- * concrete payload rather than this union.
- *
- * @category Callbacks & Events
+ * Union of the three tool-call payloads, narrowed away by the overloads on {@link ToolEventCallback}.
+ * @internal Implementation type; not part of the public SDK surface.
  */
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
 
@@ -753,9 +749,9 @@ export enum StreamEndReason {
  * The signature of {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
  *
  * Three overloads, one per tool-call event, so the first argument narrows the second: a handler
- * written against this type sees {@link ToolCallStartedPayload},
- * {@link ToolCallDonePayload} or {@link ToolCallErrorPayload} rather than the
- * {@link ToolEventPayload} union. Expressive (V4) agents only.
+ * written against this type sees exactly one of {@link ToolCallStartedPayload},
+ * {@link ToolCallDonePayload} and {@link ToolCallErrorPayload}, never a union of the three.
+ * Expressive (V4) agents only.
  *
  * @example
  * ```ts
