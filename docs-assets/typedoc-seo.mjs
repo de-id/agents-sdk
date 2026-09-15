@@ -134,7 +134,8 @@ function firstParagraph(text) {
 function truncate(text) {
     const oneLine = text.replace(/\s*\n\s*/g, ' ').trim();
     if (oneLine.length <= MAX_DESCRIPTION) return oneLine;
-    const sentences = oneLine.match(/[^.!?]+[.!?]+(?=\s|$)/g) ?? [];
+    // A period ends a sentence only when whitespace follows, so URLs and version numbers stay intact.
+    const sentences = oneLine.match(/(?:[^.!?]|[.!?](?!\s|$))+[.!?]+(?=\s|$)/g) ?? [];
     let kept = '';
     for (const sentence of sentences) {
         const next = `${kept}${sentence}`.trim();
