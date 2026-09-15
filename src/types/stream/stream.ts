@@ -8,9 +8,10 @@ import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, 
 /**
  * Which video codec the stream should negotiate.
  *
- * Passed as {@link StreamOptions.compatibilityMode}. `on` forces VP8, `off` forces H264, and
- * `auto` lets the SDK pick according to the browser. Talks (V2) and Clips (V3) agents only —
- * Expressive (V4) avatars negotiate the codec themselves and ignore the setting.
+ * Passed as {@link StreamOptions.compatibilityMode}. `on` forces VP8 and `off` forces H264; with
+ * `auto` the SDK forwards the flag and the codec is selected according to the browser. Talks (V2)
+ * and Clips (V3) agents only — Expressive (V4) avatars negotiate the codec themselves and ignore
+ * the setting.
  *
  * @category Streaming Options
  */
@@ -108,16 +109,30 @@ export enum StreamEvents {
     /** The user's speech, transcribed by the server; it becomes a `user` message. */
     ChatAudioTranscribed = 'chat/audio-transcribed',
     /**
-     * The session ended.
+     * A video finished playing, or the session ended — which one depends on where it arrives.
      *
-     * Carries the reason the stream ended, which the SDK passes on as the `reason` argument of
-     * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange} with
-     * {@link ConnectionState.Disconnected | 'disconnected'}. See {@link StreamEndReason}.
+     * On the data channel of a Talks (V2) or Clips (V3) stream it closes the video
+     * {@link StreamEvents.StreamStarted | 'stream/started'} opened, once per
+     * {@link AgentManager.speak | speak()}, and drives
+     * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} with
+     * {@link StreamingState.Stop | STOP} and
+     * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange} with
+     * {@link AgentActivityState.Idle | IDLE}.
+     *
+     * On the Talks (V2) and Clips (V3) web socket, and on an Expressive (V4) stream, it instead
+     * ends the whole session: it carries the reason, which the SDK passes on as the `reason`
+     * argument of {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange}
+     * with {@link ConnectionState.Disconnected | 'disconnected'}. See {@link StreamEndReason}.
      */
     StreamDone = 'stream/done',
     /** A video started playing on a Talks (V2) or Clips (V3) stream. */
     StreamStarted = 'stream/started',
-    /** The session ended because the stream failed. */
+    /**
+     * The session ended because the stream failed.
+     *
+     * On the Talks (V2) and Clips (V3) web socket it is also reported through
+     * {@link AgentManagerCallbacks.onError | onError}, as a {@link StreamError}.
+     */
     StreamFailed = 'stream/error',
     /**
      * The warmup video has finished and the stream is ready for real content.
@@ -208,7 +223,13 @@ export enum ConnectionState {
     Closed = 'closed',
     /** Negotiation finished and the connection is fully established. */
     Completed = 'completed',
-    /** {@link AgentManager.disconnect | disconnect()} is in progress. */
+    /**
+     * {@link AgentManager.disconnect | disconnect()} is in progress.
+     *
+     * Expressive (V4) agents only; Talks (V2) and Clips (V3) go straight from
+     * {@link ConnectionState.Connected | 'connected'} to
+     * {@link ConnectionState.Disconnected | 'disconnected'}.
+     */
     Disconnecting = 'disconnecting',
     /**
      * The stream has ended.
@@ -508,7 +529,8 @@ export interface StreamInterruptPayload {
  * (V4) agents only.
  *
  * @param args - The arguments the LLM produced for this call, already parsed from JSON.
- * @returns A JSON string with the tool's result, at most 15 KiB.
+ * @returns A JSON string with the tool's result, at most 15 KiB — the LiveKit RPC response limit;
+ * a larger result fails the call with an RPC error.
  * @example
  * ```ts
  * agentManager.registerClientTool('get_cart_total', async args => {
@@ -537,7 +559,8 @@ export type ToolExecutionMode = 'blocking' | 'async';
  *
  * The entries of the array given to
  * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}. A call appears
- * when it starts and disappears when it finishes, fails, or its turn ends.
+ * when it starts and disappears when it finishes, fails, or — for a `blocking` call — when its turn
+ * ends; an `async` call outlives its turn.
  *
  * @category Callbacks & Events
  */
@@ -570,7 +593,14 @@ export interface ToolCallStartedPayload {
     input: Record<string, unknown>;
     /** The tool's result. The started event is emitted before the tool has run, so it holds nothing useful yet. */
     output: Record<string, unknown>;
-    /** Whether the agent can be interrupted while this call is outstanding. */
+    /**
+     * Whether the server considers the agent interruptible while this call is outstanding.
+     *
+     * Informational: the SDK does not forward it.
+     * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} is derived from
+     * the {@link ToolCallStartedPayload.execution_mode | execution_mode} of the calls still
+     * running, not from this field.
+     */
     interruptible: boolean;
     /**
      * Whether the agent waits for this call. See {@link ToolExecutionMode}; anything other than

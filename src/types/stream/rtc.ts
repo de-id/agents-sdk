@@ -112,7 +112,7 @@ export interface Status {
 export interface SendStreamPayloadResponse {
     status: string;
     session_id?: string;
-    /** Length of the generated video, in seconds. */
+    /** Duration of the generated video as reported by the streams API for Talks (V2) and Clips (V3) agents. */
     duration: number;
     /**
      * Id of the generated video.
