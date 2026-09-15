@@ -62,6 +62,7 @@ Shapes are unchanged; only the names differ.
 - The five Expressive-only media methods are required members of `AgentManager` instead of optional; remove any `?.` guards.
 - `Agent.avatar` is typed `AgentAvatar` and its `type` is the `AvatarType` enum: build `Agent` values with `AvatarType.Talk`/`AvatarType.Clip`/`AvatarType.Expressive`; `===` comparisons against the string still compile but no longer narrow.
 - `AgentManagerOptions.mixpanelAdditionalProperties` and `enrichAnalytics()` are typed `Record<string, unknown>`; callers passing `Record<string, any>` are unaffected unless they rely on inference.
+- `agentManager.getSTTToken()` is now typed `Promise<STTTokenResponse>`; it never resolved `undefined` (a failed request throws `HttpError`).
 
 ---
 

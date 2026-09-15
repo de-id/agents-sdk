@@ -552,7 +552,7 @@ export interface AgentManager {
      * @throws {@link HttpError} When the service does not answer with a token, or the request comes
      * back non-2xx for any other reason.
      */
-    getSTTToken(): Promise<STTTokenResponse | undefined>;
+    getSTTToken(): Promise<STTTokenResponse>;
     /**
      * Opens a new session with the agent: a new WebRTC connection, a new web socket and a new chat.
      *
