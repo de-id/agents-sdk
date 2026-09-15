@@ -34,10 +34,35 @@ export interface EndOfCallFeedbackConfig {
     };
 }
 
+/**
+ * The avatar an agent speaks through: its rendering tier and the language of its voice.
+ *
+ * The value of {@link Agent.avatar}. Its `type` is the single most important field on an agent: it
+ * decides which transport the session uses and therefore which SDK features work.
+ *
+ * @category Agent Manager
+ */
 export interface AgentAvatar {
+    /**
+     * The kind of avatar: {@link AvatarType.Talk | talk} for Talks (V2), {@link AvatarType.Clip | clip}
+     * for Clips (V3), {@link AvatarType.Expressive | expressive} for Expressive (V4).
+     *
+     * Talks (V2) and Clips (V3) agents stream over WebRTC and receive their events on the
+     * notifications web socket; Expressive (V4) agents connect to a real-time session instead, which
+     * is what makes the microphone, camera, client tool and data-channel methods of
+     * {@link AgentManager} available.
+     */
     type: AvatarType;
-    voice?: { language?: string };
+    /** The voice the agent speaks with. */
+    voice?: {
+        /**
+         * Language of the configured voice. The SDK reports it in analytics; it does not change how
+         * the session behaves.
+         */
+        language?: string;
+    };
 }
+
 /**
  * An agent's profile, as the Agents API returns it.
  *
@@ -111,26 +136,9 @@ export interface Agent {
      * The avatar the agent is built on.
      *
      * Its `type` is the single most important field on an agent: it decides which transport the
-     * session uses and therefore which SDK features work.
+     * session uses and therefore which SDK features work. See {@link AgentAvatar}.
      */
-    avatar: {
-        /**
-         * The kind of avatar: `talk` for Talks (V2), `clip` for Clips (V3), `expressive` for
-         * Expressive (V4).
-         *
-         * `talk` and `clip` agents stream over WebRTC and receive their events on the notifications
-         * web socket; `expressive` agents connect to a real-time session instead, which is what
-         * makes the microphone, camera, client tool and data-channel methods of
-         * {@link AgentManager} available. The values are those of {@link VideoType}.
-         */
-        type: 'talk' | 'clip' | 'expressive';
-        /** The voice the agent speaks with. */
-        voice?: {
-            /** Language of the configured voice. The SDK reports it in analytics; it does not
-             * change how the session behaves. */
-            language?: string;
-        };
-    };
+    avatar: AgentAvatar;
     /**
      * Whether vision is enabled for the agent.
      *
