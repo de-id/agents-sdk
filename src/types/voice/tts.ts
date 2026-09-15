@@ -71,7 +71,8 @@ export interface Voice {
 }
 
 /**
- * Elevenlabs provider details, contains the provider type and requested voice id, available for premium users.
+ * ElevenLabs provider details: the provider type, the requested voice id and optional voice
+ * settings. Available to accounts whose plan includes premium voices.
  *
  * Pass it as {@link TextStreamScript.provider} to have ElevenLabs synthesise the text, optionally
  * with {@link VoiceConfigElevenlabs} to control how closely the voice is reproduced.
@@ -156,7 +157,7 @@ export interface AzureOpenAiTtsProvider extends Omit<MicrosoftTtsProvider, 'type
 }
 
 /**
- * Amazon provider details, contains the provider type and requested voice id
+ * Amazon provider details: the provider type and the requested voice id.
  *
  * Pass it as {@link TextStreamScript.provider} to have Amazon synthesise the text. It is the one
  * provider with no `voice_config`: the voice is selected by `voice_id` alone.

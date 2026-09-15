@@ -1,4 +1,4 @@
-# Agents SDK Overview 📙
+# D-ID Client SDK 📙
 
 <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-evenly; min-height: 1px; font-size: 16px;">
   <img style="width: auto; height: 200px; object-fit: contain;" src="https://create-images-results.d-id.com/api_docs/assets/agents_sdk_cover_v2.png" alt="Agents SDK Cover" />
@@ -7,7 +7,7 @@
   </span>
 </div>
 
-## ✴️ Introduction
+## Introduction
 
 The D-ID Agents SDK embeds your created Agents or real-time streaming avatars into web applications.
 
@@ -21,11 +21,11 @@ The SDK supports three avatar types:
 
 **Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/docs/agent-quickstart) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
 
-> 📚 **Full API reference:** [sdk.d-id.com](https://sdk.d-id.com/) — every method, callback, option and type, generated from the source on each release. ![Docs coverage](https://sdk.d-id.com/coverage.svg)
+> 📚 **Full API reference:** [sdk.d-id.com](/) — every method, callback, option and type, generated from the source on each release. ![Docs coverage](/coverage.svg)
 
-## ✴️ Getting Started
+## Getting Started
 
-### ➤ ✴️ Prerequisites
+### Prerequisites
 
 Follow these steps:
 
@@ -37,7 +37,7 @@ Follow these steps:
    This is an additional security measurement: your Agent can be accessed only from the domains allowed by you.
 6. In the code snippet section, fetch the `data-client-key` and the `data-agent-id`, these will be used later to access your Agent.
 
-### ➤ ✴️ Installation
+### Installation
 
 In your front-end application folder, install the Agents SDK library using `npm`.
 
@@ -47,19 +47,21 @@ npm i @d-id/client-sdk
 
 Alternatively, you can clone the SDK from its [GitHub repository](https://github.com/de-id/agents-sdk).
 
-### ➤ ✴️ Initialization
+### Initialization
 
 In your front-end application,
 
 1. Import the Agents SDK library
 2. Paste the `data-agent-id` obtained in the prerequisites step in the `agentId` variable
 3. Paste the `data-client-key` obtained in the prerequisites step in the `auth.clientKey` variable
-4. Define an object called `callbacks`.
-   See [`AgentManagerCallbacks`](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html) in the API reference.
-5. Define an object called `streamOptions` [optional — v2/v3 avatars only]
-   See [`StreamOptions`](https://sdk.d-id.com/interfaces/StreamOptions.html) in the API reference.
+4. Define an object called `callbacks`. `onSrcObjectReady` is mandatory: it hands you the media stream to render, so without it the agent has nowhere to play.
+   See [`AgentManagerCallbacks`](/interfaces/AgentManagerCallbacks.html) in the API reference.
+5. Define an object called `streamOptions` [optional — Talks (V2) and Clips (V3) agents only]
+   See [`StreamOptions`](/interfaces/StreamOptions.html) in the API reference.
 6. Create an instance of the `createAgentManager` object called `agentManager` with the values created above.
-   See [`AgentManager`](https://sdk.d-id.com/interfaces/AgentManager.html) in the API reference.
+   See [`AgentManager`](/interfaces/AgentManager.html) in the API reference.
+7. Open the session with `connect()`, and wait for it to resolve before speaking to the agent.
+8. Make the agent talk: `speak()` says exactly what you give it, `chat()` has the agent answer with its own LLM.
 
 Example:
 
@@ -74,9 +76,23 @@ let agentId = 'agt_fumf1234';
 let auth = { type: 'key', clientKey: 'Z3123asdaczxSXSAasdcxzcashDY6MGSASFsafxSDdfASY2k0TUhPcEVsTnBR' };
 
 // 4. Define the SDK callbacks functions in this object
-const callbacks = {};
+const videoElement = document.getElementById('agent-video');
 
-// 5. Define the Stream Options object (Optional — v2/v3 avatars only)
+const callbacks = {
+    onSrcObjectReady(value) {
+        videoElement.srcObject = value;
+    },
+    onConnectionStateChange(state) {
+        console.log('connection:', state);
+    },
+    onNewMessage(messages, type) {
+        if (type === 'answer') {
+            console.log(messages[messages.length - 1].content);
+        }
+    },
+};
+
+// 5. Define the Stream Options object (Optional — Talks (V2) and Clips (V3) agents only)
 let streamOptions = { compatibilityMode: 'auto', streamWarmup: true };
 
 //....Rest of the APP's code here....//
@@ -84,56 +100,39 @@ let streamOptions = { compatibilityMode: 'auto', streamWarmup: true };
 
 // 6. Create the 'agentManager' instance with the values created above
 let agentManager = await sdk.createAgentManager(agentId, { auth, callbacks, streamOptions });
-```
 
-## ✴️ Usage
-
-Everything the `agentManager` exposes — methods, callbacks, stream options and every type — is documented in the **[API reference](https://sdk.d-id.com/)**, generated from the source on each release. Start with:
-
-- [`createAgentManager()`](https://sdk.d-id.com/functions/createAgentManager.html) — initialization and options
-- [`AgentManager`](https://sdk.d-id.com/interfaces/AgentManager.html) — `connect()`, `speak()`, `chat()`, `interrupt()`, microphone and camera publishing, client tools
-- [`AgentManagerCallbacks`](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html) — `onSrcObjectReady` (mandatory), `onVideoStateChange`, `onConnectionStateChange`, `onNewMessage`, …
-- [`StreamOptions`](https://sdk.d-id.com/interfaces/StreamOptions.html) — Talks (V2) and Clips (V3) transport options
-
-A minimal end-to-end flow:
-
-```javascript
-import * as sdk from '@d-id/client-sdk';
-
-const videoElement = document.getElementById('agent-video');
-
-const agentManager = await sdk.createAgentManager('agt_fumf1234', {
-    auth: { type: 'key', clientKey: 'YOUR_CLIENT_KEY' },
-    callbacks: {
-        onSrcObjectReady(value) {
-            videoElement.srcObject = value;
-        },
-        onConnectionStateChange(state) {
-            console.log('connection:', state);
-        },
-    },
-});
-
+// 7. Open the session
 await agentManager.connect();
+
+// 8. Make the agent talk
 await agentManager.speak({ type: 'text', input: "Hi! I'm Alice!" });
 await agentManager.chat('What is the distance to the moon?');
 ```
 
-## ✴️ See it in Action
+## Usage
+
+Everything the `agentManager` exposes — methods, callbacks, stream options and every type — is documented in the **[API reference](/)**, generated from the source on each release. Start with:
+
+- [`createAgentManager()`](/functions/createAgentManager.html) — initialization and options
+- [`AgentManager`](/interfaces/AgentManager.html) — `connect()`, `speak()`, `chat()`, `interrupt()`, microphone and camera publishing, client tools
+- [`AgentManagerCallbacks`](/interfaces/AgentManagerCallbacks.html) — `onSrcObjectReady` (mandatory), `onVideoStateChange`, `onConnectionStateChange`, `onNewMessage`, …
+- [`StreamOptions`](/interfaces/StreamOptions.html) — Talks (V2) and Clips (V3) transport options
+
+## See it in Action
 
 Explore our demo repository on GitHub to see the Agents SDK in action!
 This repository features a sample project crafted in Vanilla JavaScript and Vite, utilizing the Agents SDK to help you get started swiftly.
 
 [GitHub Demo Repository](https://github.com/de-id/Agents-SDK-Demo)
 
-## ✴️ Support
+## Support
 
 <div style="display: flex; flex-direction: row; justify-content: space-evenly; min-height: 1px">
   <img style="width: 37%; border-radius: 5px; object-fit: cover;" src="https://create-images-results.d-id.com/api_docs/assets/questions.png" alt="Support Image" />
   <span style="width: 3%"><br/></span>
   <span style="width: 60%; text-align: left;">
-    Have any questions? We are here to help! Please leave your question in the Discussions section and we will be happy to answer shortly.<br/><br/>
-    <a href="https://docs.d-id.com/discuss">
+    Have any questions? We are here to help! Please open an issue on GitHub and we will be happy to answer shortly.<br/><br/>
+    <a href="https://github.com/de-id/agents-sdk/issues">
       <span style="width: 30%; text-align: center; background: #ff882eff; color: #fff; display: inline-block; padding: 6px; border-radius: 5px;">
         Ask a question
       </span>
