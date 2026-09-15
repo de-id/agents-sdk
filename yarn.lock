@@ -3815,11 +3815,6 @@ typedoc-plugin-coverage@^4.0.3:
   resolved "https://registry.yarnpkg.com/typedoc-plugin-coverage/-/typedoc-plugin-coverage-4.0.3.tgz#24cb2730db122e45580237c515938477bef671dd"
   integrity sha512-baim3wyMkqpX7rBzL/6iZ7wzKJuSr9ffP16RHOsdTUNoHUZeXLIZHSUBtUhXmNHaUNRgfqdmKLBwyggbJjGdeQ==
 
-typedoc-plugin-llms-txt@0.1.2:
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/typedoc-plugin-llms-txt/-/typedoc-plugin-llms-txt-0.1.2.tgz#12d5950d31878cddf66509a70bc6683d1d46d49d"
-  integrity sha512-9q7x5ZdwkSZKJK23cvirtfQw87970n2p/hSv3T0YlOlgIY6isRHdUOM+QPErANFPXZv0X+ezS6QZp10dejOExQ==
-
 typedoc-plugin-mdn-links@^5.1.1:
   version "5.1.1"
   resolved "https://registry.yarnpkg.com/typedoc-plugin-mdn-links/-/typedoc-plugin-mdn-links-5.1.1.tgz#1ef081b26ac3ab7e4f31d4be23d6e6a10551ede6"

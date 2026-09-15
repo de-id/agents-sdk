@@ -48,17 +48,7 @@ const config = {
     sourceLinkTemplate: 'https://github.com/de-id/agents-sdk/blob/{gitRevision}/{path}#L{line}',
 
     // Plugins
-    plugin: [
-        'typedoc-plugin-mdn-links',
-        'typedoc-plugin-coverage',
-        'typedoc-plugin-llms-txt',
-        './docs-assets/typedoc-seo.mjs',
-    ],
-    llmsTxtHeader: {
-        name: 'D-ID Client SDK',
-        description:
-            'API reference for @d-id/client-sdk, the browser SDK for D-ID Agents: connect to an agent, stream its video and audio, chat and speak.',
-    },
+    plugin: ['typedoc-plugin-mdn-links', 'typedoc-plugin-coverage', './docs-assets/typedoc-seo.mjs'],
 
     // Organisation: sidebar grouped by @category, never by TS kind
     categorizeByGroup: false,

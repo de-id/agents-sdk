@@ -4,13 +4,14 @@
  *
  * TypeDoc's default theme puts the same `<meta name="description">` on every page and emits no
  * social-card tags. This plugin replaces the description with the page's own summary and adds
- * OpenGraph and Twitter tags, and copies a `404.html` into the site for GitHub Pages.
+ * OpenGraph and Twitter tags, writes an `llms.txt` index of every page with its summary, and copies
+ * a `404.html` into the site for GitHub Pages.
  */
-import { copyFileSync } from 'node:fs';
+import { copyFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DocumentReflection, PageEvent, ProjectReflection, Renderer } from 'typedoc';
+import { DeclarationReflection, DocumentReflection, PageEvent, ProjectReflection, Renderer } from 'typedoc';
 
 const SITE_NAME = 'D-ID Client SDK';
 const SITE_DESCRIPTION =
@@ -24,7 +25,7 @@ export function load(app) {
         if (!page.contents) return;
         const base = String(app.options.getValue('hostedBaseUrl') || '');
         const title = /<title>([^<]*)<\/title>/.exec(page.contents)?.[1] ?? SITE_NAME;
-        const description = describe(page);
+        const description = describe(page.model);
         const url = base + (page.url === 'index.html' ? '' : page.url);
         const tags = [
             ['name', 'description', description],
@@ -48,12 +49,48 @@ export function load(app) {
 
     app.renderer.on(Renderer.EVENT_END, event => {
         copyFileSync(join(ASSETS_DIR, '404.html'), join(event.outputDirectory, '404.html'));
+        writeFileSync(join(event.outputDirectory, 'llms.txt'), llmsTxt(app, event.project));
     });
 }
 
-/** @param {import('typedoc').PageEvent<import('typedoc').Reflection>} page */
-function describe(page) {
-    const model = page.model;
+/**
+ * The llms.txt index (https://llmstxt.org/): one line per page with its summary, grouped the way
+ * the sidebar is, so an assistant can pick the right page without crawling the site.
+ *
+ * @param {import('typedoc').Application} app
+ * @param {ProjectReflection} project
+ */
+function llmsTxt(app, project) {
+    const base = String(app.options.getValue('hostedBaseUrl') || '');
+    /** @param {import('typedoc').Reflection} reflection */
+    const urlOf = reflection => base + app.renderer.router.getFullUrl(reflection);
+    const lines = [
+        `# ${SITE_NAME}`,
+        '',
+        `> ${SITE_DESCRIPTION}`,
+        '',
+        'Install with `npm install @d-id/client-sdk`. Everything starts with `createAgentManager()`, which returns an `AgentManager` for one agent: `connect()`, then `chat()` or `speak()`.',
+        '',
+        '## Guides',
+        `- [Overview](${base}): install the SDK, connect to an agent and send the first message.`,
+    ];
+    for (const doc of project.documents ?? []) {
+        lines.push(`- [${doc.name}](${urlOf(doc)}): ${describe(doc)}`);
+    }
+    const categories = project.categories ?? [{ title: 'API', children: project.children ?? [] }];
+    for (const category of categories) {
+        const declarations = category.children.filter(child => child instanceof DeclarationReflection);
+        if (declarations.length === 0) continue;
+        lines.push('', `## ${category.title}`);
+        for (const declaration of declarations) {
+            lines.push(`- [${declaration.name}](${urlOf(declaration)}): ${describe(declaration)}`);
+        }
+    }
+    return `${lines.join('\n')}\n`;
+}
+
+/** @param {import('typedoc').Reflection} model */
+function describe(model) {
     if (model instanceof ProjectReflection) return SITE_DESCRIPTION;
     if (model instanceof DocumentReflection) {
         const paragraph = partsToText(model.content)
