@@ -66,7 +66,9 @@ export interface Agent {
      * The greeting lines configured for the agent.
      *
      * The SDK never speaks them by itself: pass one to {@link AgentManager.speak | speak()} once
-     * the agent is connected if you want the agent to open the conversation.
+     * the agent is connected if you want the agent to open the conversation. Check what your own
+     * agent does first — an Expressive (V4) session's server side may greet on its own, in which
+     * case speaking a greeting as well says it twice.
      */
     greetings?: string[];
     /**

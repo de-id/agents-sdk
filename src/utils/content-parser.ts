@@ -32,11 +32,11 @@ interface MatchEntry {
  * {@link Message.parts}, so this is for content that comes from somewhere else — a transcript you
  * stored yourself, or text you assembled before handing it to a renderer. It recognises markdown
  * images (`![alt](url)`), the video thumbnail form (`[![alt](thumb)](video)`), markdown links
- * (`[label](url)`) and HTML anchors (`<a href="url">label</a>`). An image whose URL ends in a video
- * extension (`.mp4`, `.webm`, `.mkv`, `.mov`, `.m4v`, `.ogv`) becomes a `video` part rather than an
- * `image` one, and a `.gif` image carries `mimeType: 'image/gif'`. Everything the parser does not
- * recognise is kept as `text`, in its original position, so joining the text of every part returns
- * the input unchanged.
+ * (`[label](url)`) and HTML anchors (`<a href="url">label</a>`); an image whose URL looks like a
+ * video becomes a `video` part instead, and a GIF is tagged with a `mimeType`, both under the rules
+ * {@link MessagePart} sets out. Everything the parser does not recognise is preserved verbatim as a
+ * `text` part, in its original order, and nothing is dropped or reordered; each recognised part
+ * replaces the markup it was written as, so the parts are not a concatenation of the input.
  *
  * @param content - The message text to split, as it appears in {@link Message.content}.
  * @returns The parts in the order they appear in `content`: a single `text` part when there is no

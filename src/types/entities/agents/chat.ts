@@ -106,9 +106,10 @@ export interface SubmitFeedbackResponse {
  * One renderable piece of a message: a run of text, an image, a video or a link.
  *
  * {@link parseMessageParts} splits a message's {@link Message.content | content} into these, and
- * the SDK keeps the result on {@link Message.parts}. Switch on `type` when rendering: everything
- * the parser did not recognise stays a `text` part, so concatenating the text of every part gives
- * the original content back.
+ * the SDK keeps the result on {@link Message.parts}. Switch on `type` when rendering. Anything the
+ * parser did not recognise is preserved verbatim as a `text` part, in its original order, and
+ * nothing is dropped or reordered; a recognised image, video or link replaces the markup it was
+ * written as, so the parts are not a concatenation of the original string.
  *
  * @category Chat
  */
@@ -126,13 +127,20 @@ export type MessagePart =
           src: string;
           /** The alt text from the markdown, or an empty string when it had none. */
           alt: string;
-          /** `image/gif` when the URL ends in `.gif`; otherwise absent. */
+          /**
+           * `image/gif` when the URL itself ends in `.gif`, ignoring case; absent otherwise.
+           *
+           * The check looks at the whole URL, so a query string or fragment suppresses it —
+           * `cat.gif?v=2` carries no `mimeType`. Video detection differs: it strips both before
+           * looking at the extension.
+           */
           mimeType?: string;
       }
     | {
           /**
            * Discriminant: a video, either from thumbnail syntax (`[![alt](thumb)](video)`) or from
-           * an image whose URL ends in a video extension.
+           * an image whose URL ends in `.mp4`, `.webm`, `.mkv`, `.mov`, `.m4v` or `.ogv` once any
+           * query string and fragment have been stripped.
            */
           type: 'video';
           /** URL of the video file. */
@@ -175,16 +183,18 @@ export interface Message {
     /**
      * Who the message is from.
      *
-     * The SDK only produces `user` (the end user) and `assistant` (the agent); `system`, `function`
-     * and `tool` exist because the underlying chat protocol allows them.
+     * The SDK itself only creates `user` (the end user) and `assistant` (the agent) messages; the
+     * value on a transcribed or streamed message is whatever the server payload carried. `system`,
+     * `function` and `tool` exist because the underlying chat protocol allows them.
      */
     role?: 'system' | 'assistant' | 'user' | 'function' | 'tool';
     /**
      * The message text.
      *
-     * Plain text, which for agent answers may contain markdown. It is replaced by the longer text
-     * on every `partial` callback while the answer streams in, so render it as it is rather than
-     * appending to what you rendered before.
+     * Plain text, which for agent answers may contain markdown. It is replaced by the latest text
+     * on every `partial` callback while the answer streams in — and the final `answer` may be
+     * shorter than the partials before it, which is exactly how the SDK spots an interruption — so
+     * render it as it is rather than appending to what you rendered before.
      */
     content: string;
     /**
@@ -210,9 +220,9 @@ export interface Message {
      * The retrieved context the answer was generated from, as
      * {@link ChatResponse.context | the chat response} supplied it.
      *
-     * Only ever set on an agent answer, and only when the answer came back from the Agents API —
-     * Expressive (V4) agents chat over the data channel instead, so their answers carry no
-     * context.
+     * Only ever set on an agent answer, and only when the answer came back from the Agents API.
+     * Expressive (V4) agents chat over the data channel instead, so their answers carry no context
+     * — except in {@link ChatMode.Playground}, which always takes the API path.
      */
     context?: string;
     /**
@@ -240,14 +250,14 @@ export interface Message {
     /**
      * The sentiment the agent delivered this answer with, when the stream reported one.
      *
-     * Attached to the most recent agent answer as the video is created. Expressive (V4) agents only
-     * report it while {@link AgentManagerOptions.debug | debug} is enabled.
+     * Taken from the metadata the server sends with the video it created, and attached to the most
+     * recent agent answer. The SDK only ever fills it in from an Expressive (V4) session, and only
+     * while {@link AgentManagerOptions.debug | debug} is enabled.
      */
     sentiment?: {
-        /** Id of the sentiment. */
+        /** Id of the sentiment, as the server sent it. */
         id: string;
-        /** Name of the sentiment, such as `friendly` — the same vocabulary a text
-         * {@link AgentManager.speak | speak()} script accepts. */
+        /** Name of the sentiment, as the server sent it. */
         name: string;
     };
 }
@@ -294,20 +304,22 @@ export interface RetrievalMetadata {
  * Chosen with {@link AgentManagerOptions.mode | mode} and changed later with
  * {@link AgentManager.changeMode | changeMode()}, which reports the new value through
  * {@link AgentManagerCallbacks.onModeChange | onModeChange}. Switching to anything other than
- * {@link ChatMode.Functional} disconnects the stream, since no other mode produces video. The
- * server can also answer with a different mode than the one asked for when the chat is created; the
- * SDK then adopts it and reports a {@link ChatModeDowngraded} error through
+ * {@link ChatMode.Functional} disconnects the stream. What the mode decides at creation time is
+ * narrower than it looks: whether a chat is created for the session, and whether the notifications
+ * web socket is opened. {@link AgentManager.connect | connect()} establishes the video stream in
+ * every mode. The server can also answer with a different mode than the one asked for when the chat
+ * is created; the SDK then adopts it and reports a {@link ChatModeDowngraded} error through
  * {@link AgentManagerCallbacks.onError | onError}.
  *
  * @category Chat
  */
 export enum ChatMode {
     /**
-     * The full experience: the agent answers with a streamed video. The default.
+     * Chat and video: the agent answers questions with its own LLM, in a streamed video.
      *
-     * The only mode that keeps a stream connected, so it is the one every video feature —
-     * {@link AgentManager.speak | speak()}, {@link AgentManager.interrupt | interrupt()}, the
-     * microphone and camera methods — needs.
+     * The default when {@link AgentManagerOptions.mode | mode} is omitted, and the only mode a
+     * session can be in while a stream is connected and chat is available at the same time:
+     * {@link AgentManager.changeMode | changeMode()} to any other value disconnects the stream.
      */
     Functional = 'Functional',
     /**
@@ -338,19 +350,24 @@ export enum ChatMode {
      */
     Playground = 'Playground',
     /**
-     * Speak-only: no chat at all, but video still streams.
+     * Speak-only: no chat is created for the session, while video still streams.
      *
-     * No chat is created and {@link AgentManager.chat | chat()} throws a {@link ValidationError};
-     * the notifications web socket is not opened either. Use it when the application drives the
-     * agent entirely through {@link AgentManager.speak | speak()} and never asks its LLM anything.
+     * {@link AgentManager.chat | chat()} throws a {@link ValidationError} — but only when this was
+     * the mode {@link createAgentManager} was given, because that guard reads the creation-time
+     * mode rather than the current one; arriving here later through
+     * {@link AgentManager.changeMode | changeMode()} leaves {@link AgentManager.chat | chat()}
+     * working. Chosen at creation time on a Talks (V2) or Clips (V3) agent it also skips the
+     * notifications web socket, which Expressive (V4) agents never open in any mode. Use it when
+     * the application drives the agent entirely through {@link AgentManager.speak | speak()} and
+     * never asks its LLM anything.
      */
     DirectPlayback = 'DirectPlayback',
     /**
-     * Chat is switched off: no chat is created and {@link AgentManager.chat | chat()} throws a
-     * {@link ValidationError}.
+     * Chat is switched off: no chat is created for the session, while video still streams.
      *
-     * The same restriction as {@link ChatMode.DirectPlayback}, but the session still opens the
-     * notifications web socket.
+     * {@link AgentManager.chat | chat()} throws a {@link ValidationError} under the same
+     * creation-time rule as {@link ChatMode.DirectPlayback}. The two modes are otherwise equivalent
+     * in the current implementation.
      */
     Off = 'Off',
 }
@@ -376,8 +393,8 @@ export interface ChatResponse {
      * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
      */
     result?: string;
-    /** Ids of the knowledge documents the answer was retrieved from. The same documents
-     * {@link ChatResponse.matches | matches} describes in full. */
+    /** The API's own list of ids for the documents behind the answer. The SDK never reads it;
+     * {@link ChatResponse.matches | matches} is what it keeps on the message. */
     documentIds?: string[];
     /**
      * The knowledge citations behind the answer.
@@ -422,7 +439,8 @@ export interface Chat {
     created: string;
     /** When the chat was last changed, as an ISO 8601 timestamp. */
     modified: string;
-    /** Id of the D-ID account that owns the chat. Set by the API. */
+    /** Id of the D-ID account that owns the chat. Set by the API; on the synthetic chat the SDK
+     * builds for an Expressive (V4) session it is copied from {@link Agent.owner_id}. */
     owner_id: string;
     /**
      * The messages stored with the chat.
