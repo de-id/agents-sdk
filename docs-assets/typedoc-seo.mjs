@@ -94,14 +94,14 @@ function describe(model) {
     if (model instanceof ProjectReflection) return SITE_DESCRIPTION;
     if (model instanceof DocumentReflection) {
         const paragraph = partsToText(model.content)
-            .split(/\n{2,}/)
+            .split(/\n\s*\n/)
             .map(s => s.trim())
             .find(s => s && !s.startsWith('#'));
         return truncate(paragraph || `${model.name} for @d-id/client-sdk.`);
     }
     const summary =
-        partsToText(model.comment?.summary) ||
-        partsToText(/** @type {any} */ (model).signatures?.[0]?.comment?.summary);
+        firstParagraph(partsToText(model.comment?.summary)) ||
+        firstParagraph(partsToText(/** @type {any} */ (model).signatures?.[0]?.comment?.summary));
     return truncate(summary || `${model.name} in the ${SITE_NAME} API reference.`);
 }
 
@@ -116,15 +116,32 @@ function partsToText(parts) {
         })
         .join('')
         .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-        .replace(/[`*_]/g, '')
+        .replace(/[`*]/g, '')
         .replace(/[ \t]+/g, ' ')
         .trim();
 }
 
 /** @param {string} text */
+function firstParagraph(text) {
+    return text.split(/\n\s*\n/)[0]?.trim() ?? '';
+}
+
+/**
+ * Keeps whole sentences: the longest run of sentences that fits, or the first sentence if even
+ * that is too long, and only then a word-boundary cut.
+ * @param {string} text
+ */
 function truncate(text) {
-    const oneLine = text.replace(/\s*\n\s*/g, ' ');
+    const oneLine = text.replace(/\s*\n\s*/g, ' ').trim();
     if (oneLine.length <= MAX_DESCRIPTION) return oneLine;
+    const sentences = oneLine.match(/[^.!?]+[.!?]+(?=\s|$)/g) ?? [];
+    let kept = '';
+    for (const sentence of sentences) {
+        const next = `${kept}${sentence}`.trim();
+        if (kept && next.length > MAX_DESCRIPTION) break;
+        kept = next;
+    }
+    if (kept && kept.length <= MAX_DESCRIPTION) return kept;
     const cut = oneLine.slice(0, MAX_DESCRIPTION - 1);
     return `${cut.slice(0, cut.lastIndexOf(' '))}…`;
 }
