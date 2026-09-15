@@ -38,6 +38,10 @@ import { createMessageEventQueue } from '../socket-manager/message-queue';
 import { StreamingManager } from '../streaming-manager';
 import { initializeStreamAndChat } from './connect-to-manager';
 
+/**
+ * Mutable state shared between the agent manager's connect/chat/stream helpers.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface AgentManagerItems {
     chat?: Chat;
     streamingManager?: StreamingManager<CreateStreamOptions>;
@@ -84,7 +88,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const analytics = initializeAnalytics({
         token: mxKey,
         agentId: agent,
-        isEnabled: options.enableAnalytics ?? options.enableAnalitics,
+        isEnabled: options.enableAnalytics,
         externalId: options.externalId,
         mixpanelAdditionalProperties: options.mixpanelAdditionalProperties,
     });
@@ -95,7 +99,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     });
 
     const originalOnError = options.callbacks.onError;
-    options.callbacks.onError = (error: Error, errorData?: object) => {
+    options.callbacks.onError = (error: Error, errorData?: Record<string, unknown>) => {
         analytics.track('agent-error', { error: toErrorAnalytics(error) });
         originalOnError?.(error, errorData);
     };
@@ -364,7 +368,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-data-message', { topic });
 
-            return items.streamingManager.sendDataChannelMessage(topic, JSON.stringify(payload));
+            // Same wire strings as the internal enum; the cast only bridges the two enum types.
+            return items.streamingManager.sendDataChannelMessage(
+                topic as string as DataChannelTopic,
+                JSON.stringify(payload)
+            );
         },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
@@ -646,10 +654,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw new ValidationError('Please connect to the agent first');
             }
 
-            return items.streamingManager.speak({
+            const response = await items.streamingManager.speak({
                 script,
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
             });
+
+            return response ?? { duration: 0, video_id: '', status: 'success' };
         },
         interrupt,
         registerClientTool,

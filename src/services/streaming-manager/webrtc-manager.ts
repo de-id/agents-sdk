@@ -175,13 +175,15 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         fluent,
         interrupt_enabled: interruptAvailable,
     } = await createStream(streamOptions, signal);
-    callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id: session_id as string, agent_id: agentId });
-    const peerConnection = new actualRTCPC({ iceServers: ice_servers });
-    const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
+    // Guard before the callback: `StreamCreatedInfo.session_id` is public and declares `string`.
     if (!session_id) {
         throw new Error('Could not create session_id');
     }
+
+    callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id, agent_id: agentId });
+    const peerConnection = new actualRTCPC({ iceServers: ice_servers });
+    const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
     const streamType = fluent ? StreamType.Fluent : StreamType.Legacy;
 

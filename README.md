@@ -21,6 +21,8 @@ The SDK supports three avatar types:
 
 **Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/docs/agent-quickstart) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
 
+> 📚 **Full API reference:** [sdk.d-id.com](https://sdk.d-id.com/) — every method, callback, option and type, generated from the source on each release.
+
 ## ✴️ Getting Started
 
 ### ➤ ✴️ Prerequisites
@@ -317,11 +319,6 @@ Callback functions enable you to manage various events throughout the SDK lifecy
   Maximum duration (in seconds) between messages before the session times out.
   Max value: `300`
   <br />
-- **`outputResolution`**:
-  **Supported only with Talk presenters (photo-based).**
-  The output resolution sets the maximum height or width pixels of the streamed video.
-  When resolution is not configured, it defaults to the agent output resolution.
-  Allowed values: `150 - 1080`
 
 - **`fluent`**:
   **Supported with Agents created with V3 Pro Avatars. Always enabled for V4 Avatars.**

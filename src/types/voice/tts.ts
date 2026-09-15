@@ -2,7 +2,6 @@ export enum Providers {
     Amazon = 'amazon',
     AzureOpenAi = 'azure-openai',
     Microsoft = 'microsoft',
-    Afflorithmics = 'afflorithmics',
     Elevenlabs = 'elevenlabs',
 }
 
@@ -12,7 +11,7 @@ export enum VoiceAccess {
     Private = 'private',
 }
 
-export interface IVoice {
+export interface Voice {
     id: string;
     name: string;
     gender: string;
@@ -26,7 +25,7 @@ export interface IVoice {
 /**
  * Elevenlabs provider details, contains the provider type and requested voice id, available for premium users.
  */
-export interface Elevenlabs_tts_provider {
+export interface ElevenlabsTtsProvider {
     type: Providers.Elevenlabs;
 
     /**
@@ -43,28 +42,9 @@ export interface Elevenlabs_tts_provider {
 }
 
 /**
- * Afflorithmics provider details, contains the provider type and requested voice id, available for enterprise users.
- */
-export interface Afflorithmics_tts_provider {
-    type: Providers.Afflorithmics;
-
-    /**
-     * The voice_id from the list of available voices.
-     * @example "abc123DEF456"
-     * @default abc123DEF456
-     */
-    voice_id: string;
-
-    /**
-     * Voice customization options. Read more here: https://docs.audiostack.ai/reference/postspeech
-     */
-    voice_config?: VoiceConfigAfflorithmics;
-}
-
-/**
  * AzureMicrosoft provider details, contains the provider type and requested voice id and style
  */
-export interface Microsoft_tts_provider {
+export interface MicrosoftTtsProvider {
     type: Providers.Microsoft;
 
     /**
@@ -94,14 +74,14 @@ export interface Microsoft_tts_provider {
 /**
  * AzureOpenAi provider details, contains the provider type and requested voice id and style
  */
-export interface AzureOpenAi_tts_provider extends Omit<Microsoft_tts_provider, 'type'> {
+export interface AzureOpenAiTtsProvider extends Omit<MicrosoftTtsProvider, 'type'> {
     type: Providers.AzureOpenAi;
 }
 
 /**
  * Amazon provider details, contains the provider type and requested voice id
  */
-export interface Amazon_tts_provider {
+export interface AmazonTtsProvider {
     type: Providers.Amazon;
 
     /**
@@ -149,38 +129,8 @@ export interface VoiceConfigElevenlabs {
     similarity_boost?: number;
 }
 
-export interface VoiceConfigAfflorithmics {
-    /**
-     * The speed of the voice.
-     * The value is relative to 1, 0.5 being half speed, 2 being twice as fast, etc.
-     * Another option is a constant value from x-slow/slow/medium/fast/x-fast.
-     * @example "1.2"
-     * @min 0.5
-     * @max 1.5
-     * @default 1
-     */
-    rate?: string;
-
-    /**
-     * Amount of microseconds for silence padding. Half of the amount is inserted as silence at the beginning and at the end of each Speech file.
-     */
-    silencePadding?: number;
-
-    /**
-     * Flag to apply lexicographical text corrections
-     */
-    voiceIntelligence?: boolean;
-}
-
-export type TextToSpeechProviders =
-    | Microsoft_tts_provider
-    | AzureOpenAi_tts_provider
-    | Afflorithmics_tts_provider
-    | Elevenlabs_tts_provider;
-export type ExtendedTextToSpeechProviders = TextToSpeechProviders | Amazon_tts_provider;
 export type StreamTextToSpeechProviders =
-    | Microsoft_tts_provider
-    | AzureOpenAi_tts_provider
-    | Afflorithmics_tts_provider
-    | Elevenlabs_tts_provider
-    | Amazon_tts_provider;
+    | MicrosoftTtsProvider
+    | AzureOpenAiTtsProvider
+    | ElevenlabsTtsProvider
+    | AmazonTtsProvider;

@@ -10,10 +10,3 @@ export interface ClientKeyAuth {
 }
 
 export type Auth = BearerToken | BasicAuth | ClientKeyAuth;
-
-export interface GetAuthParams {
-    token?: string | null;
-    username?: string | null;
-    password?: string | null;
-    clientKey?: string | null;
-}

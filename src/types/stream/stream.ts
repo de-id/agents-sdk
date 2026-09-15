@@ -3,7 +3,6 @@ import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/repor
 import { Auth } from '../auth';
 import { ChatProgressCallback } from '../entities/agents/manager';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
-import { DataChannelTopic } from './data-channel';
 import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
 
 export type CompatibilityMode = 'on' | 'off' | 'auto';
@@ -34,7 +33,6 @@ export enum StreamEvents {
     StreamStarted = 'stream/started',
     StreamFailed = 'stream/error',
     StreamReady = 'stream/ready',
-    StreamCreated = 'stream/created',
     StreamInterrupt = 'stream/interrupt',
     StreamVideoCreated = 'stream-video/started',
     StreamVideoDone = 'stream-video/done',
@@ -48,17 +46,19 @@ export enum StreamEvents {
 }
 
 /**
- * Topics a customer can send on via `agentManager.sendDataChannelMessage`.
- * The remaining `DataChannelTopic` members are driven by their own methods
- * (`chat`, `speak`, `interrupt`, `setSttLanguage`), which own the payload shape
- * and bookkeeping those topics expect, so they stay internal.
+ * The data-channel topics an application may send on with `sendDataChannelMessage()`.
  *
- * A const object rather than a second enum: it borrows the value from
- * `DataChannelTopic`, so there is one source of truth for the wire string and
- * no cast is needed where the topic reaches the transport.
+ * The other topics of the session's data channel are driven by their own methods (`chat()`,
+ * `speak()`, `interrupt()`, `setSttLanguage()`), which own the payload shape those topics expect,
+ * so they are not exposed. The values are the wire strings; they mirror the internal
+ * `DataChannelTopic` members of the same name.
+ *
+ * @category Agent Manager
  */
-export const PublicDataChannelTopic = { Presentation: DataChannelTopic.Presentation } as const;
-export type PublicDataChannelTopic = (typeof PublicDataChannelTopic)[keyof typeof PublicDataChannelTopic];
+export enum PublicDataChannelTopic {
+    /** Messages that drive a presentation the agent shows alongside its video, such as moving to another slide. Sent on the wire as `did.presentation`. */
+    Presentation = 'did.presentation',
+}
 
 export enum ConnectionState {
     New = 'new',
@@ -76,19 +76,53 @@ export enum StreamType {
     Fluent = 'fluent',
 }
 
-/** @internal */
+/**
+ * Handler for an RPC method registered on the LiveKit room before it connects.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type RpcMethodHandler = (data: { payload: string }) => Promise<string>;
 
-export interface ManagerCallbacks {
+/**
+ * Identifiers of the stream the SDK has just opened for the session.
+ *
+ * Handed to `onStreamCreated` once the server has accepted the stream, before the first video frame
+ * arrives. Log the three ids together: they are what identifies the session in D-ID's own records.
+ *
+ * @category Callbacks & Events
+ */
+export interface StreamCreatedInfo {
+    /**
+     * Id of the agent the stream was opened for.
+     */
+    agent_id: string;
+
+    /**
+     * Id of the session; the SDK sends it back on every subsequent request for this stream.
+     * On Expressive (V4) agents it is the same value as `stream_id`.
+     */
+    session_id: string;
+
+    /**
+     * Id of the stream itself.
+     */
+    stream_id: string;
+}
+
+/**
+ * Callback set consumed by the streaming managers (WebRTC and LiveKit).
+ * The agent manager adapts these into the public {@link AgentManagerCallbacks}.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
+export interface StreamingManagerCallbacks {
     onMessage?: ChatProgressCallback;
     onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
-    onError?: (error: Error, errorData: object) => void;
+    onError?: (error: Error, errorData: Record<string, unknown>) => void;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
     onVideoIdChange?: (videoId: string | null) => void;
-    onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
+    onStreamCreated?: (stream: StreamCreatedInfo) => void;
     onStreamReady?: () => void;
     onToolEvent?: ToolEventCallback;
     onInterruptibleChange?: (interruptible: boolean) => void;
@@ -96,35 +130,67 @@ export interface ManagerCallbacks {
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
 
+/**
+ * Latency measurements captured when the first audio frame of a stream is detected.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface AudioDetectionMetrics {
     latency?: number;
     networkLatency?: number;
 }
 
-export type ManagerCallbackKeys = keyof ManagerCallbacks;
+/**
+ * Union of callback names accepted by {@link StreamingManagerCallbacks}.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
+export type ManagerCallbackKeys = keyof StreamingManagerCallbacks;
 
+/**
+ * Custom end-user metadata attached to a stream creation request.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface StreamEndUserData {
     plan?: string;
 }
 
+/**
+ * Options for creating a legacy (talk) stream, combining the wire request with fluent-mode extras.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
     fluent?: boolean;
     end_user_data?: StreamEndUserData;
 }
 
+/**
+ * Options for creating a clip stream, combining the wire request with fluent-mode extras.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface ClipStreamOptions extends CreateClipStreamRequest {
     fluent?: boolean;
     end_user_data?: StreamEndUserData;
 }
 
+/**
+ * Options accepted when creating a stream, discriminated by the underlying stream type (talk or clip).
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;
 
+/**
+ * Maps a {@link CreateStreamOptions} variant to the payload type sent to drive that stream.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type PayloadType<T> = T extends TalkStreamOptions
     ? SendTalkStreamPayload
     : T extends ClipStreamOptions
       ? SendClipStreamPayload
       : never;
 
+/**
+ * HTTP client surface used by the streaming managers to create and drive a WebRTC stream.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface RtcApi {
     createStream(options: CreateStreamOptions, signal?: AbortSignal): Promise<ICreateStreamRequestResponse>;
     startConnection(
@@ -147,19 +213,17 @@ export interface RtcApi {
     close(streamId: string, sessionId: string): Promise<Status>;
 }
 
+/**
+ * Options used to construct a streaming manager (WebRTC or LiveKit) instance.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface StreamingManagerOptions {
-    callbacks: ManagerCallbacks;
+    callbacks: StreamingManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
     verbose?: boolean;
     auth: Auth;
     analytics: Analytics;
-    /**
-     * Optional MediaStream to use for microphone input.
-     * If provided, the audio track from this stream will be published to the data channel.
-     * Supported by LiveKit streaming managers.
-     */
-    microphoneStream?: MediaStream;
     /**
      * RPC methods to register on the room before it connects, so the agent can
      * call them from the moment this participant joins.
@@ -168,6 +232,10 @@ export interface StreamingManagerOptions {
     rpcMethods?: ReadonlyMap<string, RpcMethodHandler>;
 }
 
+/**
+ * Trimmed set of WebRTC inbound video stats sampled from `RTCStatsReport`, sampled for internal quality analytics.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface SlimRTCStatsReport {
     index: number;
     codec: string;
@@ -192,6 +260,10 @@ export interface SlimRTCStatsReport {
     av?: AvSyncSample;
 }
 
+/**
+ * A single audio/video playout timestamp pair sampled during an utterance, used to compute lip-sync drift.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface AvSyncSample {
     /** Audio estimatedPlayoutTimestamp (ms, NTP) — playout time of the audio sample currently being rendered. */
     audioPlayout: number;
@@ -201,6 +273,10 @@ export interface AvSyncSample {
     localTs: number;
 }
 
+/**
+ * Lip-sync (audio/video) drift analysis computed over an utterance's `AvSyncSample`s.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface AvSyncReport {
     /** Measurable samples in this utterance (both audio and video playout present). Report is null if fewer than 2. */
     sampleCount: number;
@@ -214,6 +290,10 @@ export interface AvSyncReport {
     residualOffsetMs: number;
 }
 
+/**
+ * WebRTC video stats reported to analytics (Mixpanel) at stream end.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface AnalyticsRTCStatsReport {
     timestamp?: number;
     duration: number;
@@ -234,6 +314,10 @@ export interface AnalyticsRTCStatsReport {
     causes?: string[];
 }
 
+/**
+ * Data-channel payload notifying that the current stream utterance was interrupted.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface StreamInterruptPayload {
     type: StreamEvents.StreamInterrupt;
     videoId: string;
@@ -286,8 +370,16 @@ export interface ToolCallErrorPayload {
     timestamp: string;
 }
 
+/**
+ * Union of the three tool-call payloads, narrowed away by the {@link ToolEventCallback} overloads.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
 
+/**
+ * Data-channel payload identifying the conversational turn a `turn/started` or `turn/ended` event belongs to.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface TurnEventPayload {
     turn_id: number | null;
 }

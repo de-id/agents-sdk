@@ -28,16 +28,11 @@ interface ClipConfig {
     result_format?: 'mp4' | 'gif' | 'mov' | 'webm';
 }
 
+/**
+ * Wire request body for creating a clip stream.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface CreateClipStreamRequest {
-    /**
-     * The output resolution sets the maximum height or width of the streamed video.
-     * The aspect ratio is preserved from the source video.
-     * When resolution is not configured, it defaults to the agent output resolution.
-     * @minimum 150
-     * @maximum 1080
-     * @example 512
-     */
-    output_resolution?: number;
     /**
      * Defines the video codec to be used in the stream.
      * When set to on: VP8 will be used.
@@ -61,6 +56,10 @@ export interface CreateClipStreamRequest {
     session_timeout?: number;
 }
 
+/**
+ * Wire payload sent to advance a clip stream with a new script.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface SendClipStreamPayload extends StickyRequest {
     script: StreamScript;
 

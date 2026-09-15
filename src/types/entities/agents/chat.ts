@@ -1,9 +1,3 @@
-export enum RateState {
-    Unrated = 'Unrated',
-    Positive = 'Positive',
-    Negative = 'Negative',
-}
-
 export interface RatingEntity {
     id: string;
     owner_id: string;
@@ -19,6 +13,10 @@ export interface RatingEntity {
     message_id: string;
 }
 
+/**
+ * Request payload for rating a chat message, derived from `RatingEntity`.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type RatingPayload = Omit<
     RatingEntity,
     'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id' | 'agent_id' | 'chat_id'
@@ -54,6 +52,10 @@ export interface Message {
     };
 }
 
+/**
+ * Request payload for sending a chat message to the Agents API.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface ChatPayload {
     messages: Message[];
     streamId?: string;
@@ -61,7 +63,7 @@ export interface ChatPayload {
     chatMode?: ChatMode;
 }
 
-export interface IRetrivalMetadata {
+export interface RetrievalMetadata {
     id: string;
     data: string;
     title: string;
@@ -82,12 +84,16 @@ export enum ChatMode {
 export interface ChatResponse {
     result?: string;
     documentIds?: string[];
-    matches?: IRetrivalMetadata[];
+    matches?: RetrievalMetadata[];
     chatMode?: ChatMode;
     context?: string;
     videoId?: string;
 }
 
+/**
+ * A chat session as the Agents API returns it when the SDK creates or resumes one.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface Chat {
     id: string;
     agent_id: string;

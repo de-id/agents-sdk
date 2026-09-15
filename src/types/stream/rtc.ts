@@ -1,3 +1,7 @@
+/**
+ * Carrier of the `session_id` that keeps successive streaming requests on the same server session.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface StickyRequest {
     /**
      * session identifier information, should be returned in the body of all streaming requests
@@ -17,6 +21,10 @@ interface Jsep {
     sdp: string;
 }
 
+/**
+ * STUN/TURN server credentials returned by the D-ID API for establishing the WebRTC connection.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface IceServer {
     /**
      * URL of the server - can be multiple addresses
@@ -32,6 +40,10 @@ export interface IceServer {
     credential?: string;
 }
 
+/**
+ * Response of `POST /agents/{id}/streams`: the SDP offer and ICE servers for the WebRTC handshake.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface ICreateStreamRequestResponse extends StickyRequest {
     id: string;
     jsep: Jsep;
@@ -41,6 +53,10 @@ export interface ICreateStreamRequestResponse extends StickyRequest {
     interrupt_enabled?: boolean;
 }
 
+/**
+ * A single ICE candidate exchanged during the WebRTC connection handshake.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface IceCandidate {
     /**
      * A string representing the transport address for the candidate that can be used for connectivity checks.
@@ -62,11 +78,24 @@ export interface IceCandidate {
     sdpMLineIndex?: number;
 }
 
+/**
+ * Bare `{ status }` envelope returned by the streaming endpoints that report only success or failure.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface Status {
     status: string;
 }
 
-export interface SendStreamPayloadResponse extends Status, StickyRequest {
+export interface SendStreamPayloadResponse {
+    /**
+     * Whether the server accepted the speak request.
+     */
+    status: string;
+    /**
+     * Identifier of the session the video was queued on; the SDK sends it back on the streaming
+     * requests that follow.
+     */
+    session_id?: string;
     duration: number;
     video_id: string;
 }

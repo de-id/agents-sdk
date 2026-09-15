@@ -1,6 +1,10 @@
 import { StreamScript } from '../..';
 import { CompatibilityMode } from '../stream';
 
+/**
+ * Wire request body for creating a legacy (talk) stream.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface CreateTalkStreamRequest {
     driver_url?: string;
     face?: {
@@ -21,15 +25,6 @@ export interface CreateTalkStreamRequest {
         align_expand_factor?: number;
         stitch?: boolean;
     };
-    /**
-     * The output resolution sets the maximum height or width of the streamed video.
-     * The aspect ratio is preserved from the source image.
-     * When resolution is not configured, it defaults to the agent output resolution.
-     * @minimum 150
-     * @maximum 1080
-     * @example 512
-     */
-    output_resolution?: number;
     /**
      * Defines the video codec to be used in the stream.
      * When set to on: VP8 will be used.
@@ -53,6 +48,10 @@ export interface CreateTalkStreamRequest {
     session_timeout?: number;
 }
 
+/**
+ * Wire payload sent to advance a talk stream with a new script.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface SendTalkStreamPayload {
     script: StreamScript;
     resultUrl?: string;

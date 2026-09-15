@@ -15,6 +15,7 @@ import {
     Agent,
     AgentManager,
     AgentManagerOptions,
+    AvatarType,
     ChatMode,
     ConnectionState,
     Providers,
@@ -80,7 +81,7 @@ describe('createAgentManager', () => {
         mockAgent = {
             ...AgentFactory.build(),
             starter_message: ['Hello!', 'How can I help?'],
-            avatar: { type: 'talk', voice: { language: 'en-US' } },
+            avatar: { type: AvatarType.Talk, voice: { language: 'en-US' } },
         } as Agent;
         mockOptions = AgentManagerOptionsFactory.build();
         mockStreamingManager = StreamingManagerFactory.build({ streamType: StreamType.Legacy });
@@ -620,6 +621,14 @@ describe('createAgentManager', () => {
                 expect(mockStreamingManager.speak).not.toHaveBeenCalled();
             });
 
+            it('Should resolve the default response when the streaming manager resolves nothing', async () => {
+                mockStreamingManager.speak.mockResolvedValueOnce(undefined);
+
+                const result = await manager.speak('Hello world');
+
+                expect(result).toEqual({ duration: 0, video_id: '', status: 'success' });
+            });
+
             it('should throw error if not connected', async () => {
                 await manager.disconnect();
 
@@ -873,7 +882,7 @@ describe('createAgentManager', () => {
 
     describe('setSttLanguage', () => {
         it('should send the language on the stt-language topic for v2 agents', async () => {
-            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
 
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
@@ -898,7 +907,7 @@ describe('createAgentManager', () => {
         });
 
         it('resolves only once the send settles', async () => {
-            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
             let settleSend = () => {};
             mockStreamingManager.sendDataChannelMessage = jest.fn(
                 () => new Promise<void>(resolve => (settleSend = resolve))
@@ -922,7 +931,7 @@ describe('createAgentManager', () => {
 
     describe('sendDataChannelMessage', () => {
         it('should delegate to the streaming manager for v2 agents', async () => {
-            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
 
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
@@ -949,7 +958,7 @@ describe('createAgentManager', () => {
         });
 
         it('resolves only once the send settles', async () => {
-            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
             let settleSend = () => {};
             mockStreamingManager.sendDataChannelMessage = jest.fn(
                 () => new Promise<void>(resolve => (settleSend = resolve))
@@ -1095,7 +1104,7 @@ describe('createAgentManager', () => {
         });
 
         it('should handle analytics initialization with disabled analytics', async () => {
-            const optionsWithoutAnalytics = { ...mockOptions, enableAnalitics: false };
+            const optionsWithoutAnalytics = { ...mockOptions, enableAnalytics: false };
 
             await createAgentManager('agent-123', optionsWithoutAnalytics);
 

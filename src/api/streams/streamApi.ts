@@ -15,7 +15,7 @@ export function createStreamApi(
     auth: Auth,
     host: string,
     agentId: string,
-    onError?: (error: Error, errorData: object) => void
+    onError?: (error: Error, errorData: Record<string, unknown>) => void
 ): RtcApi {
     const client = createClient(auth, `${host}/agents/${agentId}`, onError);
 

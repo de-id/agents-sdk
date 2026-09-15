@@ -8,17 +8,19 @@ import {
     ConnectivityState,
     PublicDataChannelTopic,
     SendStreamPayloadResponse,
+    StreamCreatedInfo,
     StreamEvents,
     StreamType,
     StreamingState,
 } from '@sdk/types/stream';
 import { SupportedStreamScript } from '@sdk/types/stream-script';
-import type { ManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
+import type { StreamingManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity, SubmitFeedbackResponse } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
+ * @internal Implementation type; not part of the public SDK surface.
  */
 export enum ChatProgress {
     /**
@@ -47,11 +49,13 @@ export enum ChatProgress {
     Complete = 'done',
 }
 
+/**
+ * Callback signature for {@link ChatProgress} events emitted internally during a chat exchange.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data: any) => void;
-export type ConnectionStateChangeCallback = (state: ConnectionState) => void;
-export type VideoStateChangeCallback = (state: StreamingState, data: any) => void;
 
-interface ManagerCallbacks {
+export interface AgentManagerCallbacks {
     /**
      * Optional callback will be triggered each time the RTC connection changes state
      * @param state
@@ -94,8 +98,12 @@ interface ManagerCallbacks {
     onConnectivityStateChange?(state: ConnectivityState): void;
     /**
      * Optional callback function that will be triggered on fetch request errors
+     * @param error - the error the SDK raised; narrow it with `isDIDError`
+     * @param errorData - context for this failure; the keys depend on which error it is
+     * (`url`, `options` and sometimes `headers` for a failed request, `sessionId` or `streamId` for
+     * a stream failure, `data` for a stream event)
      */
-    onError?: (error: Error, errorData?: object) => void;
+    onError?: (error: Error, errorData?: Record<string, unknown>) => void;
     /**
      * Optional callback function that will be triggered each time the agent activity state changes
      * @param state - AgentActivityState
@@ -103,9 +111,9 @@ interface ManagerCallbacks {
     onAgentActivityStateChange?(state: AgentActivityState): void;
     /**
      * Optional callback function that will be triggered each time a new stream is created
-     * @param stream - object containing stream_id, session_id and agent_id
+     * @param stream - the stream's agent_id, session_id and stream_id
      */
-    onStreamCreated?: StreamManagerCallbacks['onStreamCreated'];
+    onStreamCreated?: (stream: StreamCreatedInfo) => void;
     /**
      * Optional callback function that will be triggered when tool-call events occur during the call
      * (tool-call/started, tool-call/done, tool-call/error).
@@ -125,7 +133,7 @@ interface ManagerCallbacks {
     onRunningToolCallsChange?: StreamManagerCallbacks['onRunningToolCallsChange'];
 }
 
-interface StreamOptions {
+export interface StreamOptions {
     /**
      * Defines the video codec to be used in the stream.
      * When set to on: VP8 will be used.
@@ -152,13 +160,6 @@ interface StreamOptions {
     sessionTimeout?: number;
 
     /**
-     * Desired stream resolution for the session
-     * @minimum 150
-     * @maximum 1080
-     */
-    outputResolution?: number;
-
-    /**
      * Whether to request fluent stream.
      * @default false
      */
@@ -167,7 +168,7 @@ interface StreamOptions {
 
 export interface AgentManagerOptions {
     auth: Auth;
-    callbacks: ManagerCallbacks;
+    callbacks: AgentManagerCallbacks;
     mode?: ChatMode;
     baseURL?: string;
     wsURL?: string;
@@ -176,22 +177,14 @@ export interface AgentManagerOptions {
     /**
      * Whether to enable analytics (Mixpanel) tracking.
      * @default true
-     * @deprecated Use `enableAnalytics` instead. This misspelled prop is kept for backwards compatibility.
-     */
-    enableAnalitics?: boolean;
-    /**
-     * Whether to enable analytics (Mixpanel) tracking.
-     * Takes precedence over the deprecated `enableAnalitics` prop when both are set.
-     * @default true
      */
     enableAnalytics?: boolean;
     mixpanelKey?: string;
-    mixpanelAdditionalProperties?: Record<string, any>;
+    mixpanelAdditionalProperties?: Record<string, unknown>;
     externalId?: string;
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
     persistentChat?: boolean;
-    microphoneStream?: MediaStream;
 }
 
 export interface AgentManager {
@@ -203,12 +196,12 @@ export interface AgentManager {
     /**
      * Get the current stream type of the agent
      */
-    getStreamType: () => StreamType | undefined;
+    getStreamType(): StreamType | undefined;
 
     /**
      * Get if the stream supports interrupt
      */
-    getIsInterruptAvailable: () => boolean;
+    getIsInterruptAvailable(): boolean;
 
     /**
      * Array of starter messages that will be sent to the agent when the chat starts
@@ -218,32 +211,32 @@ export interface AgentManager {
      * Get a token for the Speech to Text service
      * Only available after a chat has started and the agent has been connected
      */
-    getSTTToken: () => Promise<STTTokenResponse | undefined>;
+    getSTTToken(): Promise<STTTokenResponse | undefined>;
     /**
      * Method to connect to stream and chat
      */
-    connect: () => Promise<void>;
+    connect(): Promise<void>;
     /**
      * Method to reconnect to stream and continue chat
      */
-    reconnect: () => Promise<void>;
+    reconnect(): Promise<void>;
     /**
      * Method to close all connections with agent, stream and web socket
      */
-    disconnect: () => Promise<void>;
+    disconnect(): Promise<void>;
     /**
      * Publish a microphone stream to the data channel
      * Can be called after connection to add microphone input
      * @param stream The MediaStream containing the microphone audio track
-     * supported only for livekit manager
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
      */
-    publishMicrophoneStream?: (stream: MediaStream) => Promise<void>;
+    publishMicrophoneStream(stream: MediaStream): Promise<void>;
     /**
      * Unpublish the currently published microphone stream
      * Can be called after connection to remove microphone input
-     * supported only for livekit manager
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents it resolves without doing anything.
      */
-    unpublishMicrophoneStream?: () => Promise<void>;
+    unpublishMicrophoneStream(): Promise<void>;
     /**
      * Replace the live microphone track on the current publication without
      * unpublishing. Preserves the LiveKit publication (SSRC, trackSid) so the
@@ -251,49 +244,49 @@ export interface AgentManager {
      * LiveKit has switched the underlying RTCRtpSender's track.
      * Rejects if there is no active publication — callers should fall back to
      * `publishMicrophoneStream` in that case.
-     * Supported only for the LiveKit streaming manager.
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
      */
-    replaceMicrophoneTrack?: (track: MediaStreamTrack) => Promise<void>;
+    replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void>;
     /**
      * Publish a camera video stream to the LiveKit room.
      * Can be called after connection to enable vision.
-     * supported only for livekit manager
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
      */
-    publishCameraStream?: (stream: MediaStream) => Promise<void>;
+    publishCameraStream(stream: MediaStream): Promise<void>;
     /**
      * Unpublish the currently published camera stream.
      * Can be called after connection to disable vision.
-     * supported only for livekit manager
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents it resolves without doing anything.
      */
-    unpublishCameraStream?: () => Promise<void>;
+    unpublishCameraStream(): Promise<void>;
     /**
      * Method to send a chat message to existing chat with the agent
-     * @param messages
+     * @param userMessage - The user's message text to send to the agent.
      */
-    chat: (userMessage: string) => Promise<ChatResponse>;
+    chat(userMessage: string): Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
-     * @param score: 1 | -1 - score of the answer. 1 for positive, -1 for negative
-     * @param matches - array of matches that were used to find the answer
-     * @param id - id of Rating entity. Leave it empty to create a new, one or pass it to work with the existing one
+     * @param messageId - Id of the message being rated.
+     * @param score - 1 for a positive rating, -1 for a negative one.
+     * @param rateId - Id of an existing rating to update; omit to create a new one.
      */
-    rate: (messageId: string, score: 1 | -1, rateId?: string) => Promise<RatingEntity>;
+    rate(messageId: string, score: 1 | -1, rateId?: string): Promise<RatingEntity>;
     /**
      * Method to delete rating from answer in chat
      * @param id - id of Rating entity.
      */
-    deleteRate: (id: string) => Promise<RatingEntity>;
+    deleteRate(id: string): Promise<RatingEntity>;
     /**
      * Method to submit end-of-call feedback for the chat
      * @param rating - integer score from 1 to 5
      * @param answer - optional free-text answer
      */
-    submitFeedback: (rating: number, answer?: string) => Promise<SubmitFeedbackResponse>;
+    submitFeedback(rating: number, answer?: string): Promise<SubmitFeedbackResponse>;
     /**
      * Method to make your agent read the text you provide or reproduce sound
      * @param payload
      */
-    speak: (payload: SupportedStreamScript | string) => Promise<SendStreamPayloadResponse>;
+    speak(payload: SupportedStreamScript | string): Promise<SendStreamPayloadResponse>;
     /**
      * Method to change the mode of the chat
      * @param mode - ChatMode
@@ -304,20 +297,20 @@ export interface AgentManager {
      * Method to enrich analytics properties
      * @param properties flat json object with properties that will be added to analytics events fired from the sdk
      */
-    enrichAnalytics: (properties: Record<string, any>) => void;
+    enrichAnalytics(properties: Record<string, unknown>): void;
 
     /**
      * Method to interrupt the current video stream
      * Only available for Fluent streams and when there's an active video to interrupt
      */
-    interrupt: (interrupt: Interrupt) => void;
+    interrupt(interrupt: Interrupt): void;
 
     /**
      * Switch the STT language mid-session
      * Only available for Expressive (V4) agents
      * @param language - Language name or BCP-47 code (e.g. "English" or "en-US")
      */
-    setSttLanguage: (language: string) => Promise<void>;
+    setSttLanguage(language: string): Promise<void>;
 
     /**
      * Send a JSON payload to the agent over a data-channel topic
@@ -325,7 +318,7 @@ export interface AgentManager {
      * @param topic - Data-channel topic to send on (see `PublicDataChannelTopic`)
      * @param payload - Plain object, serialized as JSON
      */
-    sendDataChannelMessage: (topic: PublicDataChannelTopic, payload: Record<string, unknown>) => Promise<void>;
+    sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void>;
 
     /**
      * Register a handler for a client tool. When the agent's LLM calls this tool,
@@ -333,11 +326,11 @@ export interface AgentManager {
      * @param name - Tool name (must match the tool name defined in the agent config)
      * @param handler - Async function receiving args, must return a JSON string (max 15KiB)
      */
-    registerClientTool: (name: string, handler: ClientToolHandler) => void;
+    registerClientTool(name: string, handler: ClientToolHandler): void;
 
     /**
      * Remove a previously registered client tool handler.
      * @param name - Tool name to unregister
      */
-    unregisterClientTool: (name: string) => void;
+    unregisterClientTool(name: string): void;
 }

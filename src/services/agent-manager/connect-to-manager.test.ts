@@ -3,6 +3,7 @@ import {
     Agent,
     AgentActivityState,
     AgentManagerOptions,
+    AvatarType,
     ChatMode,
     ConnectionState,
     StreamEndReason,
@@ -51,7 +52,7 @@ describe('connect-to-manager', () => {
             id: 'agent-123',
             name: 'Test Agent',
             avatar: {
-                type: 'clip',
+                type: AvatarType.Clip,
                 voice: { language: 'en-US' },
             },
             knowledge: {
@@ -65,7 +66,6 @@ describe('connect-to-manager', () => {
             mode: ChatMode.Functional,
             persistentChat: true,
             streamOptions: {
-                outputResolution: 1080,
                 sessionTimeout: 30000,
                 streamWarmup: true,
                 compatibilityMode: 'auto' as const,
@@ -154,7 +154,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 {
                     version: StreamApiVersion.V1,
-                    output_resolution: 1080,
                     session_timeout: 30000,
                     stream_warmup: true,
                     compatibility_mode: 'auto',
@@ -382,7 +381,7 @@ describe('connect-to-manager', () => {
             });
 
             it('should handle video state with non-clip presenter', () => {
-                mockAgent.avatar.type = 'talk';
+                mockAgent.avatar.type = AvatarType.Talk;
 
                 onVideoStateChange(StreamingState.Stop);
 
@@ -550,7 +549,6 @@ describe('connect-to-manager', () => {
             const customOptions = {
                 ...mockOptions,
                 streamOptions: {
-                    outputResolution: 720,
                     sessionTimeout: 60000,
                     streamWarmup: false,
                     compatibilityMode: 'on' as const,
@@ -564,7 +562,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 {
                     version: StreamApiVersion.V1,
-                    output_resolution: 720,
                     session_timeout: 60000,
                     stream_warmup: false,
                     compatibility_mode: 'on',
@@ -586,7 +583,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 {
                     version: StreamApiVersion.V1,
-                    output_resolution: undefined,
                     session_timeout: undefined,
                     stream_warmup: undefined,
                     compatibility_mode: undefined,
@@ -695,7 +691,7 @@ describe('connect-to-manager', () => {
             const expressiveAgent: Agent = {
                 ...mockAgent,
                 avatar: {
-                    type: 'expressive',
+                    type: AvatarType.Expressive,
                     voice: { language: 'en-US' },
                 },
             };
@@ -734,7 +730,7 @@ describe('connect-to-manager', () => {
         ])('%s', async (_name, persistentChat, expectedSessionOptions) => {
             const expressiveAgent: Agent = {
                 ...mockAgent,
-                avatar: { type: 'expressive', voice: { language: 'en-US' } },
+                avatar: { type: AvatarType.Expressive, voice: { language: 'en-US' } },
             };
 
             await initializeStreamAndChat(
@@ -755,7 +751,7 @@ describe('connect-to-manager', () => {
         it('should omit chat_persist when persistentChat is not set', async () => {
             const expressiveAgent: Agent = {
                 ...mockAgent,
-                avatar: { type: 'expressive', voice: { language: 'en-US' } },
+                avatar: { type: AvatarType.Expressive, voice: { language: 'en-US' } },
             };
             const { persistentChat: _persistentChat, ...optionsWithoutPersistentChat } = mockOptions;
 
@@ -772,7 +768,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 expect.objectContaining({
                     version: StreamApiVersion.V1,
-                    output_resolution: 1080,
                     session_timeout: 30000,
                 }),
                 expect.not.objectContaining({

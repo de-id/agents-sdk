@@ -1,4 +1,5 @@
 import { BaseError, ErrorJson } from './base-error';
+import { RequestMeta } from './request-meta';
 
 interface ServerErrorBody {
     kind?: string;
@@ -23,7 +24,18 @@ export class HttpError extends BaseError {
     readonly url?: string;
     readonly method?: string;
 
-    constructor(status: number, body: string, meta: { url?: string; method?: string } = {}) {
+    /**
+     * Wraps a non-2xx response, reusing the server's own `kind` and `description` when it sent them.
+     *
+     * The SDK constructs `HttpError` itself; applications receive instances through `onError`
+     * and rejected promises rather than calling this.
+     *
+     * @param status - HTTP status code of the response.
+     * @param body - Raw response body; a `{ kind, description }` envelope is parsed out of it.
+     * @param meta - Request context captured when the call was made.
+     * @internal Constructed by the SDK; not part of the public SDK surface.
+     */
+    constructor(status: number, body: string, meta: RequestMeta = {}) {
         const parsed = parseServerError(body);
         // Cap the body — a non-JSON 5xx (e.g. a gateway's HTML page) is the only unbounded message source.
         super((parsed?.description ?? body).slice(0, 256), parsed?.kind ?? 'HttpError');
