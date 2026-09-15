@@ -99,7 +99,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     });
 
     const originalOnError = options.callbacks.onError;
-    options.callbacks.onError = (error: Error, errorData?: object) => {
+    options.callbacks.onError = (error: Error, errorData?: Record<string, unknown>) => {
         analytics.track('agent-error', { error: toErrorAnalytics(error) });
         originalOnError?.(error, errorData);
     };

@@ -57,6 +57,7 @@ Shapes are unchanged; only the names differ.
 ## Behaviour clarifications
 
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, video_id: '' }` instead of `undefined`, matching its declared type.
+- `Agent.avatar` is typed `AgentAvatar` and its `type` is the `VideoType` enum; compare with `VideoType.Expressive` rather than the string `'expressive'`.
 
 ---
 

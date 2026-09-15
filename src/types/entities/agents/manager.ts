@@ -8,6 +8,7 @@ import {
     ConnectivityState,
     PublicDataChannelTopic,
     SendStreamPayloadResponse,
+    StreamCreatedInfo,
     StreamEvents,
     StreamType,
     StreamingState,
@@ -97,8 +98,11 @@ export interface AgentManagerCallbacks {
     onConnectivityStateChange?(state: ConnectivityState): void;
     /**
      * Optional callback function that will be triggered on fetch request errors
+     * @param error - the error the SDK raised; narrow it with `isDIDError`
+     * @param errorData - context for this failure; the keys depend on which error it is
+     * (`url` and `options` for a failed request, `sessionId` or `streamId` for a stream failure)
      */
-    onError?: (error: Error, errorData?: object) => void;
+    onError?: (error: Error, errorData?: Record<string, unknown>) => void;
     /**
      * Optional callback function that will be triggered each time the agent activity state changes
      * @param state - AgentActivityState
@@ -106,9 +110,9 @@ export interface AgentManagerCallbacks {
     onAgentActivityStateChange?(state: AgentActivityState): void;
     /**
      * Optional callback function that will be triggered each time a new stream is created
-     * @param stream - object containing stream_id, session_id and agent_id
+     * @param stream - the stream's agent_id, session_id and stream_id
      */
-    onStreamCreated?: StreamManagerCallbacks['onStreamCreated'];
+    onStreamCreated?: (stream: StreamCreatedInfo) => void;
     /**
      * Optional callback function that will be triggered when tool-call events occur during the call
      * (tool-call/started, tool-call/done, tool-call/error).

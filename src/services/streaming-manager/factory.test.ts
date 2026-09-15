@@ -1,5 +1,11 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { CreateSessionV2Options, CreateStreamOptions, StreamingManagerOptions, TransportProvider } from '../../types';
+import {
+    CreateSessionV2Options,
+    CreateStreamOptions,
+    StreamingManagerOptions,
+    TransportProvider,
+    VideoType,
+} from '../../types';
 import { StreamApiVersion, createStreamingManager } from './factory';
 
 const mockCreateWebRTCStreamingManager = jest.fn();
@@ -29,7 +35,7 @@ describe('createStreamingManager', () => {
     it('calls to createWebRTCStreamingManager when agent presenter type is talk', async () => {
         const agent = AgentFactory.build({
             avatar: {
-                type: 'talk',
+                type: VideoType.Talk,
                 voice: { language: 'en-US' },
             },
         });
@@ -52,7 +58,7 @@ describe('createStreamingManager', () => {
     it('calls to createWebRTCStreamingManager when agent presenter type is clip', async () => {
         const agent = AgentFactory.build({
             avatar: {
-                type: 'clip',
+                type: VideoType.Clip,
                 voice: { language: 'en-US' },
             },
         });
@@ -75,7 +81,7 @@ describe('createStreamingManager', () => {
     it('calls to createLiveKitStreamingManager when agent presenter type is expressive', async () => {
         const agent = AgentFactory.build({
             avatar: {
-                type: 'expressive',
+                type: VideoType.Expressive,
                 voice: { language: 'en-US' },
             },
         });

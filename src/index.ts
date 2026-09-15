@@ -5,7 +5,7 @@
 // Agent Manager
 export { createAgentManager } from './services/agent-manager';
 export type { Auth, BasicAuth, BearerToken, ClientKeyAuth } from './types/auth';
-export type { Agent, EndOfCallFeedbackConfig } from './types/entities/agents/agent';
+export type { Agent, AgentAvatar, EndOfCallFeedbackConfig } from './types/entities/agents/agent';
 export type {
     AgentManager,
     AgentManagerCallbacks,
@@ -28,6 +28,7 @@ export {
 export type {
     ClientToolHandler,
     RunningToolCall,
+    StreamCreatedInfo,
     ToolCallDonePayload,
     ToolCallErrorPayload,
     ToolCallStartedPayload,

@@ -25,6 +25,7 @@ import {
     ToolCallErrorPayload,
     ToolEventPayload,
     TransportProvider,
+    VideoType,
 } from '@sdk/types';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
@@ -215,7 +216,7 @@ function connectToManager(
             });
 
             let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
-            const isExpressive = agent.avatar.type === 'expressive';
+            const isExpressive = agent.avatar.type === VideoType.Expressive;
 
             streamingManager = await createStreamingManager(
                 agent,

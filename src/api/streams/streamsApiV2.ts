@@ -5,7 +5,7 @@ export function createStreamApiV2(
     auth: Auth,
     host: string,
     agentId: string,
-    onError?: (error: Error, errorData: object) => void
+    onError?: (error: Error, errorData: Record<string, unknown>) => void
 ) {
     const client = createClient(auth, `${host}/v2/agents/${agentId}`, onError);
 

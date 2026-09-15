@@ -1,3 +1,4 @@
+import { VideoType } from '../video';
 import { Chat, ChatPayload, ChatResponse } from './chat';
 
 export interface EndOfCallFeedbackConfig {
@@ -11,6 +12,27 @@ export interface EndOfCallFeedbackConfig {
     };
 }
 
+/**
+ * The avatar an agent speaks through: its rendering tier and the language of its voice.
+ *
+ * `type` decides how the SDK connects — Talks (V2) and Clips (V3) agents stream over WebRTC,
+ * Expressive (V4) agents over LiveKit — and therefore which of the Expressive-only methods on
+ * `AgentManager` do anything. The voice itself is resolved server-side; only its language is exposed.
+ *
+ * @category Agent Manager
+ */
+export interface AgentAvatar {
+    /**
+     * Rendering tier of the avatar.
+     */
+    type: VideoType;
+
+    /**
+     * Voice the agent speaks with, reduced to the language the SDK needs for speech-to-text.
+     */
+    voice?: { language?: string };
+}
+
 export interface Agent {
     id: string;
     owner_id?: string;
@@ -21,7 +43,7 @@ export interface Agent {
     starter_message?: string[];
     idle_video?: string;
     knowledge?: { id: string; embedder?: { is_limited_language?: boolean } };
-    avatar: { type: 'talk' | 'clip' | 'expressive'; voice?: { language?: string } };
+    avatar: AgentAvatar;
     vision?: { enabled: boolean };
     end_of_call_feedback?: EndOfCallFeedbackConfig;
     triggers_available?: boolean;

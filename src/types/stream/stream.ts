@@ -82,6 +82,31 @@ export enum StreamType {
 export type RpcMethodHandler = (data: { payload: string }) => Promise<string>;
 
 /**
+ * Identifiers of the stream the SDK has just opened for the session.
+ *
+ * Handed to `onStreamCreated` once the server has accepted the stream, before the first video frame
+ * arrives. Log the three ids together: they are what identifies the session in D-ID's own records.
+ *
+ * @category Callbacks & Events
+ */
+export interface StreamCreatedInfo {
+    /**
+     * Id of the agent the stream was opened for.
+     */
+    agent_id: string;
+
+    /**
+     * Id of the session; the SDK sends it back on every subsequent request for this stream.
+     */
+    session_id: string;
+
+    /**
+     * Id of the stream itself.
+     */
+    stream_id: string;
+}
+
+/**
  * Callback set consumed by the streaming managers (WebRTC and LiveKit).
  * The agent manager adapts these into the public {@link AgentManagerCallbacks}.
  * @internal Implementation type; not part of the public SDK surface.
@@ -91,11 +116,11 @@ export interface StreamingManagerCallbacks {
     onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
-    onError?: (error: Error, errorData: object) => void;
+    onError?: (error: Error, errorData: Record<string, unknown>) => void;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
     onVideoIdChange?: (videoId: string | null) => void;
-    onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
+    onStreamCreated?: (stream: StreamCreatedInfo) => void;
     onStreamReady?: () => void;
     onToolEvent?: ToolEventCallback;
     onInterruptibleChange?: (interruptible: boolean) => void;

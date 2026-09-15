@@ -19,7 +19,7 @@ const retryHttpTooManyRequests = <T>(operation: () => Promise<T>): Promise<T> =>
 export function createClient(
     auth: Auth,
     host = didApiUrl,
-    onError?: (error: Error, errorData: object) => void,
+    onError?: (error: Error, errorData: Record<string, unknown>) => void,
     externalId?: string
 ) {
     const client = async <T>(url: string, options?: RequestOptions) => {

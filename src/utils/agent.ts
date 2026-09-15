@@ -8,11 +8,11 @@ export const getAgentType = (presenter: Agent['avatar']): AgentType => presenter
 
 export const getPresenterType = (presenter: Agent['avatar']): PresenterType => {
     switch (presenter.type) {
-        case 'expressive':
+        case VideoType.Expressive:
             return 'v4';
-        case 'clip':
+        case VideoType.Clip:
             return 'v3-pro';
-        case 'talk':
+        case VideoType.Talk:
             return 'v2';
     }
 };
