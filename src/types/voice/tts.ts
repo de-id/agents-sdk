@@ -222,6 +222,25 @@ export interface VoiceConfigElevenlabs {
     similarity_boost?: number;
 }
 
+/**
+ * The provider object a speak script accepts: any of the four text-to-speech providers.
+ *
+ * This is the type of {@link TextStreamScript.provider}. Pick the variant for the provider you
+ * want, give it the `voice_id` to speak with and, except for {@link AmazonTtsProvider}, an optional
+ * `voice_config`; `type` discriminates the union.
+ *
+ * @example
+ * ```ts
+ * import { Providers } from '@d-id/client-sdk';
+ *
+ * const speak = await agentManager.speak({
+ *     type: 'text',
+ *     input: "Hi! I'm Alice!",
+ *     provider: { type: Providers.Microsoft, voice_id: 'en-US-JennyNeural' },
+ * });
+ * ```
+ * @category Voice
+ */
 export type StreamTextToSpeechProviders =
     | MicrosoftTtsProvider
     | AzureOpenAiTtsProvider

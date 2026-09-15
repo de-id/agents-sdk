@@ -121,8 +121,7 @@ export interface Agent {
          * `talk` and `clip` agents stream over WebRTC and receive their events on the notifications
          * web socket; `expressive` agents connect to a real-time session instead, which is what
          * makes the microphone, camera, client tool and data-channel methods of
-         * {@link AgentManager} available. Compare it against {@link VideoType} with
-         * {@link mapVideoType}.
+         * {@link AgentManager} available. The values are those of {@link VideoType}.
          */
         type: 'talk' | 'clip' | 'expressive';
         /** The voice the agent speaks with. */
