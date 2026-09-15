@@ -880,7 +880,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         streamId: sessionId,
         streamType,
         interruptAvailable: interruptEnabled,
-        isInterruptible: currentInterruptible,
+        // A getter, not a snapshot: currentInterruptible changes as blocking tool calls come and go.
+        get isInterruptible() {
+            return currentInterruptible;
+        },
     };
 }
 

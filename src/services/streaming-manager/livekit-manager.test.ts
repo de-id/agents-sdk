@@ -1743,6 +1743,19 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 expect(lastInterruptible()).toBe(false);
             });
 
+            it('reports the manager as not interruptible while a blocking call is pending', () => {
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
+
+                expect(manager.isInterruptible).toBe(false);
+            });
+
+            it('reports the manager as interruptible again once the blocking call resolves', () => {
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
+                emitToolDone({ call_id: 'b' });
+
+                expect(manager.isInterruptible).toBe(true);
+            });
+
             it('becomes interruptible once the blocking call resolves', () => {
                 emitToolStarted({ call_id: 'a', execution_mode: 'async' });
                 emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
