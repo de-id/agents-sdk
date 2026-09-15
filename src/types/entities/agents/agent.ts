@@ -1,4 +1,4 @@
-import { VideoType } from '../video';
+import { AvatarType } from '../avatar';
 import { Chat, ChatPayload, ChatResponse } from './chat';
 
 export interface EndOfCallFeedbackConfig {
@@ -25,7 +25,7 @@ export interface AgentAvatar {
     /**
      * Rendering tier of the avatar.
      */
-    type: VideoType;
+    type: AvatarType;
 
     /**
      * Voice the agent speaks with, reduced to the language the SDK needs for speech-to-text.

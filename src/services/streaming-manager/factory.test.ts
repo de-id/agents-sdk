@@ -1,10 +1,10 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
+    AvatarType,
     CreateSessionV2Options,
     CreateStreamOptions,
     StreamingManagerOptions,
     TransportProvider,
-    VideoType,
 } from '../../types';
 import { StreamApiVersion, createStreamingManager } from './factory';
 
@@ -35,7 +35,7 @@ describe('createStreamingManager', () => {
     it('calls to createWebRTCStreamingManager when agent presenter type is talk', async () => {
         const agent = AgentFactory.build({
             avatar: {
-                type: VideoType.Talk,
+                type: AvatarType.Talk,
                 voice: { language: 'en-US' },
             },
         });
@@ -58,7 +58,7 @@ describe('createStreamingManager', () => {
     it('calls to createWebRTCStreamingManager when agent presenter type is clip', async () => {
         const agent = AgentFactory.build({
             avatar: {
-                type: VideoType.Clip,
+                type: AvatarType.Clip,
                 voice: { language: 'en-US' },
             },
         });
@@ -81,7 +81,7 @@ describe('createStreamingManager', () => {
     it('calls to createLiveKitStreamingManager when agent presenter type is expressive', async () => {
         const agent = AgentFactory.build({
             avatar: {
-                type: VideoType.Expressive,
+                type: AvatarType.Expressive,
                 voice: { language: 'en-US' },
             },
         });

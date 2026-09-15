@@ -12,7 +12,7 @@ export type {
     AgentManagerOptions,
     StreamOptions,
 } from './types/entities/agents/manager';
-export { VideoType } from './types/entities/video';
+export { AvatarType } from './types/entities/avatar';
 export type { STTTokenResponse } from './types/voice/stt';
 export { SDK_VERSION } from './version';
 

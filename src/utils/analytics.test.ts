@@ -1,4 +1,4 @@
-import { Agent, VideoType } from '@sdk/types';
+import { Agent, AvatarType } from '@sdk/types';
 import { getAgentInfo, getAnalyticsInfo, getErrorMessage, getStreamAnalyticsProps } from './analytics';
 
 const buildRuntimeAgent = (overrides: Partial<Agent> = {}): Agent => ({
@@ -8,7 +8,7 @@ const buildRuntimeAgent = (overrides: Partial<Agent> = {}): Agent => ({
     thumbnail: 'https://example.com/thumb.png',
     starter_message: ['Hello!', 'How can I help?', 'Ask me anything'],
     knowledge: { id: 'knowledge-123' },
-    avatar: { type: VideoType.Talk, voice: { language: 'en-US' } },
+    avatar: { type: AvatarType.Talk, voice: { language: 'en-US' } },
     ...overrides,
 });
 
@@ -70,15 +70,15 @@ describe('getAgentInfo', () => {
     });
 
     it('maps every presenter type to its presenterType', () => {
-        expect(getAgentInfo(buildRuntimeAgent({ avatar: { type: VideoType.Talk } }))).toMatchObject({
+        expect(getAgentInfo(buildRuntimeAgent({ avatar: { type: AvatarType.Talk } }))).toMatchObject({
             agentType: 'talk',
             presenterType: 'v2',
         });
-        expect(getAgentInfo(buildRuntimeAgent({ avatar: { type: VideoType.Clip } }))).toMatchObject({
+        expect(getAgentInfo(buildRuntimeAgent({ avatar: { type: AvatarType.Clip } }))).toMatchObject({
             agentType: 'clip',
             presenterType: 'v3-pro',
         });
-        expect(getAgentInfo(buildRuntimeAgent({ avatar: { type: VideoType.Expressive } }))).toMatchObject({
+        expect(getAgentInfo(buildRuntimeAgent({ avatar: { type: AvatarType.Expressive } }))).toMatchObject({
             agentType: 'expressive',
             presenterType: 'v4',
         });
@@ -115,7 +115,7 @@ describe('getAnalyticsInfo', () => {
     });
 
     it('reads the voice language from presenter.voice and tolerates a missing voice', () => {
-        expect(getAnalyticsInfo(buildRuntimeAgent({ avatar: { type: VideoType.Talk } })).agentVoice).toEqual({
+        expect(getAnalyticsInfo(buildRuntimeAgent({ avatar: { type: AvatarType.Talk } })).agentVoice).toEqual({
             language: undefined,
         });
     });
@@ -150,7 +150,7 @@ describe('getStreamAnalyticsProps', () => {
             streamId: 's-1',
             script: { text: 'hi', provider: { type: 'microsoft' } },
         };
-        const agent = buildRuntimeAgent({ avatar: { type: VideoType.Talk, voice: { language: 'fr-FR' } } });
+        const agent = buildRuntimeAgent({ avatar: { type: AvatarType.Talk, voice: { language: 'fr-FR' } } });
 
         const props = getStreamAnalyticsProps(data, agent, { mode: 'DirectPlayback' });
 
@@ -165,7 +165,7 @@ describe('getStreamAnalyticsProps', () => {
     it('sets script.provider.language to undefined when the agent has no voice, without throwing', () => {
         const props = getStreamAnalyticsProps(
             { event: 'x', script: { text: 'hi' } },
-            buildRuntimeAgent({ avatar: { type: VideoType.Talk } }),
+            buildRuntimeAgent({ avatar: { type: AvatarType.Talk } }),
             {}
         );
 

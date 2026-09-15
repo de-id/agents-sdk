@@ -1,4 +1,4 @@
-import { Agent, VideoType } from '@sdk/types';
+import { Agent, AvatarType } from '@sdk/types';
 
 type AgentType = 'clip_v2' | Agent['avatar']['type'];
 
@@ -8,13 +8,13 @@ export const getAgentType = (presenter: Agent['avatar']): AgentType => presenter
 
 export const getPresenterType = (presenter: Agent['avatar']): PresenterType => {
     switch (presenter.type) {
-        case VideoType.Expressive:
+        case AvatarType.Expressive:
             return 'v4';
-        case VideoType.Clip:
+        case AvatarType.Clip:
             return 'v3-pro';
-        case VideoType.Talk:
+        case AvatarType.Talk:
             return 'v2';
     }
 };
 
-export const isStreamsV2Agent = (type: AgentType): boolean => type === VideoType.Expressive;
+export const isStreamsV2Agent = (type: AgentType): boolean => type === AvatarType.Expressive;

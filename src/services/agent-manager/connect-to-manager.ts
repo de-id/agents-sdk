@@ -11,6 +11,7 @@ import {
     AgentManagerOptions,
     AgentsAPI,
     AudioDetectionMetrics,
+    AvatarType,
     Chat,
     ChatMode,
     ChatProgressCallback,
@@ -25,7 +26,6 @@ import {
     ToolCallErrorPayload,
     ToolEventPayload,
     TransportProvider,
-    VideoType,
 } from '@sdk/types';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { Analytics } from '../analytics/mixpanel';
@@ -217,7 +217,7 @@ function connectToManager(
             });
 
             let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
-            const isExpressive = agent.avatar.type === VideoType.Expressive;
+            const isExpressive = agent.avatar.type === AvatarType.Expressive;
 
             streamingManager = await createStreamingManager(
                 agent,

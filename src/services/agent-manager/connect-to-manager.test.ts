@@ -3,6 +3,7 @@ import {
     Agent,
     AgentActivityState,
     AgentManagerOptions,
+    AvatarType,
     ChatMode,
     ConnectionState,
     StreamEndReason,
@@ -10,7 +11,6 @@ import {
     StreamingState,
     StreamType,
     TransportProvider,
-    VideoType,
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
@@ -52,7 +52,7 @@ describe('connect-to-manager', () => {
             id: 'agent-123',
             name: 'Test Agent',
             avatar: {
-                type: VideoType.Clip,
+                type: AvatarType.Clip,
                 voice: { language: 'en-US' },
             },
             knowledge: {
@@ -383,7 +383,7 @@ describe('connect-to-manager', () => {
             });
 
             it('should handle video state with non-clip presenter', () => {
-                mockAgent.avatar.type = VideoType.Talk;
+                mockAgent.avatar.type = AvatarType.Talk;
 
                 onVideoStateChange(StreamingState.Stop);
 
@@ -696,7 +696,7 @@ describe('connect-to-manager', () => {
             const expressiveAgent: Agent = {
                 ...mockAgent,
                 avatar: {
-                    type: VideoType.Expressive,
+                    type: AvatarType.Expressive,
                     voice: { language: 'en-US' },
                 },
             };
@@ -735,7 +735,7 @@ describe('connect-to-manager', () => {
         ])('%s', async (_name, persistentChat, expectedSessionOptions) => {
             const expressiveAgent: Agent = {
                 ...mockAgent,
-                avatar: { type: VideoType.Expressive, voice: { language: 'en-US' } },
+                avatar: { type: AvatarType.Expressive, voice: { language: 'en-US' } },
             };
 
             await initializeStreamAndChat(
@@ -756,7 +756,7 @@ describe('connect-to-manager', () => {
         it('should omit chat_persist when persistentChat is not set', async () => {
             const expressiveAgent: Agent = {
                 ...mockAgent,
-                avatar: { type: VideoType.Expressive, voice: { language: 'en-US' } },
+                avatar: { type: AvatarType.Expressive, voice: { language: 'en-US' } },
             };
             const { persistentChat: _persistentChat, ...optionsWithoutPersistentChat } = mockOptions;
 

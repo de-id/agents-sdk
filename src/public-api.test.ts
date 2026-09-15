@@ -34,7 +34,7 @@ const RUNTIME_EXPORTS = [
     'StreamType',
     'StreamingState',
     'ValidationError',
-    'VideoType',
+    'AvatarType',
     'VoiceAccess',
     'WsError',
     'createAgentManager',

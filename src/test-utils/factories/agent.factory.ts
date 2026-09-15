@@ -1,6 +1,6 @@
 import { Factory } from 'rosie';
 
-import { Agent, VideoType } from '../../types';
+import { Agent, AvatarType } from '../../types';
 
 export const AgentFactory = new Factory<Agent>().attrs({
     id: 'agent-123',
@@ -10,7 +10,7 @@ export const AgentFactory = new Factory<Agent>().attrs({
     },
     starter_message: ['Hello!', 'How can I help?'],
     avatar: {
-        type: VideoType.Talk,
+        type: AvatarType.Talk,
         voice: {
             language: 'en-US',
         },

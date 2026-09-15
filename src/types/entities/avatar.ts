@@ -6,7 +6,7 @@
  *
  * @category Agent Manager
  */
-export enum VideoType {
+export enum AvatarType {
     /** A Clips (V3) agent, built on a Pro avatar. */
     Clip = 'clip',
     /** A Talks (V2) agent. */

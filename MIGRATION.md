@@ -31,6 +31,7 @@ import type { AgentManagerCallbacks } from '@d-id/client-sdk';
 | `Microsoft_tts_provider`   | `MicrosoftTtsProvider`   |
 | `AzureOpenAi_tts_provider` | `AzureOpenAiTtsProvider` |
 | `Amazon_tts_provider`      | `AmazonTtsProvider`      |
+| `VideoType`                | `AvatarType`             |
 | `IRetrivalMetadata`        | `RetrievalMetadata`      |
 | `IVoice`                   | `Voice`                  |
 
@@ -57,7 +58,7 @@ Shapes are unchanged; only the names differ.
 
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, video_id: '' }` instead of `undefined`, matching its declared type.
 - The five Expressive-only media methods are required members of `AgentManager` instead of optional; remove any `?.` guards.
-- `Agent.avatar` is typed `AgentAvatar` and its `type` is the `VideoType` enum: build `Agent` values with `VideoType.Talk`/`VideoType.Clip`/`VideoType.Expressive`; `===` comparisons against the string still compile but no longer narrow.
+- `Agent.avatar` is typed `AgentAvatar` and its `type` is the `AvatarType` enum: build `Agent` values with `AvatarType.Talk`/`AvatarType.Clip`/`AvatarType.Expressive`; `===` comparisons against the string still compile but no longer narrow.
 - `AgentManagerOptions.mixpanelAdditionalProperties` and `enrichAnalytics()` are typed `Record<string, unknown>`; callers passing `Record<string, any>` are unaffected unless they rely on inference.
 
 ---
