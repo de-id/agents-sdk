@@ -4,8 +4,9 @@
  *
  * TypeDoc's default theme puts the same `<meta name="description">` on every page and emits no
  * social-card tags. This plugin replaces the description with the page's own summary and adds
- * OpenGraph and Twitter tags, writes an `llms.txt` index of every page with its summary, and copies
- * a `404.html` into the site for GitHub Pages.
+ * OpenGraph and Twitter tags, annotates the `modules.html` index with each symbol's summary, writes
+ * an `llms.txt` index of every page with its summary, and copies a `404.html` into the site for
+ * GitHub Pages.
  */
 import { copyFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -17,6 +18,13 @@ const SITE_NAME = 'D-ID Client SDK';
 const SITE_DESCRIPTION =
     'API reference for @d-id/client-sdk, the browser SDK for D-ID Agents: connect to an agent, stream its video and audio, chat and speak.';
 const MAX_DESCRIPTION = 160;
+
+// index.html, modules.html and hierarchy.html all render the project reflection, so they would
+// otherwise share one description. These say what each of the three pages actually is.
+const PAGE_DESCRIPTIONS = {
+    'modules.html': 'Every export of @d-id/client-sdk, grouped by category.',
+    'hierarchy.html': 'The class hierarchy of @d-id/client-sdk, including every SDK error type.',
+};
 const ASSETS_DIR = dirname(fileURLToPath(import.meta.url));
 
 /** @param {import('typedoc').Application} app */
@@ -25,7 +33,7 @@ export function load(app) {
         if (!page.contents) return;
         const base = String(app.options.getValue('hostedBaseUrl') || '');
         const title = /<title>([^<]*)<\/title>/.exec(page.contents)?.[1] ?? SITE_NAME;
-        const description = describe(page.model);
+        const description = PAGE_DESCRIPTIONS[page.url] ?? describe(page.model);
         const url = base + (page.url === 'index.html' ? '' : page.url);
         const tags = [
             ['name', 'description', description],
@@ -45,6 +53,10 @@ export function load(app) {
         page.contents = defaultTag.test(page.contents)
             ? page.contents.replace(defaultTag, tags)
             : page.contents.replace('</head>', `${tags}</head>`);
+
+        if (page.url === 'modules.html' && page.model instanceof ProjectReflection) {
+            page.contents = annotateIndex(page.contents, page.model);
+        }
     });
 
     app.renderer.on(Renderer.EVENT_END, event => {
@@ -73,6 +85,7 @@ function llmsTxt(app, project) {
         '',
         '## Guides',
         `- [Overview](${base}): install the SDK, connect to an agent and send the first message.`,
+        `- [Class hierarchy](${base}hierarchy.html): every SDK error type and where it sits under BaseError.`,
     ];
     for (const doc of project.documents ?? []) {
         lines.push(`- [${doc.name}](${urlOf(doc)}): ${describe(doc)}`);
@@ -87,6 +100,29 @@ function llmsTxt(app, project) {
         }
     }
     return `${lines.join('\n')}\n`;
+}
+
+/**
+ * The modules.html index lists bare names, which says nothing about what to open. Append each
+ * name's summary after its link, matching the member-summary markup TypeDoc emits:
+ * `<a href="…">Name</a>` immediately followed by the permalink anchor.
+ *
+ * @param {string} contents
+ * @param {ProjectReflection} project
+ */
+function annotateIndex(contents, project) {
+    /** @type {Map<string, string>} */
+    const summaries = new Map();
+    for (const doc of project.documents ?? []) summaries.set(doc.name, describe(doc));
+    for (const child of project.children ?? []) summaries.set(child.name, describe(child));
+
+    return contents.replace(
+        /(<a href="[^"]+\.html">([^<]+)<\/a>)(<a href="#[^"]*" aria-label="Permalink")/g,
+        (match, link, name, permalink) => {
+            const summary = summaries.get(name);
+            return summary ? `${link} — ${escapeText(summary)}${permalink}` : match;
+        }
+    );
 }
 
 /** @param {import('typedoc').Reflection} model */
@@ -145,6 +181,11 @@ function truncate(text) {
     if (kept && kept.length <= MAX_DESCRIPTION) return kept;
     const cut = oneLine.slice(0, MAX_DESCRIPTION - 1);
     return `${cut.slice(0, cut.lastIndexOf(' '))}…`;
+}
+
+/** @param {string} value */
+function escapeText(value) {
+    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /** @param {string} value */
