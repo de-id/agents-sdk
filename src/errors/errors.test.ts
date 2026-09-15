@@ -186,6 +186,12 @@ describe('SDK errors', () => {
             );
         });
 
+        it('should build a ChatCreationFailed message without a double space when the chat is not persistent', () => {
+            expect(new ChatCreationFailed(ChatMode.Functional, false).message).toBe(
+                'Failed to create chat, mode: Functional'
+            );
+        });
+
         it('should build a descriptive ChatModeDowngraded message', () => {
             expect(new ChatModeDowngraded(ChatMode.TextOnly).message).toBe('Chat mode downgraded to TextOnly');
         });

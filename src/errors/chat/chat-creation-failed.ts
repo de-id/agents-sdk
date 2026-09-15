@@ -23,6 +23,6 @@ export class ChatCreationFailed extends BaseError {
      * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */
     constructor(mode: ChatMode, persistent: boolean) {
-        super(`Failed to create ${persistent ? 'persistent' : ''} chat, mode: ${mode}`, 'ChatCreationFailed');
+        super(`Failed to create ${persistent ? 'persistent ' : ''}chat, mode: ${mode}`, 'ChatCreationFailed');
     }
 }
