@@ -4,7 +4,7 @@
 
 // Agent Manager
 export { createAgentManager } from './services/agent-manager';
-export type { Auth, BasicAuth, BearerToken, ClientKeyAuth, GetAuthParams } from './types/auth';
+export type { Auth, BasicAuth, BearerToken, ClientKeyAuth } from './types/auth';
 export type { Agent, EndOfCallFeedbackConfig } from './types/entities/agents/agent';
 export type {
     AgentManager,
@@ -32,29 +32,21 @@ export type {
     ToolCallErrorPayload,
     ToolCallStartedPayload,
     ToolEventCallback,
-    ToolEventPayload,
     ToolExecutionMode,
 } from './types/stream/stream';
 
 // Streaming Options
 export { VideoType } from './types/entities/video';
-export type { SendStreamPayloadResponse, Status, StickyRequest } from './types/stream/rtc';
+export type { SendStreamPayloadResponse } from './types/stream/rtc';
 export { StreamType } from './types/stream/stream';
 export type { CompatibilityMode } from './types/stream/stream';
 
 // Speak & Scripts
-export type {
-    AudioStreamScript,
-    BaseStreamScript,
-    StreamScriptType,
-    SupportedStreamScript,
-    TextStreamScript,
-} from './types/stream-script';
+export type { AudioStreamScript, SupportedStreamScript, TextStreamScript } from './types/stream-script';
 
 // Chat
-export { ChatMode, RateState } from './types/entities/agents/chat';
+export { ChatMode } from './types/entities/agents/chat';
 export type {
-    Chat,
     ChatResponse,
     Interrupt,
     Message,
@@ -91,4 +83,4 @@ export {
     WsError,
     isDIDError,
 } from './errors';
-export type { ErrorJson, NetworkErrorMeta } from './errors';
+export type { ErrorJson } from './errors';

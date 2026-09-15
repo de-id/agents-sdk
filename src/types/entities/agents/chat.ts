@@ -1,9 +1,3 @@
-export enum RateState {
-    Unrated = 'Unrated',
-    Positive = 'Positive',
-    Negative = 'Negative',
-}
-
 export interface RatingEntity {
     id: string;
     owner_id: string;
@@ -96,6 +90,10 @@ export interface ChatResponse {
     videoId?: string;
 }
 
+/**
+ * A chat session as the Agents API returns it when the SDK creates or resumes one.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface Chat {
     id: string;
     agent_id: string;

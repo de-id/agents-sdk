@@ -1,3 +1,7 @@
+/**
+ * Carrier of the `session_id` that keeps successive streaming requests on the same server session.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface StickyRequest {
     /**
      * session identifier information, should be returned in the body of all streaming requests
@@ -74,11 +78,20 @@ export interface IceCandidate {
     sdpMLineIndex?: number;
 }
 
+/**
+ * Bare `{ status }` envelope returned by the streaming endpoints that report only success or failure.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
 export interface Status {
     status: string;
 }
 
-export interface SendStreamPayloadResponse extends Status, StickyRequest {
+export interface SendStreamPayloadResponse {
+    status: string;
+    /**
+     * session identifier information, should be returned in the body of all streaming requests
+     */
+    session_id?: string;
     duration: number;
     video_id: string;
 }

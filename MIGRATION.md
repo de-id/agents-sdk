@@ -46,6 +46,13 @@ Shapes are unchanged; only the names differ.
 - `AgentManagerOptions.microphoneStream` — it was never read by the SDK, so passing it had no effect. Call `agentManager.publishMicrophoneStream(stream)` after `connect()` instead (Expressive (V4) agents).
 - The Expressive-only media methods (`publishMicrophoneStream`, `unpublishMicrophoneStream`, `replaceMicrophoneTrack`, `publishCameraStream`, `unpublishCameraStream`) are now required members of `AgentManager` instead of optional. They always existed at runtime; on Talks (V2) and Clips (V3) agents the `publish`/`replace` methods reject and the `unpublish` methods resolve without effect. Remove any `?.` guards.
 - `StreamEvents.StreamCreated` — never emitted; use the `onStreamCreated` callback.
+- `Status` and `StickyRequest` — their `status` and `session_id` fields are declared directly on `SendStreamPayloadResponse`.
+- `ToolEventPayload` — use the payload the `onToolEvent` overloads narrow to: `ToolCallStartedPayload`, `ToolCallDonePayload` or `ToolCallErrorPayload`.
+- `BaseStreamScript` and `StreamScriptType` — use `SupportedStreamScript`, or `TextStreamScript`/`AudioStreamScript` directly.
+- `Chat` — no public method returns one; `onNewChat` reports the new chat's id.
+- `RateState` — the SDK never produced or consumed it; `rate()` takes `1 | -1` and returns a `RatingEntity`.
+- `GetAuthParams` — a shape no SDK call accepts; declare it in your own code and pass an `Auth` to `createAgentManager`.
+- `NetworkErrorMeta` — read `endpoint`, `method`, `durationMs`, `online` and `visibility` off the `NetworkError` instance.
 
 ## Behaviour clarifications
 

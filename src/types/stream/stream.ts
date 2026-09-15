@@ -343,6 +343,10 @@ export interface ToolCallErrorPayload {
     timestamp: string;
 }
 
+/**
+ * Union of the three tool-call payloads, narrowed away by the {@link ToolEventCallback} overloads.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
 
 /**
