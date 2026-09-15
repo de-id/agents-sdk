@@ -59,6 +59,9 @@ export function load(app) {
         if (page.url === 'modules.html' && page.model instanceof ProjectReflection) {
             page.contents = annotateIndex(page.contents, page.model);
         }
+        if (page.url === 'index.html' && base) {
+            page.contents = relativizeSelfLinks(page.contents, base);
+        }
     });
 
     app.renderer.on(Renderer.EVENT_END, event => {
@@ -214,4 +217,16 @@ function escapeText(value) {
 /** @param {string} value */
 function escapeAttr(value) {
     return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * The README keeps absolute `https://sdk.d-id.com/...` links so it works on npm and GitHub; on the
+ * site itself they become relative, so a local preview stays on localhost and production navigates
+ * in-site. Only links with a path are rewritten; a link to the site root is left alone.
+ * @param {string} html
+ * @param {string} base
+ */
+function relativizeSelfLinks(html, base) {
+    const escaped = base.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+    return html.replace(new RegExp(`(href|src)="${escaped}([^"#?][^"]*)"`, 'g'), '$1="$2"');
 }
