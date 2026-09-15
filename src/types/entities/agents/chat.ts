@@ -1,15 +1,72 @@
+/**
+ * The rating a user has given an answer, as an application usually tracks it in its UI.
+ *
+ * {@link AgentManager.rate | rate()} takes a numeric score rather than this enum — `1` for
+ * {@link RateState.Positive} and `-1` for {@link RateState.Negative} — and the SDK never returns a
+ * `RateState`. It is exported so an application can keep the thumbs-up/thumbs-down state of each
+ * message in one shared vocabulary.
+ *
+ * @category Chat
+ */
+/** No rating has been given yet, or an existing one was removed with
+ * {@link AgentManager.deleteRate | deleteRate()}. */
+/** A thumbs-up: the score `1` passed to {@link AgentManager.rate | rate()}. */
+/** A thumbs-down: the score `-1` passed to {@link AgentManager.rate | rate()}. */
+
+/**
+ * A rating stored against one message of a chat, as the Agents API returns it.
+ *
+ * Produced by {@link AgentManager.rate | rate()} and returned again by
+ * {@link AgentManager.deleteRate | deleteRate()}. Keep {@link RatingEntity.id | id} if the user may
+ * change their mind: pass it back to {@link AgentManager.rate | rate()} as `rateId` to update the
+ * rating, or to {@link AgentManager.deleteRate | deleteRate()} to remove it.
+ *
+ * @category Chat
+ */
 export interface RatingEntity {
+    /**
+     * Id of this rating.
+     *
+     * Pass it as the `rateId` argument of {@link AgentManager.rate | rate()} to update the rating,
+     * or to {@link AgentManager.deleteRate | deleteRate()} to remove it.
+     */
     id: string;
+    /** Id of the D-ID account that owns the agent the rating was left on. Set by the API. */
     owner_id: string;
+    /** Id of the agent whose answer was rated. */
     agent_id: string;
+    /**
+     * The knowledge citations that were attached to the rated answer, as `[document_id, id]` pairs.
+     *
+     * The SDK builds them from the {@link Message.matches | matches} of the rated message, so a
+     * negative rating can be traced back to the documents the answer was drawn from. Empty when the
+     * answer cited nothing.
+     */
     matches: [string, string][];
+    /**
+     * Id of the agent's knowledge base ({@link Agent.knowledge}) at the time of the rating.
+     *
+     * An empty string when the agent has no knowledge base.
+     */
     knowledge_id: string;
+    /**
+     * The end-user identifier the API recorded for the request.
+     *
+     * Derived from the credentials the SDK sends, which carry
+     * {@link AgentManagerOptions.externalId | externalId} for `type: 'key'` authorization.
+     */
     external_id: string;
+    /** Identity the API attributed the rating to. Set by the API. */
     created_by: string;
+    /** Id of the {@link Chat} the rated message belongs to. */
     chat_id: string;
+    /** The score itself: `1` for a positive rating, `-1` for a negative one. */
     score: 1 | -1;
+    /** When the rating was created, as an ISO 8601 timestamp. */
     created_at: string;
+    /** When the rating was last changed, as an ISO 8601 timestamp. */
     modified_at: string;
+    /** {@link Message.id | Id of the message} that was rated. */
     message_id: string;
 }
 
@@ -22,32 +79,175 @@ export type RatingPayload = Omit<
     'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id' | 'agent_id' | 'chat_id'
 >;
 
+/**
+ * What the Agents API stored when end-of-call feedback was submitted.
+ *
+ * Returned by {@link AgentManager.submitFeedback | submitFeedback()}, which rates the conversation
+ * as a whole rather than a single answer.
+ *
+ * @category Chat
+ */
 export interface SubmitFeedbackResponse {
+    /** Id of the {@link Chat} the feedback belongs to. */
     chat_id: string;
+    /** The score that was submitted, on the agent's end-of-call scale of 1 to 5. */
     rating: number;
+    /**
+     * The follow-up question the user was asked, when one was recorded.
+     *
+     * Applications pick it from {@link EndOfCallFeedbackConfig.follow_up_messages}.
+     */
     question_shown?: string;
+    /** When the feedback was stored, as an ISO 8601 timestamp. */
     submitted_at: string;
 }
 
+/**
+ * One renderable piece of a message: a run of text, an image, a video or a link.
+ *
+ * {@link parseMessageParts} splits a message's {@link Message.content | content} into these, and
+ * the SDK keeps the result on {@link Message.parts}. Switch on `type` when rendering: everything
+ * the parser did not recognise stays a `text` part, so concatenating the text of every part gives
+ * the original content back.
+ *
+ * @category Chat
+ */
 export type MessagePart =
-    | { type: 'text'; text: string }
-    | { type: 'image'; src: string; alt: string; mimeType?: string }
-    | { type: 'video'; src: string; alt: string; thumbnail?: string }
-    | { type: 'link'; href: string; label: string };
+    | {
+          /** Discriminant: plain text that the parser found no markup in. */
+          type: 'text';
+          /** The text itself, exactly as it appeared in {@link Message.content}. */
+          text: string;
+      }
+    | {
+          /** Discriminant: an image, from markdown image syntax such as `![alt](url)`. */
+          type: 'image';
+          /** URL of the image. */
+          src: string;
+          /** The alt text from the markdown, or an empty string when it had none. */
+          alt: string;
+          /** `image/gif` when the URL ends in `.gif`; otherwise absent. */
+          mimeType?: string;
+      }
+    | {
+          /**
+           * Discriminant: a video, either from thumbnail syntax (`[![alt](thumb)](video)`) or from
+           * an image whose URL ends in a video extension.
+           */
+          type: 'video';
+          /** URL of the video file. */
+          src: string;
+          /** The alt text from the markdown, or an empty string when it had none. */
+          alt: string;
+          /** URL of the poster image, when the thumbnail syntax supplied one. */
+          thumbnail?: string;
+      }
+    | {
+          /** Discriminant: a link, from markdown `[label](url)` or from an HTML `<a href>`. */
+          type: 'link';
+          /** Target of the link. */
+          href: string;
+          /** The text shown for the link. */
+          label: string;
+      };
 
+/**
+ * One message of a chat: what the user asked, or what the agent answered.
+ *
+ * The SDK keeps the whole transcript and hands a fresh copy of it to
+ * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} every time a message is added or
+ * changed, oldest first. While an answer streams in, the last message's
+ * {@link Message.content | content} and {@link Message.parts | parts} grow with each `partial`
+ * callback and are final on `answer`. The same shape is accepted by
+ * {@link AgentManagerOptions.initialMessages | initialMessages} to seed a transcript.
+ *
+ * @category Chat
+ */
 export interface Message {
+    /**
+     * Id of this message.
+     *
+     * Pass it to {@link AgentManager.rate | rate()} to rate the answer. The SDK generates a random
+     * id for the messages it creates locally, and uses the id sent with the message for those that
+     * arrive from the agent.
+     */
     id: string;
+    /**
+     * Who the message is from.
+     *
+     * The SDK only produces `user` (the end user) and `assistant` (the agent); `system`, `function`
+     * and `tool` exist because the underlying chat protocol allows them.
+     */
     role?: 'system' | 'assistant' | 'user' | 'function' | 'tool';
+    /**
+     * The message text.
+     *
+     * Plain text, which for agent answers may contain markdown. It is replaced by the longer text
+     * on every `partial` callback while the answer streams in, so render it as it is rather than
+     * appending to what you rendered before.
+     */
     content: string;
+    /**
+     * {@link Message.content | content} split into renderable pieces by {@link parseMessageParts}.
+     *
+     * Kept in step with `content`, including while the answer streams in. Render these instead of
+     * the raw string when the agent may answer with images, videos or links; a message with no
+     * markup is a single `text` part, and an empty message is an empty array.
+     */
     parts: MessagePart[];
+    /** When the message was added, as an ISO 8601 timestamp. */
     created_at?: string;
+    /**
+     * The knowledge citations the answer was drawn from, as {@link RetrievalMetadata} entries.
+     *
+     * Present on an agent answer when the chat response carried them, so a UI can show its sources;
+     * {@link AgentManager.rate | rate()} also sends them with a rating. The SDK strips this field
+     * from the transcript it sends back to the API with the next
+     * {@link AgentManager.chat | chat()}.
+     */
     matches?: ChatResponse['matches'];
+    /**
+     * The retrieved context the answer was generated from, as
+     * {@link ChatResponse.context | the chat response} supplied it.
+     *
+     * Only ever set on an agent answer, and only when the answer came back from the Agents API —
+     * Expressive (V4) agents chat over the data channel instead, so their answers carry no
+     * context.
+     */
     context?: string;
+    /**
+     * Id of the video generated for this message.
+     *
+     * Part of the message shape the Agents API stores; the SDK never sets it on the messages it
+     * hands to {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
+     */
     videoId?: string;
+    /**
+     * `true` when the answer was cut short instead of being spoken to the end.
+     *
+     * Set on the last message by {@link AgentManager.interrupt | interrupt()}, and by the SDK when
+     * the final answer turns out to be shorter than the partial text already received — which is
+     * how it detects that the agent was interrupted mid-utterance.
+     */
     interrupted?: boolean;
+    /**
+     * `true` when this user message came from speech-to-text rather than from
+     * {@link AgentManager.chat | chat()}.
+     *
+     * It is what distinguishes an utterance the user spoke from one they typed.
+     */
     transcribed?: boolean;
+    /**
+     * The sentiment the agent delivered this answer with, when the stream reported one.
+     *
+     * Attached to the most recent agent answer as the video is created. Expressive (V4) agents only
+     * report it while {@link AgentManagerOptions.debug | debug} is enabled.
+     */
     sentiment?: {
+        /** Id of the sentiment. */
         id: string;
+        /** Name of the sentiment, such as `friendly` — the same vocabulary a text
+         * {@link AgentManager.speak | speak()} script accepts. */
         name: string;
     };
 }
@@ -63,49 +263,206 @@ export interface ChatPayload {
     chatMode?: ChatMode;
 }
 
+/**
+ * One knowledge citation: the passage of the agent's knowledge base an answer was drawn from.
+ *
+ * The Agents API returns these with an answer and the SDK keeps them on
+ * {@link Message.matches | matches}, so a UI can show the sources behind a reply.
+ *
+ * @category Chat
+ */
 export interface RetrievalMetadata {
+    /** Id of this match. Sent back with a rating as the second half of a
+     * {@link RatingEntity.matches} pair. */
     id: string;
+    /** The matched passage itself, as stored in the knowledge base. */
     data: string;
+    /** Title of the document the passage comes from. */
     title: string;
+    /** Id of the source document. Sent back with a rating as the first half of a
+     * {@link RatingEntity.matches} pair. */
     document_id: string;
+    /** Id of the knowledge base the document belongs to — the agent's {@link Agent.knowledge}. */
     knowledge_id: string;
+    /** URL of the original source, for linking the citation out of the chat. */
     source_url: string;
 }
 
+/**
+ * How the agent answers: with a streamed video, as text only, or not at all.
+ *
+ * Chosen with {@link AgentManagerOptions.mode | mode} and changed later with
+ * {@link AgentManager.changeMode | changeMode()}, which reports the new value through
+ * {@link AgentManagerCallbacks.onModeChange | onModeChange}. Switching to anything other than
+ * {@link ChatMode.Functional} disconnects the stream, since no other mode produces video. The
+ * server can also answer with a different mode than the one asked for when the chat is created; the
+ * SDK then adopts it and reports a {@link ChatModeDowngraded} error through
+ * {@link AgentManagerCallbacks.onError | onError}.
+ *
+ * @category Chat
+ */
 export enum ChatMode {
+    /**
+     * The full experience: the agent answers with a streamed video. The default.
+     *
+     * The only mode that keeps a stream connected, so it is the one every video feature —
+     * {@link AgentManager.speak | speak()}, {@link AgentManager.interrupt | interrupt()}, the
+     * microphone and camera methods — needs.
+     */
     Functional = 'Functional',
+    /**
+     * Text answers only: the chat works, but no video is produced.
+     *
+     * {@link AgentManager.chat | chat()} still returns answers through
+     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}, and
+     * {@link AgentManager.speak | speak()} adds a text script to the transcript but streams no
+     * video: it resolves with a `duration` of `0` and an empty `video_id`.
+     */
     TextOnly = 'TextOnly',
+    /**
+     * The agent is unavailable: {@link AgentManager.chat | chat()} throws a
+     * {@link ValidationError}.
+     *
+     * The SDK switches to it by itself when connecting fails after its retries, so a UI can show
+     * that the agent is temporarily out of service; the server can also return it when a chat is
+     * created. Like {@link ChatMode.TextOnly} it produces no video.
+     */
     Maintenance = 'Maintenance',
+    /**
+     * A text-only test conversation, used by the agent playground in D-ID Studio.
+     *
+     * Produces no video, and marks each chat request with a playground header so the API can treat
+     * it as a test. Chats in this mode always go over the Agents API, even for Expressive (V4)
+     * agents, which otherwise chat over the data channel. Applications normally use
+     * {@link ChatMode.Functional} or {@link ChatMode.TextOnly} instead.
+     */
     Playground = 'Playground',
+    /**
+     * Speak-only: no chat at all, but video still streams.
+     *
+     * No chat is created and {@link AgentManager.chat | chat()} throws a {@link ValidationError};
+     * the notifications web socket is not opened either. Use it when the application drives the
+     * agent entirely through {@link AgentManager.speak | speak()} and never asks its LLM anything.
+     */
     DirectPlayback = 'DirectPlayback',
+    /**
+     * Chat is switched off: no chat is created and {@link AgentManager.chat | chat()} throws a
+     * {@link ValidationError}.
+     *
+     * The same restriction as {@link ChatMode.DirectPlayback}, but the session still opens the
+     * notifications web socket.
+     */
     Off = 'Off',
 }
 
+/**
+ * What the Agents API answers a chat request with.
+ *
+ * Returned by {@link AgentManager.chat | chat()}. The SDK has already added the answer to the
+ * transcript by the time you get it, so most applications render
+ * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} instead and use this only for the
+ * fields that never reach a {@link Message}. Expressive (V4) agents chat over the data channel
+ * rather than over the API — except in {@link ChatMode.Playground} — so for them the object is
+ * empty and the answer arrives through the callback.
+ *
+ * @category Chat
+ */
 export interface ChatResponse {
+    /**
+     * The agent's answer.
+     *
+     * Empty or absent when the answer is delivered as it is generated instead, which is what
+     * streaming modes do; the SDK then adds no message for it and the text arrives through
+     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
+     */
     result?: string;
+    /** Ids of the knowledge documents the answer was retrieved from. The same documents
+     * {@link ChatResponse.matches | matches} describes in full. */
     documentIds?: string[];
+    /**
+     * The knowledge citations behind the answer.
+     *
+     * Copied onto the answer as {@link Message.matches | matches}.
+     */
     matches?: RetrievalMetadata[];
+    /**
+     * The {@link ChatMode} the server handled the request in.
+     *
+     * It can differ from the mode that was asked for — see {@link ChatMode}.
+     */
     chatMode?: ChatMode;
+    /**
+     * The retrieved context the answer was generated from.
+     *
+     * Copied onto the answer as {@link Message.context | context}.
+     */
     context?: string;
+    /** Id of the video generated for the answer, when the server reported one. */
     videoId?: string;
 }
 
 /**
- * A chat session as the Agents API returns it when the SDK creates or resumes one.
- * @internal Implementation type; not part of the public SDK surface.
+ * A conversation with an agent, as the Agents API stores it.
+ *
+ * One is created while {@link AgentManager.connect | connect()} runs, and lazily on the first
+ * {@link AgentManager.chat | chat()} when none exists yet; its id is what
+ * {@link AgentManagerCallbacks.onNewChat | onNewChat} reports. Unless
+ * {@link AgentManagerOptions.persistentChat | persistentChat} is set, the chat lives only as long
+ * as the session.
+ *
+ * @category Chat
  */
 export interface Chat {
+    /** Id of the chat. The value handed to
+     * {@link AgentManagerCallbacks.onNewChat | onNewChat}. */
     id: string;
+    /** Id of the agent this conversation is with. */
     agent_id: string;
+    /** When the chat was created, as an ISO 8601 timestamp. */
     created: string;
+    /** When the chat was last changed, as an ISO 8601 timestamp. */
     modified: string;
+    /** Id of the D-ID account that owns the chat. Set by the API. */
     owner_id: string;
+    /**
+     * The messages stored with the chat.
+     *
+     * The SDK never reads this array — the live transcript is the one handed to
+     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} — and it is empty on the chat the
+     * SDK builds for an Expressive (V4) session.
+     */
     messages: Message[];
+    /** A composite sort key the API uses to list an agent's chats by creation time. Not meaningful
+     * to clients. */
     agent_id__created_at: string;
+    /** A composite sort key the API uses to list an agent's chats by modification time. Not
+     * meaningful to clients. */
     agent_id__modified_at: string;
+    /**
+     * The {@link ChatMode} the chat was created in.
+     *
+     * {@link AgentManager.connect | connect()} adopts it, which is how the server can downgrade the
+     * mode an application asked for.
+     */
     chat_mode?: ChatMode;
 }
 
+/**
+ * What caused the user to interrupt the agent, passed to
+ * {@link AgentManager.interrupt | interrupt()}.
+ *
+ * @category Chat
+ */
 export interface Interrupt {
+    /**
+     * The cause: `text` when the user typed over the answer, `audio` when they started speaking,
+     * `click` when they pressed a stop control, and `manual` for an interruption the application
+     * decided on itself.
+     *
+     * The SDK records it with the interruption for analytics. It changes behaviour in one case
+     * only: Expressive (V4) agents ignore a `text` interrupt, because their orchestrator does not
+     * cancel the answer already in flight. Talks (V2) and Clips (V3) agents interrupt the current
+     * video whatever the value.
+     */
     type: 'text' | 'audio' | 'click' | 'manual';
 }
