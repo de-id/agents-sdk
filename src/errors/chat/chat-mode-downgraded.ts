@@ -24,10 +24,8 @@ import { BaseError } from '../base-error';
  */
 export class ChatModeDowngraded extends BaseError {
     /**
-     * Builds the error from the mode the session ended up in. The SDK does this itself.
-     *
-     * @param mode - The {@link ChatMode} the server assigned, which is also the mode reported by
-     * {@link AgentManagerCallbacks.onModeChange | onModeChange}.
+     * Builds the error from the mode the session ended up in.
+     * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */
     constructor(mode: ChatMode) {
         super(`Chat mode downgraded to ${mode}`, 'ChatModeDowngraded');

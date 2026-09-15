@@ -6,7 +6,7 @@
  * {@link VideoType.Clip | clip} is Clips (V3), and {@link VideoType.Expressive | expressive} is
  * Expressive (V4).
  *
- * @category Streaming Options
+ * @category Agent Manager
  */
 export enum AvatarType {
     /** A Clips (V3) agent: a pre-recorded presenter, driven by the D-ID Clips pipeline. */

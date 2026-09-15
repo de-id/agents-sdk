@@ -18,16 +18,16 @@ import { BaseError } from './base-error';
  *
  * Most of these leave the session unusable, so the useful response is to tell the user and call
  * {@link AgentManager.reconnect | reconnect()}. {@link BaseError.kind | kind} is `'StreamError'`.
+ * The message describes the failure, and is the plain `'Stream Error'` when the transport gave no
+ * detail; the underlying error, where there was one, is kept as
+ * {@link BaseError.originalError | originalError}.
  *
  * @category Errors
  */
 export class StreamError extends BaseError {
     /**
-     * Wraps a streaming failure. The SDK builds this itself.
-     *
-     * @param message - Description of the failure; the plain `'Stream Error'` when the transport
-     * gave no detail.
-     * @param originalError - The underlying error, when the failure wrapped one.
+     * Wraps a streaming failure.
+     * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */
     constructor(message: string, originalError?: unknown) {
         super(message, 'StreamError', originalError);

@@ -87,25 +87,30 @@ export enum AgentActivityState {
 }
 
 /**
- * The event names the server sends on the session's data channel and web socket.
+ * The tool-call events delivered to
+ * {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
  *
- * Most members are consumed inside the SDK and surface as the callbacks on
- * {@link AgentManagerCallbacks} rather than as raw events: the chat events build the transcript for
- * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}, the stream and stream-video events
- * drive {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} and
- * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange}, and the
- * turn events mark the start and end of a conversational turn. The three `tool-call/*` members are
- * the only ones handed to the application directly, as the first argument of
- * {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see {@link ToolEventCallback}.
+ * Switch on the first argument of the handler to tell them apart; it narrows the payload to
+ * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} or {@link ToolCallErrorPayload} —
+ * see {@link ToolEventCallback}. Expressive (V4) agents only.
  *
  * @category Callbacks & Events
  */
 export enum StreamEvents {
-    /** The agent's complete answer for this turn; it becomes an `answer` message in the transcript. */
+    /**
+     * The agent's complete answer for this turn; it becomes an `answer` message in the transcript.
+     * @internal Consumed by the SDK; it surfaces as onNewMessage.
+     */
     ChatAnswer = 'chat/answer',
-    /** A fragment of the agent's answer as it is generated; it becomes a `partial` message. */
+    /**
+     * A fragment of the agent's answer as it is generated; it becomes a `partial` message.
+     * @internal Consumed by the SDK; it surfaces as onNewMessage.
+     */
     ChatPartial = 'chat/partial',
-    /** The user's speech, transcribed by the server; it becomes a `user` message. */
+    /**
+     * The user's speech, transcribed by the server; it becomes a `user` message.
+     * @internal Consumed by the SDK; it surfaces as onNewMessage.
+     */
     ChatAudioTranscribed = 'chat/audio-transcribed',
     /**
      * A video finished playing, or the session ended — which one depends on where it arrives.
@@ -122,21 +127,27 @@ export enum StreamEvents {
      * ends the whole session: it carries the reason, which the SDK passes on as the `reason`
      * argument of {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange}
      * with {@link ConnectionState.Disconnected | 'disconnected'}. See {@link StreamEndReason}.
+     * @internal Consumed by the SDK; it surfaces as onVideoStateChange or onConnectionStateChange.
      */
     StreamDone = 'stream/done',
-    /** A video started playing on a Talks (V2) or Clips (V3) stream. */
+    /**
+     * A video started playing on a Talks (V2) or Clips (V3) stream.
+     * @internal Consumed by the SDK; it surfaces as onVideoStateChange.
+     */
     StreamStarted = 'stream/started',
     /**
      * The session ended because the stream failed.
      *
      * On the Talks (V2) and Clips (V3) web socket it is also reported through
      * {@link AgentManagerCallbacks.onError | onError}, as a {@link StreamError}.
+     * @internal Consumed by the SDK; it surfaces as onError.
      */
     StreamFailed = 'stream/error',
     /**
      * The warmup video has finished and the stream is ready for real content.
      *
      * Only sent when {@link StreamOptions.streamWarmup | streamWarmup} was requested.
+     * @internal Consumed by the SDK; the application never sees it.
      */
     StreamReady = 'stream/ready',
     /**
@@ -145,15 +156,28 @@ export enum StreamEvents {
      * Sent by the SDK rather than received: it is the message
      * {@link AgentManager.interrupt | interrupt()} puts on the data channel of a fluent Talks (V2)
      * or Clips (V3) stream.
+     * @internal Sent by the SDK; the application calls interrupt() instead.
      */
     StreamInterrupt = 'stream/interrupt',
-    /** A video for one utterance started playing. */
+    /**
+     * A video for one utterance started playing.
+     * @internal Consumed by the SDK; it surfaces as onVideoStateChange.
+     */
     StreamVideoCreated = 'stream-video/started',
-    /** The video for one utterance finished playing. */
+    /**
+     * The video for one utterance finished playing.
+     * @internal Consumed by the SDK; it surfaces as onVideoStateChange.
+     */
     StreamVideoDone = 'stream-video/done',
-    /** Generating or streaming the video for one utterance failed; it is reported through {@link AgentManagerCallbacks.onError | onError}. */
+    /**
+     * Generating or streaming the video for one utterance failed.
+     * @internal Consumed by the SDK; it surfaces as onError.
+     */
     StreamVideoError = 'stream-video/error',
-    /** The server refused to generate the video for one utterance; it is reported through {@link AgentManagerCallbacks.onError | onError}. */
+    /**
+     * The server refused to generate the video for one utterance.
+     * @internal Consumed by the SDK; it surfaces as onError.
+     */
     StreamVideoRejected = 'stream-video/rejected',
     /** The agent started a tool call; the payload is a {@link ToolCallStartedPayload}. */
     ToolCallStarted = 'tool-call/started',
@@ -161,9 +185,15 @@ export enum StreamEvents {
     ToolCallDone = 'tool-call/done',
     /** A tool call failed; the payload is a {@link ToolCallErrorPayload}. */
     ToolCallError = 'tool-call/error',
-    /** A conversational turn started. Expressive (V4) only. */
+    /**
+     * A conversational turn started. Expressive (V4) only.
+     * @internal Consumed by the SDK; it surfaces as onAgentActivityStateChange.
+     */
     TurnStarted = 'turn/started',
-    /** A conversational turn ended. Expressive (V4) only. */
+    /**
+     * A conversational turn ended. Expressive (V4) only.
+     * @internal Consumed by the SDK; it surfaces as onAgentActivityStateChange.
+     */
     TurnEnded = 'turn/ended',
 }
 
@@ -175,7 +205,11 @@ export enum StreamEvents {
  * ({@link AgentManager.chat | chat()}, {@link AgentManager.speak | speak()},
  * {@link AgentManager.interrupt | interrupt()},
  * {@link AgentManager.setSttLanguage | setSttLanguage()}), which own the payload shape and
- * bookkeeping those topics expect, so they are not exposed. The values are the wire strings.
+ * bookkeeping those topics expect, so they stay internal.
+ *
+ * A const object rather than a second enum: it borrows the value from the internal topic enum, so
+ * there is one source of truth for the wire string and no cast is needed where the topic reaches
+ * the transport. The type of the same name is its value type — the type of the `topic` parameter.
  * Expressive (V4) agents only.
  *
  * @example
@@ -192,11 +226,15 @@ export enum StreamEvents {
 export enum PublicDataChannelTopic {
     /**
      * Messages that drive a presentation the agent is showing alongside its video, such as moving
-     * to another slide. The payload shape is whatever the presentation the agent is running
-     * expects. Sent on the wire as `did.presentation`.
+     * to another slide. Sent on the wire as `did.presentation`; the payload shape is whatever the
+     * presentation the agent is running expects.
      */
     Presentation = 'did.presentation',
 }
+/**
+ * The value type of {@link PublicDataChannelTopic}.
+ * @hidden The const object of the same name carries the documentation.
+ */
 
 /**
  * The state of the connection between the browser and the agent's stream.
@@ -575,6 +613,10 @@ export type ToolExecutionMode = 'blocking' | 'async';
  * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}. A call appears
  * when it starts and disappears when it finishes, fails, or — for a `blocking` call — when its turn
  * ends; an `async` call outlives its turn.
+ *
+ * The fields are camelCase because this is the SDK's own view of a call; the same call arrives in
+ * {@link AgentManagerCallbacks.onToolEvent | onToolEvent} as a raw server payload, where the
+ * equivalent fields are snake_case — `callId` here is `call_id` there.
  *
  * @category Callbacks & Events
  */

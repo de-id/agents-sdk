@@ -22,7 +22,7 @@ import { RunningToolCall } from '@sdk/types';
  *     },
  * };
  * ```
- * @category Chat
+ * @category Callbacks & Events
  */
 export function isAwaitingTool(calls: readonly RunningToolCall[]): boolean {
     return calls.some(call => call.executionMode === 'blocking');

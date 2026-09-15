@@ -93,7 +93,7 @@ export interface Status {
  * text-only chat mode ({@link ChatMode.TextOnly}, {@link ChatMode.Playground} or
  * {@link ChatMode.Maintenance}), which produces no video at all.
  *
- * @category Streaming Options
+ * @category Speak & Scripts
  */
 export interface SendStreamPayloadResponse {
     /**

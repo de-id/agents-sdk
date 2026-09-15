@@ -19,11 +19,8 @@ import { BaseError } from '../base-error';
  */
 export class ChatCreationFailed extends BaseError {
     /**
-     * Builds the error from the attempt that failed. The SDK does this itself.
-     *
-     * @param mode - The {@link ChatMode} the chat was being created in.
-     * @param persistent - Whether a persistent chat was requested, from
-     * {@link AgentManagerOptions.persistentChat | persistentChat}.
+     * Builds the error from the attempt that failed.
+     * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */
     constructor(mode: ChatMode, persistent: boolean) {
         super(`Failed to create ${persistent ? 'persistent' : ''} chat, mode: ${mode}`, 'ChatCreationFailed');

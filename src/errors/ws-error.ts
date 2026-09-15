@@ -16,16 +16,15 @@ import { BaseError } from './base-error';
  * the LiveKit data channel, nor in {@link ChatMode.DirectPlayback | DirectPlayback} mode, so the
  * error cannot occur in either case.
  *
- * {@link BaseError.kind | kind} is `'WSError'`.
+ * {@link BaseError.kind | kind} is `'WSError'`, and the message is
+ * `'Websocket failed to connect'`.
  *
  * @category Errors
  */
 export class WsError extends BaseError {
     /**
-     * Wraps a web socket failure. The SDK builds this itself from the socket's `error` event.
-     *
-     * @param message - Description of the failure; the socket manager reports
-     * `'Websocket failed to connect'`.
+     * Wraps a web socket failure, built from the socket's `error` event.
+     * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */
     constructor(message: string) {
         super(message, 'WSError');
