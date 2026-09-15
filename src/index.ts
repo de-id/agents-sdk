@@ -39,7 +39,7 @@ export type {
 } from './types/stream/stream';
 
 // Streaming Options
-export { VideoType, mapVideoType } from './types/entities/video';
+export { VideoType } from './types/entities/video';
 export type { SendStreamPayloadResponse, Status, StickyRequest } from './types/stream/rtc';
 export { StreamType } from './types/stream/stream';
 export type { CompatibilityMode } from './types/stream/stream';
@@ -74,10 +74,8 @@ export type {
     AmazonTtsProvider,
     AzureOpenAiTtsProvider,
     ElevenlabsTtsProvider,
-    ExtendedTextToSpeechProviders,
     MicrosoftTtsProvider,
     StreamTextToSpeechProviders,
-    TextToSpeechProviders,
     Voice,
     VoiceConfigElevenlabs,
     VoiceConfigMicrosoft,

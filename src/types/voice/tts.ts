@@ -129,8 +129,6 @@ export interface VoiceConfigElevenlabs {
     similarity_boost?: number;
 }
 
-export type TextToSpeechProviders = MicrosoftTtsProvider | AzureOpenAiTtsProvider | ElevenlabsTtsProvider;
-export type ExtendedTextToSpeechProviders = TextToSpeechProviders | AmazonTtsProvider;
 export type StreamTextToSpeechProviders =
     | MicrosoftTtsProvider
     | AzureOpenAiTtsProvider

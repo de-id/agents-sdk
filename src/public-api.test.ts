@@ -41,7 +41,6 @@ const RUNTIME_EXPORTS = [
     'createAgentManager',
     'isAwaitingTool',
     'isDIDError',
-    'mapVideoType',
     'parseMessageParts',
 ].sort();
 
