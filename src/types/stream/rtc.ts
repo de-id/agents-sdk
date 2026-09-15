@@ -101,25 +101,31 @@ export interface Status {
 /**
  * What {@link AgentManager.speak | speak()} resolves with: the video the agent is about to stream.
  *
- * The fields come from the Talks (V2) and Clips (V3) API, which generates the video while answering
- * the request. In a text-only chat mode ({@link ChatMode.TextOnly}, {@link ChatMode.Playground} or
- * {@link ChatMode.Maintenance}) no video is produced, so the call resolves with `duration` `0` and
- * an empty `video_id`; Expressive (V4) agents send the script over the data channel and resolve
- * without these fields.
+ * The fields come from the Talks (V2) and Clips (V3) API, which generates a discrete video while
+ * answering the request. Where no such video exists the call still resolves, with the same stub —
+ * `status` `'success'`, `duration` `0` and an empty `video_id`: on Expressive (V4) agents, whose
+ * speech is streamed over the data channel rather than rendered as a separate video, and in a
+ * text-only chat mode ({@link ChatMode.TextOnly}, {@link ChatMode.Playground} or
+ * {@link ChatMode.Maintenance}), which produces no video at all.
  *
  * @category Streaming Options
  */
 export interface SendStreamPayloadResponse {
     status: string;
     session_id?: string;
-    /** Duration of the generated video as reported by the streams API for Talks (V2) and Clips (V3) agents. */
+    /**
+     * Duration of the generated video as reported by the streams API for Talks (V2) and Clips (V3)
+     * agents. `0` when the call produced no discrete video — on Expressive (V4) agents, and in a
+     * text-only chat mode.
+     */
     duration: number;
     /**
      * Id of the generated video.
      *
      * Use it to correlate this call with the video the agent then plays, which
      * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} reports the start and
-     * end of, and which {@link AgentManager.interrupt | interrupt()} cancels.
+     * end of, and which {@link AgentManager.interrupt | interrupt()} cancels. Empty when the call
+     * produced no discrete video — on Expressive (V4) agents, and in a text-only chat mode.
      */
     video_id: string;
 }

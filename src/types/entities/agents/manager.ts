@@ -696,7 +696,9 @@ export interface AgentManager {
      * @see https://docs.d-id.com/reference/talks-streams-overview
      * @see https://docs.d-id.com/reference/clips-streams-overview
      * @param payload - A text or audio script, or a string treated as the text to speak.
-     * @returns The {@link SendStreamPayloadResponse} for the video that was produced.
+     * @returns The {@link SendStreamPayloadResponse} for the video that was produced, or the same
+     * response with `duration` `0` and an empty `video_id` when the call produced no discrete video
+     * — on Expressive (V4) agents, and in a text-only chat mode.
      * @throws {@link ValidationError} When the manager is not connected to a stream yet.
      * @example Text
      * ```ts
