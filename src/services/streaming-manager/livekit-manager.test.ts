@@ -386,6 +386,14 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith('', { topic: DataChannelTopic.Interrupt });
         });
 
+        it('should return false without sending before the room connects', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            expect(manager.interrupt('click')).toBe(false);
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+        });
+
         it('should return false without sending for a text interrupt', async () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();

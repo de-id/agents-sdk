@@ -481,6 +481,15 @@ describe('Streaming Manager Core', () => {
             expect(mockDC.send).not.toHaveBeenCalled();
         });
 
+        it('should return false when the data channel is no longer open', async () => {
+            const { manager, mockDC } = await createConnectedManager();
+            startVideo(mockDC);
+            mockDC.readyState = 'closed';
+
+            expect(manager.interrupt('click')).toBe(false);
+            expect(mockDC.send).not.toHaveBeenCalled();
+        });
+
         it('should return false without sending on a legacy stream', async () => {
             const { manager, mockDC } = await createConnectedManager({ fluent: false });
             startVideo(mockDC);

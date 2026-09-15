@@ -864,6 +864,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // cancel the in-flight LLM token stream, and an extra interrupt while
             // a previous one is still settling causes races.
             if (type === 'text') return false;
+
+            // Nothing would reach the agent: sendDataChannelMessage drops the payload in this state.
+            if (!isConnected || !room) return false;
+
             sendDataChannelMessage(DataChannelTopic.Interrupt, '');
 
             return true;

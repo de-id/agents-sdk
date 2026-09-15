@@ -411,6 +411,11 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 return false;
             }
 
+            // Nothing would reach the agent: sendDataChannelMessage drops the payload in this state.
+            if (!isConnected || pcDataChannel.readyState !== 'open') {
+                return false;
+            }
+
             const payload: StreamInterruptPayload = {
                 type: StreamEvents.StreamInterrupt,
                 videoId: currentVideoId,
