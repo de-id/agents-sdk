@@ -410,13 +410,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         publishMicrophoneStream(stream: MediaStream): Promise<void> {
             if (!items.streamingManager?.publishMicrophoneStream) {
-                return Promise.reject(new Error('publishMicrophoneStream is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError(
+                        'publishMicrophoneStream is only available on Expressive (V4) agents, after connect()'
+                    )
+                );
             }
             return items.streamingManager.publishMicrophoneStream(stream);
         },
         setSttLanguage(language: string): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
-                return Promise.reject(new Error('setSttLanguage is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError('setSttLanguage is only available on Expressive (V4) agents, after connect()')
+                );
             }
 
             analytics.track('agent-stt-language-change', { language });
@@ -428,7 +434,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
-                return Promise.reject(new Error('sendDataChannelMessage is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError(
+                        'sendDataChannelMessage is only available on Expressive (V4) agents, after connect()'
+                    )
+                );
             }
 
             analytics.track('agent-data-message', { topic });
@@ -447,13 +457,21 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void> {
             if (!items.streamingManager?.replaceMicrophoneTrack) {
-                return Promise.reject(new Error('replaceMicrophoneTrack is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError(
+                        'replaceMicrophoneTrack is only available on Expressive (V4) agents, after connect()'
+                    )
+                );
             }
             return items.streamingManager.replaceMicrophoneTrack(track);
         },
         publishCameraStream(stream: MediaStream): Promise<void> {
             if (!items.streamingManager?.publishCameraStream) {
-                return Promise.reject(new Error('publishCameraStream is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError(
+                        'publishCameraStream is only available on Expressive (V4) agents, after connect()'
+                    )
+                );
             }
             return items.streamingManager.publishCameraStream(stream);
         },

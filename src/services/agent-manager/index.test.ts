@@ -1049,8 +1049,9 @@ describe('createAgentManager', () => {
         it('should throw error when publishMicrophoneStream is not available', async () => {
             mockStreamingManager.publishMicrophoneStream = undefined;
 
+            await expect(manager.publishMicrophoneStream?.(new MediaStream())).rejects.toBeInstanceOf(ValidationError);
             await expect(manager.publishMicrophoneStream?.(new MediaStream())).rejects.toThrow(
-                'publishMicrophoneStream is not available for this streaming manager'
+                'publishMicrophoneStream is only available on Expressive (V4) agents, after connect()'
             );
         });
     });
@@ -1075,8 +1076,9 @@ describe('createAgentManager', () => {
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
 
+            await expect(manager.setSttLanguage('French')).rejects.toBeInstanceOf(ValidationError);
             await expect(manager.setSttLanguage('French')).rejects.toThrow(
-                'setSttLanguage is not available for this streaming manager'
+                'setSttLanguage is only available on Expressive (V4) agents, after connect()'
             );
             expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
@@ -1128,7 +1130,10 @@ describe('createAgentManager', () => {
 
             await expect(
                 manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 1 })
-            ).rejects.toThrow('sendDataChannelMessage is not available for this streaming manager');
+            ).rejects.toBeInstanceOf(ValidationError);
+            await expect(
+                manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 1 })
+            ).rejects.toThrow('sendDataChannelMessage is only available on Expressive (V4) agents, after connect()');
             expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
 
@@ -1203,8 +1208,9 @@ describe('createAgentManager', () => {
             mockStreamingManager.replaceMicrophoneTrack = undefined;
             const mockTrack = { kind: 'audio', id: 'audio-track-1' } as unknown as MediaStreamTrack;
 
+            await expect(manager.replaceMicrophoneTrack?.(mockTrack)).rejects.toBeInstanceOf(ValidationError);
             await expect(manager.replaceMicrophoneTrack?.(mockTrack)).rejects.toThrow(
-                'replaceMicrophoneTrack is not available for this streaming manager'
+                'replaceMicrophoneTrack is only available on Expressive (V4) agents, after connect()'
             );
         });
     });
@@ -1230,8 +1236,9 @@ describe('createAgentManager', () => {
         it('should throw error when publishCameraStream is not available', async () => {
             mockStreamingManager.publishCameraStream = undefined;
 
+            await expect(manager.publishCameraStream?.(new MediaStream())).rejects.toBeInstanceOf(ValidationError);
             await expect(manager.publishCameraStream?.(new MediaStream())).rejects.toThrow(
-                'publishCameraStream is not available for this streaming manager'
+                'publishCameraStream is only available on Expressive (V4) agents, after connect()'
             );
         });
     });

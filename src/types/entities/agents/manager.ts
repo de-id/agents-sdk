@@ -631,10 +631,13 @@ export interface AgentManager {
      * Publishes a microphone audio track to the session so the agent can hear the user.
      *
      * Call it after {@link AgentManager.connect | connect()} to enable voice input. Expressive (V4)
-     * agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
+     * agents only; on Talks (V2) and Clips (V3) agents, and before `connect()`, the returned
+     * promise rejects with a {@link ValidationError}.
      *
      * @param stream - A `MediaStream` whose audio track is published to the session.
      * @returns Resolves once the track is published.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      * @example
      * ```ts
      * const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -663,23 +666,29 @@ export interface AgentManager {
      * Use it when the user picks a different input device: the publication is preserved — its
      * LiveKit publication id (SID) and SSRC stay the same, though the `MediaStreamTrack` id
      * changes — so the server sees continuous audio across the swap rather than a stop and a
-     * restart. Rejects when there is no active publication — fall back to
-     * {@link AgentManager.publishMicrophoneStream | publishMicrophoneStream()} in that case.
-     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise
-     * rejects.
+     * restart. Rejects with a plain `Error` from the transport when there is no active publication
+     * — fall back to {@link AgentManager.publishMicrophoneStream | publishMicrophoneStream()} in
+     * that case. Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents, and before
+     * {@link AgentManager.connect | connect()}, the returned promise rejects with a
+     * {@link ValidationError}.
      *
      * @param track - The audio track to send from now on.
      * @returns Resolves once the transport has switched to the new track.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      */
     replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void>;
     /**
      * Publishes a camera video track to the session so the agent can see the user.
      *
      * Call it after {@link AgentManager.connect | connect()} to enable vision. Expressive (V4)
-     * agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
+     * agents only; on Talks (V2) and Clips (V3) agents, and before `connect()`, the returned
+     * promise rejects with a {@link ValidationError}.
      *
      * @param stream - A `MediaStream` whose video track is published to the session.
      * @returns Resolves once the track is published.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      */
     publishCameraStream(stream: MediaStream): Promise<void>;
     /**
@@ -854,11 +863,13 @@ export interface AgentManager {
      * Switches the speech-to-text language in the middle of a session.
      *
      * Expressive (V4) agents only, after {@link AgentManager.connect | connect()}; otherwise the
-     * returned promise rejects.
+     * returned promise rejects with a {@link ValidationError}.
      *
      * @param language - The language to transcribe in, as a name or a BCP-47 code — `"English"` or
      * `"en-US"`.
      * @returns Resolves once the new language has been sent to the agent.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      */
     setSttLanguage(language: string): Promise<void>;
 
@@ -867,12 +878,14 @@ export interface AgentManager {
      *
      * Use it for application-specific messages that are not speech, such as telling a presentation
      * to change slide. Expressive (V4) agents only, after {@link AgentManager.connect | connect()};
-     * otherwise the returned promise rejects.
+     * otherwise the returned promise rejects with a {@link ValidationError}.
      *
      * @param topic - Data-channel topic to send on. {@link PublicDataChannelTopic} is exported from
      * the package root and lists every topic this method accepts.
      * @param payload - A plain object, sent as JSON.
      * @returns Resolves once the payload has been sent.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      * @example
      * ```ts
      * import { PublicDataChannelTopic } from '@d-id/client-sdk';
