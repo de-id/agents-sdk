@@ -89,7 +89,8 @@ export interface Status {
 export interface SendStreamPayloadResponse {
     status: string;
     /**
-     * session identifier information, should be returned in the body of all streaming requests
+     * Identifier of the session the video was queued on; the SDK sends it back on the streaming
+     * requests that follow.
      */
     session_id?: string;
     duration: number;
