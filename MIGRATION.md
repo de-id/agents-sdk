@@ -1,12 +1,17 @@
 # Migration Guide: v2 → v3
 
-`@d-id/client-sdk` v3 is a **breaking** release that cleans up the package's public surface so the generated API reference (https://sdk.d-id.com/) describes exactly what the SDK supports. Nothing about runtime behaviour changes.
+`@d-id/client-sdk` v3 is a **breaking** release that cleans up the package's public surface so the generated API reference (https://sdk.d-id.com/) describes exactly what the SDK supports. The only behaviour change is the removal of the misspelled `enableAnalitics` option (see *Removed options and types*); everything else is names and exports.
 
 ## Implementation types are no longer exported
 
 Around fifty internal types leaked from the package root in v2 through a wildcard export (RTC wire shapes such as `ICreateStreamRequestResponse`, streaming-manager options, knowledge entities the SDK never uses). They are not exported any more. If you imported one, you were depending on an implementation detail; the public equivalents are listed in the reference under Agent Manager, Callbacks & Events and Streaming Options.
 
-Removed from the root: `AgentManagerItems`, `AgentsAPI`, `AnalyticsRTCStatsReport`, `AudioDetectionMetrics`, `AvSyncReport`, `AvSyncSample`, `ChatPayload`, `ChatProgress`, `ChatProgressCallback`, `ClipStreamOptions`, `CreateClipStreamRequest`, `CreateDocumentPayload`, `CreateRecordPayload`, `CreateSessionV2Options`, `CreateSessionV2Response`, `CreateStreamOptions`, `CreateTalkStreamRequest`, `DocumentData`, `DocumentStatus`, `DocumentType`, `IceCandidate`, `IceServer`, `ICreateStreamRequestResponse`, `IParserResult`, `KnowledgeData`, `KnowledgePayload`, `KnowledgeType`, `ManagerCallbackKeys`, `ManagerCallbacks`, `PayloadType`, `QueryResult`, `RatingPayload`, `RecordData`, `RpcMethodHandler`, `RtcApi`, `SendClipStreamPayload`, `SendTalkStreamPayload`, `SlimRTCStatsReport`, `Stream_LLM_Script`, `StreamEndUserData`, `StreamingManagerCallbacks`, `StreamingManagerOptions`, `StreamInterruptPayload`, `StreamScript`, `Subject`, `TalkStreamOptions`, `TransportProvider`, `TurnEventPayload`.
+Removed from the root, grouped by area:
+
+- **Streaming transport (WebRTC / LiveKit wire types):** `ICreateStreamRequestResponse`, `IceCandidate`, `IceServer`, `CreateTalkStreamRequest`, `SendTalkStreamPayload`, `CreateClipStreamRequest`, `SendClipStreamPayload`, `TalkStreamOptions`, `ClipStreamOptions`, `CreateStreamOptions`, `PayloadType`, `StreamEndUserData`, `CreateSessionV2Options`, `CreateSessionV2Response`, `TransportProvider`, `RtcApi`
+- **Streaming-manager internals:** `StreamingManagerCallbacks`, `ManagerCallbacks`, `ManagerCallbackKeys`, `StreamingManagerOptions`, `RpcMethodHandler`, `StreamInterruptPayload`, `TurnEventPayload`, `AudioDetectionMetrics`, `SlimRTCStatsReport`, `AnalyticsRTCStatsReport`, `AvSyncSample`, `AvSyncReport`, `AgentManagerItems`
+- **Chat and agent API payloads:** `AgentsAPI`, `ChatPayload`, `ChatProgress`, `ChatProgressCallback`, `RatingPayload`, `StreamScript`, `Stream_LLM_Script`
+- **Knowledge entities (the SDK has no knowledge methods):** `KnowledgeType`, `KnowledgeData`, `KnowledgePayload`, `DocumentType`, `DocumentStatus`, `DocumentData`, `CreateDocumentPayload`, `RecordData`, `CreateRecordPayload`, `IParserResult`, `QueryResult`, `Subject`
 
 ## `ManagerCallbacks` → `AgentManagerCallbacks`
 
@@ -34,8 +39,8 @@ Shapes are unchanged; only the names differ.
 
 ## Removed options and types
 
-- `AgentManagerOptions.enableAnalitics` (misspelled) — use `enableAnalytics`.
-- `Subject` enum — the Knowledge API never served those prefixed values; use `DocumentStatus`.
+- `AgentManagerOptions.enableAnalitics` (misspelled) — use `enableAnalytics`. In v2 the misspelled option was honoured as a fallback; in v3 it is ignored, so a plain-JS caller that only set `enableAnalitics: false` will have analytics enabled again until it renames the key. TypeScript callers get a compile error.
+- `Subject` enum — the Knowledge API never served those prefixed values; it returns the bare status string (`'created' | 'processed' | 'done' | 'rejected' | 'error'`). The SDK exposes no knowledge methods — manage knowledge through the D-ID API. (also deleted from the source, not just unexported)
 - `VideoStateChangeCallback` no longer declares a second argument; the SDK never passed one.
 
 ---
