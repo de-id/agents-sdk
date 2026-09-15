@@ -32,7 +32,8 @@ function parseServerError(body: string): ServerErrorBody | undefined {
  * callback may not fire; the error is still thrown. Typical cases are `401` or `403` for a client
  * key that is not authorized for the agent or the calling domain, and `404` for an unknown agent
  * id; an account that is out of credits comes back with {@link BaseError.kind | kind}
- * `'InsufficientCreditsError'`.
+ * `'InsufficientCreditsError'`. A `429` is retried twice, one second apart (three attempts in
+ * total), before it surfaces.
  *
  * {@link BaseError.kind | kind} is the server's own classification when the response body is D-ID's
  * `{ kind, description }` envelope — the `'InsufficientCreditsError'` above is one — and
@@ -46,6 +47,17 @@ function parseServerError(body: string): ServerErrorBody | undefined {
  */
 export class HttpError extends BaseError {
     /**
+     * The server's own classification of the failure, and `'HttpError'` when the response body was
+     * not D-ID's `{ kind, description }` envelope.
+     *
+     * The only {@link BaseError.kind | kind} in the SDK that is not a fixed literal, so it stays
+     * typed `string`: an account out of credits comes back as `'InsufficientCreditsError'`, for
+     * instance. Use {@link HttpError.status | status} for the transport-level branch and this for
+     * the API-level one.
+     */
+    declare readonly kind: string;
+
+    /**
      * HTTP status code of the response, such as `401`, `404` or `500`.
      */
     readonly status: number;
@@ -53,9 +65,10 @@ export class HttpError extends BaseError {
      * Path of the request that failed, relative to the API client's base path — for example
      * `/agt_x/chat/cht_y` for a message sent to a chat.
      *
-     * Absent when the error was constructed without call context.
+     * Absent when the error was constructed without call context. {@link NetworkError.endpoint}
+     * is the same value on a transport failure.
      */
-    readonly url?: string;
+    readonly endpoint?: string;
     /**
      * HTTP method of the request that failed, such as `GET` or `POST`.
      *
@@ -73,7 +86,7 @@ export class HttpError extends BaseError {
         super((parsed?.description ?? body).slice(0, 256), parsed?.kind ?? 'HttpError');
 
         this.status = status;
-        this.url = meta.url;
+        this.endpoint = meta.endpoint;
         this.method = meta.method;
     }
 
@@ -82,7 +95,7 @@ export class HttpError extends BaseError {
      * {@link BaseError.toJson | BaseError.toJson()} already returns.
      *
      * Adds `httpStatus` from {@link HttpError.status | status}, and `endpoint` and `method` when the
-     * call context is known. The raw `status` and `url` property names are not part of the payload.
+     * call context is known. The raw `status` property is serialized as `httpStatus`.
      *
      * @returns The error as plain, JSON-serializable data.
      */
@@ -90,7 +103,7 @@ export class HttpError extends BaseError {
         return {
             ...super.toJson(),
             httpStatus: this.status,
-            ...(this.url ? { endpoint: this.url } : {}),
+            ...(this.endpoint ? { endpoint: this.endpoint } : {}),
             ...(this.method ? { method: this.method } : {}),
         };
     }

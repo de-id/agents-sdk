@@ -38,6 +38,7 @@ describe('createClient', () => {
     });
 
     afterEach(() => {
+        jest.useRealTimers();
         (globalThis as unknown as { fetch: typeof originalFetch }).fetch = originalFetch;
     });
 
@@ -60,7 +61,7 @@ describe('createClient', () => {
         expect(err.kind).toBe('NotFoundError'); // parsed from server envelope
         expect(err.message).toBe('agent not found');
         expect(err.status).toBe(404);
-        expect(err.url).toBe('/agents/missing');
+        expect(err.endpoint).toBe('/agents/missing');
         expect(err.method).toBe('GET');
         expect(data).toMatchObject({ url: '/agents/missing' });
     });
@@ -76,14 +77,34 @@ describe('createClient', () => {
         expect(onError.mock.calls[0][1]).toMatchObject({ url: '/agents/x/chat' });
     });
 
-    it('should surface a 429 as an HttpError and not retry', async () => {
-        fetchSpy.mockResolvedValue(fakeResponse({ status: 429, bodyText: 'slow down' }));
+    it('should retry a 429 and succeed when a later attempt is ok', async () => {
+        jest.useFakeTimers();
+        fetchSpy
+            .mockResolvedValueOnce(fakeResponse({ status: 429, bodyText: 'slow down' }))
+            .mockResolvedValueOnce(fakeResponse({ body: { id: 'x' } }));
         const client = createClient(auth, 'https://api.example.com');
 
-        const rejection = await client.get('/agents/x').catch(e => e);
-        expect(rejection).toBeInstanceOf(HttpError);
-        expect(rejection.status).toBe(429);
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        const pending = client.get('/agents/x');
+        await jest.advanceTimersByTimeAsync(1000);
+
+        await expect(pending).resolves.toEqual({ id: 'x' });
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should surface a 429 as an HttpError after the retries are exhausted', async () => {
+        jest.useFakeTimers();
+        fetchSpy.mockResolvedValue(fakeResponse({ status: 429, bodyText: 'slow down' }));
+        const onError = jest.fn();
+        const client = createClient(auth, 'https://api.example.com', onError);
+
+        const rejection = client.get('/agents/x').catch(e => e);
+        await jest.advanceTimersByTimeAsync(2000);
+
+        const error = await rejection;
+        expect(error).toBeInstanceOf(HttpError);
+        expect(error.status).toBe(429);
+        expect(fetchSpy).toHaveBeenCalledTimes(3);
+        expect(onError).toHaveBeenCalledTimes(1);
     });
 
     it('should wrap a network-level fetch rejection as a NetworkError', async () => {

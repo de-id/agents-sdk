@@ -24,6 +24,11 @@ import { RequestMeta } from './request-meta';
  */
 export class NetworkError extends BaseError {
     /**
+     * Always `'NetworkError'`. Branch on it to tell this failure from the other SDK errors.
+     */
+    readonly kind: 'NetworkError' = 'NetworkError';
+
+    /**
      * Path of the request that failed, relative to the API client's base path — for example
      * `/agt_x/chat/cht_y`.
      */
@@ -58,9 +63,7 @@ export class NetworkError extends BaseError {
      */
     constructor(originalError?: unknown, meta: RequestMeta = {}) {
         super('Network request failed', 'NetworkError', originalError);
-        // Naming drift kept on purpose: `HttpError` exposes the same value as `url`, and both
-        // serialize it as `endpoint` in toJson(). Renaming either property is a breaking change.
-        this.endpoint = meta.url;
+        this.endpoint = meta.endpoint;
         this.method = meta.method;
         this.durationMs = meta.durationMs;
         this.online = meta.online;

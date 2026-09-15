@@ -192,10 +192,10 @@ export interface Message {
      * videos or links; a message with no markup is a single `text` part, and an empty message is
      * an empty array.
      *
-     * The one exception is
-     * {@link AgentManagerOptions.initialMessages | initialMessages}, which the SDK passes through
-     * unchanged: build their parts yourself with {@link parseMessageParts}, or they render as
-     * nothing.
+     * {@link AgentManagerOptions.initialMessages | initialMessages} are treated the same way: the
+     * SDK runs the parser over the `content` of any of them that arrives with empty or missing
+     * `parts`, so a restored transcript can pass `parts: []` and still render. A non-empty array
+     * you built yourself is kept exactly as given.
      */
     parts: MessagePart[];
     /** When the message was added, as an ISO 8601 timestamp. */
@@ -219,13 +219,6 @@ export interface Message {
      */
     context?: string;
     /**
-     * Id of the video generated for this message.
-     *
-     * Part of the message shape the Agents API stores; the SDK never sets it on the messages it
-     * hands to {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
-     */
-    videoId?: string;
-    /**
      * `true` when the answer was cut short instead of being spoken to the end.
      *
      * Set on the last message by {@link AgentManager.interrupt | interrupt()}, and by the SDK when
@@ -247,12 +240,24 @@ export interface Message {
      * recent agent answer. The SDK only ever fills it in from an Expressive (V4) session, and only
      * while {@link AgentManagerOptions.debug | debug} is enabled.
      */
-    sentiment?: {
-        /** Id of the sentiment, as the server sent it. */
-        id: string;
-        /** Name of the sentiment, as the server sent it. */
-        name: string;
-    };
+    sentiment?: MessageSentiment;
+}
+
+/**
+ * The sentiment an agent answer was delivered with, as the server reported it.
+ *
+ * The shape of {@link Message.sentiment}. It is an object rather than a string because the server
+ * reports both the id of the sentiment it used and its name, where
+ * {@link TextStreamScript.sentiment} — the sentiment the application *asks* for — is just the
+ * name.
+ *
+ * @category Chat
+ */
+export interface MessageSentiment {
+    /** Id of the sentiment, as the server sent it. */
+    id: string;
+    /** Name of the sentiment, as the server sent it. */
+    name: string;
 }
 
 /**
@@ -345,12 +350,15 @@ export enum ChatMode {
     /**
      * Speak-only: no chat is created for the session, while video still streams.
      *
+     * Talks (V2) and Clips (V3) agents only; {@link createAgentManager} and
+     * {@link AgentManager.changeMode | changeMode()} reject it with a {@link ValidationError} for
+     * Expressive (V4) agents.
+     *
      * {@link AgentManager.chat | chat()} throws a {@link ValidationError} — but only when this was
      * the mode {@link createAgentManager} was given, because that guard reads the creation-time
      * mode rather than the current one; arriving here later through
      * {@link AgentManager.changeMode | changeMode()} leaves {@link AgentManager.chat | chat()}
-     * working. Chosen at creation time on a Talks (V2) or Clips (V3) agent it also skips the
-     * notifications web socket, which Expressive (V4) agents never open in any mode. Use it when
+     * working. Chosen at creation time it also skips the notifications web socket. Use it when
      * the application drives the agent entirely through {@link AgentManager.speak | speak()} and
      * never asks its LLM anything. The stream keeps running only when this is the mode
      * {@link createAgentManager} was given; switching into it later with
@@ -361,10 +369,15 @@ export enum ChatMode {
     /**
      * Chat is switched off: no chat is created for the session, while video still streams.
      *
+     * Talks (V2) and Clips (V3) agents only; {@link createAgentManager} and
+     * {@link AgentManager.changeMode | changeMode()} reject it with a {@link ValidationError} for
+     * Expressive (V4) agents.
+     *
      * {@link AgentManager.chat | chat()} throws a {@link ValidationError} under the same
-     * creation-time rule as {@link ChatMode.DirectPlayback}. The two modes are otherwise equivalent
-     * in the current implementation. As with {@link ChatMode.DirectPlayback}, the stream keeps
-     * running only when this is the mode set at creation; switching into it later with
+     * creation-time rule as {@link ChatMode.DirectPlayback}. The one difference between the two is
+     * the notifications web socket: this mode still opens it on a Talks (V2) or Clips (V3) agent,
+     * where {@link ChatMode.DirectPlayback} skips it. As with {@link ChatMode.DirectPlayback}, the
+     * stream keeps running only when this is the mode set at creation; switching into it later with
      * {@link AgentManager.changeMode | changeMode()} disconnects the stream.
      */
     Off = 'Off',

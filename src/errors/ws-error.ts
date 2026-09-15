@@ -23,6 +23,11 @@ import { BaseError } from './base-error';
  */
 export class WsError extends BaseError {
     /**
+     * Always `'WSError'` — note the capitalization, which does not match the class name.
+     */
+    readonly kind: 'WSError' = 'WSError';
+
+    /**
      * Wraps a web socket failure, built from the socket's `error` event.
      * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */

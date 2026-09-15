@@ -4,7 +4,7 @@ import { OptionDefaults } from 'typedoc';
 
 /**
  * API reference for @d-id/client-sdk, published to https://sdk.d-id.com/.
- * Rationale for every option: docs/superpowers/specs/2026-09-14-sdk-reference-site-design.md §2.
+ * Options are grouped by what they control, and commented wherever the reason is not obvious.
  * @type {Partial<import('typedoc').TypeDocOptions>}
  */
 const config = {
@@ -112,7 +112,6 @@ const config = {
         '@pattern',
     ],
 
-    // PublicDataChannelTopic borrows one member of the internal DataChannelTopic enum on purpose
 
     // Validation
     validation: { notExported: true, invalidLink: true, rewrittenLink: true, notDocumented: true },

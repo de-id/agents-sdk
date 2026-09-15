@@ -5,6 +5,7 @@ import {
     ChatModeDowngraded,
     HttpError,
     NetworkError,
+    StreamError,
     ValidationError,
     WsError,
 } from './index';
@@ -74,7 +75,7 @@ describe('SDK errors', () => {
     describe('HttpError', () => {
         it('should parse the server { kind, description } envelope and record the call', () => {
             const body = JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' });
-            const err = new HttpError(402, body, { url: '/agents/x/chat', method: 'POST' });
+            const err = new HttpError(402, body, { endpoint: '/agents/x/chat', method: 'POST' });
 
             expect(err).toBeInstanceOf(HttpError);
             expect(err.kind).toBe('InsufficientCreditsError');
@@ -105,7 +106,7 @@ describe('SDK errors', () => {
         });
 
         it('should expose only mapped keys in toJson, never raw status/url/method', () => {
-            const json = new HttpError(500, 'boom', { url: '/x', method: 'GET' }).toJson();
+            const json = new HttpError(500, 'boom', { endpoint: '/x', method: 'GET' }).toJson();
             expect(Object.keys(json).sort()).toEqual(['endpoint', 'httpStatus', 'kind', 'message', 'method']);
             expect(json).not.toHaveProperty('status');
             expect(json).not.toHaveProperty('url');
@@ -122,7 +123,10 @@ describe('SDK errors', () => {
 
     describe('NetworkError', () => {
         it('should record the failing call (endpoint + method) and the underlying cause', () => {
-            const err = new NetworkError(new TypeError('Failed to fetch'), { url: '/agents/x/chat', method: 'POST' });
+            const err = new NetworkError(new TypeError('Failed to fetch'), {
+                endpoint: '/agents/x/chat',
+                method: 'POST',
+            });
 
             expect(err.kind).toBe('NetworkError');
             expect(err.toJson()).toEqual({
@@ -144,7 +148,7 @@ describe('SDK errors', () => {
 
         it('should serialize the captured context signals', () => {
             const err = new NetworkError(new TypeError('Load failed'), {
-                url: '/streams',
+                endpoint: '/streams',
                 method: 'POST',
                 durationMs: 1234,
                 online: false,
@@ -179,10 +183,65 @@ describe('SDK errors', () => {
         });
     });
 
+    describe('kind is a literal on every subclass', () => {
+        it('should carry its own literal at runtime', () => {
+            expect(new NetworkError(new TypeError('Failed to fetch')).kind).toBe('NetworkError');
+            expect(new WsError('Websocket failed to connect').kind).toBe('WSError');
+            expect(new StreamError('Stream Error').kind).toBe('StreamError');
+            expect(new ValidationError('bad').kind).toBe('ValidationError');
+            expect(new ChatCreationFailed(ChatMode.Functional, false).kind).toBe('ChatCreationFailed');
+            expect(new ChatModeDowngraded(ChatMode.TextOnly).kind).toBe('ChatModeDowngraded');
+        });
+
+        it('should narrow a union of SDK errors when the branch is on kind', () => {
+            const raised: Array<StreamError | ValidationError | ChatModeDowngraded> = [
+                new StreamError('Stream Error'),
+                new ValidationError('Message cannot be empty', 'message'),
+                new ChatModeDowngraded(ChatMode.TextOnly),
+            ];
+            const seen: string[] = [];
+
+            for (const error of raised) {
+                switch (error.kind) {
+                    case 'ValidationError':
+                        // narrowed to ValidationError: `key` exists on no other branch
+                        seen.push(`ValidationError:${error.key}`);
+                        break;
+                    case 'ChatModeDowngraded': {
+                        const kind: 'ChatModeDowngraded' = error.kind;
+                        seen.push(kind);
+                        break;
+                    }
+                    default: {
+                        // the only branch left is StreamError, so its literal is assignable
+                        const kind: 'StreamError' = error.kind;
+                        seen.push(kind);
+                    }
+                }
+            }
+
+            expect(seen).toEqual(['StreamError', 'ValidationError:message', 'ChatModeDowngraded']);
+        });
+
+        it('should leave HttpError.kind a plain string, so the server classification survives', () => {
+            const body = JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' });
+            const kind: string = new HttpError(402, body).kind;
+
+            expect(kind).toBe('InsufficientCreditsError');
+            expect(new HttpError(504, 'gateway timeout').kind).toBe('HttpError');
+        });
+    });
+
     describe('chat errors build descriptive messages', () => {
         it('should build a descriptive ChatCreationFailed message', () => {
             expect(new ChatCreationFailed(ChatMode.Functional, true).message).toBe(
                 'Failed to create persistent chat, mode: Functional'
+            );
+        });
+
+        it('should build a ChatCreationFailed message without a double space when the chat is not persistent', () => {
+            expect(new ChatCreationFailed(ChatMode.Functional, false).message).toBe(
+                'Failed to create chat, mode: Functional'
             );
         });
 

@@ -30,7 +30,9 @@ interface MatchEntry {
  *
  * The SDK already runs it over every message it builds and keeps the result on
  * {@link Message.parts}, so this is for content that comes from somewhere else — a transcript you
- * stored yourself, or text you assembled before handing it to a renderer. It recognises markdown
+ * render outside the SDK, or text you assembled before handing it to a renderer.
+ * {@link AgentManagerOptions.initialMessages | initialMessages} no longer need it: pass `parts: []`
+ * and the SDK runs this for you. It recognises markdown
  * images (`![alt](url)`), the video thumbnail form (`[![alt](thumb)](video)`), markdown links
  * (`[label](url)`) and HTML anchors (`<a href="url">label</a>`); an image whose URL looks like a
  * video becomes a `video` part instead, and a GIF is tagged with a `mimeType`, both under the rules

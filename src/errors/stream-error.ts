@@ -26,6 +26,11 @@ import { BaseError } from './base-error';
  */
 export class StreamError extends BaseError {
     /**
+     * Always `'StreamError'`. Branch on it to tell this failure from the other SDK errors.
+     */
+    readonly kind: 'StreamError' = 'StreamError';
+
+    /**
      * Wraps a streaming failure.
      * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */

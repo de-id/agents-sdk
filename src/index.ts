@@ -12,7 +12,6 @@ export type {
 } from './types/entities/agents/manager';
 export { AvatarType } from './types/entities/avatar';
 export type { STTTokenResponse } from './types/voice/stt';
-export { SDK_VERSION } from './version';
 
 // Callbacks & Events
 export {
@@ -50,6 +49,7 @@ export type {
     Interrupt,
     Message,
     MessagePart,
+    MessageSentiment,
     RatingEntity,
     RetrievalMetadata,
     SubmitFeedbackResponse,

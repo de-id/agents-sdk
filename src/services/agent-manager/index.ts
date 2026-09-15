@@ -50,6 +50,10 @@ export interface AgentManagerItems {
     chatMode: ChatMode;
 }
 
+// The two chat modes that create no chat are a Talks (V2) / Clips (V3) feature.
+const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
+    'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
+
 /**
  * LiveKit only forwards a thrown `RpcError` to the caller — it replaces anything else with
  * `APPLICATION_ERROR`, whose message is a fixed constant, so a plain `Error`'s message never
@@ -70,7 +74,9 @@ function applicationError(message: string): RpcError {
  * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady}, which is what attaches the
  * streamed media to a video element.
  *
- * The options themselves are not validated here: bad arguments surface later, as a
+ * One option is checked here: an Expressive (V4) agent asked for {@link ChatMode.Off} or
+ * {@link ChatMode.DirectPlayback}, which only Talks (V2) and Clips (V3) agents support, rejects
+ * with a {@link ValidationError}. Every other bad argument surfaces later, as a
  * {@link ValidationError} rejected by the method that was called on the returned manager, such as
  * {@link AgentManager.chat | chat()} or {@link AgentManager.speak | speak()}.
  *
@@ -79,6 +85,8 @@ function applicationError(message: string): RpcError {
  * @param options - Credentials, callbacks and everything else the manager needs. See
  * {@link AgentManagerOptions}.
  * @returns A manager for that agent, ready to {@link AgentManager.connect | connect()}.
+ * @throws {@link ValidationError} When an Expressive (V4) agent is created with
+ * {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}.
  * @throws {@link HttpError} When the agent cannot be fetched — an unknown id, or a client key that
  * is not authorized for the agent or the calling domain.
  * @throws {@link NetworkError} When the request for the agent never reaches the server: the browser
@@ -142,6 +150,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     options.debug = options.debug || agentEntity?.advanced_settings?.ui_debug_mode;
 
     const isStreamsV2 = isStreamsV2Agent(agentEntity.avatar.type);
+
+    if (isStreamsV2 && isChatModeWithoutChat(mode)) {
+        throw new ValidationError(UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE);
+    }
+
     analytics.enrich(getAgentInfo(agentEntity));
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, reason => {
@@ -164,7 +177,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
         if (!items.streamingManager?.isInterruptible) return;
 
-        const lastMessage = items.messages[items.messages.length - 1];
+        const sent = items.streamingManager.interrupt(type);
+        if (!sent) {
+            return;
+        }
 
         analytics.track('agent-video-interrupt', {
             type: type || 'click',
@@ -172,10 +188,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             message_duration_to_interrupt: latencyTimestampTracker.get(true),
         });
 
+        // Only flag the message once the interrupt was actually sent.
+        const lastMessage = items.messages[items.messages.length - 1];
+        if (!lastMessage) {
+            return;
+        }
+
         lastMessage.interrupted = true;
         options.callbacks.onNewMessage?.([...items.messages], 'answer');
-
-        items.streamingManager.interrupt(type);
     };
 
     const clientToolHandlers = new Map<string, ClientToolHandler>();
@@ -276,7 +296,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 delayMs: 1000,
             }
         ).catch(e => {
-            changeMode(ChatMode.Maintenance);
+            applyMode(ChatMode.Maintenance);
             options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
         });
@@ -301,7 +321,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             mode: items.chatMode,
         });
 
-        changeMode(chat?.chat_mode ?? mode);
+        const serverMode = chat?.chat_mode ?? mode;
+        if (isStreamsV2 && isChatModeWithoutChat(serverMode)) {
+            // The session is up; keep the mode we have rather than failing a working connection.
+            console.warn(`[AgentManager] Ignoring chat mode "${serverMode}": ${UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE}`);
+            return;
+        }
+
+        await applyMode(serverMode);
     }
 
     async function disconnect() {
@@ -314,7 +341,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         options.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
     }
 
-    async function changeMode(mode: ChatMode) {
+    // The mode change itself, without the Expressive guard: the modes the server reports go
+    // through here too, and those must not fail a connection that is otherwise fine.
+    async function applyMode(mode: ChatMode) {
         if (mode !== items.chatMode) {
             analytics.track('agent-mode-change', { mode });
             items.chatMode = mode;
@@ -325,6 +354,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             options.callbacks.onModeChange?.(mode);
         }
+    }
+
+    async function changeMode(mode: ChatMode) {
+        if (isStreamsV2 && isChatModeWithoutChat(mode)) {
+            throw new ValidationError(UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE);
+        }
+
+        await applyMode(mode);
     }
 
     return {
@@ -377,13 +414,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         publishMicrophoneStream(stream: MediaStream): Promise<void> {
             if (!items.streamingManager?.publishMicrophoneStream) {
-                return Promise.reject(new Error('publishMicrophoneStream is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError(
+                        'publishMicrophoneStream is only available on Expressive (V4) agents, after connect()'
+                    )
+                );
             }
             return items.streamingManager.publishMicrophoneStream(stream);
         },
         setSttLanguage(language: string): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
-                return Promise.reject(new Error('setSttLanguage is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError('setSttLanguage is only available on Expressive (V4) agents, after connect()')
+                );
             }
 
             analytics.track('agent-stt-language-change', { language });
@@ -395,7 +438,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
-                return Promise.reject(new Error('sendDataChannelMessage is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError(
+                        'sendDataChannelMessage is only available on Expressive (V4) agents, after connect()'
+                    )
+                );
             }
 
             analytics.track('agent-data-message', { topic });
@@ -414,13 +461,21 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void> {
             if (!items.streamingManager?.replaceMicrophoneTrack) {
-                return Promise.reject(new Error('replaceMicrophoneTrack is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError(
+                        'replaceMicrophoneTrack is only available on Expressive (V4) agents, after connect()'
+                    )
+                );
             }
             return items.streamingManager.replaceMicrophoneTrack(track);
         },
         publishCameraStream(stream: MediaStream): Promise<void> {
             if (!items.streamingManager?.publishCameraStream) {
-                return Promise.reject(new Error('publishCameraStream is not available for this streaming manager'));
+                return Promise.reject(
+                    new ValidationError(
+                        'publishCameraStream is only available on Expressive (V4) agents, after connect()'
+                    )
+                );
             }
             return items.streamingManager.publishCameraStream(stream);
         },
@@ -580,7 +635,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw e;
             }
         },
-        rate(messageId: string, score: 1 | -1, rateId?: string) {
+        async rate(messageId: string, score: 1 | -1, rateId?: string) {
             const message = items.messages.find(message => message.id === messageId);
 
             if (!items.chat) {
@@ -615,7 +670,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 score,
             });
         },
-        deleteRate(id: string) {
+        async deleteRate(id: string) {
             if (!items.chat) {
                 throw new ValidationError('Chat is not initialized');
             }
@@ -624,7 +679,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
-        submitFeedback(rating: number, answer?: string) {
+        async submitFeedback(rating: number, answer?: string) {
             if (!items.chat) {
                 throw new ValidationError('Chat is not initialized');
             }

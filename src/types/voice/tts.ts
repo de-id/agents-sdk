@@ -71,8 +71,7 @@ export interface Voice {
 }
 
 /**
- * ElevenLabs provider details: the provider type, the requested voice id and optional voice
- * settings. Available to accounts whose plan includes premium voices.
+ * ElevenLabs provider details: the provider type and the requested voice id. Available to premium users.
  *
  * Pass it as {@link TextStreamScript.provider} to have ElevenLabs synthesise the text, optionally
  * with {@link VoiceConfigElevenlabs} to control how closely the voice is reproduced.
@@ -101,8 +100,8 @@ export interface ElevenlabsTtsProvider {
 }
 
 /**
- * Microsoft Azure provider details: the provider type, the requested voice id and optional
- * delivery settings.
+ * Microsoft Azure provider details: the provider type, the requested voice id and an optional
+ * `voice_config` for style, rate and pitch.
  *
  * Pass it as {@link TextStreamScript.provider} to pick a Microsoft Azure voice explicitly,
  * optionally with {@link VoiceConfigMicrosoft} to set style, rate and pitch. The Agents API
@@ -143,8 +142,8 @@ export interface MicrosoftTtsProvider {
 }
 
 /**
- * Azure OpenAI provider details: the provider type, the requested voice id and optional delivery
- * settings.
+ * Azure OpenAI provider details: the provider type, the requested voice id and an optional
+ * `voice_config` for style, rate and pitch.
  *
  * The same shape as {@link MicrosoftTtsProvider} — a `voice_id` and an optional
  * {@link VoiceConfigMicrosoft} as `voice_config` — with the `type` naming Azure OpenAI instead.

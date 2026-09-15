@@ -6,6 +6,16 @@
  * when the failing call is known, `endpoint` and `method`; {@link NetworkError} adds `endpoint`,
  * `method`, `durationMs`, `online` and `visibility`.
  *
+ * @example An HttpError from a request that was refused
+ * ```json
+ * {
+ *     "kind": "InsufficientCreditsError",
+ *     "message": "Account has insufficient credits",
+ *     "httpStatus": 402,
+ *     "endpoint": "/agt_x/chat/cht_y",
+ *     "method": "POST"
+ * }
+ * ```
  * @category Errors
  */
 export interface ErrorJson {
@@ -32,15 +42,24 @@ export interface ErrorJson {
 }
 
 /**
- * Base class of every error the SDK raises.
+ * Base class of every error the SDK itself raises.
  *
- * Catching `BaseError` catches everything that came out of the SDK; branch on
+ * Catching `BaseError` catches everything the SDK classified; branch on
  * {@link BaseError.kind | kind}, which is stable, rather than on the message, which is not.
  * Errors reach the application two ways, and each subclass says which applies: some are thrown to
  * the caller of the method, so they reject the promise it returned; others are handed to
  * {@link AgentManagerCallbacks.onError | onError} because no call of yours was in flight when they
  * happened. {@link HttpError} and {@link NetworkError} do both — the request that failed rejects,
  * and the callback is notified as well.
+ *
+ * Not everything that reaches the application is one of these. The streaming transport is the main
+ * exception: a failure LiveKit raises inside a media call on an Expressive (V4) agent — no
+ * microphone publication to replace, a room that is not connected — rejects with a plain `Error`,
+ * and so do a few low-level guards inside {@link AgentManager.connect | connect()}, such as a
+ * `livekit-client` package that is not installed, a transport the SDK does not recognise, or a
+ * stream the server created without a session id. An unknown
+ * {@link AgentManagerOptions.auth | auth} type is a plain `Error` too. So keep the
+ * `else throw error` branch in a handler built on {@link isDIDError}.
  *
  * Subclasses: {@link HttpError}, {@link NetworkError}, {@link WsError}, {@link StreamError},
  * {@link ValidationError}, {@link ChatCreationFailed} and {@link ChatModeDowngraded}. When the
@@ -61,11 +80,15 @@ export class BaseError extends Error {
         /**
          * Stable machine-readable code for this failure, and the value to branch on.
          *
-         * Every subclass sets its own: `'HttpError'` (or the server's own classification, see
-         * {@link HttpError}), `'NetworkError'`, `'WSError'`, `'StreamError'`,
-         * `'ValidationError'`, `'ChatCreationFailed'` and `'ChatModeDowngraded'`.
-         *
-         * @default 'Error'
+         * Every subclass redeclares it as the literal it always carries, so a `switch` on `kind`
+         * narrows the caught error to that class: `'NetworkError'` on {@link NetworkError},
+         * `'WSError'` on {@link WsError}, `'StreamError'` on {@link StreamError},
+         * `'ValidationError'` on {@link ValidationError}, `'ChatCreationFailed'` on
+         * {@link ChatCreationFailed} and `'ChatModeDowngraded'` on {@link ChatModeDowngraded}.
+         * {@link HttpError} is the one that stays a plain `string`, because it reuses the server's
+         * own classification when the response carries one and is `'HttpError'` otherwise. On a
+         * `BaseError` built directly it is whatever the caller passed, and `'Error'` when nothing
+         * was.
          */
         public readonly kind: string = 'Error',
         /**

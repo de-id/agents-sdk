@@ -376,6 +376,34 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
     });
 
+    describe('interrupt', () => {
+        it('should send the interrupt and report it was sent', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            expect(manager.interrupt('click')).toBe(true);
+
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith('', { topic: DataChannelTopic.Interrupt });
+        });
+
+        it('should return false without sending before the room connects', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            expect(manager.interrupt('click')).toBe(false);
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+        });
+
+        it('should return false without sending for a text interrupt', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            expect(manager.interrupt('text')).toBe(false);
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+        });
+    });
+
     describe('Error Handling', () => {
         it('should throw error on publish failure', async () => {
             const mockStream = createMockStream();
@@ -1460,10 +1488,16 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: false }));
     });
 
-    it('defaults chat_persist to true in the createStream request when unset', async () => {
+    it('should send chat_persist false when the session options do not set it', async () => {
         const { chat_persist: _chatPersist, ...sessionOptionsWithoutChatPersist } = sessionOptions;
 
         await createLiveKitStreamingManager(agentId, sessionOptionsWithoutChatPersist, options);
+
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: false }));
+    });
+
+    it('sends chat_persist: true in the createStream request when explicitly enabled', async () => {
+        await createLiveKitStreamingManager(agentId, { ...sessionOptions, chat_persist: true }, options);
 
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: true }));
     });
@@ -1715,6 +1749,19 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
 
                 expect(lastInterruptible()).toBe(false);
+            });
+
+            it('reports the manager as not interruptible while a blocking call is pending', () => {
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
+
+                expect(manager.isInterruptible).toBe(false);
+            });
+
+            it('reports the manager as interruptible again once the blocking call resolves', () => {
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
+                emitToolDone({ call_id: 'b' });
+
+                expect(manager.isInterruptible).toBe(true);
             });
 
             it('becomes interruptible once the blocking call resolves', () => {

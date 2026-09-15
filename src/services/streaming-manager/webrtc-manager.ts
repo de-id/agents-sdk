@@ -406,14 +406,14 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         isInterruptible: true,
 
         interrupt(_type: Interrupt['type']) {
-            if (!interruptAvailable) {
-                throw new Error('Interrupt is not enabled for this stream');
+            // Nothing to interrupt: the stream does not support it, is not fluent, or no video is playing.
+            if (!interruptAvailable || streamType !== StreamType.Fluent || !currentVideoId) {
+                return false;
             }
-            if (streamType !== StreamType.Fluent) {
-                throw new Error('Interrupt only available for Fluent streams');
-            }
-            if (!currentVideoId) {
-                throw new Error('No active video to interrupt');
+
+            // Nothing would reach the agent: sendDataChannelMessage drops the payload in this state.
+            if (!isConnected || pcDataChannel.readyState !== 'open') {
+                return false;
             }
 
             const payload: StreamInterruptPayload = {
@@ -424,6 +424,8 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
             // The topic is ignored here - V1 has no topic concept and the interrupt
             // is identified by the payload's `type`.
             sendDataChannelMessage(DataChannelTopic.Interrupt, JSON.stringify(payload));
+
+            return true;
         },
     };
 }

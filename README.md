@@ -1,4 +1,4 @@
-# D-ID Client SDK 📙
+# D-ID Client SDK
 
 <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-evenly; min-height: 1px; font-size: 16px;">
   <img style="width: auto; height: 200px; object-fit: contain;" src="https://create-images-results.d-id.com/api_docs/assets/agents_sdk_cover_v2.png" alt="Agents SDK Cover" />
@@ -29,7 +29,7 @@ The SDK supports three avatar types:
 
 Follow these steps:
 
-1. Log in to the [D-ID Studio](http://studio.d-id.com)
+1. Log in to the [D-ID Studio](https://studio.d-id.com)
 2. Create a new Agent with the required options - Image, voice, etc.
 3. In the [Agents gallery](https://studio.d-id.com/agents), hover with your mouse over the created Agent, then click on the `[...]` button
 4. Click on `</> Embed` button

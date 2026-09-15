@@ -124,11 +124,10 @@ export interface Agent {
          * the {@link RetrievalMetadata.knowledge_id | knowledge_id} of the citations on an answer.
          */
         id: string;
-        /** How the knowledge base was embedded. Exposed for completeness; used internally by D-ID,
-         * not by the SDK. */
+        /** The embedding model the knowledge base was indexed with. The SDK does not act on it. */
         embedder?: {
-            /** Whether the embedding model used for this knowledge base supports a limited set of
-             * languages. */
+            /** Whether that embedding model covers only a limited set of languages, so knowledge
+             * written in another language may not be retrieved well. */
             is_limited_language?: boolean;
         };
     };
@@ -158,7 +157,7 @@ export interface Agent {
      * {@link EndOfCallFeedbackConfig}.
      */
     end_of_call_feedback?: EndOfCallFeedbackConfig;
-    /** Whether the agent has triggers configured. Exposed for completeness; the SDK does not read it. */
+    /** Whether the agent has triggers configured. The SDK does not act on them. */
     triggers_available?: boolean;
     /** Settings that change how D-ID's own surfaces present the agent. */
     advanced_settings?: {
@@ -169,16 +168,19 @@ export interface Agent {
          * {@link AgentManagerOptions.debug | debug} was passed to {@link createAgentManager}.
          */
         ui_debug_mode?: boolean;
-        /** Exposed for completeness; used internally by D-ID, not by the SDK. */
+        /**
+         * Account the agent's rendering VM is billed to.
+         *
+         * @internal D-ID internal; not part of the public SDK contract.
+         */
         vm_account_id?: string;
-        /** Whether the embedding UI should show closed captions. Exposed for completeness; the SDK
-         * does not read it. */
+        /** Whether the embedding UI should show closed captions. The SDK does not act on it. */
         closed_captions_enabled?: boolean;
     };
     /**
      * Feature-flag targeting context for the account this agent belongs to.
      *
-     * Exposed for completeness; used internally by D-ID's own applications, not by the SDK.
+     * @internal D-ID internal; not part of the public SDK contract.
      */
     ld_context?: {
         /** Key identifying the context. */

@@ -113,7 +113,7 @@ export interface AgentManagerCallbacks {
      * }
      * ```
      */
-    onConnectionStateChange?(state: ConnectionState, reason?: string): void;
+    onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     /**
      * Called when the streamed video starts and stops, so the video element can switch source.
      *
@@ -139,7 +139,7 @@ export interface AgentManagerCallbacks {
      * }
      * ```
      */
-    onVideoStateChange?(state: StreamingState): void;
+    onVideoStateChange?: (state: StreamingState) => void;
     /**
      * Called with the media stream carrying the agent's video and audio. Required.
      *
@@ -163,7 +163,7 @@ export interface AgentManagerCallbacks {
      * };
      * ```
      */
-    onSrcObjectReady(srcObject: MediaStream): void;
+    onSrcObjectReady: (srcObject: MediaStream) => void;
     /**
      * Called with the whole chat transcript every time a message is added or updated.
      *
@@ -190,7 +190,7 @@ export interface AgentManagerCallbacks {
      * }
      * ```
      */
-    onNewMessage?(messages: Message[], type: 'answer' | 'partial' | 'user'): void;
+    onNewMessage?: (messages: Message[], type: 'answer' | 'partial' | 'user') => void;
     /**
      * Called when a chat is created for this session.
      *
@@ -200,7 +200,7 @@ export interface AgentManagerCallbacks {
      *
      * @param chatId - Id of the chat that was just created.
      */
-    onNewChat?(chatId: string): void;
+    onNewChat?: (chatId: string) => void;
     /**
      * Called when the chat mode changes.
      *
@@ -209,7 +209,7 @@ export interface AgentManagerCallbacks {
      *
      * @param mode - The {@link ChatMode} now in effect.
      */
-    onModeChange?(mode: ChatMode): void;
+    onModeChange?: (mode: ChatMode) => void;
     /**
      * Called when the quality of the user's internet connection changes.
      *
@@ -227,7 +227,7 @@ export interface AgentManagerCallbacks {
      * }
      * ```
      */
-    onConnectivityStateChange?(state: ConnectivityState): void;
+    onConnectivityStateChange?: (state: ConnectivityState) => void;
     /**
      * Called when the SDK fails, so the application can surface the problem.
      *
@@ -260,7 +260,7 @@ export interface AgentManagerCallbacks {
      *
      * @param state - The {@link AgentActivityState} the agent has moved to.
      */
-    onAgentActivityStateChange?(state: AgentActivityState): void;
+    onAgentActivityStateChange?: (state: AgentActivityState) => void;
     /**
      * Called once per session when the stream has been created on the server.
      *
@@ -273,20 +273,23 @@ export interface AgentManagerCallbacks {
     /**
      * Called when the agent starts, finishes or fails a tool call.
      *
-     * Expressive (V4) agents only. The event is one of {@link StreamEvents.ToolCallStarted},
-     * {@link StreamEvents.ToolCallDone} or {@link StreamEvents.ToolCallError}, and the payload
-     * shape is discriminated by it — see {@link ToolEventCallback}.
+     * Expressive (V4) agents only. The handler takes two arguments and returns nothing: `event`,
+     * one of {@link StreamEvents.ToolCallStarted}, {@link StreamEvents.ToolCallDone} or
+     * {@link StreamEvents.ToolCallError}; and `data`, the payload that event narrows to —
+     * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} or
+     * {@link ToolCallErrorPayload} respectively. The overloads that do the narrowing are on
+     * {@link ToolEventCallback}, with an example handler.
      */
     onToolEvent?: StreamManagerCallbacks['onToolEvent'];
     /**
      * Called when the agent becomes interruptible, or stops being interruptible.
      *
-     * Expressive (V4) agents only. Use it to enable or disable an interrupt button; on those
-     * agents {@link AgentManager.interrupt | interrupt()} does nothing while the agent cannot be
-     * interrupted. Talks (V2) and Clips (V3) agents never report a change, and there
-     * {@link AgentManager.interrupt | interrupt()} throws rather than doing nothing when no video
-     * is playing — check {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()}
-     * instead.
+     * Expressive (V4) agents only, and about whether interrupting is allowed *right now*: it goes
+     * `false` while a `blocking` client tool call is outstanding, because the agent is suspended
+     * waiting for it, and back to `true` when the call finishes. That is a different question from
+     * {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()}, which says whether
+     * the session supports interrupting at all. Use this one to enable or disable an interrupt
+     * button. Talks (V2) and Clips (V3) agents never report a change.
      */
     onInterruptibleChange?: StreamManagerCallbacks['onInterruptibleChange'];
     /**
@@ -343,13 +346,6 @@ export interface StreamOptions {
     sessionTimeout?: number;
 
     /**
-     * Maximum height or width of the streamed video, in pixels, between 150 and 1080.
-     *
-     * The aspect ratio of the source image is preserved. Talks (V2) agents only (photo-based).
-     * Leave it out and the stream uses the agent's own output resolution.
-     */
-
-    /**
      * Whether to request a fluent stream.
      *
      * `true` streams one video for both the idle and talking states; `false` uses the legacy mode,
@@ -391,9 +387,12 @@ export interface AgentManagerOptions {
      * How the agent answers: with a streamed video, as text only, or not at all.
      *
      * See {@link ChatMode}. It can be changed later with
-     * {@link AgentManager.changeMode | changeMode()}.
+     * {@link AgentManager.changeMode | changeMode()}. {@link ChatMode.Off} and
+     * {@link ChatMode.DirectPlayback} are supported on Talks (V2) and Clips (V3) agents only.
      *
      * @default ChatMode.Functional
+     * @throws {@link ValidationError} From {@link createAgentManager}, when the agent is Expressive
+     * (V4) and the mode is {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}.
      */
     mode?: ChatMode;
     /**
@@ -483,18 +482,13 @@ export interface AgentManagerOptions {
      * render them. On Talks (V2) and Clips (V3) agents they are also sent as context with the next
      * {@link AgentManager.chat | chat()} request. See {@link Message}.
      *
-     * The SDK passes them through exactly as given: it does not fill in
-     * {@link Message.parts | parts}, so build them with {@link parseMessageParts} or a restored
-     * transcript renders as nothing.
+     * {@link Message.parts | parts} is a required field, but it does not have to be filled: pass an
+     * empty array and the SDK builds the parts from `content` with {@link parseMessageParts}, so a
+     * transcript restored from `content` alone still renders. A non-empty array is kept as given.
      *
-     * @example Restoring a transcript
+     * @example Restoring rows that carry only the message text
      * ```ts
-     * import { parseMessageParts } from '@d-id/client-sdk';
-     *
-     * const initialMessages = stored.map(message => ({
-     *     ...message,
-     *     parts: parseMessageParts(message.content),
-     * }));
+     * const initialMessages = stored.map(({ id, role, content }) => ({ id, role, content, parts: [] }));
      * ```
      */
     initialMessages?: Message[];
@@ -505,10 +499,9 @@ export interface AgentManagerOptions {
      * {@link AgentManager.reconnect | reconnect()} normally continues the same chat either way —
      * see the caveat there for Expressive (V4) agents.
      *
-     * The default differs by agent type. Talks (V2) and Clips (V3) agents do not persist the chat
-     * unless this is set to `true`. Expressive (V4) agents do persist it unless this is set to
-     * `false`: the SDK forwards the key only when you set it, and the service treats an absent key
-     * as persistence on.
+     * Off unless you set it, on every agent type.
+     *
+     * @default false
      */
     persistentChat?: boolean;
 }
@@ -557,7 +550,7 @@ export interface AgentManager {
      * True on a fluent stream — a Clips (V3) agent built on a Pro avatar, or any Expressive (V4)
      * agent — once connected. This says the stream supports interrupting at all;
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} says whether
-     * there is something to interrupt right now.
+     * interrupting is allowed right now.
      *
      * @returns `true` when {@link AgentManager.interrupt | interrupt()} can do anything.
      */
@@ -629,10 +622,13 @@ export interface AgentManager {
      * Publishes a microphone audio track to the session so the agent can hear the user.
      *
      * Call it after {@link AgentManager.connect | connect()} to enable voice input. Expressive (V4)
-     * agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
+     * agents only; on Talks (V2) and Clips (V3) agents, and before `connect()`, the returned
+     * promise rejects with a {@link ValidationError}.
      *
      * @param stream - A `MediaStream` whose audio track is published to the session.
      * @returns Resolves once the track is published.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      * @example
      * ```ts
      * const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -661,23 +657,29 @@ export interface AgentManager {
      * Use it when the user picks a different input device: the publication is preserved — its
      * LiveKit publication id (SID) and SSRC stay the same, though the `MediaStreamTrack` id
      * changes — so the server sees continuous audio across the swap rather than a stop and a
-     * restart. Rejects when there is no active publication — fall back to
-     * {@link AgentManager.publishMicrophoneStream | publishMicrophoneStream()} in that case.
-     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise
-     * rejects.
+     * restart. Rejects with a plain `Error` from the transport when there is no active publication
+     * — fall back to {@link AgentManager.publishMicrophoneStream | publishMicrophoneStream()} in
+     * that case. Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents, and before
+     * {@link AgentManager.connect | connect()}, the returned promise rejects with a
+     * {@link ValidationError}.
      *
      * @param track - The audio track to send from now on.
      * @returns Resolves once the transport has switched to the new track.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      */
     replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void>;
     /**
      * Publishes a camera video track to the session so the agent can see the user.
      *
      * Call it after {@link AgentManager.connect | connect()} to enable vision. Expressive (V4)
-     * agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
+     * agents only; on Talks (V2) and Clips (V3) agents, and before `connect()`, the returned
+     * promise rejects with a {@link ValidationError}.
      *
      * @param stream - A `MediaStream` whose video track is published to the session.
      * @returns Resolves once the track is published.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      */
     publishCameraStream(stream: MediaStream): Promise<void>;
     /**
@@ -700,10 +702,13 @@ export interface AgentManager {
      * @returns The {@link ChatResponse} for this turn.
      * @throws {@link ValidationError} When the message is empty or too long, when the chat mode has
      * chat disabled or is in maintenance, or when the manager is not connected yet.
-     * @throws {@link ChatCreationFailed} When the session has no chat yet and the Agents API
-     * answers the creation request without one.
-     * @throws {@link HttpError} When the message request comes back non-2xx.
-     * @throws {@link NetworkError} When the message request never reaches the server.
+     * @throws {@link ChatCreationFailed} On Talks (V2) and Clips (V3) agents, when the session has
+     * no chat yet and the Agents API answers the creation request without one.
+     * @throws {@link HttpError} On Talks (V2) and Clips (V3) agents, and in
+     * {@link ChatMode.Playground}, when the message request comes back non-2xx. Expressive (V4)
+     * agents send the message over the data channel instead, so no HTTP request is made.
+     * @throws {@link NetworkError} On Talks (V2) and Clips (V3) agents, and in
+     * {@link ChatMode.Playground}, when that request never reaches the server.
      * @example
      * ```ts
      * const chat = await agentManager.chat('What is the distance to the moon?');
@@ -720,8 +725,7 @@ export interface AgentManager {
      * @param rateId - Id of an existing rating to update; omit to create a new one.
      * @returns The created or updated {@link RatingEntity}.
      * @throws {@link ValidationError} When no chat has started, or when no message with that id is
-     * in the transcript. Thrown synchronously, so catch it around the call rather than on the
-     * returned promise.
+     * in the transcript.
      * @throws {@link HttpError} When the rating request comes back non-2xx.
      * @throws {@link NetworkError} When the rating request never reaches the server.
      */
@@ -732,8 +736,7 @@ export interface AgentManager {
      * @param id - Id of the rating to remove, as returned by
      * {@link AgentManager.rate | rate()}.
      * @returns The {@link RatingEntity} that was deleted.
-     * @throws {@link ValidationError} When no chat has started. Thrown synchronously, so catch it
-     * around the call rather than on the returned promise.
+     * @throws {@link ValidationError} When no chat has started.
      * @throws {@link HttpError} When the delete request comes back non-2xx.
      * @throws {@link NetworkError} When the delete request never reaches the server.
      */
@@ -747,8 +750,7 @@ export interface AgentManager {
      * @param rating - The user's score for the conversation, a whole number from 1 to 5.
      * @param answer - The user's free-text answer to the follow-up question, when one was asked.
      * @returns The stored {@link SubmitFeedbackResponse}.
-     * @throws {@link ValidationError} When no chat has started. Thrown synchronously, so catch it
-     * around the call rather than on the returned promise.
+     * @throws {@link ValidationError} When no chat has started.
      * @throws {@link HttpError} When the feedback request comes back non-2xx.
      * @throws {@link NetworkError} When the feedback request never reaches the server.
      */
@@ -804,12 +806,17 @@ export interface AgentManager {
      * Switches the chat to another mode.
      *
      * Anything other than {@link ChatMode.Functional} disconnects the stream, since those modes do
-     * not produce video. {@link AgentManagerCallbacks.onModeChange | onModeChange} fires once the
-     * change has been applied; passing the mode already in effect does nothing.
+     * not produce video, which is why this is asynchronous: the returned promise resolves once that
+     * disconnect has finished. {@link AgentManagerCallbacks.onModeChange | onModeChange} fires once
+     * the change has been applied; passing the mode already in effect does nothing.
      *
      * @param mode - The {@link ChatMode} to switch to.
+     * @returns A promise resolved when the mode is in effect and any disconnect it caused has
+     * completed.
+     * @throws {@link ValidationError} Rejects on Expressive (V4) agents for {@link ChatMode.Off} and
+     * {@link ChatMode.DirectPlayback}, which those agents do not support.
      */
-    changeMode(mode: ChatMode): void;
+    changeMode(mode: ChatMode): Promise<void>;
 
     /**
      * Adds properties to every analytics event the SDK sends from now on.
@@ -826,23 +833,23 @@ export interface AgentManager {
     /**
      * Interrupts the current video stream mid-playback, so the user can talk over the agent.
      *
-     * Supported on fluent streams: Clips (V3) agents built on a Pro avatar, and all Expressive
-     * (V4) agents. It returns without doing anything when the stream does not support interrupting
-     * at all; past that the behaviour differs by agent type. On Expressive (V4) agents it is a
-     * no-op when there is nothing to interrupt. On Talks (V2) and Clips (V3) agents it throws when
-     * no video is playing or the stream is not fluent — and by then the last message has already
-     * been marked interrupted, so check
-     * {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()} and
-     * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} first.
+     * Supported on a fluent stream — a Clips (V3) agent built on a Pro avatar, or any Expressive
+     * (V4) agent. It never throws: on every agent type it returns without doing anything when
+     * interrupting is not available for the session, when it is not allowed right now, and — on
+     * Talks (V2) and Clips (V3) agents — when the stream is not a fluent stream or no video is
+     * playing. Check {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()}
+     * before offering the control at all; on Expressive (V4) agents
+     * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} tracks whether it
+     * is allowed right now.
      *
      * The interrupted message is marked as such in the next
-     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
+     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} — but only when an interrupt was
+     * actually sent. A call that finds nothing to interrupt leaves the message untouched and fires
+     * no callback.
      *
      * @param interrupt - What caused the interruption, as an {@link Interrupt}: `text`, `audio`,
      * `click` or `manual`. Expressive (V4) agents drop `text` interrupts, because the orchestrator
      * does not cancel the in-flight answer for them.
-     * @throws Error On Talks (V2) and Clips (V3) agents, when no video is currently playing or the
-     * stream is not a fluent stream.
      */
     interrupt(interrupt: Interrupt): void;
 
@@ -850,11 +857,15 @@ export interface AgentManager {
      * Switches the speech-to-text language in the middle of a session.
      *
      * Expressive (V4) agents only, after {@link AgentManager.connect | connect()}; otherwise the
-     * returned promise rejects.
+     * returned promise rejects with a {@link ValidationError}.
      *
      * @param language - The language to transcribe in, as a name or a BCP-47 code — `"English"` or
      * `"en-US"`.
-     * @returns Resolves once the new language has been sent to the agent.
+     * @returns Resolves once the new language has been sent to the agent. A room that has dropped
+     * since {@link AgentManager.connect | connect()} reports a {@link StreamError} through
+     * {@link AgentManagerCallbacks.onError | onError} and the promise still resolves.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      */
     setSttLanguage(language: string): Promise<void>;
 
@@ -863,12 +874,16 @@ export interface AgentManager {
      *
      * Use it for application-specific messages that are not speech, such as telling a presentation
      * to change slide. Expressive (V4) agents only, after {@link AgentManager.connect | connect()};
-     * otherwise the returned promise rejects.
+     * otherwise the returned promise rejects with a {@link ValidationError}.
      *
      * @param topic - Data-channel topic to send on. {@link PublicDataChannelTopic} is exported from
      * the package root and lists every topic this method accepts.
      * @param payload - A plain object, sent as JSON.
-     * @returns Resolves once the payload has been sent.
+     * @returns Resolves once the payload has been sent. A room that has dropped since
+     * {@link AgentManager.connect | connect()} reports a {@link StreamError} through
+     * {@link AgentManagerCallbacks.onError | onError} and the promise still resolves.
+     * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
+     * {@link AgentManager.connect | connect()} has not run yet.
      * @example
      * ```ts
      * import { PublicDataChannelTopic } from '@d-id/client-sdk';
