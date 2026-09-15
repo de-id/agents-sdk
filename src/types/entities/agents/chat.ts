@@ -240,12 +240,24 @@ export interface Message {
      * recent agent answer. The SDK only ever fills it in from an Expressive (V4) session, and only
      * while {@link AgentManagerOptions.debug | debug} is enabled.
      */
-    sentiment?: {
-        /** Id of the sentiment, as the server sent it. */
-        id: string;
-        /** Name of the sentiment, as the server sent it. */
-        name: string;
-    };
+    sentiment?: MessageSentiment;
+}
+
+/**
+ * The sentiment an agent answer was delivered with, as the server reported it.
+ *
+ * The shape of {@link Message.sentiment}. It is an object rather than a string because the server
+ * reports both the id of the sentiment it used and its name, where
+ * {@link TextStreamScript.sentiment} — the sentiment the application *asks* for — is just the
+ * name.
+ *
+ * @category Chat
+ */
+export interface MessageSentiment {
+    /** Id of the sentiment, as the server sent it. */
+    id: string;
+    /** Name of the sentiment, as the server sent it. */
+    name: string;
 }
 
 /**

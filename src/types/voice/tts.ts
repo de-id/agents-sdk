@@ -100,7 +100,8 @@ export interface ElevenlabsTtsProvider {
 }
 
 /**
- * Microsoft Azure provider details: the provider type, the requested voice id and an optional style.
+ * Microsoft Azure provider details: the provider type, the requested voice id and an optional
+ * `voice_config` for style, rate and pitch.
  *
  * Pass it as {@link TextStreamScript.provider} to pick a Microsoft Azure voice explicitly,
  * optionally with {@link VoiceConfigMicrosoft} to set style, rate and pitch. The Agents API
@@ -141,7 +142,8 @@ export interface MicrosoftTtsProvider {
 }
 
 /**
- * Azure OpenAI provider details: the provider type, the requested voice id and an optional style.
+ * Azure OpenAI provider details: the provider type, the requested voice id and an optional
+ * `voice_config` for style, rate and pitch.
  *
  * The same shape as {@link MicrosoftTtsProvider} — a `voice_id` and an optional
  * {@link VoiceConfigMicrosoft} as `voice_config` — with the `type` naming Azure OpenAI instead.

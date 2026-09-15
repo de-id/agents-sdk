@@ -49,6 +49,7 @@ export type {
     Interrupt,
     Message,
     MessagePart,
+    MessageSentiment,
     RatingEntity,
     RetrievalMetadata,
     SubmitFeedbackResponse,

@@ -6,6 +6,16 @@
  * when the failing call is known, `endpoint` and `method`; {@link NetworkError} adds `endpoint`,
  * `method`, `durationMs`, `online` and `visibility`.
  *
+ * @example An HttpError from a request that was refused
+ * ```json
+ * {
+ *     "kind": "InsufficientCreditsError",
+ *     "message": "Account has insufficient credits",
+ *     "httpStatus": 402,
+ *     "endpoint": "/agt_x/chat/cht_y",
+ *     "method": "POST"
+ * }
+ * ```
  * @category Errors
  */
 export interface ErrorJson {

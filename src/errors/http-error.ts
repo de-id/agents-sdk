@@ -65,7 +65,9 @@ export class HttpError extends BaseError {
      * Path of the request that failed, relative to the API client's base path — for example
      * `/agt_x/chat/cht_y` for a message sent to a chat.
      *
-     * Absent when the error was constructed without call context.
+     * Absent when the error was constructed without call context. {@link NetworkError} carries the
+     * same value under the name {@link NetworkError.endpoint | endpoint}; both serialize to
+     * `endpoint` in {@link BaseError.toJson | toJson()}.
      */
     readonly url?: string;
     /**

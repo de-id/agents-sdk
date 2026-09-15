@@ -273,9 +273,12 @@ export interface AgentManagerCallbacks {
     /**
      * Called when the agent starts, finishes or fails a tool call.
      *
-     * Expressive (V4) agents only. The event is one of {@link StreamEvents.ToolCallStarted},
-     * {@link StreamEvents.ToolCallDone} or {@link StreamEvents.ToolCallError}, and the payload
-     * shape is discriminated by it — see {@link ToolEventCallback}.
+     * Expressive (V4) agents only. The handler takes two arguments and returns nothing: `event`,
+     * one of {@link StreamEvents.ToolCallStarted}, {@link StreamEvents.ToolCallDone} or
+     * {@link StreamEvents.ToolCallError}; and `data`, the payload that event narrows to —
+     * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} or
+     * {@link ToolCallErrorPayload} respectively. The overloads that do the narrowing are on
+     * {@link ToolEventCallback}, with an example handler.
      */
     onToolEvent?: StreamManagerCallbacks['onToolEvent'];
     /**
@@ -341,13 +344,6 @@ export interface StreamOptions {
      * {@link StreamEndReason.Inactivity | 'inactivity'}. Leave it out and the server decides.
      */
     sessionTimeout?: number;
-
-    /**
-     * Maximum height or width of the streamed video, in pixels, between 150 and 1080.
-     *
-     * The aspect ratio of the source image is preserved. Talks (V2) agents only (photo-based).
-     * Leave it out and the stream uses the agent's own output resolution.
-     */
 
     /**
      * Whether to request a fluent stream.
@@ -706,10 +702,13 @@ export interface AgentManager {
      * @returns The {@link ChatResponse} for this turn.
      * @throws {@link ValidationError} When the message is empty or too long, when the chat mode has
      * chat disabled or is in maintenance, or when the manager is not connected yet.
-     * @throws {@link ChatCreationFailed} When the session has no chat yet and the Agents API
-     * answers the creation request without one.
-     * @throws {@link HttpError} When the message request comes back non-2xx.
-     * @throws {@link NetworkError} When the message request never reaches the server.
+     * @throws {@link ChatCreationFailed} On Talks (V2) and Clips (V3) agents, when the session has
+     * no chat yet and the Agents API answers the creation request without one.
+     * @throws {@link HttpError} On Talks (V2) and Clips (V3) agents, and in
+     * {@link ChatMode.Playground}, when the message request comes back non-2xx. Expressive (V4)
+     * agents send the message over the data channel instead, so no HTTP request is made.
+     * @throws {@link NetworkError} On Talks (V2) and Clips (V3) agents, and in
+     * {@link ChatMode.Playground}, when that request never reaches the server.
      * @example
      * ```ts
      * const chat = await agentManager.chat('What is the distance to the moon?');
@@ -834,12 +833,12 @@ export interface AgentManager {
     /**
      * Interrupts the current video stream mid-playback, so the user can talk over the agent.
      *
-     * Supported for Fluent streams (V3 Pro Avatars) and all Expressive (V4) agents. It never
-     * throws: on every agent type it returns without doing anything when interrupting is not
-     * available for the session, when it is not allowed right now, and — on Talks (V2) and Clips
-     * (V3) agents — when the stream is not a Fluent stream or no video is playing. Check
-     * {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()} before offering the
-     * control at all; on Expressive (V4) agents
+     * Supported on a fluent stream — a Clips (V3) agent built on a Pro avatar, or any Expressive
+     * (V4) agent. It never throws: on every agent type it returns without doing anything when
+     * interrupting is not available for the session, when it is not allowed right now, and — on
+     * Talks (V2) and Clips (V3) agents — when the stream is not a fluent stream or no video is
+     * playing. Check {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()}
+     * before offering the control at all; on Expressive (V4) agents
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} tracks whether it
      * is allowed right now.
      *
@@ -862,7 +861,9 @@ export interface AgentManager {
      *
      * @param language - The language to transcribe in, as a name or a BCP-47 code — `"English"` or
      * `"en-US"`.
-     * @returns Resolves once the new language has been sent to the agent.
+     * @returns Resolves once the new language has been sent to the agent. A room that has dropped
+     * since {@link AgentManager.connect | connect()} reports a {@link StreamError} through
+     * {@link AgentManagerCallbacks.onError | onError} and the promise still resolves.
      * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
      * {@link AgentManager.connect | connect()} has not run yet.
      */
@@ -878,7 +879,9 @@ export interface AgentManager {
      * @param topic - Data-channel topic to send on. {@link PublicDataChannelTopic} is exported from
      * the package root and lists every topic this method accepts.
      * @param payload - A plain object, sent as JSON.
-     * @returns Resolves once the payload has been sent.
+     * @returns Resolves once the payload has been sent. A room that has dropped since
+     * {@link AgentManager.connect | connect()} reports a {@link StreamError} through
+     * {@link AgentManagerCallbacks.onError | onError} and the promise still resolves.
      * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
      * {@link AgentManager.connect | connect()} has not run yet.
      * @example
