@@ -56,6 +56,8 @@ export interface AgentManagerItems {
  * leaves the browser. Wrapping keeps the reason for the agent that invoked the tool.
  * `RpcError` truncates the message at 256 bytes.
  */
+const UNSUPPORTED_CHAT_MODE_FOR_V2 = 'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
+
 function applicationError(message: string): RpcError {
     return new RpcError(RpcError.ErrorCode.APPLICATION_ERROR, message);
 }
@@ -142,6 +144,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     options.debug = options.debug || agentEntity?.advanced_settings?.ui_debug_mode;
 
     const isStreamsV2 = isStreamsV2Agent(agentEntity.avatar.type);
+
+    if (isStreamsV2 && isChatModeWithoutChat(mode)) {
+        throw new ValidationError(UNSUPPORTED_CHAT_MODE_FOR_V2);
+    }
+
     analytics.enrich(getAgentInfo(agentEntity));
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, reason => {
@@ -322,6 +329,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     }
 
     async function changeMode(mode: ChatMode) {
+        if (isStreamsV2 && isChatModeWithoutChat(mode)) {
+            throw new ValidationError(UNSUPPORTED_CHAT_MODE_FOR_V2);
+        }
+
         if (mode !== items.chatMode) {
             analytics.track('agent-mode-change', { mode });
             items.chatMode = mode;

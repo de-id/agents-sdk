@@ -2,6 +2,7 @@ import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
 import { DataChannelTopic } from '@sdk/types/stream/data-channel';
 import { RpcError } from 'livekit-client';
 import { createAgentsApi } from '../../api/agents';
+import { ValidationError } from '../../errors';
 import {
     AgentFactory,
     AgentManagerOptionsFactory,
@@ -22,6 +23,7 @@ import {
     PublicDataChannelTopic,
     StreamType,
 } from '../../types';
+import { isChatModeWithoutChat } from '../../utils/chat';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
@@ -152,6 +154,48 @@ describe('createAgentManager', () => {
                 agentId: 'agent-123',
                 isEnabled: true,
                 externalId: 'custom-user',
+            });
+        });
+
+        describe('modes without a chat on Expressive (V4) agents', () => {
+            const unsupported = 'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
+
+            beforeEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(mode =>
+                    [ChatMode.DirectPlayback, ChatMode.Off].includes(mode)
+                );
+            });
+
+            afterEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(() => false);
+            });
+
+            it.each([ChatMode.Off, ChatMode.DirectPlayback])('should reject %s on an expressive agent', async mode => {
+                mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+
+                await expect(createAgentManager('agent-123', { ...mockOptions, mode })).rejects.toThrow(
+                    ValidationError
+                );
+                await expect(createAgentManager('agent-123', { ...mockOptions, mode })).rejects.toThrow(unsupported);
+            });
+
+            it('should still create the manager for a talks agent in ChatMode.Off', async () => {
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Off });
+
+                expect(manager).toBeDefined();
+            });
+
+            it('should reject changeMode to a mode without a chat on an expressive agent', async () => {
+                mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+                const manager = await createAgentManager('agent-123', mockOptions);
+
+                await expect(manager.changeMode(ChatMode.DirectPlayback)).rejects.toThrow(ValidationError);
+            });
+
+            it('should allow changeMode to a mode without a chat on a talks agent', async () => {
+                const manager = await createAgentManager('agent-123', mockOptions);
+
+                await expect(manager.changeMode(ChatMode.Off)).resolves.toBeUndefined();
             });
         });
 

@@ -391,9 +391,12 @@ export interface AgentManagerOptions {
      * How the agent answers: with a streamed video, as text only, or not at all.
      *
      * See {@link ChatMode}. It can be changed later with
-     * {@link AgentManager.changeMode | changeMode()}.
+     * {@link AgentManager.changeMode | changeMode()}. {@link ChatMode.Off} and
+     * {@link ChatMode.DirectPlayback} are supported on Talks (V2) and Clips (V3) agents only.
      *
      * @default ChatMode.Functional
+     * @throws {@link ValidationError} From {@link createAgentManager}, when the agent is Expressive
+     * (V4) and the mode is {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}.
      */
     mode?: ChatMode;
     /**
@@ -807,6 +810,8 @@ export interface AgentManager {
      * change has been applied; passing the mode already in effect does nothing.
      *
      * @param mode - The {@link ChatMode} to switch to.
+     * @throws {@link ValidationError} On Expressive (V4) agents, for {@link ChatMode.Off} and
+     * {@link ChatMode.DirectPlayback}, which those agents do not support.
      */
     changeMode(mode: ChatMode): void;
 

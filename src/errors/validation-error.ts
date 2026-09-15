@@ -13,7 +13,10 @@ import { BaseError } from './base-error';
  * before {@link AgentManager.connect | connect()}; and from
  * {@link AgentManager.rate | rate()}, {@link AgentManager.deleteRate | deleteRate()} and
  * {@link AgentManager.submitFeedback | submitFeedback()} when no chat has started, plus, for
- * `rate()` alone, when no message with the given id is in the transcript.
+ * `rate()` alone, when no message with the given id is in the transcript. It is also raised from
+ * {@link createAgentManager} and {@link AgentManager.changeMode | changeMode()} when an Expressive
+ * (V4) agent is asked for {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}, which only Talks
+ * (V2) and Clips (V3) agents support.
  *
  * Nothing was sent to the Agents API when this is raised, so the session stays usable: fix the
  * argument or wait for {@link ConnectionState.Connected | 'connected'} and call again.

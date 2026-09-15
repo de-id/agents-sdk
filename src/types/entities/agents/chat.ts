@@ -338,12 +338,15 @@ export enum ChatMode {
     /**
      * Speak-only: no chat is created for the session, while video still streams.
      *
+     * Talks (V2) and Clips (V3) agents only; {@link createAgentManager} and
+     * {@link AgentManager.changeMode | changeMode()} reject it with a {@link ValidationError} for
+     * Expressive (V4) agents.
+     *
      * {@link AgentManager.chat | chat()} throws a {@link ValidationError} — but only when this was
      * the mode {@link createAgentManager} was given, because that guard reads the creation-time
      * mode rather than the current one; arriving here later through
      * {@link AgentManager.changeMode | changeMode()} leaves {@link AgentManager.chat | chat()}
-     * working. Chosen at creation time on a Talks (V2) or Clips (V3) agent it also skips the
-     * notifications web socket, which Expressive (V4) agents never open in any mode. Use it when
+     * working. Chosen at creation time it also skips the notifications web socket. Use it when
      * the application drives the agent entirely through {@link AgentManager.speak | speak()} and
      * never asks its LLM anything. The stream keeps running only when this is the mode
      * {@link createAgentManager} was given; switching into it later with
@@ -353,6 +356,10 @@ export enum ChatMode {
     DirectPlayback = 'DirectPlayback',
     /**
      * Chat is switched off: no chat is created for the session, while video still streams.
+     *
+     * Talks (V2) and Clips (V3) agents only; {@link createAgentManager} and
+     * {@link AgentManager.changeMode | changeMode()} reject it with a {@link ValidationError} for
+     * Expressive (V4) agents.
      *
      * {@link AgentManager.chat | chat()} throws a {@link ValidationError} under the same
      * creation-time rule as {@link ChatMode.DirectPlayback}. The two modes are otherwise equivalent
