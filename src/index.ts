@@ -1,6 +1,4 @@
-// src/index.ts
-// Public surface of @d-id/client-sdk. Everything listed here is documented at https://sdk.d-id.com/.
-// Adding a name here is an API change: give it a JSDoc block and an @category tag (see typedoc.config.mjs).
+// Public API of @d-id/client-sdk. Everything exported here is rendered at https://sdk.d-id.com/.
 
 // Agent Manager
 export { createAgentManager } from './services/agent-manager';
