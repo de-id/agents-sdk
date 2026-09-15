@@ -1,16 +1,11 @@
 name: Deploy API reference (manual)
 
-# Builds the TypeDoc site from any ref and deploys it to sdk.d-id.com on demand.
+# Builds the TypeDoc site from the branch the run is dispatched on and deploys it to
+# sdk.d-id.com on demand: `gh workflow run deploy-docs.yml --ref main`.
 # The prod release (publish-on-merge.yml) still deploys automatically after each npm publish;
 # use this to verify the site from main, or to redeploy without a release.
 on:
   workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Branch, tag or commit to build the reference from'
-        required: false
-        default: main
-        type: string
 
 permissions:
   contents: read
@@ -24,13 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout ${{ inputs.ref }}
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
-      # No dependency cache: the ref is user-chosen, and a cache written here would be shared with
-      # every workflow run on the default branch (CodeQL: cache poisoning).
+      # No dependency cache: keep this job free of cache writes that other workflows would restore.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
