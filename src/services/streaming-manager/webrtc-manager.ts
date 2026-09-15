@@ -403,17 +403,15 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
 
         streamType,
         interruptAvailable: interruptAvailable ?? false,
-        isInterruptible: true,
+        // Only a playing video can be interrupted; there is nothing to cut short between videos.
+        get isInterruptible() {
+            return !!currentVideoId;
+        },
 
         interrupt(_type: Interrupt['type']) {
-            if (!interruptAvailable) {
-                throw new Error('Interrupt is not enabled for this stream');
-            }
-            if (streamType !== StreamType.Fluent) {
-                throw new Error('Interrupt only available for Fluent streams');
-            }
-            if (!currentVideoId) {
-                throw new Error('No active video to interrupt');
+            // Nothing to interrupt: the stream does not support it, is not fluent, or no video is playing.
+            if (!interruptAvailable || streamType !== StreamType.Fluent || !currentVideoId) {
+                return;
             }
 
             const payload: StreamInterruptPayload = {

@@ -404,4 +404,91 @@ describe('Streaming Manager Core', () => {
             expect(mockVideoStatsMonitor.stop).toHaveBeenCalledTimes(1);
         });
     });
+
+    describe('interrupt', () => {
+        const fluentStream = {
+            id: 'streamId',
+            offer: { type: 'offer', sdp: 'sdp' },
+            ice_servers: [],
+            session_id: 'sessionId',
+            fluent: true,
+            interrupt_enabled: true,
+        };
+
+        async function createConnectedManager(stream: Partial<typeof fluentStream> = {}) {
+            mockApi.createStream.mockResolvedValueOnce({ ...fluentStream, ...stream });
+            const manager = await createStreamingManager(agentId, agentStreamOptions, options);
+            const mockPC = (window.RTCPeerConnection as any).mock.results[0].value;
+            const mockDC = mockPC.createDataChannel.mock.results[0].value;
+            // the data channel mock is shared across tests in this file
+            mockDC.readyState = 'open';
+            mockDC.onopen();
+            mockDC.send.mockClear();
+
+            return { manager, mockDC };
+        }
+
+        const startVideo = (mockDC: any, videoId = 'video-1') =>
+            mockDC.onmessage({ data: `stream/started:{"metadata":{"videoId":"${videoId}"}}` });
+        const endVideo = (mockDC: any) => mockDC.onmessage({ data: 'stream/done:{}' });
+
+        it('should not be interruptible before a video starts', async () => {
+            const { manager } = await createConnectedManager();
+
+            expect(manager.isInterruptible).toBe(false);
+        });
+
+        it('should be interruptible while a video is playing', async () => {
+            const { manager, mockDC } = await createConnectedManager();
+
+            startVideo(mockDC);
+
+            expect(manager.isInterruptible).toBe(true);
+        });
+
+        it('should stop being interruptible once the video is done', async () => {
+            const { manager, mockDC } = await createConnectedManager();
+
+            startVideo(mockDC);
+            endVideo(mockDC);
+
+            expect(manager.isInterruptible).toBe(false);
+        });
+
+        it('should send the interrupt for the playing video', async () => {
+            const { manager, mockDC } = await createConnectedManager();
+            startVideo(mockDC);
+
+            manager.interrupt('click');
+
+            expect(mockDC.send).toHaveBeenCalledTimes(1);
+            expect(JSON.parse(mockDC.send.mock.calls[0][0])).toMatchObject({
+                type: 'stream/interrupt',
+                videoId: 'video-1',
+            });
+        });
+
+        it('should return without sending when no video is playing', async () => {
+            const { manager, mockDC } = await createConnectedManager();
+
+            expect(() => manager.interrupt('click')).not.toThrow();
+            expect(mockDC.send).not.toHaveBeenCalled();
+        });
+
+        it('should return without sending when interrupt is not enabled for the stream', async () => {
+            const { manager, mockDC } = await createConnectedManager({ interrupt_enabled: false });
+            startVideo(mockDC);
+
+            expect(() => manager.interrupt('click')).not.toThrow();
+            expect(mockDC.send).not.toHaveBeenCalled();
+        });
+
+        it('should return without sending on a legacy stream', async () => {
+            const { manager, mockDC } = await createConnectedManager({ fluent: false });
+            startVideo(mockDC);
+
+            expect(() => manager.interrupt('click')).not.toThrow();
+            expect(mockDC.send).not.toHaveBeenCalled();
+        });
+    });
 });

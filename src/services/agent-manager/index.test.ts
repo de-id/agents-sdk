@@ -637,6 +637,11 @@ describe('createAgentManager', () => {
         });
 
         describe('interrupt', () => {
+            const getLastMessage = (onNewMessage: jest.Mock) => {
+                const messages = onNewMessage.mock.calls[onNewMessage.mock.calls.length - 1][0];
+                return messages[messages.length - 1];
+            };
+
             beforeEach(async () => {
                 mockStreamingManager.interruptAvailable = true;
                 await manager.connect();
@@ -669,6 +674,50 @@ describe('createAgentManager', () => {
 
                 // Verify streamingManager.interrupt was called
                 expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
+            });
+
+            it('should not mark the last message interrupted when the stream is not interruptible', async () => {
+                mockStreamingManager.isInterruptible = false;
+                await manager.chat('Hello');
+
+                const onNewMessage = mockOptions.callbacks.onNewMessage as jest.Mock;
+                const lastMessage = getLastMessage(onNewMessage);
+                onNewMessage.mockClear();
+
+                manager.interrupt({ type: 'click' });
+
+                expect(mockStreamingManager.interrupt).not.toHaveBeenCalled();
+                expect(onNewMessage).not.toHaveBeenCalled();
+                expect(lastMessage.interrupted).toBeUndefined();
+            });
+
+            it('should not mark the last message interrupted when the stream manager rejects the interrupt', async () => {
+                await manager.chat('Hello');
+
+                const onNewMessage = mockOptions.callbacks.onNewMessage as jest.Mock;
+                const lastMessage = getLastMessage(onNewMessage);
+                onNewMessage.mockClear();
+                (mockStreamingManager.interrupt as jest.Mock).mockImplementationOnce(() => {
+                    throw new Error('Interrupt validation failed');
+                });
+
+                expect(() => manager.interrupt({ type: 'click' })).toThrow('Interrupt validation failed');
+
+                expect(onNewMessage).not.toHaveBeenCalled();
+                expect(lastMessage.interrupted).toBeUndefined();
+            });
+
+            it('should mark the last message interrupted once the interrupt was sent', async () => {
+                await manager.chat('Hello');
+
+                const onNewMessage = mockOptions.callbacks.onNewMessage as jest.Mock;
+                const lastMessage = getLastMessage(onNewMessage);
+                onNewMessage.mockClear();
+
+                manager.interrupt({ type: 'click' });
+
+                expect(lastMessage.interrupted).toBe(true);
+                expect(onNewMessage).toHaveBeenCalledWith(expect.any(Array), 'answer');
             });
         });
 

@@ -164,18 +164,22 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
         if (!items.streamingManager?.isInterruptible) return;
 
-        const lastMessage = items.messages[items.messages.length - 1];
-
         analytics.track('agent-video-interrupt', {
             type: type || 'click',
             video_duration_to_interrupt: interruptTimestampTracker.get(true),
             message_duration_to_interrupt: latencyTimestampTracker.get(true),
         });
 
+        items.streamingManager.interrupt(type);
+
+        // Only flag the message once the interrupt was actually sent.
+        const lastMessage = items.messages[items.messages.length - 1];
+        if (!lastMessage) {
+            return;
+        }
+
         lastMessage.interrupted = true;
         options.callbacks.onNewMessage?.([...items.messages], 'answer');
-
-        items.streamingManager.interrupt(type);
     };
 
     const clientToolHandlers = new Map<string, ClientToolHandler>();

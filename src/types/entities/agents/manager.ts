@@ -283,10 +283,9 @@ export interface AgentManagerCallbacks {
      *
      * Expressive (V4) agents only. Use it to enable or disable an interrupt button; on those
      * agents {@link AgentManager.interrupt | interrupt()} does nothing while the agent cannot be
-     * interrupted. Talks (V2) and Clips (V3) agents never report a change, and there
-     * {@link AgentManager.interrupt | interrupt()} throws rather than doing nothing when no video
-     * is playing — check {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()}
-     * instead.
+     * interrupted. Talks (V2) and Clips (V3) agents never report a change — check
+     * {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()} instead; there too
+     * {@link AgentManager.interrupt | interrupt()} does nothing when no video is playing.
      */
     onInterruptibleChange?: StreamManagerCallbacks['onInterruptibleChange'];
     /**
@@ -826,23 +825,22 @@ export interface AgentManager {
     /**
      * Interrupts the current video stream mid-playback, so the user can talk over the agent.
      *
-     * Supported on fluent streams: Clips (V3) agents built on a Pro avatar, and all Expressive
-     * (V4) agents. It returns without doing anything when the stream does not support interrupting
-     * at all; past that the behaviour differs by agent type. On Expressive (V4) agents it is a
-     * no-op when there is nothing to interrupt. On Talks (V2) and Clips (V3) agents it throws when
-     * no video is playing or the stream is not fluent — and by then the last message has already
-     * been marked interrupted, so check
-     * {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()} and
-     * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} first.
+     * Supported for Fluent streams (V3 Pro Avatars) and all Expressive (V4) agents. It never
+     * throws: on every agent type it returns without doing anything when there is nothing to
+     * interrupt — the stream does not support interrupting, it is not a Fluent stream, or no video
+     * is playing. Check {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()}
+     * before offering the control at all; on Expressive (V4) agents
+     * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} also tracks
+     * whether there is something to interrupt right now.
      *
      * The interrupted message is marked as such in the next
-     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
+     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} — but only when an interrupt was
+     * actually sent. A call that finds nothing to interrupt leaves the message untouched and fires
+     * no callback.
      *
      * @param interrupt - What caused the interruption, as an {@link Interrupt}: `text`, `audio`,
      * `click` or `manual`. Expressive (V4) agents drop `text` interrupts, because the orchestrator
      * does not cancel the in-flight answer for them.
-     * @throws Error On Talks (V2) and Clips (V3) agents, when no video is currently playing or the
-     * stream is not a fluent stream.
      */
     interrupt(interrupt: Interrupt): void;
 
