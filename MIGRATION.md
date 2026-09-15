@@ -16,6 +16,28 @@ The callbacks type accepted by `createAgentManager` was never exported in v2; th
 import type { AgentManagerCallbacks } from '@d-id/client-sdk';
 ```
 
+## Renamed types
+
+| v2 | v3 |
+| --- | --- |
+| `Stream_Text_Script` | `TextStreamScript` |
+| `Stream_Audio_Script` | `AudioStreamScript` |
+| `Elevenlabs_tts_provider` | `ElevenlabsTtsProvider` |
+| `Afflorithmics_tts_provider` | `AfflorithmicsTtsProvider` |
+| `Microsoft_tts_provider` | `MicrosoftTtsProvider` |
+| `AzureOpenAi_tts_provider` | `AzureOpenAiTtsProvider` |
+| `Amazon_tts_provider` | `AmazonTtsProvider` |
+| `IRetrivalMetadata` | `RetrievalMetadata` |
+| `IVoice` | `Voice` |
+
+Shapes are unchanged; only the names differ.
+
+## Removed options and types
+
+- `AgentManagerOptions.enableAnalitics` (misspelled) — use `enableAnalytics`.
+- `Subject` enum — the Knowledge API never served those prefixed values; use `DocumentStatus`.
+- `VideoStateChangeCallback` no longer declares a second argument; the SDK never passed one.
+
 ---
 
 # Migration Guide: v1 → v2

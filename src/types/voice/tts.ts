@@ -12,7 +12,7 @@ export enum VoiceAccess {
     Private = 'private',
 }
 
-export interface IVoice {
+export interface Voice {
     id: string;
     name: string;
     gender: string;
@@ -26,7 +26,7 @@ export interface IVoice {
 /**
  * Elevenlabs provider details, contains the provider type and requested voice id, available for premium users.
  */
-export interface Elevenlabs_tts_provider {
+export interface ElevenlabsTtsProvider {
     type: Providers.Elevenlabs;
 
     /**
@@ -45,7 +45,7 @@ export interface Elevenlabs_tts_provider {
 /**
  * Afflorithmics provider details, contains the provider type and requested voice id, available for enterprise users.
  */
-export interface Afflorithmics_tts_provider {
+export interface AfflorithmicsTtsProvider {
     type: Providers.Afflorithmics;
 
     /**
@@ -64,7 +64,7 @@ export interface Afflorithmics_tts_provider {
 /**
  * AzureMicrosoft provider details, contains the provider type and requested voice id and style
  */
-export interface Microsoft_tts_provider {
+export interface MicrosoftTtsProvider {
     type: Providers.Microsoft;
 
     /**
@@ -94,14 +94,14 @@ export interface Microsoft_tts_provider {
 /**
  * AzureOpenAi provider details, contains the provider type and requested voice id and style
  */
-export interface AzureOpenAi_tts_provider extends Omit<Microsoft_tts_provider, 'type'> {
+export interface AzureOpenAiTtsProvider extends Omit<MicrosoftTtsProvider, 'type'> {
     type: Providers.AzureOpenAi;
 }
 
 /**
  * Amazon provider details, contains the provider type and requested voice id
  */
-export interface Amazon_tts_provider {
+export interface AmazonTtsProvider {
     type: Providers.Amazon;
 
     /**
@@ -173,14 +173,14 @@ export interface VoiceConfigAfflorithmics {
 }
 
 export type TextToSpeechProviders =
-    | Microsoft_tts_provider
-    | AzureOpenAi_tts_provider
-    | Afflorithmics_tts_provider
-    | Elevenlabs_tts_provider;
-export type ExtendedTextToSpeechProviders = TextToSpeechProviders | Amazon_tts_provider;
+    | MicrosoftTtsProvider
+    | AzureOpenAiTtsProvider
+    | AfflorithmicsTtsProvider
+    | ElevenlabsTtsProvider;
+export type ExtendedTextToSpeechProviders = TextToSpeechProviders | AmazonTtsProvider;
 export type StreamTextToSpeechProviders =
-    | Microsoft_tts_provider
-    | AzureOpenAi_tts_provider
-    | Afflorithmics_tts_provider
-    | Elevenlabs_tts_provider
-    | Amazon_tts_provider;
+    | MicrosoftTtsProvider
+    | AzureOpenAiTtsProvider
+    | AfflorithmicsTtsProvider
+    | ElevenlabsTtsProvider
+    | AmazonTtsProvider;

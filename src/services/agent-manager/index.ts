@@ -88,7 +88,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const analytics = initializeAnalytics({
         token: mxKey,
         agentId: agent,
-        isEnabled: options.enableAnalytics ?? options.enableAnalitics,
+        isEnabled: options.enableAnalytics,
         externalId: options.externalId,
         mixpanelAdditionalProperties: options.mixpanelAdditionalProperties,
     });

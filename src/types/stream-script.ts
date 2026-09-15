@@ -6,7 +6,7 @@ export interface BaseStreamScript {
     type: StreamScriptType;
 }
 
-export interface Stream_Text_Script extends BaseStreamScript {
+export interface TextStreamScript extends BaseStreamScript {
     /**
      * The type of the script.
      */
@@ -46,7 +46,7 @@ export interface Stream_Text_Script extends BaseStreamScript {
     sentiment?: string;
 }
 
-export interface Stream_Audio_Script extends BaseStreamScript {
+export interface AudioStreamScript extends BaseStreamScript {
     /**
      * The type of the script.
      */
@@ -63,7 +63,7 @@ export interface Stream_Audio_Script extends BaseStreamScript {
  * Script variant that has the agent's LLM generate the response to speak, rather than supplying text or audio directly.
  * @internal Implementation type; not part of the public SDK surface.
  */
-export interface Stream_LLM_Script {
+export interface LlmStreamScript {
     type: 'llm';
     provider: StreamTextToSpeechProviders;
     ssml?: boolean;
@@ -79,5 +79,5 @@ export interface Stream_LLM_Script {
  * Union of every script variant accepted internally, including the LLM-generated variant not exposed to consumers.
  * @internal Implementation type; not part of the public SDK surface.
  */
-export type StreamScript = Stream_Text_Script | Stream_Audio_Script | Stream_LLM_Script;
-export type SupportedStreamScript = Stream_Text_Script | Stream_Audio_Script;
+export type StreamScript = TextStreamScript | AudioStreamScript | LlmStreamScript;
+export type SupportedStreamScript = TextStreamScript | AudioStreamScript;

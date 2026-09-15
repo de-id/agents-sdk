@@ -9,19 +9,6 @@ import { DocumentType, KnowledgeType } from './knowledge';
 export type DocumentStatus = 'created' | 'processed' | 'done' | 'rejected' | 'error';
 
 /**
- * Prefixed event-subject form of a document's lifecycle status.
- * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
- * @deprecated The knowledge API has never served these prefixed values — it strips the
- * subject prefix on read. Use `DocumentStatus` instead. Kept for backwards compatibility
- * and will be removed in the next major.
- */
-export enum Subject {
-    KnowledgeProcessing = 'knowledge/processing',
-    KnowledgeFailed = 'knowledge/error',
-    KnowledgeDone = 'knowledge/done',
-}
-
-/**
  * A document as returned by the Knowledge API.
  * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
  */

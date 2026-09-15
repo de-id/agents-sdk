@@ -46,11 +46,11 @@ export type { CompatibilityMode } from './types/stream/stream';
 
 // Speak & Scripts
 export type {
+    AudioStreamScript,
     BaseStreamScript,
     StreamScriptType,
-    Stream_Audio_Script,
-    Stream_Text_Script,
     SupportedStreamScript,
+    TextStreamScript,
 } from './types/stream-script';
 
 // Chat
@@ -58,11 +58,11 @@ export { ChatMode, RateState } from './types/entities/agents/chat';
 export type {
     Chat,
     ChatResponse,
-    IRetrivalMetadata,
     Interrupt,
     Message,
     MessagePart,
     RatingEntity,
+    RetrievalMetadata,
     SubmitFeedbackResponse,
 } from './types/entities/agents/chat';
 export { parseMessageParts } from './utils/content-parser';
@@ -71,15 +71,15 @@ export { isAwaitingTool } from './utils/tool-calls';
 // Voice
 export { Providers, VoiceAccess } from './types/voice/tts';
 export type {
-    Afflorithmics_tts_provider,
-    Amazon_tts_provider,
-    AzureOpenAi_tts_provider,
-    Elevenlabs_tts_provider,
+    AfflorithmicsTtsProvider,
+    AmazonTtsProvider,
+    AzureOpenAiTtsProvider,
+    ElevenlabsTtsProvider,
     ExtendedTextToSpeechProviders,
-    IVoice,
-    Microsoft_tts_provider,
+    MicrosoftTtsProvider,
     StreamTextToSpeechProviders,
     TextToSpeechProviders,
+    Voice,
     VoiceConfigAfflorithmics,
     VoiceConfigElevenlabs,
     VoiceConfigMicrosoft,

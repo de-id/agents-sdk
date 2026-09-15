@@ -54,7 +54,7 @@ export enum ChatProgress {
  */
 export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data: any) => void;
 export type ConnectionStateChangeCallback = (state: ConnectionState) => void;
-export type VideoStateChangeCallback = (state: StreamingState, data: any) => void;
+export type VideoStateChangeCallback = (state: StreamingState) => void;
 
 export interface AgentManagerCallbacks {
     /**
@@ -180,13 +180,6 @@ export interface AgentManagerOptions {
     verbose?: boolean;
     /**
      * Whether to enable analytics (Mixpanel) tracking.
-     * @default true
-     * @deprecated Use `enableAnalytics` instead. This misspelled prop is kept for backwards compatibility.
-     */
-    enableAnalitics?: boolean;
-    /**
-     * Whether to enable analytics (Mixpanel) tracking.
-     * Takes precedence over the deprecated `enableAnalitics` prop when both are set.
      * @default true
      */
     enableAnalytics?: boolean;

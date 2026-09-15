@@ -1095,7 +1095,7 @@ describe('createAgentManager', () => {
         });
 
         it('should handle analytics initialization with disabled analytics', async () => {
-            const optionsWithoutAnalytics = { ...mockOptions, enableAnalitics: false };
+            const optionsWithoutAnalytics = { ...mockOptions, enableAnalytics: false };
 
             await createAgentManager('agent-123', optionsWithoutAnalytics);
 

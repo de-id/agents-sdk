@@ -69,7 +69,7 @@ export interface ChatPayload {
     chatMode?: ChatMode;
 }
 
-export interface IRetrivalMetadata {
+export interface RetrievalMetadata {
     id: string;
     data: string;
     title: string;
@@ -90,7 +90,7 @@ export enum ChatMode {
 export interface ChatResponse {
     result?: string;
     documentIds?: string[];
-    matches?: IRetrivalMetadata[];
+    matches?: RetrievalMetadata[];
     chatMode?: ChatMode;
     context?: string;
     videoId?: string;

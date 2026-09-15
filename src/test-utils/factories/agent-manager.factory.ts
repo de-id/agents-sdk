@@ -18,6 +18,6 @@ export const AgentManagerOptionsFactory = new Factory<AgentManagerOptions>().att
         onSrcObjectReady: jest.fn(),
     }),
     mode: ChatMode.Functional,
-    enableAnalitics: true,
+    enableAnalytics: true,
     persistentChat: true,
 });
