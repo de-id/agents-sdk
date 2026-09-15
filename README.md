@@ -1,31 +1,31 @@
-# Agents SDK Overview 📙
+# D-ID Client SDK 📙
 
 <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-evenly; min-height: 1px; font-size: 16px;">
   <img style="width: auto; height: 200px; object-fit: contain;" src="https://create-images-results.d-id.com/api_docs/assets/agents_sdk_cover_v2.png" alt="Agents SDK Cover" />
   <span style="width: 67%; text-align: justify;">
-    <br> Welcome to the Agents SDK documentation!<br> Here, you’ll find everything you need to know to get started with the SDK, understand its core concepts, utilize built-in methods, and access additional resources.<br> This guide is designed to help you integrate the Agents SDK into your projects effectively and efficiently.
+    <br> This guide covers installing the SDK, connecting to an agent and where to find the full API reference.
   </span>
 </div>
 
-## ✴️ Introduction
+## Introduction
 
-The D-ID Agents SDK provides a seamless integration pathway for embedding your created Agents or real-time streaming avatars into web applications.
+The D-ID Agents SDK embeds your created Agents or real-time streaming avatars into web applications.
 
-With a streamlined and user-friendly workflow, you can easily harness the capabilities of the D-ID Agents and Streams API right out of the box.
+It wraps the D-ID Agents and Streams APIs.
 
 The SDK supports three avatar types:
 
 - **Talks (V2)** — Photo-based presenters using WebRTC streaming.
 - **Clips (V3)** — Pre-built presenter avatars using WebRTC streaming.
-- **Expressives (V4)** — Next-generation avatars using LiveKit-based streaming, supporting microphone input and always-on fluent mode.
+- **Expressive (V4)** — Next-generation avatars using LiveKit-based streaming, supporting microphone input and always-on fluent mode.
 
 **Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/docs/agent-quickstart) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
 
-> 📚 **Full API reference:** [sdk.d-id.com](https://sdk.d-id.com/) — every method, callback, option and type, generated from the source on each release.
+> 📚 **Full API reference:** [sdk.d-id.com](https://sdk.d-id.com/) — every method, callback, option and type, generated from the source on each release. ![Docs coverage](https://sdk.d-id.com/coverage.svg)
 
-## ✴️ Getting Started
+## Getting Started
 
-### ➤ ✴️ Prerequisites
+### Prerequisites
 
 Follow these steps:
 
@@ -37,7 +37,7 @@ Follow these steps:
    This is an additional security measurement: your Agent can be accessed only from the domains allowed by you.
 6. In the code snippet section, fetch the `data-client-key` and the `data-agent-id`, these will be used later to access your Agent.
 
-### ➤ ✴️ Installation
+### Installation
 
 In your front-end application folder, install the Agents SDK library using `npm`.
 
@@ -47,19 +47,21 @@ npm i @d-id/client-sdk
 
 Alternatively, you can clone the SDK from its [GitHub repository](https://github.com/de-id/agents-sdk).
 
-### ➤ ✴️ Initialization
+### Initialization
 
 In your front-end application,
 
 1. Import the Agents SDK library
 2. Paste the `data-agent-id` obtained in the prerequisites step in the `agentId` variable
 3. Paste the `data-client-key` obtained in the prerequisites step in the `auth.clientKey` variable
-4. Define an object called `callbacks`.
-   This will be explained in the [Usage section](#➤-%EF%B8%8F-callback-functions) in this guide.
-5. Define an object called `streamOptions` [optional — v2/v3 avatars only]
-   This will be explained in the [Usage section](#➤-%EF%B8%8F-stream-options) in this guide.
-6. Create an instance of the `createAgentManger` object called `agentManager` with the values created above.
-   This will be explained later in the [Usage section](#➤-%EF%B8%8F-agent-manager) in this guide.
+4. Define an object called `callbacks`. `onSrcObjectReady` is mandatory: it hands you the media stream to render, so without it the agent has nowhere to play.
+   See [`AgentManagerCallbacks`](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html) in the API reference.
+5. Define an object called `streamOptions` [optional — Talks (V2) and Clips (V3) agents only]
+   See [`StreamOptions`](https://sdk.d-id.com/interfaces/StreamOptions.html) in the API reference.
+6. Create an instance of the `createAgentManager` object called `agentManager` with the values created above.
+   See [`AgentManager`](https://sdk.d-id.com/interfaces/AgentManager.html) in the API reference.
+7. Open the session with `connect()`, and wait for it to resolve before speaking to the agent.
+8. Make the agent talk: `speak()` says exactly what you give it, `chat()` has the agent answer with its own LLM.
 
 Example:
 
@@ -74,9 +76,23 @@ let agentId = 'agt_fumf1234';
 let auth = { type: 'key', clientKey: 'Z3123asdaczxSXSAasdcxzcashDY6MGSASFsafxSDdfASY2k0TUhPcEVsTnBR' };
 
 // 4. Define the SDK callbacks functions in this object
-const callbacks = {};
+const videoElement = document.getElementById('agent-video');
 
-// 5. Define the Stream Options object (Optional — v2/v3 avatars only)
+const callbacks = {
+    onSrcObjectReady(value) {
+        videoElement.srcObject = value;
+    },
+    onConnectionStateChange(state) {
+        console.log('connection:', state);
+    },
+    onNewMessage(messages, type) {
+        if (type === 'answer') {
+            console.log(messages[messages.length - 1].content);
+        }
+    },
+};
+
+// 5. Define the Stream Options object (Optional — Talks (V2) and Clips (V3) agents only)
 let streamOptions = { compatibilityMode: 'auto', streamWarmup: true };
 
 //....Rest of the APP's code here....//
@@ -84,263 +100,39 @@ let streamOptions = { compatibilityMode: 'auto', streamWarmup: true };
 
 // 6. Create the 'agentManager' instance with the values created above
 let agentManager = await sdk.createAgentManager(agentId, { auth, callbacks, streamOptions });
+
+// 7. Open the session
+await agentManager.connect();
+
+// 8. Make the agent talk
+await agentManager.speak({ type: 'text', input: "Hi! I'm Alice!" });
+await agentManager.chat('What is the distance to the moon?');
 ```
 
-## ✴️ Usage
+## Usage
 
-### ➤ ✴️ Agent Manager
+Everything the `agentManager` exposes — methods, callbacks, stream options and every type — is documented in the **[API reference](https://sdk.d-id.com/)**, generated from the source on each release. Start with:
 
-#### **Built-in Properties**
+- [`createAgentManager()`](https://sdk.d-id.com/functions/createAgentManager.html) — initialization and options
+- [`AgentManager`](https://sdk.d-id.com/interfaces/AgentManager.html) — `connect()`, `speak()`, `chat()`, `interrupt()`, microphone and camera publishing, client tools
+- [`AgentManagerCallbacks`](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html) — `onSrcObjectReady` (mandatory), `onVideoStateChange`, `onConnectionStateChange`, `onNewMessage`, …
+- [`StreamOptions`](https://sdk.d-id.com/interfaces/StreamOptions.html) — Talks (V2) and Clips (V3) transport options
 
-The `agentManager` object created during initialization has several built-in parameters that might come in handy.
-
-- **`agentManager.agent`**
-  Displaying all of the Agent's saved information (Same as the following [endpoint](https://docs.d-id.com/reference/agent-get))
-- **`agentManager.starterMessages`**
-  Displaying the Agent's defined Starter Messages.
-
-#### **Built-in Methods**
-
-The `agentManager` object created during initialization has several built-in methods that allow you to interact with your Agent.
-
-- **`agentManager.connect()`**
-  Method to create a new connection with an Agent (new WebRTC connection, web-socket, new Agent chat ID)
-
-- **`agentManager.speak({type, input})`**
-  Method to make your Agent stream back a video based on a text or audio file.
-  (Similar to [Talks Streams](https://docs.d-id.com/reference/talks-streams-overview) / [Clips Streams API](https://docs.d-id.com/reference/clips-streams-overview))
-
-    ```javascript Text - JavaScript
-    let speak = agentManager.speak({
-        type: 'text',
-        input: "Hi! I'm Alice!",
-    });
-    ```
-
-    Text scripts also accept an optional `sentiment` (expressive avatars only). If the requested sentiment is not supported by the agent, the default sentiment is used.
-
-    ```javascript Text with sentiment - JavaScript
-    let speak = agentManager.speak({
-        type: 'text',
-        input: "Hi! I'm Alice!",
-        sentiment: 'friendly',
-    });
-    ```
-
-    ```javascript Audio File - JavaScript
-    let speak = agentManager.speak({
-        type: 'audio',
-        audio_url: 'http://www.yourwebsite.com/audio.mp3',
-    });
-    ```
-
-- **`agentManager.chat(string)`**
-  Method to send a message to your Agent and get a streamed video based on its answer (LLM)
-
-    ```javascript JavaScript
-    let chat = agentManager.chat('What is the distance to the moon?');
-    ```
-
-- **`agentManager.rate(messageID, score)`**
-  Method to rate the Agent's answer in the chat - for future analytics and insights.
-
-- **`agentManager.reconnect()`**
-  Method to reconnect to the Agent when the session expires and continue the conversation on the same chat ID.
-
-- **`agentManager.disconnect()`**
-  Method to close the existing connection and chat with the Agent.
-
-- **`agentManager.interrupt(interrupt)`**
-  Method to interrupt the current video stream mid-playback.
-  Supported for Fluent streams (V3 Pro Avatars) and all Expressive (V4) agents.
-
-- **`agentManager.publishMicrophoneStream(stream)`**
-  **Supported only with Expressive (V4) agents.**
-  Method to publish a microphone audio track to the session. Call after `connect()` to enable voice input.
-
-    ```javascript
-    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    await agentManager.publishMicrophoneStream(micStream);
-    ```
-
-- **`agentManager.unpublishMicrophoneStream()`**
-  **Supported only with Expressive (V4) agents.**
-  Method to stop and remove the currently published microphone track from the session.
-
-    ```javascript
-    await agentManager.unpublishMicrophoneStream();
-    ```
-
-- **`agentManager.sendDataChannelMessage(topic, payload)`**
-  **Supported only with Expressive (V4) agents.**
-  Method to send a JSON payload to the agent over a data-channel topic. `PublicDataChannelTopic` is exported from the package root and lists every topic this method accepts.
-
-    ```javascript
-    import { PublicDataChannelTopic } from '@d-id/client-sdk';
-
-    await agentManager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
-    ```
-
-### ➤ ✴️ Callback Functions
-
-Callback functions enable you to manage various events throughout the SDK lifecycle. Each function is linked to one or more methods within the built-in `agentManager` and triggers automatically to handle specific events efficiently
-
-- **`onSrcObjectReady(value)`:**
-  [**MANDATORY for using the SDK**] - Linking the Streamed video and audio to the HTML element.
-  The `value` of this callback function is passed to the HTML video element in the following function.
-  Triggered when `agentManager.connect(), agentManager.reconnect(), agentManager.disconnect()` are called.
-
-    ```javascript
-     onSrcObjectReady(value) {
-        videoElement.srcObject = value
-        srcObject = value
-        return srcObject
-      }
-    ```
-
-- **`onVideoStateChange(state)`:**
-  Displaying the state of the streamed video, used for switching the HTML element's source between the idle and streamed videos.
-  Triggered when `agentManager.chat() and agentManager.speak()` are called.
-
-    ```javascript
-    onVideoStateChange(state) {
-        console.log("onVideoStateChange(): ", state)
-        if (state == "STOP") {
-            videoElement.srcObject = undefined
-            videoElement.src = agentManager.agent.presenter.idle_video
-        }
-        else {
-            videoElement.src = ""
-            videoElement.srcObject = srcObject
-            connectionLabel.innerHTML = "Online"
-        }
-    }
-    ```
-
-- **`onConnectionStateChange(state, reason):`**
-  Displaying the different connection states with the Agent's WebRTC stream connection
-  Triggered when `agentManager.connect(), agentManager.reconnect(), agentManager.disconnect()` are called.
-
-    ```javascript
-    onConnectionStateChange(state, reason) {
-        console.log("onConnectionStateChange(): ", state, reason)
-        if (state == "connected") {
-            console.log("I'm ready to go!")
-        }
-    }
-    ```
-
-    The second `reason` argument says why the connection reached that state. On `disconnected` it is a `StreamEndReason` when the server ended the stream on purpose, which lets you tell a deliberate end from a dropped connection. Any other value is an opaque transport diagnostic. `agentManager.reconnect()` still works after a deliberate end; it starts a new stream rather than resuming the old one.
-
-    ```javascript Example Values
-    state: ['new', 'fail', 'connecting', 'connected', 'disconnected', 'closed'];
-    reason: ['ok', 'unknown_error', 'network_issue', 'message_limit', 'time_limit', 'inactivity', 'ended_by_agent'];
-    ```
-
-- **`onNewMessage(messages, type)`:**
-  Displaying the chat messages array when a new message is sent to the chat.
-  `type`: `answer` indicates the full answer replied in the streamed video.
-  `role`: `user`, `assistant`(Agent)
-
-    Triggered when `agentManager.chat()` is called:
-
-    ```javascript
-    onNewMessage(messages, type) {
-        console.log(messages, type)
-    }
-    ```
-
-    ```javascript Example Values
-    type: ['partial', 'answer'];
-
-    messages: [
-        {
-            role: 'assistant',
-            content: "Hi! I'm an Agent. How can I help you?",
-            created_at: '2024-07-08T08:35:54.503Z',
-            id: '35113960da531',
-        },
-        {
-            role: 'user',
-            content: 'What is the distance to the moon?',
-            created_at: '2024-07-08T08:36:48.036Z',
-            id: 'f82377af5a9c4',
-        },
-        {
-            role: 'assistant',
-            content:
-                "The average distance to the moon is about 238,855 miles (384,400 kilometers). That's about 30 times the diameter of the Earth!",
-            id: '49b86saf2aff8',
-            created_at: '2024-07-08T08:36:48.037Z',
-            matches: [],
-        },
-    ];
-    ```
-
-- **`onConnectivityStateChange(state)`:**
-  Triggered when the user's internet connectivity state changes, estimated by real-time bitrate.
-
-    ```javascript
-    onConnectivityStateChange(state) {
-        console.log("onConnectivityStateChange(): ", state)
-    }
-    ```
-
-    ```javascript Example Values
-    state: ['STRONG', 'WEAK', 'UNKNOWN'];
-    ```
-
-- **`onError(error, errorData)`:**
-  Throwing an error and displaying the error message when things go badly.
-
-    ```javascript
-    onError(error, errorData) {
-        console.log("Error:", error, "Error Data", errorData)
-    }
-    ```
-
-### ➤ ✴️ Stream Options (v2/v3 avatars only)
-
-> **Note:** `streamOptions` apply only to Talks (V2) and Clips (V3) agents. Expressive (V4) avatars manage transport settings automatically and do not use these options.
-
-- **`compatibilityMode`**:
-  Defines the video codec to be used in the stream.
-  When set to `"on"`: VP8 will be used.
-  When set to `"off"`: H264 will be used
-  When set to `"auto"` - the codec will be selected according to the browser [Default]
-  <br />
-- **`streamWarmup`**:
-  Allowed values:
-  `true` - warmup video will be streamed when the connection is established.
-  `false` - no warmup video [Default]
-  <br />
-- **`sessionTimeout`**:
-  **Can only be used with proper permissions**
-  Maximum duration (in seconds) between messages before the session times out.
-  Max value: `300`
-  <br />
-
-- **`fluent`**:
-  **Supported with Agents created with V3 Pro Avatars. Always enabled for V4 Avatars.**
-  Allowed values:
-  `true` - Fluent streaming (one video for Idle/Talking states)
-  `false` - Legacy streaming mode (2 video elements)
-
-## ✴️ See it in Action
+## See it in Action
 
 Explore our demo repository on GitHub to see the Agents SDK in action!
 This repository features a sample project crafted in Vanilla JavaScript and Vite, utilizing the Agents SDK to help you get started swiftly.
 
 [GitHub Demo Repository](https://github.com/de-id/Agents-SDK-Demo)
 
-## ✴️ Support
+## Support
 
 <div style="display: flex; flex-direction: row; justify-content: space-evenly; min-height: 1px">
   <img style="width: 37%; border-radius: 5px; object-fit: cover;" src="https://create-images-results.d-id.com/api_docs/assets/questions.png" alt="Support Image" />
   <span style="width: 3%"><br/></span>
   <span style="width: 60%; text-align: left;">
-    Have any questions? We are here to help! Please leave your question in the Discussions section and we will be happy to answer shortly.<br/><br/>
-    <a href="https://docs.d-id.com/discuss">
+    Have any questions? We are here to help! Please open an issue on GitHub and we will be happy to answer shortly.<br/><br/>
+    <a href="https://github.com/de-id/agents-sdk/issues">
       <span style="width: 30%; text-align: center; background: #ff882eff; color: #fff; display: inline-block; padding: 6px; border-radius: 5px;">
         Ask a question
       </span>

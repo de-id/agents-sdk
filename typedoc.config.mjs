@@ -24,7 +24,7 @@ const config = {
     name: 'D-ID Client SDK',
     includeVersion: true,
     readme: 'README.md',
-    projectDocuments: ['MIGRATION.md'],
+    projectDocuments: ['docs-assets/migration.md'],
     hostedBaseUrl: 'https://sdk.d-id.com/',
     useHostedBaseUrlForAbsoluteLinks: true,
     cname: 'sdk.d-id.com',
@@ -46,6 +46,8 @@ const config = {
         '<a href="https://github.com/de-id/agents-sdk/issues/new?labels=documentation">Report a documentation issue</a>',
     ].join(' · '),
     sourceLinkTemplate: 'https://github.com/de-id/agents-sdk/blob/{gitRevision}/{path}#L{line}',
+    // Show source paths from the repo root (src/...) in "Defined in" labels
+    basePath: '.',
 
     // Plugins
     plugin: ['typedoc-plugin-mdn-links', 'typedoc-plugin-coverage', './docs-assets/typedoc-seo.mjs'],
@@ -54,6 +56,7 @@ const config = {
     categorizeByGroup: false,
     defaultCategory: 'Other',
     categoryOrder: [
+        'Guides',
         'Agent Manager',
         'Authentication',
         'Callbacks & Events',
@@ -111,8 +114,8 @@ const config = {
 
     // PublicDataChannelTopic borrows one member of the internal DataChannelTopic enum on purpose
 
-    // Validation. notDocumented is switched on by the doc-comments PR (Task 16).
-    validation: { notExported: true, invalidLink: true, rewrittenLink: true, notDocumented: false },
+    // Validation
+    validation: { notExported: true, invalidLink: true, rewrittenLink: true, notDocumented: true },
     requiredToBeDocumented: [
         'Class',
         'Interface',

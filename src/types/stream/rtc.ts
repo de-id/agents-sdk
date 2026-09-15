@@ -3,9 +3,6 @@
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
  */
 export interface StickyRequest {
-    /**
-     * session identifier information, should be returned in the body of all streaming requests
-     */
     session_id?: string;
 }
 
@@ -22,7 +19,7 @@ interface Jsep {
 }
 
 /**
- * STUN/TURN server credentials returned by the D-ID API for establishing the WebRTC connection.
+ * STUN/TURN server credentials returned by the Agents API for establishing the WebRTC connection.
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
  */
 export interface IceServer {
@@ -86,16 +83,40 @@ export interface Status {
     status: string;
 }
 
+/**
+ * What {@link AgentManager.speak | speak()} resolves with: the video the agent is about to stream.
+ *
+ * The fields come from the Talks (V2) and Clips (V3) API, which generates a discrete video while
+ * answering the request. Where no such video exists the call still resolves, with the same stub —
+ * `status` `'success'`, `duration` `0` and an empty `video_id`: on Expressive (V4) agents, whose
+ * speech is streamed over the data channel rather than rendered as a separate video, and in a
+ * text-only chat mode ({@link ChatMode.TextOnly}, {@link ChatMode.Playground} or
+ * {@link ChatMode.Maintenance}), which produces no video at all.
+ *
+ * @category Speak & Scripts
+ */
 export interface SendStreamPayloadResponse {
     /**
-     * Whether the server accepted the speak request.
+     * Whether the server accepted the speak request — `'success'` when it did.
      */
     status: string;
     /**
-     * Identifier of the session the video was queued on; the SDK sends it back on the streaming
-     * requests that follow.
+     * Id of the session this call was made on; the SDK sends it back on later streaming requests.
      */
     session_id?: string;
+    /**
+     * Duration of the generated video as reported by the Agents API for Talks (V2) and Clips (V3)
+     * agents. `0` when the call produced no discrete video — on Expressive (V4) agents, and in a
+     * text-only chat mode.
+     */
     duration: number;
+    /**
+     * Id of the generated video.
+     *
+     * Use it to correlate this call with the video the agent then plays, which
+     * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} reports the start and
+     * end of, and which {@link AgentManager.interrupt | interrupt()} cancels. Empty when the call
+     * produced no discrete video — on Expressive (V4) agents, and in a text-only chat mode.
+     */
     video_id: string;
 }
