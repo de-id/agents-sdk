@@ -862,13 +862,17 @@ describe('createAgentManager', () => {
                 const newManager = await createAgentManager('agent-123', mockOptions);
                 await newManager.connect();
 
-                await expect(newManager.rate('message-id', 1)).rejects.toBeInstanceOf(ValidationError);
-                await expect(newManager.rate('message-id', 1)).rejects.toThrow('Chat is not initialized');
+                await expect(newManager.rate('message-id', 1)).rejects.toMatchObject({
+                    kind: 'ValidationError',
+                    message: 'Chat is not initialized',
+                });
             });
 
             it('should throw error if message not found', async () => {
-                await expect(manager.rate('non-existent-id', 1)).rejects.toBeInstanceOf(ValidationError);
-                await expect(manager.rate('non-existent-id', 1)).rejects.toThrow('Message not found');
+                await expect(manager.rate('non-existent-id', 1)).rejects.toMatchObject({
+                    kind: 'ValidationError',
+                    message: 'Message not found',
+                });
             });
         });
 
@@ -897,8 +901,10 @@ describe('createAgentManager', () => {
                 const newManager = await createAgentManager('agent-123', mockOptions);
                 await newManager.connect();
 
-                await expect(newManager.deleteRate('rating-123')).rejects.toBeInstanceOf(ValidationError);
-                await expect(newManager.deleteRate('rating-123')).rejects.toThrow('Chat is not initialized');
+                await expect(newManager.deleteRate('rating-123')).rejects.toMatchObject({
+                    kind: 'ValidationError',
+                    message: 'Chat is not initialized',
+                });
             });
         });
 
@@ -929,8 +935,10 @@ describe('createAgentManager', () => {
                 const newManager = await createAgentManager('agent-123', mockOptions);
                 await newManager.connect();
 
-                await expect(newManager.submitFeedback(4)).rejects.toBeInstanceOf(ValidationError);
-                await expect(newManager.submitFeedback(4)).rejects.toThrow('Chat is not initialized');
+                await expect(newManager.submitFeedback(4)).rejects.toMatchObject({
+                    kind: 'ValidationError',
+                    message: 'Chat is not initialized',
+                });
             });
         });
 
@@ -1049,10 +1057,10 @@ describe('createAgentManager', () => {
         it('should throw error when publishMicrophoneStream is not available', async () => {
             mockStreamingManager.publishMicrophoneStream = undefined;
 
-            await expect(manager.publishMicrophoneStream?.(new MediaStream())).rejects.toBeInstanceOf(ValidationError);
-            await expect(manager.publishMicrophoneStream?.(new MediaStream())).rejects.toThrow(
-                'publishMicrophoneStream is only available on Expressive (V4) agents, after connect()'
-            );
+            await expect(manager.publishMicrophoneStream?.(new MediaStream())).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'publishMicrophoneStream is only available on Expressive (V4) agents, after connect()',
+            });
         });
     });
 
@@ -1076,10 +1084,10 @@ describe('createAgentManager', () => {
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
 
-            await expect(manager.setSttLanguage('French')).rejects.toBeInstanceOf(ValidationError);
-            await expect(manager.setSttLanguage('French')).rejects.toThrow(
-                'setSttLanguage is only available on Expressive (V4) agents, after connect()'
-            );
+            await expect(manager.setSttLanguage('French')).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'setSttLanguage is only available on Expressive (V4) agents, after connect()',
+            });
             expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
 
@@ -1130,10 +1138,10 @@ describe('createAgentManager', () => {
 
             await expect(
                 manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 1 })
-            ).rejects.toBeInstanceOf(ValidationError);
-            await expect(
-                manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 1 })
-            ).rejects.toThrow('sendDataChannelMessage is only available on Expressive (V4) agents, after connect()');
+            ).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'sendDataChannelMessage is only available on Expressive (V4) agents, after connect()',
+            });
             expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
 
@@ -1208,10 +1216,10 @@ describe('createAgentManager', () => {
             mockStreamingManager.replaceMicrophoneTrack = undefined;
             const mockTrack = { kind: 'audio', id: 'audio-track-1' } as unknown as MediaStreamTrack;
 
-            await expect(manager.replaceMicrophoneTrack?.(mockTrack)).rejects.toBeInstanceOf(ValidationError);
-            await expect(manager.replaceMicrophoneTrack?.(mockTrack)).rejects.toThrow(
-                'replaceMicrophoneTrack is only available on Expressive (V4) agents, after connect()'
-            );
+            await expect(manager.replaceMicrophoneTrack?.(mockTrack)).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'replaceMicrophoneTrack is only available on Expressive (V4) agents, after connect()',
+            });
         });
     });
 
@@ -1236,10 +1244,10 @@ describe('createAgentManager', () => {
         it('should throw error when publishCameraStream is not available', async () => {
             mockStreamingManager.publishCameraStream = undefined;
 
-            await expect(manager.publishCameraStream?.(new MediaStream())).rejects.toBeInstanceOf(ValidationError);
-            await expect(manager.publishCameraStream?.(new MediaStream())).rejects.toThrow(
-                'publishCameraStream is only available on Expressive (V4) agents, after connect()'
-            );
+            await expect(manager.publishCameraStream?.(new MediaStream())).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'publishCameraStream is only available on Expressive (V4) agents, after connect()',
+            });
         });
     });
 

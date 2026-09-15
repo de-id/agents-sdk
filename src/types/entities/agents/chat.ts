@@ -193,9 +193,9 @@ export interface Message {
      * an empty array.
      *
      * {@link AgentManagerOptions.initialMessages | initialMessages} are treated the same way: the
-     * SDK runs the parser over the `content` of any of them that arrives with an empty `parts`, so
-     * a restored transcript can pass `parts: []` and still render. A non-empty array you built
-     * yourself is kept exactly as given.
+     * SDK runs the parser over the `content` of any of them that arrives with empty or missing
+     * `parts`, so a restored transcript can pass `parts: []` and still render. A non-empty array
+     * you built yourself is kept exactly as given.
      */
     parts: MessagePart[];
     /** When the message was added, as an ISO 8601 timestamp. */

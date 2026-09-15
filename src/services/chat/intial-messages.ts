@@ -11,6 +11,6 @@ export function getInitialMessages(initialMessages?: Message[]): Message[] {
     return initialMessages.map(message =>
         Array.isArray(message.parts) && message.parts.length > 0
             ? message
-            : { ...message, parts: parseMessageParts(message.content ?? '') }
+            : { ...message, parts: parseMessageParts(typeof message.content === 'string' ? message.content : '') }
     );
 }

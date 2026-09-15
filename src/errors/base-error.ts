@@ -42,10 +42,14 @@ export interface ErrorJson {
  * happened. {@link HttpError} and {@link NetworkError} do both — the request that failed rejects,
  * and the callback is notified as well.
  *
- * The live transport is the one thing outside this set: a failure LiveKit raises inside a media
- * call on an Expressive (V4) agent — no microphone publication to replace, a room that is not
- * connected — rejects with a plain `Error`. Keep the `else throw error` branch in a handler built
- * on {@link isDIDError}.
+ * Not everything that reaches the application is one of these. The streaming transport is the main
+ * exception: a failure LiveKit raises inside a media call on an Expressive (V4) agent — no
+ * microphone publication to replace, a room that is not connected — rejects with a plain `Error`,
+ * and so do a few low-level guards inside {@link AgentManager.connect | connect()}, such as a
+ * `livekit-client` package that is not installed, a transport the SDK does not recognise, or a
+ * stream the server created without a session id. An unknown
+ * {@link AgentManagerOptions.auth | auth} type is a plain `Error` too. So keep the
+ * `else throw error` branch in a handler built on {@link isDIDError}.
  *
  * Subclasses: {@link HttpError}, {@link NetworkError}, {@link WsError}, {@link StreamError},
  * {@link ValidationError}, {@link ChatCreationFailed} and {@link ChatModeDowngraded}. When the

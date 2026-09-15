@@ -490,9 +490,9 @@ export interface AgentManagerOptions {
      * empty array and the SDK builds the parts from `content` with {@link parseMessageParts}, so a
      * transcript restored from `content` alone still renders. A non-empty array is kept as given.
      *
-     * @example Restoring a transcript the SDK parses for you
+     * @example Restoring rows that carry only the message text
      * ```ts
-     * const initialMessages = stored.map(message => ({ ...message, parts: [] }));
+     * const initialMessages = stored.map(({ id, role, content }) => ({ id, role, content, parts: [] }));
      * ```
      */
     initialMessages?: Message[];

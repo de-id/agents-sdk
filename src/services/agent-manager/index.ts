@@ -74,7 +74,9 @@ function applicationError(message: string): RpcError {
  * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady}, which is what attaches the
  * streamed media to a video element.
  *
- * The options themselves are not validated here: bad arguments surface later, as a
+ * One option is checked here: an Expressive (V4) agent asked for {@link ChatMode.Off} or
+ * {@link ChatMode.DirectPlayback}, which only Talks (V2) and Clips (V3) agents support, rejects
+ * with a {@link ValidationError}. Every other bad argument surfaces later, as a
  * {@link ValidationError} rejected by the method that was called on the returned manager, such as
  * {@link AgentManager.chat | chat()} or {@link AgentManager.speak | speak()}.
  *
@@ -83,6 +85,8 @@ function applicationError(message: string): RpcError {
  * @param options - Credentials, callbacks and everything else the manager needs. See
  * {@link AgentManagerOptions}.
  * @returns A manager for that agent, ready to {@link AgentManager.connect | connect()}.
+ * @throws {@link ValidationError} When an Expressive (V4) agent is created with
+ * {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}.
  * @throws {@link HttpError} When the agent cannot be fetched — an unknown id, or a client key that
  * is not authorized for the agent or the calling domain.
  * @throws {@link NetworkError} When the request for the agent never reaches the server: the browser

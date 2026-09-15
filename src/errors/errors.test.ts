@@ -181,7 +181,7 @@ describe('SDK errors', () => {
     });
 
     describe('kind is a literal on every subclass', () => {
-        it('should carry its own literal at runtime, whatever the constructor was given', () => {
+        it('should carry its own literal at runtime', () => {
             expect(new NetworkError(new TypeError('Failed to fetch')).kind).toBe('NetworkError');
             expect(new WsError('Websocket failed to connect').kind).toBe('WSError');
             expect(new StreamError('Stream Error').kind).toBe('StreamError');

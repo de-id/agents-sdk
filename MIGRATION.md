@@ -59,7 +59,7 @@ Shapes are unchanged; only the names differ.
 
 ## Behaviour clarifications
 
-- Every error subclass declares its `kind` as a literal (`'NetworkError'`, `'WSError'`, `'StreamError'`, `'ValidationError'`, `'ChatCreationFailed'`, `'ChatModeDowngraded'`), so branching on `kind` narrows the caught error; `HttpError.kind` stays `string`.
+- Every error subclass declares its `kind` as a literal, so branching on `kind` narrows the caught error; `HttpError.kind` stays `string` because it carries the server's own classification.
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, video_id: '' }` instead of `undefined`, matching its declared type.
 - The five Expressive-only media methods are required members of `AgentManager` instead of optional; remove any `?.` guards.
 - `Agent.avatar` is typed `AgentAvatar` and its `type` is the `AvatarType` enum: build `Agent` values with `AvatarType.Talk`/`AvatarType.Clip`/`AvatarType.Expressive`; `===` comparisons against the string still compile but no longer narrow.
@@ -68,8 +68,8 @@ Shapes are unchanged; only the names differ.
 - `interrupt()` never throws; where it used to throw on Talks (V2)/Clips (V3) streams it now returns silently, and the last message is marked `interrupted` only when an interrupt was actually sent.
 - `persistentChat` defaults to `false` for all agent types.
 - `ChatMode.Off` and `ChatMode.DirectPlayback` are rejected with a `ValidationError` for Expressive (V4) agents; they were never supported there.
-- `initialMessages` get their `Message.parts` filled from `content` when they arrive with an empty `parts`; a non-empty array you supply is kept.
-- The five Expressive-only media methods reject with a `ValidationError` instead of a plain `Error` when the session is a Talks (V2) or Clips (V3) one, or `connect()` has not run yet; the message now names the agent type. LiveKit's own transport failures are still plain `Error`s.
+- `initialMessages` get their `Message.parts` filled from `content` when they arrive with empty or missing `parts`; a non-empty array you supply is kept, and the SDK no longer pushes into the array you passed.
+- The five Expressive-only media methods reject with a `ValidationError` instead of a plain `Error` when the session is a Talks (V2) or Clips (V3) one, or `connect()` has not run yet.
 - `rate()`, `deleteRate()` and `submitFeedback()` are `async`: their `ValidationError` guard now rejects the returned promise instead of throwing synchronously, so `.catch()` sees it.
 - `changeMode()` now returns a `Promise` — it always was asynchronous (it disconnects the stream); await it, and catch `ValidationError` for unsupported modes.
 
