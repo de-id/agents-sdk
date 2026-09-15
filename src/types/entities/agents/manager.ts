@@ -113,7 +113,7 @@ export interface AgentManagerCallbacks {
      * }
      * ```
      */
-    onConnectionStateChange?(state: ConnectionState, reason?: string): void;
+    onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     /**
      * Called when the streamed video starts and stops, so the video element can switch source.
      *
@@ -139,7 +139,7 @@ export interface AgentManagerCallbacks {
      * }
      * ```
      */
-    onVideoStateChange?(state: StreamingState): void;
+    onVideoStateChange?: (state: StreamingState) => void;
     /**
      * Called with the media stream carrying the agent's video and audio. Required.
      *
@@ -163,7 +163,7 @@ export interface AgentManagerCallbacks {
      * };
      * ```
      */
-    onSrcObjectReady(srcObject: MediaStream): void;
+    onSrcObjectReady: (srcObject: MediaStream) => void;
     /**
      * Called with the whole chat transcript every time a message is added or updated.
      *
@@ -190,7 +190,7 @@ export interface AgentManagerCallbacks {
      * }
      * ```
      */
-    onNewMessage?(messages: Message[], type: 'answer' | 'partial' | 'user'): void;
+    onNewMessage?: (messages: Message[], type: 'answer' | 'partial' | 'user') => void;
     /**
      * Called when a chat is created for this session.
      *
@@ -200,7 +200,7 @@ export interface AgentManagerCallbacks {
      *
      * @param chatId - Id of the chat that was just created.
      */
-    onNewChat?(chatId: string): void;
+    onNewChat?: (chatId: string) => void;
     /**
      * Called when the chat mode changes.
      *
@@ -209,7 +209,7 @@ export interface AgentManagerCallbacks {
      *
      * @param mode - The {@link ChatMode} now in effect.
      */
-    onModeChange?(mode: ChatMode): void;
+    onModeChange?: (mode: ChatMode) => void;
     /**
      * Called when the quality of the user's internet connection changes.
      *
@@ -227,7 +227,7 @@ export interface AgentManagerCallbacks {
      * }
      * ```
      */
-    onConnectivityStateChange?(state: ConnectivityState): void;
+    onConnectivityStateChange?: (state: ConnectivityState) => void;
     /**
      * Called when the SDK fails, so the application can surface the problem.
      *
@@ -260,7 +260,7 @@ export interface AgentManagerCallbacks {
      *
      * @param state - The {@link AgentActivityState} the agent has moved to.
      */
-    onAgentActivityStateChange?(state: AgentActivityState): void;
+    onAgentActivityStateChange?: (state: AgentActivityState) => void;
     /**
      * Called once per session when the stream has been created on the server.
      *
