@@ -38,10 +38,27 @@ const config = {
         npm: 'https://www.npmjs.com/package/@d-id/client-sdk',
         GitHub: 'https://github.com/de-id/agents-sdk',
     },
+    hideGenerator: true,
+    customFooterHtml: [
+        `© ${new Date().getFullYear()} D-ID`,
+        '<a href="https://docs.d-id.com">D-ID Docs</a>',
+        '<a href="https://www.npmjs.com/package/@d-id/client-sdk">npm</a>',
+        '<a href="https://github.com/de-id/agents-sdk/issues/new?labels=documentation">Report a documentation issue</a>',
+    ].join(' · '),
     sourceLinkTemplate: 'https://github.com/de-id/agents-sdk/blob/{gitRevision}/{path}#L{line}',
 
     // Plugins
-    plugin: ['typedoc-plugin-mdn-links', 'typedoc-plugin-coverage'],
+    plugin: [
+        'typedoc-plugin-mdn-links',
+        'typedoc-plugin-coverage',
+        'typedoc-plugin-llms-txt',
+        './docs-assets/typedoc-seo.mjs',
+    ],
+    llmsTxtHeader: {
+        name: 'D-ID Client SDK',
+        description:
+            'API reference for @d-id/client-sdk, the browser SDK for D-ID Agents: connect to an agent, stream its video and audio, chat and speak.',
+    },
 
     // Organisation: sidebar grouped by @category, never by TS kind
     categorizeByGroup: false,
