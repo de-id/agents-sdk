@@ -32,7 +32,8 @@ function parseServerError(body: string): ServerErrorBody | undefined {
  * callback may not fire; the error is still thrown. Typical cases are `401` or `403` for a client
  * key that is not authorized for the agent or the calling domain, and `404` for an unknown agent
  * id; an account that is out of credits comes back with {@link BaseError.kind | kind}
- * `'InsufficientCreditsError'`.
+ * `'InsufficientCreditsError'`. A `429` is retried up to three times, one second apart, before it
+ * surfaces.
  *
  * {@link BaseError.kind | kind} is the server's own classification when the response body is D-ID's
  * `{ kind, description }` envelope — the `'InsufficientCreditsError'` above is one — and
