@@ -817,7 +817,7 @@ export interface AgentManager {
      * @throws {@link ValidationError} Rejects on Expressive (V4) agents for {@link ChatMode.Off} and
      * {@link ChatMode.DirectPlayback}, which those agents do not support.
      */
-    changeMode: (mode: ChatMode) => Promise<void>;
+    changeMode(mode: ChatMode): Promise<void>;
 
     /**
      * Adds properties to every analytics event the SDK sends from now on.
