@@ -2,8 +2,8 @@
  * The kind of avatar an agent is built on, which is what decides how its video is produced.
  *
  * It is the `type` of the agent's avatar ({@link Agent.avatar}) and so determines which SDK
- * features a session has: {@link VideoType.Talk | talk} is Talks (V2),
- * {@link VideoType.Clip | clip} is Clips (V3), and {@link VideoType.Expressive | expressive} is
+ * features a session has: {@link AvatarType.Talk | talk} is Talks (V2),
+ * {@link AvatarType.Clip | clip} is Clips (V3), and {@link AvatarType.Expressive | expressive} is
  * Expressive (V4).
  *
  * @category Agent Manager
