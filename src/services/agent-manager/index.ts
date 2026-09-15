@@ -613,7 +613,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw e;
             }
         },
-        rate(messageId: string, score: 1 | -1, rateId?: string) {
+        async rate(messageId: string, score: 1 | -1, rateId?: string) {
             const message = items.messages.find(message => message.id === messageId);
 
             if (!items.chat) {
@@ -648,7 +648,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 score,
             });
         },
-        deleteRate(id: string) {
+        async deleteRate(id: string) {
             if (!items.chat) {
                 throw new ValidationError('Chat is not initialized');
             }
@@ -657,7 +657,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
-        submitFeedback(rating: number, answer?: string) {
+        async submitFeedback(rating: number, answer?: string) {
             if (!items.chat) {
                 throw new ValidationError('Chat is not initialized');
             }

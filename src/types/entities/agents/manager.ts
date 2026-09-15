@@ -722,8 +722,7 @@ export interface AgentManager {
      * @param rateId - Id of an existing rating to update; omit to create a new one.
      * @returns The created or updated {@link RatingEntity}.
      * @throws {@link ValidationError} When no chat has started, or when no message with that id is
-     * in the transcript. Thrown synchronously, so catch it around the call rather than on the
-     * returned promise.
+     * in the transcript.
      * @throws {@link HttpError} When the rating request comes back non-2xx.
      * @throws {@link NetworkError} When the rating request never reaches the server.
      */
@@ -734,8 +733,7 @@ export interface AgentManager {
      * @param id - Id of the rating to remove, as returned by
      * {@link AgentManager.rate | rate()}.
      * @returns The {@link RatingEntity} that was deleted.
-     * @throws {@link ValidationError} When no chat has started. Thrown synchronously, so catch it
-     * around the call rather than on the returned promise.
+     * @throws {@link ValidationError} When no chat has started.
      * @throws {@link HttpError} When the delete request comes back non-2xx.
      * @throws {@link NetworkError} When the delete request never reaches the server.
      */
@@ -749,8 +747,7 @@ export interface AgentManager {
      * @param rating - The user's score for the conversation, a whole number from 1 to 5.
      * @param answer - The user's free-text answer to the follow-up question, when one was asked.
      * @returns The stored {@link SubmitFeedbackResponse}.
-     * @throws {@link ValidationError} When no chat has started. Thrown synchronously, so catch it
-     * around the call rather than on the returned promise.
+     * @throws {@link ValidationError} When no chat has started.
      * @throws {@link HttpError} When the feedback request comes back non-2xx.
      * @throws {@link NetworkError} When the feedback request never reaches the server.
      */

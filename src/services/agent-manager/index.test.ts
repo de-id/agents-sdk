@@ -862,11 +862,13 @@ describe('createAgentManager', () => {
                 const newManager = await createAgentManager('agent-123', mockOptions);
                 await newManager.connect();
 
-                expect(() => newManager.rate('message-id', 1)).toThrow('Chat is not initialized');
+                await expect(newManager.rate('message-id', 1)).rejects.toBeInstanceOf(ValidationError);
+                await expect(newManager.rate('message-id', 1)).rejects.toThrow('Chat is not initialized');
             });
 
             it('should throw error if message not found', async () => {
-                expect(() => manager.rate('non-existent-id', 1)).toThrow('Message not found');
+                await expect(manager.rate('non-existent-id', 1)).rejects.toBeInstanceOf(ValidationError);
+                await expect(manager.rate('non-existent-id', 1)).rejects.toThrow('Message not found');
             });
         });
 
@@ -895,7 +897,8 @@ describe('createAgentManager', () => {
                 const newManager = await createAgentManager('agent-123', mockOptions);
                 await newManager.connect();
 
-                expect(() => newManager.deleteRate('rating-123')).toThrow('Chat is not initialized');
+                await expect(newManager.deleteRate('rating-123')).rejects.toBeInstanceOf(ValidationError);
+                await expect(newManager.deleteRate('rating-123')).rejects.toThrow('Chat is not initialized');
             });
         });
 
@@ -926,7 +929,35 @@ describe('createAgentManager', () => {
                 const newManager = await createAgentManager('agent-123', mockOptions);
                 await newManager.connect();
 
-                expect(() => newManager.submitFeedback(4)).toThrow('Chat is not initialized');
+                await expect(newManager.submitFeedback(4)).rejects.toBeInstanceOf(ValidationError);
+                await expect(newManager.submitFeedback(4)).rejects.toThrow('Chat is not initialized');
+            });
+        });
+
+        describe('rating guards without a chat', () => {
+            it('should reject rather than throw synchronously, so .catch() sees the ValidationError', async () => {
+                (initializeStreamAndChat as jest.Mock).mockResolvedValue({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+
+                const newManager = await createAgentManager('agent-123', mockOptions);
+                await newManager.connect();
+
+                // calling must not throw: the guard has to come back as a rejected promise
+                const pending = [
+                    newManager.rate('message-id', 1),
+                    newManager.deleteRate('rating-123'),
+                    newManager.submitFeedback(4),
+                ];
+
+                const reasons = await Promise.all(pending.map(promise => promise.catch(error => error)));
+
+                expect(reasons).toHaveLength(3);
+                for (const reason of reasons) {
+                    expect(reason).toBeInstanceOf(ValidationError);
+                    expect(reason.message).toBe('Chat is not initialized');
+                }
             });
         });
 
