@@ -198,12 +198,12 @@ export interface AgentManager {
     /**
      * Get the current stream type of the agent
      */
-    getStreamType: () => StreamType | undefined;
+    getStreamType(): StreamType | undefined;
 
     /**
      * Get if the stream supports interrupt
      */
-    getIsInterruptAvailable: () => boolean;
+    getIsInterruptAvailable(): boolean;
 
     /**
      * Array of starter messages that will be sent to the agent when the chat starts
@@ -213,32 +213,32 @@ export interface AgentManager {
      * Get a token for the Speech to Text service
      * Only available after a chat has started and the agent has been connected
      */
-    getSTTToken: () => Promise<STTTokenResponse | undefined>;
+    getSTTToken(): Promise<STTTokenResponse | undefined>;
     /**
      * Method to connect to stream and chat
      */
-    connect: () => Promise<void>;
+    connect(): Promise<void>;
     /**
      * Method to reconnect to stream and continue chat
      */
-    reconnect: () => Promise<void>;
+    reconnect(): Promise<void>;
     /**
      * Method to close all connections with agent, stream and web socket
      */
-    disconnect: () => Promise<void>;
+    disconnect(): Promise<void>;
     /**
      * Publish a microphone stream to the data channel
      * Can be called after connection to add microphone input
      * @param stream The MediaStream containing the microphone audio track
      * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
      */
-    publishMicrophoneStream: (stream: MediaStream) => Promise<void>;
+    publishMicrophoneStream(stream: MediaStream): Promise<void>;
     /**
      * Unpublish the currently published microphone stream
      * Can be called after connection to remove microphone input
      * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents it resolves without doing anything.
      */
-    unpublishMicrophoneStream: () => Promise<void>;
+    unpublishMicrophoneStream(): Promise<void>;
     /**
      * Replace the live microphone track on the current publication without
      * unpublishing. Preserves the LiveKit publication (SSRC, trackSid) so the
@@ -248,47 +248,47 @@ export interface AgentManager {
      * `publishMicrophoneStream` in that case.
      * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
      */
-    replaceMicrophoneTrack: (track: MediaStreamTrack) => Promise<void>;
+    replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void>;
     /**
      * Publish a camera video stream to the LiveKit room.
      * Can be called after connection to enable vision.
      * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents the returned promise rejects.
      */
-    publishCameraStream: (stream: MediaStream) => Promise<void>;
+    publishCameraStream(stream: MediaStream): Promise<void>;
     /**
      * Unpublish the currently published camera stream.
      * Can be called after connection to disable vision.
      * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents it resolves without doing anything.
      */
-    unpublishCameraStream: () => Promise<void>;
+    unpublishCameraStream(): Promise<void>;
     /**
      * Method to send a chat message to existing chat with the agent
      * @param userMessage - The user's message text to send to the agent.
      */
-    chat: (userMessage: string) => Promise<ChatResponse>;
+    chat(userMessage: string): Promise<ChatResponse>;
     /**
      * Method to rate the answer in chat
      * @param messageId - Id of the message being rated.
      * @param score - 1 for a positive rating, -1 for a negative one.
      * @param rateId - Id of an existing rating to update; omit to create a new one.
      */
-    rate: (messageId: string, score: 1 | -1, rateId?: string) => Promise<RatingEntity>;
+    rate(messageId: string, score: 1 | -1, rateId?: string): Promise<RatingEntity>;
     /**
      * Method to delete rating from answer in chat
      * @param id - id of Rating entity.
      */
-    deleteRate: (id: string) => Promise<RatingEntity>;
+    deleteRate(id: string): Promise<RatingEntity>;
     /**
      * Method to submit end-of-call feedback for the chat
      * @param rating - integer score from 1 to 5
      * @param answer - optional free-text answer
      */
-    submitFeedback: (rating: number, answer?: string) => Promise<SubmitFeedbackResponse>;
+    submitFeedback(rating: number, answer?: string): Promise<SubmitFeedbackResponse>;
     /**
      * Method to make your agent read the text you provide or reproduce sound
      * @param payload
      */
-    speak: (payload: SupportedStreamScript | string) => Promise<SendStreamPayloadResponse>;
+    speak(payload: SupportedStreamScript | string): Promise<SendStreamPayloadResponse>;
     /**
      * Method to change the mode of the chat
      * @param mode - ChatMode
@@ -299,20 +299,20 @@ export interface AgentManager {
      * Method to enrich analytics properties
      * @param properties flat json object with properties that will be added to analytics events fired from the sdk
      */
-    enrichAnalytics: (properties: Record<string, any>) => void;
+    enrichAnalytics(properties: Record<string, any>): void;
 
     /**
      * Method to interrupt the current video stream
      * Only available for Fluent streams and when there's an active video to interrupt
      */
-    interrupt: (interrupt: Interrupt) => void;
+    interrupt(interrupt: Interrupt): void;
 
     /**
      * Switch the STT language mid-session
      * Only available for Expressive (V4) agents
      * @param language - Language name or BCP-47 code (e.g. "English" or "en-US")
      */
-    setSttLanguage: (language: string) => Promise<void>;
+    setSttLanguage(language: string): Promise<void>;
 
     /**
      * Send a JSON payload to the agent over a data-channel topic
@@ -320,7 +320,7 @@ export interface AgentManager {
      * @param topic - Data-channel topic to send on (see `PublicDataChannelTopic`)
      * @param payload - Plain object, serialized as JSON
      */
-    sendDataChannelMessage: (topic: PublicDataChannelTopic, payload: Record<string, unknown>) => Promise<void>;
+    sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void>;
 
     /**
      * Register a handler for a client tool. When the agent's LLM calls this tool,
@@ -328,11 +328,11 @@ export interface AgentManager {
      * @param name - Tool name (must match the tool name defined in the agent config)
      * @param handler - Async function receiving args, must return a JSON string (max 15KiB)
      */
-    registerClientTool: (name: string, handler: ClientToolHandler) => void;
+    registerClientTool(name: string, handler: ClientToolHandler): void;
 
     /**
      * Remove a previously registered client tool handler.
      * @param name - Tool name to unregister
      */
-    unregisterClientTool: (name: string) => void;
+    unregisterClientTool(name: string): void;
 }
