@@ -28,7 +28,6 @@ const RUNTIME_EXPORTS = [
     'NetworkError',
     'Providers',
     'PublicDataChannelTopic',
-    'RateState',
     'StreamEndReason',
     'StreamError',
     'StreamEvents',

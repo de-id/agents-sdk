@@ -171,7 +171,7 @@ describe('createAgentManager', () => {
             });
 
             it.each([ChatMode.Off, ChatMode.DirectPlayback])('should reject %s on an expressive agent', async mode => {
-                mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+                mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
 
                 await expect(createAgentManager('agent-123', { ...mockOptions, mode })).rejects.toThrow(
                     ValidationError
@@ -186,7 +186,7 @@ describe('createAgentManager', () => {
             });
 
             it('should reject changeMode to a mode without a chat on an expressive agent', async () => {
-                mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+                mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
                 const manager = await createAgentManager('agent-123', mockOptions);
 
                 await expect(manager.changeMode(ChatMode.DirectPlayback)).rejects.toThrow(ValidationError);
@@ -199,7 +199,7 @@ describe('createAgentManager', () => {
             });
 
             it('should ignore an unsupported mode the server reports for the chat', async () => {
-                mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+                mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
                 (initializeStreamAndChat as jest.Mock).mockResolvedValue({
                     streamingManager: mockStreamingManager,
                     chat: { ...mockChat, chat_mode: ChatMode.Off },
