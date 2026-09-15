@@ -359,7 +359,10 @@ export enum ChatMode {
      * working. Chosen at creation time on a Talks (V2) or Clips (V3) agent it also skips the
      * notifications web socket, which Expressive (V4) agents never open in any mode. Use it when
      * the application drives the agent entirely through {@link AgentManager.speak | speak()} and
-     * never asks its LLM anything.
+     * never asks its LLM anything. The stream keeps running only when this is the mode
+     * {@link createAgentManager} was given; switching into it later with
+     * {@link AgentManager.changeMode | changeMode()} disconnects the stream like any other
+     * non-{@link ChatMode.Functional} mode.
      */
     DirectPlayback = 'DirectPlayback',
     /**
@@ -367,7 +370,9 @@ export enum ChatMode {
      *
      * {@link AgentManager.chat | chat()} throws a {@link ValidationError} under the same
      * creation-time rule as {@link ChatMode.DirectPlayback}. The two modes are otherwise equivalent
-     * in the current implementation.
+     * in the current implementation. As with {@link ChatMode.DirectPlayback}, the stream keeps
+     * running only when this is the mode set at creation; switching into it later with
+     * {@link AgentManager.changeMode | changeMode()} disconnects the stream.
      */
     Off = 'Off',
 }

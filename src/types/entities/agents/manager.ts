@@ -203,8 +203,10 @@ export interface AgentManagerCallbacks {
     /**
      * Called when the quality of the user's internet connection changes.
      *
-     * The state is estimated from the real-time bitrate of the stream, so it reflects what the
-     * session is actually getting rather than the browser's online flag.
+     * The state is derived from jitter-buffer delay and freeze count on the video stream for
+     * Talks (V2) and Clips (V3) agents, and from LiveKit's reported connection quality for
+     * Expressive (V4) agents, so it reflects what the session is actually getting rather than the
+     * browser's online flag.
      *
      * @param state - {@link ConnectivityState.Strong | STRONG},
      * {@link ConnectivityState.Weak | WEAK} or {@link ConnectivityState.Unknown | UNKNOWN}.
