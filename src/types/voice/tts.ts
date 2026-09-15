@@ -1,31 +1,81 @@
+/**
+ * The text-to-speech engines a voice can be served by.
+ *
+ * The value of the `type` field that discriminates the provider objects — {@link Providers.Microsoft}
+ * selects a {@link MicrosoftTtsProvider}, {@link Providers.Elevenlabs} an
+ * {@link ElevenlabsTtsProvider}, and so on — and of {@link Voice.provider} when you look a voice up
+ * in D-ID's catalogue. Which providers an account may use depends on its plan.
+ *
+ * @category Voice
+ */
 export enum Providers {
+    /** Amazon's text-to-speech service; see {@link AmazonTtsProvider}. */
     Amazon = 'amazon',
+    /** Azure OpenAI text-to-speech; see {@link AzureOpenAiTtsProvider}. */
     AzureOpenAi = 'azure-openai',
+    /** Microsoft Azure text-to-speech, the default provider; see {@link MicrosoftTtsProvider}. */
     Microsoft = 'microsoft',
+    /** ElevenLabs text-to-speech; see {@link ElevenlabsTtsProvider}. */
     Elevenlabs = 'elevenlabs',
 }
 
+/**
+ * Who may use a voice.
+ *
+ * The value of {@link Voice.access}, so an application listing voices can show or hide the ones the
+ * account cannot select.
+ *
+ * @category Voice
+ */
 export enum VoiceAccess {
+    /** Available to every account. */
     Public = 'public',
+    /** Available to accounts whose plan includes premium voices. */
     Premium = 'premium',
+    /** Available only to the account the voice belongs to. */
     Private = 'private',
 }
 
+/**
+ * One voice in D-ID's catalogue of text-to-speech voices.
+ *
+ * The SDK does not fetch voices itself; the type is exported so an application that lists them —
+ * to build a voice picker, say — can type the result and then feed {@link Voice.id | id} and
+ * {@link Voice.provider | provider} into the provider object it passes as
+ * {@link TextStreamScript.provider}.
+ *
+ * @category Voice
+ */
 export interface Voice {
+    /** Identifier of the voice; this is the value a provider object's `voice_id` takes. */
     id: string;
+    /** Human-readable name of the voice. */
     name: string;
+    /** The gender the voice is labelled with. */
     gender: string;
+    /** The locale the voice speaks, such as `en-US`. */
     locale: string;
+    /** Which accounts may use the voice. See {@link VoiceAccess}. */
     access: VoiceAccess;
+    /** The provider that serves the voice. See {@link Providers}. */
     provider: Providers;
+    /** The speaking styles this particular voice offers, for example as a
+     * {@link VoiceConfigMicrosoft.style | style}. Styles differ from voice to voice. */
     styles: string[];
+    /** The language of the voice, as a name rather than a locale code. */
     language: string;
 }
 
 /**
  * Elevenlabs provider details, contains the provider type and requested voice id, available for premium users.
+ *
+ * Pass it as {@link TextStreamScript.provider} to have ElevenLabs synthesise the text, optionally
+ * with {@link VoiceConfigElevenlabs} to control how closely the voice is reproduced.
+ *
+ * @category Voice
  */
 export interface ElevenlabsTtsProvider {
+    /** Selects ElevenLabs. Always {@link Providers.Elevenlabs} (`'elevenlabs'`). */
     type: Providers.Elevenlabs;
 
     /**
@@ -43,8 +93,14 @@ export interface ElevenlabsTtsProvider {
 
 /**
  * AzureMicrosoft provider details, contains the provider type and requested voice id and style
+ *
+ * The default provider: pass it as {@link TextStreamScript.provider} to pick a Microsoft Azure
+ * voice explicitly, optionally with {@link VoiceConfigMicrosoft} to set style, rate and pitch.
+ *
+ * @category Voice
  */
 export interface MicrosoftTtsProvider {
+    /** Selects Microsoft Azure. Always {@link Providers.Microsoft} (`'microsoft'`). */
     type: Providers.Microsoft;
 
     /**
@@ -73,15 +129,28 @@ export interface MicrosoftTtsProvider {
 
 /**
  * AzureOpenAi provider details, contains the provider type and requested voice id and style
+ *
+ * The same shape as {@link MicrosoftTtsProvider} — `voice_id`, an optional
+ * {@link VoiceConfigMicrosoft} as `voice_config`, `voice_name` and `voice_language` — with the
+ * `type` naming Azure OpenAI instead.
+ *
+ * @category Voice
  */
 export interface AzureOpenAiTtsProvider extends Omit<MicrosoftTtsProvider, 'type'> {
+    /** Selects Azure OpenAI. Always {@link Providers.AzureOpenAi} (`'azure-openai'`). */
     type: Providers.AzureOpenAi;
 }
 
 /**
  * Amazon provider details, contains the provider type and requested voice id
+ *
+ * Pass it as {@link TextStreamScript.provider} to have Amazon synthesise the text. It is the one
+ * provider with no `voice_config`: the voice is selected by `voice_id` alone.
+ *
+ * @category Voice
  */
 export interface AmazonTtsProvider {
+    /** Selects Amazon. Always {@link Providers.Amazon} (`'amazon'`). */
     type: Providers.Amazon;
 
     /**
@@ -91,6 +160,15 @@ export interface AmazonTtsProvider {
      */
     voice_id: string;
 }
+
+/**
+ * How a Microsoft Azure or Azure OpenAI voice should deliver the text.
+ *
+ * The `voice_config` of {@link MicrosoftTtsProvider} and {@link AzureOpenAiTtsProvider}. Every
+ * field is optional; leave one out and the voice's own default is used.
+ *
+ * @category Voice
+ */
 export interface VoiceConfigMicrosoft {
     /**
      * The style of the voice.
@@ -115,6 +193,14 @@ export interface VoiceConfigMicrosoft {
     pitch?: string;
 }
 
+/**
+ * How closely an ElevenLabs voice should follow the original it was built from.
+ *
+ * The `voice_config` of {@link ElevenlabsTtsProvider}, mirroring ElevenLabs' own voice settings.
+ * Both fields are optional; leave one out and the voice's own default is used.
+ *
+ * @category Voice
+ */
 export interface VoiceConfigElevenlabs {
     /**
      * How stable the voice is and the randomness of each new generation.
