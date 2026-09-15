@@ -13,7 +13,8 @@ export enum Providers {
     Amazon = 'amazon',
     /** Azure OpenAI text-to-speech; see {@link AzureOpenAiTtsProvider}. */
     AzureOpenAi = 'azure-openai',
-    /** Microsoft Azure text-to-speech, the default provider; see {@link MicrosoftTtsProvider}. */
+    /** Microsoft Azure text-to-speech, which the API documents as its default when a script names
+     * no provider; see {@link MicrosoftTtsProvider}. */
     Microsoft = 'microsoft',
     /** ElevenLabs text-to-speech; see {@link ElevenlabsTtsProvider}. */
     Elevenlabs = 'elevenlabs',
@@ -28,11 +29,11 @@ export enum Providers {
  * @category Voice
  */
 export enum VoiceAccess {
-    /** Available to every account. */
+    /** As exposed by the voices API: available to every account. */
     Public = 'public',
-    /** Available to accounts whose plan includes premium voices. */
+    /** As exposed by the voices API: available to accounts whose plan includes premium voices. */
     Premium = 'premium',
-    /** Available only to the account the voice belongs to. */
+    /** As exposed by the voices API: available only to the account the voice belongs to. */
     Private = 'private',
 }
 
@@ -42,12 +43,15 @@ export enum VoiceAccess {
  * The SDK does not fetch voices itself; the type is exported so an application that lists them —
  * to build a voice picker, say — can type the result and then feed {@link Voice.id | id} and
  * {@link Voice.provider | provider} into the provider object it passes as
- * {@link TextStreamScript.provider}.
+ * {@link TextStreamScript.provider}. {@link Voice.provider | provider} is the wide
+ * {@link Providers} enum, while each provider variant requires its own literal `type` — so switch
+ * on it to build the matching variant, for example {@link Providers.Elevenlabs} to an
+ * {@link ElevenlabsTtsProvider}.
  *
  * @category Voice
  */
 export interface Voice {
-    /** Identifier of the voice; this is the value a provider object's `voice_id` takes. */
+    /** Identifier of the voice: the value to pass as a provider object's `voice_id`. */
     id: string;
     /** Human-readable name of the voice. */
     name: string;
@@ -94,8 +98,10 @@ export interface ElevenlabsTtsProvider {
 /**
  * AzureMicrosoft provider details, contains the provider type and requested voice id and style
  *
- * The default provider: pass it as {@link TextStreamScript.provider} to pick a Microsoft Azure
- * voice explicitly, optionally with {@link VoiceConfigMicrosoft} to set style, rate and pitch.
+ * Pass it as {@link TextStreamScript.provider} to pick a Microsoft Azure voice explicitly,
+ * optionally with {@link VoiceConfigMicrosoft} to set style, rate and pitch. The API documents
+ * Microsoft TTS as its default when a script names no provider, so this is also the provider a
+ * script without one ends up using.
  *
  * @category Voice
  */
@@ -165,7 +171,7 @@ export interface AmazonTtsProvider {
  * How a Microsoft Azure or Azure OpenAI voice should deliver the text.
  *
  * The `voice_config` of {@link MicrosoftTtsProvider} and {@link AzureOpenAiTtsProvider}. Every
- * field is optional; leave one out and the voice's own default is used.
+ * field is optional; when one is omitted the API applies its own default.
  *
  * @category Voice
  */
@@ -197,7 +203,7 @@ export interface VoiceConfigMicrosoft {
  * How closely an ElevenLabs voice should follow the original it was built from.
  *
  * The `voice_config` of {@link ElevenlabsTtsProvider}, mirroring ElevenLabs' own voice settings.
- * Both fields are optional; leave one out and the voice's own default is used.
+ * Both fields are optional; when one is omitted the API applies its own default.
  *
  * @category Voice
  */

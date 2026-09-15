@@ -33,7 +33,6 @@ export interface TextStreamScript {
      * it the right script for greetings and other canned lines. Passing a plain string to
      * {@link AgentManager.speak | speak()} is shorthand for this script with `ssml` set to `false`.
      *
-     * @category Speak & Scripts
      * @example Text
      * ```ts
      * const speak = await agentManager.speak({
@@ -51,6 +50,7 @@ export interface TextStreamScript {
      *     sentiment: 'friendly',
      * });
      * ```
+     * @category Speak & Scripts
      */
     /**
      * The type of the script. Always `text` for this variant.
@@ -63,8 +63,8 @@ export interface TextStreamScript {
      *
      * One of the objects in {@link StreamTextToSpeechProviders}: a `type` naming the provider, the
      * `voice_id` to speak with, and optional provider-specific `voice_config`. Leave it out and the
-     * SDK sends the script without a provider, so the voice is chosen server-side; the default
-     * provider is Microsoft TTS.
+     * SDK sends the script without a provider, so the voice is chosen server-side; the API
+     * documents Microsoft TTS as its default when no provider is given.
      */
     provider?: StreamTextToSpeechProviders;
 
@@ -107,7 +107,6 @@ export interface TextStreamScript {
  * exists — a recording, or speech you synthesised yourself — instead of having a provider generate
  * it from text.
  *
- * @category Speak & Scripts
  * @example Audio file
  * ```ts
  * const speak = await agentManager.speak({
@@ -115,6 +114,7 @@ export interface TextStreamScript {
  *     audio_url: 'http://www.yourwebsite.com/audio.mp3',
  * });
  * ```
+ * @category Speak & Scripts
  */
 export interface AudioStreamScript {
     /**
