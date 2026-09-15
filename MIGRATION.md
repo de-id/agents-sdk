@@ -68,6 +68,7 @@ Shapes are unchanged; only the names differ.
 - `interrupt()` never throws; where it used to throw on Talks (V2)/Clips (V3) streams it now returns silently, and the last message is marked `interrupted` only when an interrupt was actually sent.
 - `persistentChat` defaults to `false` for all agent types.
 - `ChatMode.Off` and `ChatMode.DirectPlayback` are rejected with a `ValidationError` for Expressive (V4) agents; they were never supported there.
+- `initialMessages` get their `Message.parts` filled from `content` when they arrive with an empty `parts`; a non-empty array you supply is kept.
 - The five Expressive-only media methods reject with a `ValidationError` instead of a plain `Error` when the session is a Talks (V2) or Clips (V3) one, or `connect()` has not run yet; the message now names the agent type. LiveKit's own transport failures are still plain `Error`s.
 - `rate()`, `deleteRate()` and `submitFeedback()` are `async`: their `ValidationError` guard now rejects the returned promise instead of throwing synchronously, so `.catch()` sees it.
 - `changeMode()` now returns a `Promise` — it always was asynchronous (it disconnects the stream); await it, and catch `ValidationError` for unsupported modes.

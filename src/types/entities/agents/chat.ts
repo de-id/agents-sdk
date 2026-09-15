@@ -192,10 +192,10 @@ export interface Message {
      * videos or links; a message with no markup is a single `text` part, and an empty message is
      * an empty array.
      *
-     * The one exception is
-     * {@link AgentManagerOptions.initialMessages | initialMessages}, which the SDK passes through
-     * unchanged: build their parts yourself with {@link parseMessageParts}, or they render as
-     * nothing.
+     * {@link AgentManagerOptions.initialMessages | initialMessages} are treated the same way: the
+     * SDK runs the parser over the `content` of any of them that arrives with an empty `parts`, so
+     * a restored transcript can pass `parts: []` and still render. A non-empty array you built
+     * yourself is kept exactly as given.
      */
     parts: MessagePart[];
     /** When the message was added, as an ISO 8601 timestamp. */

@@ -486,18 +486,13 @@ export interface AgentManagerOptions {
      * render them. On Talks (V2) and Clips (V3) agents they are also sent as context with the next
      * {@link AgentManager.chat | chat()} request. See {@link Message}.
      *
-     * The SDK passes them through exactly as given: it does not fill in
-     * {@link Message.parts | parts}, so build them with {@link parseMessageParts} or a restored
-     * transcript renders as nothing.
+     * {@link Message.parts | parts} is a required field, but it does not have to be filled: pass an
+     * empty array and the SDK builds the parts from `content` with {@link parseMessageParts}, so a
+     * transcript restored from `content` alone still renders. A non-empty array is kept as given.
      *
-     * @example Restoring a transcript
+     * @example Restoring a transcript the SDK parses for you
      * ```ts
-     * import { parseMessageParts } from '@d-id/client-sdk';
-     *
-     * const initialMessages = stored.map(message => ({
-     *     ...message,
-     *     parts: parseMessageParts(message.content),
-     * }));
+     * const initialMessages = stored.map(message => ({ ...message, parts: [] }));
      * ```
      */
     initialMessages?: Message[];
