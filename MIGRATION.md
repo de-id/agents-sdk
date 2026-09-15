@@ -55,6 +55,7 @@ Shapes are unchanged; only the names differ.
 - `RateState` — the SDK never produced or consumed it; `rate()` takes `1 | -1` and returns a `RatingEntity`.
 - `GetAuthParams` — a shape no SDK call accepts; declare it in your own code and pass an `Auth` to `createAgentManager`.
 - `NetworkErrorMeta` — read `endpoint`, `method`, `durationMs`, `online` and `visibility` off the `NetworkError` instance.
+- `Message.videoId` — never set by the SDK.
 
 ## Behaviour clarifications
 

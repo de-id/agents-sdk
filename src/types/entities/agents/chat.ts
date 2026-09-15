@@ -219,13 +219,6 @@ export interface Message {
      */
     context?: string;
     /**
-     * Id of the video generated for this message.
-     *
-     * Part of the message shape the Agents API stores; the SDK never sets it on the messages it
-     * hands to {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
-     */
-    videoId?: string;
-    /**
      * `true` when the answer was cut short instead of being spoken to the end.
      *
      * Set on the last message by {@link AgentManager.interrupt | interrupt()}, and by the SDK when
