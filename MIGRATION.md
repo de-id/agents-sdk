@@ -55,7 +55,6 @@ Shapes are unchanged; only the names differ.
 - `RateState` — the SDK never produced or consumed it; `rate()` takes `1 | -1` and returns a `RatingEntity`.
 - `GetAuthParams` — a shape no SDK call accepts; declare it in your own code and pass an `Auth` to `createAgentManager`.
 - `NetworkErrorMeta` — read `endpoint`, `method`, `durationMs`, `online` and `visibility` off the `NetworkError` instance.
-- `Message.videoId` — never set by the SDK.
 - `SDK_VERSION` — internal analytics value; no longer exported.
 
 ## Behaviour clarifications
@@ -66,7 +65,7 @@ Shapes are unchanged; only the names differ.
 - `AgentManagerOptions.mixpanelAdditionalProperties` and `enrichAnalytics()` are typed `Record<string, unknown>`; callers passing `Record<string, any>` are unaffected unless they rely on inference.
 - `agentManager.getSTTToken()` is now typed `Promise<STTTokenResponse>`; it never resolved `undefined` (a failed request throws `HttpError`).
 - `interrupt()` never throws; where it used to throw on Talks (V2)/Clips (V3) streams it now returns silently, and the last message is marked `interrupted` only when an interrupt was actually sent.
-- `persistentChat` now defaults to `false` on Expressive (V4) agents too; v2 sessions were created with chat persistence on unless you passed `false`.
+- `persistentChat` defaults to `false` for all agent types.
 - `ChatMode.Off` and `ChatMode.DirectPlayback` are rejected with a `ValidationError` for Expressive (V4) agents; they were never supported there.
 - `changeMode()` now returns a `Promise` — it always was asynchronous (it disconnects the stream); await it, and catch `ValidationError` for unsupported modes.
 
