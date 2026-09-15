@@ -53,8 +53,6 @@ export enum ChatProgress {
  * @internal Implementation type; not part of the public SDK surface.
  */
 export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data: any) => void;
-export type ConnectionStateChangeCallback = (state: ConnectionState) => void;
-export type VideoStateChangeCallback = (state: StreamingState) => void;
 
 export interface AgentManagerCallbacks {
     /**

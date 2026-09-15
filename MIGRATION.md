@@ -42,6 +42,7 @@ Shapes are unchanged; only the names differ.
 - `Subject` enum — the Knowledge API never served those prefixed values; it returns the bare status string (`'created' | 'processed' | 'done' | 'rejected' | 'error'`). The SDK exposes no knowledge methods — manage knowledge through the D-ID API. (also deleted from the source, not just unexported)
 - `Providers.Afflorithmics`, `AfflorithmicsTtsProvider` and `VoiceConfigAfflorithmics` — the provider is no longer offered.
 - `TextToSpeechProviders`, `ExtendedTextToSpeechProviders` and `mapVideoType` — unused; `speak()` takes `StreamTextToSpeechProviders`.
+- `ConnectionStateChangeCallback` and `VideoStateChangeCallback` — use `AgentManagerCallbacks['onConnectionStateChange']` and `AgentManagerCallbacks['onVideoStateChange']`.
 - `AgentManagerOptions.microphoneStream` — it was never read by the SDK, so passing it had no effect. Call `agentManager.publishMicrophoneStream(stream)` after `connect()` instead (Expressive (V4) agents).
 - The Expressive-only media methods (`publishMicrophoneStream`, `unpublishMicrophoneStream`, `replaceMicrophoneTrack`, `publishCameraStream`, `unpublishCameraStream`) are now required members of `AgentManager` instead of optional. They always existed at runtime; on Talks (V2) and Clips (V3) agents the `publish`/`replace` methods reject and the `unpublish` methods resolve without effect. Remove any `?.` guards.
 - `StreamEvents.StreamCreated` — never emitted; use the `onStreamCreated` callback.

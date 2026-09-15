@@ -10,9 +10,7 @@ export type {
     AgentManager,
     AgentManagerCallbacks,
     AgentManagerOptions,
-    ConnectionStateChangeCallback,
     StreamOptions,
-    VideoStateChangeCallback,
 } from './types/entities/agents/manager';
 export type { STTTokenResponse } from './types/voice/stt';
 export { SDK_VERSION } from './version';
