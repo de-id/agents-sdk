@@ -47,6 +47,17 @@ function parseServerError(body: string): ServerErrorBody | undefined {
  */
 export class HttpError extends BaseError {
     /**
+     * The server's own classification of the failure, and `'HttpError'` when the response body was
+     * not D-ID's `{ kind, description }` envelope.
+     *
+     * The only {@link BaseError.kind | kind} in the SDK that is not a fixed literal, so it stays
+     * typed `string`: an account out of credits comes back as `'InsufficientCreditsError'`, for
+     * instance. Use {@link HttpError.status | status} for the transport-level branch and this for
+     * the API-level one.
+     */
+    declare readonly kind: string;
+
+    /**
      * HTTP status code of the response, such as `401`, `404` or `500`.
      */
     readonly status: number;

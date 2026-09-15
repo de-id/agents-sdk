@@ -19,6 +19,11 @@ import { BaseError } from '../base-error';
  */
 export class ChatCreationFailed extends BaseError {
     /**
+     * Always `'ChatCreationFailed'`. Branch on it to tell this failure from the other SDK errors.
+     */
+    readonly kind: 'ChatCreationFailed' = 'ChatCreationFailed';
+
+    /**
      * Builds the error from the attempt that failed.
      * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */

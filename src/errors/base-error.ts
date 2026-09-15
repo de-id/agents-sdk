@@ -61,11 +61,15 @@ export class BaseError extends Error {
         /**
          * Stable machine-readable code for this failure, and the value to branch on.
          *
-         * Every subclass sets its own: `'HttpError'` (or the server's own classification, see
-         * {@link HttpError}), `'NetworkError'`, `'WSError'`, `'StreamError'`,
-         * `'ValidationError'`, `'ChatCreationFailed'` and `'ChatModeDowngraded'`.
-         *
-         * @default 'Error'
+         * Every subclass redeclares it as the literal it always carries, so a `switch` on `kind`
+         * narrows the caught error to that class: `'NetworkError'` on {@link NetworkError},
+         * `'WSError'` on {@link WsError}, `'StreamError'` on {@link StreamError},
+         * `'ValidationError'` on {@link ValidationError}, `'ChatCreationFailed'` on
+         * {@link ChatCreationFailed} and `'ChatModeDowngraded'` on {@link ChatModeDowngraded}.
+         * {@link HttpError} is the one that stays a plain `string`, because it reuses the server's
+         * own classification when the response carries one and is `'HttpError'` otherwise. On a
+         * `BaseError` built directly it is whatever the caller passed, and `'Error'` when nothing
+         * was.
          */
         public readonly kind: string = 'Error',
         /**

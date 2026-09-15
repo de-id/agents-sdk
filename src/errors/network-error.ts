@@ -24,6 +24,11 @@ import { RequestMeta } from './request-meta';
  */
 export class NetworkError extends BaseError {
     /**
+     * Always `'NetworkError'`. Branch on it to tell this failure from the other SDK errors.
+     */
+    readonly kind: 'NetworkError' = 'NetworkError';
+
+    /**
      * Path of the request that failed, relative to the API client's base path — for example
      * `/agt_x/chat/cht_y`.
      */

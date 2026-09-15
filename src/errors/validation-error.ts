@@ -26,6 +26,11 @@ import { BaseError } from './base-error';
  */
 export class ValidationError extends BaseError {
     /**
+     * Always `'ValidationError'`. Branch on it to tell this failure from the other SDK errors.
+     */
+    readonly kind: 'ValidationError' = 'ValidationError';
+
+    /**
      * Builds a validation failure. The SDK does this itself before it performs a request.
      *
      * @param message - What was wrong with the call, such as `'Message cannot be empty'`.

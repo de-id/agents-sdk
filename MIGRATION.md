@@ -59,6 +59,7 @@ Shapes are unchanged; only the names differ.
 
 ## Behaviour clarifications
 
+- Every error subclass declares its `kind` as a literal (`'NetworkError'`, `'WSError'`, `'StreamError'`, `'ValidationError'`, `'ChatCreationFailed'`, `'ChatModeDowngraded'`), so branching on `kind` narrows the caught error; `HttpError.kind` stays `string`.
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, video_id: '' }` instead of `undefined`, matching its declared type.
 - The five Expressive-only media methods are required members of `AgentManager` instead of optional; remove any `?.` guards.
 - `Agent.avatar` is typed `AgentAvatar` and its `type` is the `AvatarType` enum: build `Agent` values with `AvatarType.Talk`/`AvatarType.Clip`/`AvatarType.Expressive`; `===` comparisons against the string still compile but no longer narrow.

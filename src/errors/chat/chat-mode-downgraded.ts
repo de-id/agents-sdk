@@ -24,6 +24,11 @@ import { BaseError } from '../base-error';
  */
 export class ChatModeDowngraded extends BaseError {
     /**
+     * Always `'ChatModeDowngraded'`. Branch on it to tell this failure from the other SDK errors.
+     */
+    readonly kind: 'ChatModeDowngraded' = 'ChatModeDowngraded';
+
+    /**
      * Builds the error from the mode the session ended up in.
      * @internal The SDK builds this itself; applications catch the error rather than construct it.
      */
