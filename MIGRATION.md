@@ -1,6 +1,6 @@
 # Migration Guide: v2 → v3
 
-`@d-id/client-sdk` v3 is a **breaking** release that cleans up the package's public surface so the generated API reference (https://sdk.d-id.com/) describes exactly what the SDK supports. Every change is listed below.
+`@d-id/client-sdk` v3 is a **breaking** release that trims the package's public surface to what the SDK supports. The generated API reference at https://sdk.d-id.com/ describes exactly what is left, and every change is listed below.
 
 ## Implementation types are no longer exported
 
@@ -13,7 +13,7 @@ Removed from the root, grouped by area:
 - **Chat and agent API payloads:** `AgentsAPI`, `ChatPayload`, `ChatProgress`, `ChatProgressCallback`, `RatingPayload`, `StreamScript`, `Stream_LLM_Script`
 - **Knowledge entities (the SDK has no knowledge methods):** `KnowledgeType`, `KnowledgeData`, `KnowledgePayload`, `DocumentType`, `DocumentStatus`, `DocumentData`, `CreateDocumentPayload`, `RecordData`, `CreateRecordPayload`, `IParserResult`, `QueryResult`, `Subject`
 
-## `ManagerCallbacks` → `AgentManagerCallbacks`
+## ManagerCallbacks is now AgentManagerCallbacks
 
 Import `AgentManagerCallbacks` instead of `ManagerCallbacks`:
 
@@ -39,12 +39,11 @@ Shapes are unchanged; only the names differ.
 ## Removed options and types
 
 - `AgentManagerOptions.enableAnalitics` (misspelled) — use `enableAnalytics`. The misspelled key is ignored in v3.
-- `Subject` enum — the Knowledge API never served those prefixed values; it returns the bare status string (`'created' | 'processed' | 'done' | 'rejected' | 'error'`). The SDK exposes no knowledge methods — manage knowledge through the D-ID API. (also deleted from the source, not just unexported)
+- `Subject` enum — the Knowledge API never served those prefixed values; it returns the bare status string (`'created' | 'processed' | 'done' | 'rejected' | 'error'`). The SDK exposes no knowledge methods — manage knowledge through the D-ID API.
 - `Providers.Afflorithmics`, `AfflorithmicsTtsProvider` and `VoiceConfigAfflorithmics` — the provider is no longer offered.
 - `TextToSpeechProviders`, `ExtendedTextToSpeechProviders` and `mapVideoType` — unused; `speak()` takes `StreamTextToSpeechProviders`.
 - `ConnectionStateChangeCallback` and `VideoStateChangeCallback` — use `AgentManagerCallbacks['onConnectionStateChange']` and `AgentManagerCallbacks['onVideoStateChange']`.
 - `AgentManagerOptions.microphoneStream` — it was never read by the SDK, so passing it had no effect. Call `agentManager.publishMicrophoneStream(stream)` after `connect()` instead (Expressive (V4) agents).
-- The Expressive-only media methods (`publishMicrophoneStream`, `unpublishMicrophoneStream`, `replaceMicrophoneTrack`, `publishCameraStream`, `unpublishCameraStream`) are now required members of `AgentManager` instead of optional. They always existed at runtime; on Talks (V2) and Clips (V3) agents the `publish`/`replace` methods reject and the `unpublish` methods resolve without effect. Remove any `?.` guards.
 - `StreamEvents.StreamCreated` — never emitted; use the `onStreamCreated` callback.
 - `Status` and `StickyRequest` — their `status` and `session_id` fields are declared directly on `SendStreamPayloadResponse`.
 - `ToolEventPayload` — use the payload the `onToolEvent` overloads narrow to: `ToolCallStartedPayload`, `ToolCallDonePayload` or `ToolCallErrorPayload`.
@@ -57,6 +56,7 @@ Shapes are unchanged; only the names differ.
 ## Behaviour clarifications
 
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, video_id: '' }` instead of `undefined`, matching its declared type.
+- The Expressive-only media methods (`publishMicrophoneStream`, `unpublishMicrophoneStream`, `replaceMicrophoneTrack`, `publishCameraStream`, `unpublishCameraStream`) are required members of `AgentManager` instead of optional; remove any `?.` guards.
 - `Agent.avatar` is typed `AgentAvatar` and its `type` is the `VideoType` enum; compare with `VideoType.Expressive` rather than the string `'expressive'`.
 - `AgentManagerOptions.mixpanelAdditionalProperties` and `enrichAnalytics()` are typed `Record<string, unknown>`; callers passing `Record<string, any>` are unaffected unless they rely on inference.
 
@@ -66,9 +66,9 @@ Shapes are unchanged; only the names differ.
 
 `@d-id/client-sdk` v2 is a **breaking** release. Two things change for consumers:
 the agent object on the manager (`manager.agent`, typed `Agent`) is now a
-minimized shape, and `speak()` no longer takes a `provider`.
+minimized shape, and `speak()` stopped requiring a `provider`.
 
-## `manager.agent` is minimized
+## The agent object is minimized
 
 `manager.agent` (and the exported `Agent` type) now carries only the fields the
 embedded widget needs — no `llm`, `tools`, prompt, or full `presenter`. If you
@@ -86,7 +86,7 @@ Removed from the agent entirely: `llm`, `tools`, the agent prompt, the full
 `presenter` (`source_url`, driver/presenter ids, full `voice` config, …), all
 `preview_*` fields, `status`, and `metadata`.
 
-### v2 `Agent` shape
+### The v2 Agent shape
 
 ```ts
 interface Agent {
@@ -107,20 +107,17 @@ interface Agent {
 }
 ```
 
-## `speak()` no longer takes a `provider`
+## speak() stopped requiring a provider
 
-`speak()` no longer accepts or sends a `provider` — voice is now server-driven
-(resolved from the agent). Remove any `provider` you previously passed in the
-speak script.
-
-**Before**
-
-```ts
-manager.speak({ type: 'text', input: 'Hello', provider: agent.presenter.voice });
-```
-
-**After**
+`provider` is optional on a text script: leave it out and the voice is resolved
+server-side from the agent, pass one and the SDK forwards it as given.
 
 ```ts
 manager.speak({ type: 'text', input: 'Hello' });
+```
+
+In v1 the `provider` was mandatory and had to be read off the agent:
+
+```ts
+manager.speak({ type: 'text', input: 'Hello', provider: agent.presenter.voice });
 ```
