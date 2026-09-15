@@ -197,6 +197,22 @@ describe('createAgentManager', () => {
 
                 await expect(manager.changeMode(ChatMode.Off)).resolves.toBeUndefined();
             });
+
+            it('should ignore an unsupported mode the server reports for the chat', async () => {
+                mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+                (initializeStreamAndChat as jest.Mock).mockResolvedValue({
+                    streamingManager: mockStreamingManager,
+                    chat: { ...mockChat, chat_mode: ChatMode.Off },
+                });
+                const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+                const manager = await createAgentManager('agent-123', mockOptions);
+
+                await expect(manager.connect()).resolves.toBeUndefined();
+
+                expect(mockOptions.callbacks.onModeChange).not.toHaveBeenCalledWith(ChatMode.Off);
+                expect(warn).toHaveBeenCalled();
+                warn.mockRestore();
+            });
         });
 
         it('should handle initial messages correctly', async () => {
@@ -928,6 +944,25 @@ describe('createAgentManager', () => {
 
                 expect(mockSocketManager.disconnect).toHaveBeenCalled();
                 expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+            });
+
+            it('should resolve only once the disconnect it triggers has finished', async () => {
+                await manager.connect();
+                let settleDisconnect = () => {};
+                mockStreamingManager.disconnect = jest.fn(
+                    () => new Promise<void>(resolve => (settleDisconnect = resolve))
+                );
+
+                const onSettled = jest.fn();
+                const pending = Promise.resolve(manager.changeMode(ChatMode.TextOnly)).then(onSettled);
+                await Promise.resolve();
+
+                expect(onSettled).not.toHaveBeenCalled();
+
+                settleDisconnect();
+                await pending;
+
+                expect(onSettled).toHaveBeenCalled();
             });
 
             it('should not change if mode is the same', async () => {

@@ -50,14 +50,16 @@ export interface AgentManagerItems {
     chatMode: ChatMode;
 }
 
+// The two chat modes that create no chat are a Talks (V2) / Clips (V3) feature.
+const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
+    'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
+
 /**
  * LiveKit only forwards a thrown `RpcError` to the caller — it replaces anything else with
  * `APPLICATION_ERROR`, whose message is a fixed constant, so a plain `Error`'s message never
  * leaves the browser. Wrapping keeps the reason for the agent that invoked the tool.
  * `RpcError` truncates the message at 256 bytes.
  */
-const UNSUPPORTED_CHAT_MODE_FOR_V2 = 'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
-
 function applicationError(message: string): RpcError {
     return new RpcError(RpcError.ErrorCode.APPLICATION_ERROR, message);
 }
@@ -146,7 +148,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const isStreamsV2 = isStreamsV2Agent(agentEntity.avatar.type);
 
     if (isStreamsV2 && isChatModeWithoutChat(mode)) {
-        throw new ValidationError(UNSUPPORTED_CHAT_MODE_FOR_V2);
+        throw new ValidationError(UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE);
     }
 
     analytics.enrich(getAgentInfo(agentEntity));
@@ -290,7 +292,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 delayMs: 1000,
             }
         ).catch(e => {
-            changeMode(ChatMode.Maintenance);
+            applyMode(ChatMode.Maintenance);
             options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
         });
@@ -315,7 +317,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             mode: items.chatMode,
         });
 
-        changeMode(chat?.chat_mode ?? mode);
+        const serverMode = chat?.chat_mode ?? mode;
+        if (isStreamsV2 && isChatModeWithoutChat(serverMode)) {
+            // The session is up; keep the mode we have rather than failing a working connection.
+            console.warn(`[AgentManager] Ignoring chat mode "${serverMode}": ${UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE}`);
+            return;
+        }
+
+        await applyMode(serverMode);
     }
 
     async function disconnect() {
@@ -328,11 +337,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         options.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
     }
 
-    async function changeMode(mode: ChatMode) {
-        if (isStreamsV2 && isChatModeWithoutChat(mode)) {
-            throw new ValidationError(UNSUPPORTED_CHAT_MODE_FOR_V2);
-        }
-
+    // The mode change itself, without the Expressive guard: the modes the server reports go
+    // through here too, and those must not fail a connection that is otherwise fine.
+    async function applyMode(mode: ChatMode) {
         if (mode !== items.chatMode) {
             analytics.track('agent-mode-change', { mode });
             items.chatMode = mode;
@@ -343,6 +350,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             options.callbacks.onModeChange?.(mode);
         }
+    }
+
+    async function changeMode(mode: ChatMode) {
+        if (isStreamsV2 && isChatModeWithoutChat(mode)) {
+            throw new ValidationError(UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE);
+        }
+
+        await applyMode(mode);
     }
 
     return {

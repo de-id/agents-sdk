@@ -806,14 +806,17 @@ export interface AgentManager {
      * Switches the chat to another mode.
      *
      * Anything other than {@link ChatMode.Functional} disconnects the stream, since those modes do
-     * not produce video. {@link AgentManagerCallbacks.onModeChange | onModeChange} fires once the
-     * change has been applied; passing the mode already in effect does nothing.
+     * not produce video, which is why this is asynchronous: the returned promise resolves once that
+     * disconnect has finished. {@link AgentManagerCallbacks.onModeChange | onModeChange} fires once
+     * the change has been applied; passing the mode already in effect does nothing.
      *
      * @param mode - The {@link ChatMode} to switch to.
-     * @throws {@link ValidationError} On Expressive (V4) agents, for {@link ChatMode.Off} and
+     * @returns A promise resolved when the mode is in effect and any disconnect it caused has
+     * completed.
+     * @throws {@link ValidationError} Rejects on Expressive (V4) agents for {@link ChatMode.Off} and
      * {@link ChatMode.DirectPlayback}, which those agents do not support.
      */
-    changeMode(mode: ChatMode): void;
+    changeMode: (mode: ChatMode) => Promise<void>;
 
     /**
      * Adds properties to every analytics event the SDK sends from now on.
