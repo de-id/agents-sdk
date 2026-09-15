@@ -94,9 +94,13 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     isInterruptible: boolean;
 
     /**
-     * Send an interrupt for the current stream segment
+     * Send an interrupt for the current stream segment.
+     *
+     * Returns whether an interrupt was actually sent: `false` when there is nothing to interrupt
+     * (the stream does not support it, it is not a Fluent stream, no video is playing, or the
+     * interrupt type is one this transport drops).
      */
-    interrupt(type: Interrupt['type']): void;
+    interrupt(type: Interrupt['type']): boolean;
 
     /**
      * Register an RPC method handler on the LiveKit room.

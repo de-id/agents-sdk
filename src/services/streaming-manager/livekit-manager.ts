@@ -863,8 +863,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // Skip text interrupts for V2/expressive: the orchestrator does not
             // cancel the in-flight LLM token stream, and an extra interrupt while
             // a previous one is still settling causes races.
-            if (type === 'text') return;
+            if (type === 'text') return false;
             sendDataChannelMessage(DataChannelTopic.Interrupt, '');
+
+            return true;
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {

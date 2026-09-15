@@ -376,6 +376,26 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
         });
     });
 
+    describe('interrupt', () => {
+        it('should send the interrupt and report it was sent', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            expect(manager.interrupt('click')).toBe(true);
+
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith('', { topic: DataChannelTopic.Interrupt });
+        });
+
+        it('should return false without sending for a text interrupt', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            expect(manager.interrupt('text')).toBe(false);
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+        });
+    });
+
     describe('Error Handling', () => {
         it('should throw error on publish failure', async () => {
             const mockStream = createMockStream();

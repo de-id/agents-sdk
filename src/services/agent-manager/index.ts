@@ -164,13 +164,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
         if (!items.streamingManager?.isInterruptible) return;
 
+        const sent = items.streamingManager.interrupt(type);
+        if (!sent) {
+            return;
+        }
+
         analytics.track('agent-video-interrupt', {
             type: type || 'click',
             video_duration_to_interrupt: interruptTimestampTracker.get(true),
             message_duration_to_interrupt: latencyTimestampTracker.get(true),
         });
-
-        items.streamingManager.interrupt(type);
 
         // Only flag the message once the interrupt was actually sent.
         const lastMessage = items.messages[items.messages.length - 1];

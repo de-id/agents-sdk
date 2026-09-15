@@ -707,6 +707,21 @@ describe('createAgentManager', () => {
                 expect(lastMessage.interrupted).toBeUndefined();
             });
 
+            it('should not mark the last message interrupted when the stream sent no interrupt', async () => {
+                await manager.chat('Hello');
+
+                const onNewMessage = mockOptions.callbacks.onNewMessage as jest.Mock;
+                const lastMessage = getLastMessage(onNewMessage);
+                onNewMessage.mockClear();
+                (mockStreamingManager.interrupt as jest.Mock).mockReturnValueOnce(false);
+
+                manager.interrupt({ type: 'click' });
+
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
+                expect(onNewMessage).not.toHaveBeenCalled();
+                expect(lastMessage.interrupted).toBeUndefined();
+            });
+
             it('should mark the last message interrupted once the interrupt was sent', async () => {
                 await manager.chat('Hello');
 

@@ -432,34 +432,23 @@ describe('Streaming Manager Core', () => {
             mockDC.onmessage({ data: `stream/started:{"metadata":{"videoId":"${videoId}"}}` });
         const endVideo = (mockDC: any) => mockDC.onmessage({ data: 'stream/done:{}' });
 
-        it('should not be interruptible before a video starts', async () => {
-            const { manager } = await createConnectedManager();
-
-            expect(manager.isInterruptible).toBe(false);
-        });
-
-        it('should be interruptible while a video is playing', async () => {
+        it('should report the session as interruptible whether or not a video is playing', async () => {
             const { manager, mockDC } = await createConnectedManager();
 
-            startVideo(mockDC);
+            expect(manager.isInterruptible).toBe(true);
 
+            startVideo(mockDC);
+            expect(manager.isInterruptible).toBe(true);
+
+            endVideo(mockDC);
             expect(manager.isInterruptible).toBe(true);
         });
 
-        it('should stop being interruptible once the video is done', async () => {
-            const { manager, mockDC } = await createConnectedManager();
-
-            startVideo(mockDC);
-            endVideo(mockDC);
-
-            expect(manager.isInterruptible).toBe(false);
-        });
-
-        it('should send the interrupt for the playing video', async () => {
+        it('should send the interrupt for the playing video and report it was sent', async () => {
             const { manager, mockDC } = await createConnectedManager();
             startVideo(mockDC);
 
-            manager.interrupt('click');
+            expect(manager.interrupt('click')).toBe(true);
 
             expect(mockDC.send).toHaveBeenCalledTimes(1);
             expect(JSON.parse(mockDC.send.mock.calls[0][0])).toMatchObject({
@@ -468,26 +457,35 @@ describe('Streaming Manager Core', () => {
             });
         });
 
-        it('should return without sending when no video is playing', async () => {
+        it('should return false without sending when no video is playing', async () => {
             const { manager, mockDC } = await createConnectedManager();
 
-            expect(() => manager.interrupt('click')).not.toThrow();
+            expect(manager.interrupt('click')).toBe(false);
             expect(mockDC.send).not.toHaveBeenCalled();
         });
 
-        it('should return without sending when interrupt is not enabled for the stream', async () => {
+        it('should return false without sending once the video is done', async () => {
+            const { manager, mockDC } = await createConnectedManager();
+            startVideo(mockDC);
+            endVideo(mockDC);
+
+            expect(manager.interrupt('click')).toBe(false);
+            expect(mockDC.send).not.toHaveBeenCalled();
+        });
+
+        it('should return false without sending when interrupt is not enabled for the stream', async () => {
             const { manager, mockDC } = await createConnectedManager({ interrupt_enabled: false });
             startVideo(mockDC);
 
-            expect(() => manager.interrupt('click')).not.toThrow();
+            expect(manager.interrupt('click')).toBe(false);
             expect(mockDC.send).not.toHaveBeenCalled();
         });
 
-        it('should return without sending on a legacy stream', async () => {
+        it('should return false without sending on a legacy stream', async () => {
             const { manager, mockDC } = await createConnectedManager({ fluent: false });
             startVideo(mockDC);
 
-            expect(() => manager.interrupt('click')).not.toThrow();
+            expect(manager.interrupt('click')).toBe(false);
             expect(mockDC.send).not.toHaveBeenCalled();
         });
     });

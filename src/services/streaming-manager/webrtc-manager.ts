@@ -403,15 +403,12 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
 
         streamType,
         interruptAvailable: interruptAvailable ?? false,
-        // Only a playing video can be interrupted; there is nothing to cut short between videos.
-        get isInterruptible() {
-            return !!currentVideoId;
-        },
+        isInterruptible: true,
 
         interrupt(_type: Interrupt['type']) {
             // Nothing to interrupt: the stream does not support it, is not fluent, or no video is playing.
             if (!interruptAvailable || streamType !== StreamType.Fluent || !currentVideoId) {
-                return;
+                return false;
             }
 
             const payload: StreamInterruptPayload = {
@@ -422,6 +419,8 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
             // The topic is ignored here - V1 has no topic concept and the interrupt
             // is identified by the payload's `type`.
             sendDataChannelMessage(DataChannelTopic.Interrupt, JSON.stringify(payload));
+
+            return true;
         },
     };
 }
