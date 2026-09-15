@@ -1480,10 +1480,16 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: false }));
     });
 
-    it('defaults chat_persist to true in the createStream request when unset', async () => {
+    it('should send chat_persist false when the session options do not set it', async () => {
         const { chat_persist: _chatPersist, ...sessionOptionsWithoutChatPersist } = sessionOptions;
 
         await createLiveKitStreamingManager(agentId, sessionOptionsWithoutChatPersist, options);
+
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: false }));
+    });
+
+    it('sends chat_persist: true in the createStream request when explicitly enabled', async () => {
+        await createLiveKitStreamingManager(agentId, { ...sessionOptions, chat_persist: true }, options);
 
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: true }));
     });

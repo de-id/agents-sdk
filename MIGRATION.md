@@ -65,6 +65,7 @@ Shapes are unchanged; only the names differ.
 - `AgentManagerOptions.mixpanelAdditionalProperties` and `enrichAnalytics()` are typed `Record<string, unknown>`; callers passing `Record<string, any>` are unaffected unless they rely on inference.
 - `agentManager.getSTTToken()` is now typed `Promise<STTTokenResponse>`; it never resolved `undefined` (a failed request throws `HttpError`).
 - `interrupt()` never throws; where it used to throw on Talks (V2)/Clips (V3) streams it now returns silently, and the last message is marked `interrupted` only when an interrupt was actually sent.
+- `persistentChat` now defaults to `false` on Expressive (V4) agents too; v2 sessions were created with chat persistence on unless you passed `false`.
 
 ---
 

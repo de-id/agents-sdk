@@ -505,10 +505,9 @@ export interface AgentManagerOptions {
      * {@link AgentManager.reconnect | reconnect()} normally continues the same chat either way —
      * see the caveat there for Expressive (V4) agents.
      *
-     * The default differs by agent type. Talks (V2) and Clips (V3) agents do not persist the chat
-     * unless this is set to `true`. Expressive (V4) agents do persist it unless this is set to
-     * `false`: the SDK forwards the key only when you set it, and the service treats an absent key
-     * as persistence on.
+     * Off unless you set it, on every agent type.
+     *
+     * @default false
      */
     persistentChat?: boolean;
 }
