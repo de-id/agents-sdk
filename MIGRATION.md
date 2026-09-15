@@ -58,6 +58,7 @@ Shapes are unchanged; only the names differ.
 
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, video_id: '' }` instead of `undefined`, matching its declared type.
 - `Agent.avatar` is typed `AgentAvatar` and its `type` is the `VideoType` enum; compare with `VideoType.Expressive` rather than the string `'expressive'`.
+- `AgentManagerOptions.mixpanelAdditionalProperties` and `enrichAnalytics()` are typed `Record<string, unknown>`; callers passing `Record<string, any>` are unaffected unless they rely on inference.
 
 ---
 

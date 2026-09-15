@@ -186,7 +186,7 @@ export interface AgentManagerOptions {
      */
     enableAnalytics?: boolean;
     mixpanelKey?: string;
-    mixpanelAdditionalProperties?: Record<string, any>;
+    mixpanelAdditionalProperties?: Record<string, unknown>;
     externalId?: string;
     streamOptions?: StreamOptions;
     initialMessages?: Message[];
@@ -303,7 +303,7 @@ export interface AgentManager {
      * Method to enrich analytics properties
      * @param properties flat json object with properties that will be added to analytics events fired from the sdk
      */
-    enrichAnalytics(properties: Record<string, any>): void;
+    enrichAnalytics(properties: Record<string, unknown>): void;
 
     /**
      * Method to interrupt the current video stream

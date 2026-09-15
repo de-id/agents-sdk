@@ -1,10 +1,11 @@
 import { BaseError, ErrorJson } from './base-error';
 
 /**
- * Request context recorded on a {@link NetworkError} when a fetch fails without a response.
+ * Request context recorded on an error: what was requested, how long it took and what the tab
+ * could see of the network at the time.
  * @internal Implementation type; not part of the public SDK surface.
  */
-export interface NetworkErrorMeta {
+export interface RequestMeta {
     url?: string;
     method?: string;
     durationMs?: number;
@@ -30,8 +31,10 @@ export class NetworkError extends BaseError {
      * @param meta - Request context captured when the attempt failed.
      * @internal Constructed by the SDK; not part of the public SDK surface.
      */
-    constructor(originalError?: unknown, meta: NetworkErrorMeta = {}) {
+    constructor(originalError?: unknown, meta: RequestMeta = {}) {
         super('Network request failed', 'NetworkError', originalError);
+        // Naming drift kept on purpose: `HttpError` exposes the same value as `url`, and both
+        // serialize it as `endpoint` in toJson(). Renaming either property is a breaking change.
         this.endpoint = meta.url;
         this.method = meta.method;
         this.durationMs = meta.durationMs;
