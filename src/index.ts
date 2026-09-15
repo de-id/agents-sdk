@@ -71,7 +71,6 @@ export { isAwaitingTool } from './utils/tool-calls';
 // Voice
 export { Providers, VoiceAccess } from './types/voice/tts';
 export type {
-    AfflorithmicsTtsProvider,
     AmazonTtsProvider,
     AzureOpenAiTtsProvider,
     ElevenlabsTtsProvider,
@@ -80,7 +79,6 @@ export type {
     StreamTextToSpeechProviders,
     TextToSpeechProviders,
     Voice,
-    VoiceConfigAfflorithmics,
     VoiceConfigElevenlabs,
     VoiceConfigMicrosoft,
 } from './types/voice/tts';

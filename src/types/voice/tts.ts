@@ -2,7 +2,6 @@ export enum Providers {
     Amazon = 'amazon',
     AzureOpenAi = 'azure-openai',
     Microsoft = 'microsoft',
-    Afflorithmics = 'afflorithmics',
     Elevenlabs = 'elevenlabs',
 }
 
@@ -40,25 +39,6 @@ export interface ElevenlabsTtsProvider {
      * Voice customization options. Read more here: https://docs.elevenlabs.io/speech-synthesis/voice-settings
      */
     voice_config?: VoiceConfigElevenlabs;
-}
-
-/**
- * Afflorithmics provider details, contains the provider type and requested voice id, available for enterprise users.
- */
-export interface AfflorithmicsTtsProvider {
-    type: Providers.Afflorithmics;
-
-    /**
-     * The voice_id from the list of available voices.
-     * @example "abc123DEF456"
-     * @default abc123DEF456
-     */
-    voice_id: string;
-
-    /**
-     * Voice customization options. Read more here: https://docs.audiostack.ai/reference/postspeech
-     */
-    voice_config?: VoiceConfigAfflorithmics;
 }
 
 /**
@@ -149,38 +129,10 @@ export interface VoiceConfigElevenlabs {
     similarity_boost?: number;
 }
 
-export interface VoiceConfigAfflorithmics {
-    /**
-     * The speed of the voice.
-     * The value is relative to 1, 0.5 being half speed, 2 being twice as fast, etc.
-     * Another option is a constant value from x-slow/slow/medium/fast/x-fast.
-     * @example "1.2"
-     * @min 0.5
-     * @max 1.5
-     * @default 1
-     */
-    rate?: string;
-
-    /**
-     * Amount of microseconds for silence padding. Half of the amount is inserted as silence at the beginning and at the end of each Speech file.
-     */
-    silencePadding?: number;
-
-    /**
-     * Flag to apply lexicographical text corrections
-     */
-    voiceIntelligence?: boolean;
-}
-
-export type TextToSpeechProviders =
-    | MicrosoftTtsProvider
-    | AzureOpenAiTtsProvider
-    | AfflorithmicsTtsProvider
-    | ElevenlabsTtsProvider;
+export type TextToSpeechProviders = MicrosoftTtsProvider | AzureOpenAiTtsProvider | ElevenlabsTtsProvider;
 export type ExtendedTextToSpeechProviders = TextToSpeechProviders | AmazonTtsProvider;
 export type StreamTextToSpeechProviders =
     | MicrosoftTtsProvider
     | AzureOpenAiTtsProvider
-    | AfflorithmicsTtsProvider
     | ElevenlabsTtsProvider
     | AmazonTtsProvider;

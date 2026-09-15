@@ -1,6 +1,6 @@
 # Migration Guide: v2 → v3
 
-`@d-id/client-sdk` v3 is a **breaking** release that cleans up the package's public surface so the generated API reference (https://sdk.d-id.com/) describes exactly what the SDK supports. The only behaviour change is the removal of the misspelled `enableAnalitics` option (see *Removed options and types*); everything else is names and exports.
+`@d-id/client-sdk` v3 is a **breaking** release that cleans up the package's public surface so the generated API reference (https://sdk.d-id.com/) describes exactly what the SDK supports. Every change is listed below.
 
 ## Implementation types are no longer exported
 
@@ -15,7 +15,7 @@ Removed from the root, grouped by area:
 
 ## `ManagerCallbacks` → `AgentManagerCallbacks`
 
-The callbacks type accepted by `createAgentManager` was never exported in v2; the exported `ManagerCallbacks` was an unrelated internal type with a similar shape. Import `AgentManagerCallbacks` instead:
+Import `AgentManagerCallbacks` instead of `ManagerCallbacks`:
 
 ```ts
 import type { AgentManagerCallbacks } from '@d-id/client-sdk';
@@ -23,25 +23,24 @@ import type { AgentManagerCallbacks } from '@d-id/client-sdk';
 
 ## Renamed types
 
-| v2 | v3 |
-| --- | --- |
-| `Stream_Text_Script` | `TextStreamScript` |
-| `Stream_Audio_Script` | `AudioStreamScript` |
-| `Elevenlabs_tts_provider` | `ElevenlabsTtsProvider` |
-| `Afflorithmics_tts_provider` | `AfflorithmicsTtsProvider` |
-| `Microsoft_tts_provider` | `MicrosoftTtsProvider` |
+| v2                         | v3                       |
+| -------------------------- | ------------------------ |
+| `Stream_Text_Script`       | `TextStreamScript`       |
+| `Stream_Audio_Script`      | `AudioStreamScript`      |
+| `Elevenlabs_tts_provider`  | `ElevenlabsTtsProvider`  |
+| `Microsoft_tts_provider`   | `MicrosoftTtsProvider`   |
 | `AzureOpenAi_tts_provider` | `AzureOpenAiTtsProvider` |
-| `Amazon_tts_provider` | `AmazonTtsProvider` |
-| `IRetrivalMetadata` | `RetrievalMetadata` |
-| `IVoice` | `Voice` |
+| `Amazon_tts_provider`      | `AmazonTtsProvider`      |
+| `IRetrivalMetadata`        | `RetrievalMetadata`      |
+| `IVoice`                   | `Voice`                  |
 
 Shapes are unchanged; only the names differ.
 
 ## Removed options and types
 
-- `AgentManagerOptions.enableAnalitics` (misspelled) — use `enableAnalytics`. In v2 the misspelled option was honoured as a fallback; in v3 it is ignored, so a plain-JS caller that only set `enableAnalitics: false` will have analytics enabled again until it renames the key. TypeScript callers get a compile error.
+- `AgentManagerOptions.enableAnalitics` (misspelled) — use `enableAnalytics`. The misspelled key is ignored in v3.
 - `Subject` enum — the Knowledge API never served those prefixed values; it returns the bare status string (`'created' | 'processed' | 'done' | 'rejected' | 'error'`). The SDK exposes no knowledge methods — manage knowledge through the D-ID API. (also deleted from the source, not just unexported)
-- `VideoStateChangeCallback` no longer declares a second argument; the SDK never passed one.
+- `Providers.Afflorithmics`, `AfflorithmicsTtsProvider` and `VoiceConfigAfflorithmics` — the provider is no longer offered.
 - `AgentManagerOptions.microphoneStream` — it was never read by the SDK, so passing it had no effect. Call `agentManager.publishMicrophoneStream(stream)` after `connect()` instead (Expressive (V4) agents).
 - The Expressive-only media methods (`publishMicrophoneStream`, `unpublishMicrophoneStream`, `replaceMicrophoneTrack`, `publishCameraStream`, `unpublishCameraStream`) are now required members of `AgentManager` instead of optional. They always existed at runtime; on Talks (V2) and Clips (V3) agents the `publish`/`replace` methods reject and the `unpublish` methods resolve without effect. Remove any `?.` guards.
 - `StreamEvents.StreamCreated` — never emitted; use the `onStreamCreated` callback.
