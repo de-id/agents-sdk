@@ -83,14 +83,18 @@ export interface ElevenlabsTtsProvider {
     type: Providers.Elevenlabs;
 
     /**
-     * The voice_id from the list of available voices. For the list of voices:
-     * https://docs.d-id.com/docs/tts-elevenlabs
+     * Id of the voice to speak with, from D-ID's list of ElevenLabs voices.
+     *
      * @example "21m00Tcm4TlvDq8ikWAM"
+     * @see [ElevenLabs voices](https://docs.d-id.com/docs/tts-elevenlabs)
      */
     voice_id: string;
 
     /**
-     * Voice customization options. Read more here: https://docs.elevenlabs.io/speech-synthesis/voice-settings
+     * How closely the voice should follow the original it was cloned from. See
+     * {@link VoiceConfigElevenlabs}.
+     *
+     * @see [ElevenLabs voice settings](https://elevenlabs.io/docs/best-practices/prompting/controls)
      */
     voice_config?: VoiceConfigElevenlabs;
 }
@@ -100,9 +104,9 @@ export interface ElevenlabsTtsProvider {
  * delivery settings.
  *
  * Pass it as {@link TextStreamScript.provider} to pick a Microsoft Azure voice explicitly,
- * optionally with {@link VoiceConfigMicrosoft} to set style, rate and pitch. The API documents
- * Microsoft TTS as its default when a script names no provider, so this is also the provider a
- * script without one ends up using.
+ * optionally with {@link VoiceConfigMicrosoft} to set style, rate and pitch. The Agents API
+ * documents Microsoft TTS as its default when a script names no provider, so this is also the
+ * provider a script without one ends up using.
  *
  * @category Voice
  */
@@ -111,24 +115,28 @@ export interface MicrosoftTtsProvider {
     type: Providers.Microsoft;
 
     /**
-     * The voice_id from the list of available voices.
-     * For the list of voices: https://docs.d-id.com/docs/tts-microsoft
+     * Id of the voice to speak with, from D-ID's list of Microsoft Azure voices.
+     *
      * @example "en-US-JennyNeural"
+     * @see [Microsoft Azure voices](https://docs.d-id.com/docs/tts-microsoft)
      */
     voice_id: string;
 
     /**
-     * Voice customization options
+     * How the voice should deliver the text: style, rate and pitch. See
+     * {@link VoiceConfigMicrosoft}.
      */
     voice_config?: VoiceConfigMicrosoft;
 
     /**
-     * Voice name
+     * @internal Not accepted by the Agents API, whose provider schema allows only `type`,
+     * `voice_id`, `voice_config` and `language`.
      */
     voice_name?: string;
 
     /**
-     * Voice language
+     * @internal Not accepted by the Agents API, whose provider schema allows only `type`,
+     * `voice_id`, `voice_config` and `language`.
      */
     voice_language?: string;
 }
@@ -137,9 +145,8 @@ export interface MicrosoftTtsProvider {
  * Azure OpenAI provider details: the provider type, the requested voice id and optional delivery
  * settings.
  *
- * The same shape as {@link MicrosoftTtsProvider} — `voice_id`, an optional
- * {@link VoiceConfigMicrosoft} as `voice_config`, `voice_name` and `voice_language` — with the
- * `type` naming Azure OpenAI instead.
+ * The same shape as {@link MicrosoftTtsProvider} — a `voice_id` and an optional
+ * {@link VoiceConfigMicrosoft} as `voice_config` — with the `type` naming Azure OpenAI instead.
  *
  * @category Voice
  */
@@ -161,9 +168,10 @@ export interface AmazonTtsProvider {
     type: Providers.Amazon;
 
     /**
-     * The voice_id from the list of available voices.
-     * For the list of voices: https://docs.d-id.com/docs/tts-amazon
+     * Id of the voice to speak with, from D-ID's list of Amazon voices.
+     *
      * @example "Joanna"
+     * @see [Amazon voices](https://docs.d-id.com/docs/tts-amazon)
      */
     voice_id: string;
 }
@@ -172,7 +180,7 @@ export interface AmazonTtsProvider {
  * How a Microsoft Azure or Azure OpenAI voice should deliver the text.
  *
  * The `voice_config` of {@link MicrosoftTtsProvider} and {@link AzureOpenAiTtsProvider}. Every
- * field is optional; when one is omitted the API applies its own default.
+ * field is optional; when one is omitted the Agents API applies its own default.
  *
  * @category Voice
  */
@@ -204,7 +212,7 @@ export interface VoiceConfigMicrosoft {
  * How closely an ElevenLabs voice should follow the original it was built from.
  *
  * The `voice_config` of {@link ElevenlabsTtsProvider}, mirroring ElevenLabs' own voice settings.
- * Both fields are optional; when one is omitted the API applies its own default.
+ * Both fields are optional; when one is omitted the Agents API applies its own default.
  *
  * @category Voice
  */

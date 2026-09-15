@@ -73,7 +73,7 @@ export interface AgentAvatar {
  * or through the Agents API; most of them are for the application to use, and each one below says
  * where the SDK itself reads it.
  *
- * @see https://docs.d-id.com/reference/agent-get
+ * @see [Get an agent](https://docs.d-id.com/reference/agent-get)
  * @category Agent Manager
  */
 export interface Agent {

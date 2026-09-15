@@ -35,7 +35,7 @@ export interface RatingEntity {
      */
     knowledge_id: string;
     /**
-     * The end-user identifier the API recorded for the request.
+     * The end-user identifier the Agents API recorded for the request.
      *
      * Derived from the credentials the SDK sends, which carry
      * {@link AgentManagerOptions.externalId | externalId} for `type: 'key'` authorization.
@@ -205,7 +205,7 @@ export interface Message {
      *
      * Present on an agent answer when the chat response carried them, so a UI can show its sources;
      * {@link AgentManager.rate | rate()} also sends them with a rating. The SDK strips this field
-     * from the transcript it sends back to the API with the next
+     * from the transcript it sends back to the Agents API with the next
      * {@link AgentManager.chat | chat()}.
      */
     matches?: ChatResponse['matches'];
@@ -215,7 +215,7 @@ export interface Message {
      *
      * Only ever set on an agent answer, and only when the answer came back from the Agents API.
      * Expressive (V4) agents chat over the data channel instead, so their answers carry no context
-     * — except in {@link ChatMode.Playground}, which always takes the API path.
+     * — except in {@link ChatMode.Playground}, which always takes the Agents API path.
      */
     context?: string;
     /**
@@ -336,7 +336,8 @@ export enum ChatMode {
     /**
      * A text-only test conversation, used by the agent playground in D-ID Studio.
      *
-     * Produces no video, and marks each chat request with a playground header so the API can treat
+     * Produces no video, and marks each chat request with a playground header so the server can
+     * treat
      * it as a test. Chats in this mode always go over the Agents API, even for Expressive (V4)
      * agents, which otherwise chat over the data channel. Applications normally use
      * {@link ChatMode.Functional} or {@link ChatMode.TextOnly} instead.
@@ -377,7 +378,8 @@ export enum ChatMode {
  * transcript by the time you get it, so most applications render
  * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} instead and use this only for the
  * fields that never reach a {@link Message}. Expressive (V4) agents chat over the data channel
- * rather than over the API — except in {@link ChatMode.Playground} — so for them the object is
+ * rather than over the Agents API — except in {@link ChatMode.Playground} — so for them the
+ * object is
  * empty and the answer arrives through the callback.
  *
  * @category Chat

@@ -69,7 +69,7 @@ export class NetworkError extends BaseError {
 
     /**
      * Serializes the error, adding the captured context to what
-     * {@link BaseError.toJson | toJson()} already returns.
+     * {@link BaseError.toJson | BaseError.toJson()} already returns.
      *
      * Each of `endpoint`, `method`, `durationMs`, `online` and `visibility` is included only when it
      * was captured.

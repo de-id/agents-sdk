@@ -10,7 +10,7 @@ import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, 
  *
  * Passed as {@link StreamOptions.compatibilityMode}. `on` forces VP8 and `off` forces H264; with
  * `auto` the SDK forwards the flag and the codec is selected according to the browser. Talks (V2)
- * and Clips (V3) agents only — Expressive (V4) avatars negotiate the codec themselves and ignore
+ * and Clips (V3) agents only — Expressive (V4) agents negotiate the codec themselves and ignore
  * the setting.
  *
  * @category Streaming Options
@@ -626,8 +626,10 @@ export interface RunningToolCall {
     /** Name of the tool being called, as configured on the agent. */
     name: string;
     /**
-     * 'blocking' - the agent waits for the result before it can continue.
-     * 'async' - the agent keeps talking while the call runs.
+     * Whether the agent is suspended while this call runs.
+     *
+     * `blocking` means the agent waits for the result before it can continue; `async` means it
+     * keeps talking while the call runs. See {@link ToolExecutionMode}.
      */
     executionMode: ToolExecutionMode;
 }
@@ -803,7 +805,9 @@ export enum StreamEndReason {
 }
 
 /**
- * The signature of {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
+ * The overloaded handler type for
+ * {@link AgentManagerCallbacks.onToolEvent | onToolEvent}: the event argument narrows the payload
+ * argument.
  *
  * Three overloads, one per tool-call event, so the first argument narrows the second: a handler
  * written against this type sees exactly one of {@link ToolCallStartedPayload},
@@ -830,18 +834,18 @@ export enum StreamEndReason {
  */
 export type ToolEventCallback = {
     /**
-     * @param event - {@link StreamEvents.ToolCallStarted}.
-     * @param data - The call that just started.
+     * @param event - Always {@link StreamEvents.ToolCallStarted} in this overload.
+     * @param data - The call the agent has just begun, with the arguments its LLM produced.
      */
     (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
     /**
-     * @param event - {@link StreamEvents.ToolCallDone}.
-     * @param data - The call that just finished, with its result.
+     * @param event - Always {@link StreamEvents.ToolCallDone} in this overload.
+     * @param data - The call that has just finished, with the result the tool returned.
      */
     (event: StreamEvents.ToolCallDone, data: ToolCallDonePayload): void;
     /**
-     * @param event - {@link StreamEvents.ToolCallError}.
-     * @param data - The call that just failed.
+     * @param event - Always {@link StreamEvents.ToolCallError} in this overload.
+     * @param data - The call that has just failed, with whatever the server reported about it.
      */
     (event: StreamEvents.ToolCallError, data: ToolCallErrorPayload): void;
 };

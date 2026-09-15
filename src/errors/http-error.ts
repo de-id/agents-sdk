@@ -20,7 +20,7 @@ function parseServerError(body: string): ServerErrorBody | undefined {
 }
 
 /**
- * A request to the D-ID API came back with a non-2xx status.
+ * A request to the Agents API came back with a non-2xx status.
  *
  * Raised for every REST call the SDK makes on the application's behalf: fetching the agent in
  * {@link createAgentManager}, creating the stream and the chat during
@@ -78,8 +78,8 @@ export class HttpError extends BaseError {
     }
 
     /**
-     * Serializes the error, adding the failing call to what {@link BaseError.toJson | toJson()}
-     * already returns.
+     * Serializes the error, adding the failing call to what
+     * {@link BaseError.toJson | BaseError.toJson()} already returns.
      *
      * Adds `httpStatus` from {@link HttpError.status | status}, and `endpoint` and `method` when the
      * call context is known. The raw `status` and `url` property names are not part of the payload.

@@ -1,5 +1,5 @@
 /**
- * A bearer token for the D-ID API.
+ * A bearer token for the Agents API.
  *
  * Account-wide, so it is meant for a trusted environment — a server, a build step, an internal
  * tool. Anyone who reads the token can spend the account's credits, so do not ship one in a page
@@ -21,7 +21,8 @@ export interface BearerToken {
 }
 
 /**
- * HTTP basic credentials for the D-ID API, given either pre-encoded or as a username and password.
+ * HTTP basic credentials for the Agents API, given either pre-encoded or as a username and
+ * password.
  *
  * Like {@link BearerToken} these are account-wide and belong in a trusted environment, never in a
  * client bundle. The SDK sends them as `Authorization: Basic <credentials>~<connectionId>`, where
@@ -59,7 +60,7 @@ export type BasicAuth =
       };
 
 /**
- * A client key for the D-ID API — the credential to use in a browser.
+ * A client key for the Agents API — the credential to use in a browser.
  *
  * This is the one shape that is safe to ship in a page: a client key is scoped to a single agent
  * and only works from the domains allowed for it, so it cannot be reused elsewhere. Copy it from the
@@ -69,7 +70,7 @@ export type BasicAuth =
  * either {@link AgentManagerOptions.externalId | externalId} or a per-browser id the SDK keeps in
  * `localStorage`.
  *
- * @see https://docs.d-id.com/reference/createclientkey
+ * @see [Create a client key](https://docs.d-id.com/reference/createclientkey)
  * @category Agent Manager
  */
 export interface ClientKeyAuth {
@@ -97,29 +98,3 @@ export interface ClientKeyAuth {
  * @category Agent Manager
  */
 export type Auth = BearerToken | BasicAuth | ClientKeyAuth;
-
-/**
- * The same credentials as {@link Auth}, flattened into optional fields.
- *
- * Exported for applications that hold credentials as loose, possibly empty values — a form, a query
- * string, a configuration object — and build an {@link Auth} from whichever of them is set. D-ID's
- * own agents-ui does this; the SDK itself does not read this type, and
- * {@link createAgentManager} still expects a proper {@link Auth}.
- *
- * @category Agent Manager
- */
-/**
- * A bearer token, or pre-encoded basic credentials — the `token` of {@link BearerToken} or of
- * {@link BasicAuth}.
- */
-/**
- * The user name of {@link BasicAuth}, to be paired with
- * {@link GetAuthParams.password | password}.
- */
-/**
- * The password of {@link BasicAuth}, to be paired with
- * {@link GetAuthParams.username | username}.
- */
-/**
- * The `clientKey` of {@link ClientKeyAuth}.
- */

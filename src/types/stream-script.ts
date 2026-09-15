@@ -41,14 +41,15 @@ export interface TextStreamScript {
      *
      * One of the objects in {@link StreamTextToSpeechProviders}: a `type` naming the provider, the
      * `voice_id` to speak with, and optional provider-specific `voice_config`. Leave it out and the
-     * SDK sends the script without a provider, so the voice is chosen server-side; the API
+     * SDK sends the script without a provider, so the voice is chosen server-side; the Agents API
      * documents Microsoft TTS as its default when no provider is given.
      */
     provider?: StreamTextToSpeechProviders;
 
     /**
-     * The input text that will be synthesized to an audio file.
-     * Note that each provider has its own limitations on the text length.
+     * The text to be synthesised into speech.
+     *
+     * Each provider has its own limit on the text length.
      * @example "This is an example text"
      * @maxLength 40000
      * @minLength 3
@@ -65,14 +66,15 @@ export interface TextStreamScript {
     ssml?: boolean;
 
     /**
-     * Queue this speak behind the current speech instead of interrupting it (expressive avatars only).
+     * Queue this speak behind the current speech instead of interrupting it. Expressive (V4)
+     * agents only.
      * @default false
      */
     should_queue_speaks?: boolean;
 
     /**
-     * Sentiment name to speak with (expressive avatars only).
-     * If the sentiment is not supported by the agent, the default sentiment is used.
+     * Sentiment name to speak with. Expressive (V4) agents only; if the agent does not support the
+     * requested sentiment, its default sentiment is used.
      * @example "friendly"
      */
     sentiment?: string;
@@ -89,7 +91,7 @@ export interface TextStreamScript {
  * ```ts
  * const speak = await agentManager.speak({
  *     type: 'audio',
- *     audio_url: 'http://www.yourwebsite.com/audio.mp3',
+ *     audio_url: 'https://www.yourwebsite.com/audio.mp3',
  * });
  * ```
  * @category Speak & Scripts
@@ -102,12 +104,11 @@ export interface AudioStreamScript {
     type: 'audio';
 
     /**
-     * The URL of the audio file which will be used by the actor.
-     * File size is limit to 15MB.
+     * URL of the audio file the agent lip-syncs to.
      *
      * The URL has to be publicly reachable, since the file is fetched server-side rather than
-     * uploaded from the browser.
-     * @example "http://www.yourwebsite.com/audio.mp3"
+     * uploaded from the browser. The file may be at most 15 MB.
+     * @example "https://www.yourwebsite.com/audio.mp3"
      */
     audio_url: string;
 }

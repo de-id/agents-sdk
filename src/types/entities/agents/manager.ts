@@ -255,7 +255,7 @@ export interface AgentManagerCallbacks {
      * Use it to drive a typing indicator or to disable input while the agent is busy. The full set
      * of states is reported for Expressive (V4) agents only. Talks (V2) and Clips (V3) agents
      * report just {@link AgentActivityState.Talking | Talking} and
-     * {@link AgentActivityState.Idle | Idle}, and only on Fluent streams, plus a final
+     * {@link AgentActivityState.Idle | Idle}, and only on fluent streams, plus a final
      * {@link AgentActivityState.Idle | Idle} when the connection closes.
      *
      * @param state - The {@link AgentActivityState} the agent has moved to.
@@ -301,7 +301,7 @@ export interface AgentManagerCallbacks {
 /**
  * Transport settings applied when the stream is created.
  *
- * Talks (V2) and Clips (V3) agents only. Expressive (V4) avatars manage transport settings
+ * Talks (V2) and Clips (V3) agents only. Expressive (V4) agents manage transport settings
  * automatically and ignore these options. Pass the object as
  * {@link AgentManagerOptions.streamOptions}; every field is optional.
  *
@@ -324,7 +324,7 @@ export interface StreamOptions {
      * {@link ConnectionState.Connected | 'connected'}, so
      * {@link AgentManager.connect | connect()} resolves with the agent already on screen rather
      * than on an empty stream. That is the whole of what the application observes; the warmup
-     * video itself is not distinguishable from any other. Fluent streams ignore the option — the
+     * video itself is not distinguishable from any other. A fluent stream ignores the option — the
      * warmup only runs on legacy streams (see {@link StreamOptions.fluent | fluent}).
      *
      * @default false
@@ -373,16 +373,9 @@ export interface AgentManagerOptions {
     /**
      * Credentials used for every request the SDK makes on the application's behalf.
      *
-     * Three shapes are accepted:
-     *
-     * - `{ type: 'key', clientKey }` — the browser-safe one. `clientKey` is the `data-client-key`
-     *   from the agent's Embed snippet (or a key created with the Agents API), and works only from the
-     *   domains allowed for that agent. See {@link ClientKeyAuth}.
-     * - `{ type: 'bearer', token }` — a bearer token.
-     * - `{ type: 'basic', token }` or `{ type: 'basic', username, password }` — basic credentials.
-     *
-     * Bearer and basic credentials are account-wide: use them from a trusted environment, not from
-     * a page you ship to users. See {@link Auth}.
+     * Use `{ type: 'key', clientKey }` in a browser: a client key is scoped to one agent and to
+     * the domains you allowed, so it is the only shape that is safe to ship in a page. See
+     * {@link Auth}.
      */
     auth: Auth;
     /**
@@ -478,7 +471,7 @@ export interface AgentManagerOptions {
     /**
      * Transport settings applied when the stream is created.
      *
-     * See {@link StreamOptions}. Talks (V2) and Clips (V3) agents only. Expressive (V4) avatars
+     * See {@link StreamOptions}. Talks (V2) and Clips (V3) agents only. Expressive (V4) agents
      * manage transport settings automatically.
      */
     streamOptions?: StreamOptions;
@@ -545,8 +538,7 @@ export interface AgentManager {
      *
      * Fetched once while the manager is created, so it is available before
      * {@link AgentManager.connect | connect()}. Useful for rendering the agent's name, thumbnail
-     * and {@link Agent.idle_video | idle_video}. To know more about agents go to
-     * https://docs.d-id.com/reference/agent-get
+     * and {@link Agent.idle_video | idle_video}. See {@link Agent}.
      */
     agent: Agent;
     /**
@@ -561,7 +553,8 @@ export interface AgentManager {
     /**
      * Returns whether the current stream supports interrupting the agent mid-answer.
      *
-     * True for fluent streams (V3 Pro Avatars) and Expressive (V4) agents once connected. This says
+     * True on a fluent stream — a Clips (V3) agent built on a Pro avatar, or any Expressive (V4)
+     * agent — once connected. This says
      * the stream supports interrupting at all;
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} says whether
      * there is something to interrupt right now.
@@ -736,7 +729,8 @@ export interface AgentManager {
     /**
      * Removes a rating the user gave to an answer in the chat.
      *
-     * @param id - id of Rating entity.
+     * @param id - Id of the rating to remove, as returned by
+     * {@link AgentManager.rate | rate()}.
      * @returns The {@link RatingEntity} that was deleted.
      * @throws {@link ValidationError} When no chat has started. Thrown synchronously, so catch it
      * around the call rather than on the returned promise.
@@ -750,8 +744,8 @@ export interface AgentManager {
      * Separate from {@link AgentManager.rate | rate()}, which scores a single answer. Collect it
      * when the user ends the call, using the agent's end-of-call feedback configuration.
      *
-     * @param rating - integer score from 1 to 5
-     * @param answer - optional free-text answer
+     * @param rating - The user's score for the conversation, a whole number from 1 to 5.
+     * @param answer - The user's free-text answer to the follow-up question, when one was asked.
      * @returns The stored {@link SubmitFeedbackResponse}.
      * @throws {@link ValidationError} When no chat has started. Thrown synchronously, so catch it
      * around the call rather than on the returned promise.
@@ -824,19 +818,20 @@ export interface AgentManager {
      * {@link AgentManagerOptions.mixpanelAdditionalProperties | mixpanelAdditionalProperties} does
      * at creation time, for values you only learn later.
      *
-     * @param properties - Flat json object with properties that will be added to analytics events
-     * fired from the sdk.
+     * @param properties - A flat JSON object whose properties are added to every analytics event
+     * the SDK sends from now on.
      */
     enrichAnalytics(properties: Record<string, unknown>): void;
 
     /**
      * Interrupts the current video stream mid-playback, so the user can talk over the agent.
      *
-     * Supported for Fluent streams (V3 Pro Avatars) and all Expressive (V4) agents. It returns
+     * Supported on fluent streams: Clips (V3) agents built on a Pro avatar, and all Expressive
+     * (V4) agents. It returns
      * without doing anything when the stream does not support interrupting at all; past that the
      * behaviour differs by agent type. On Expressive (V4) agents it is a no-op when there is
      * nothing to interrupt. On Talks (V2) and Clips (V3) agents it throws when no video is playing
-     * or the stream is not Fluent — and by then the last message has already been marked
+     * or the stream is not fluent — and by then the last message has already been marked
      * interrupted, so check
      * {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()} and
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} first.
@@ -848,7 +843,7 @@ export interface AgentManager {
      * `click` or `manual`. Expressive (V4) agents drop `text` interrupts, because the orchestrator
      * does not cancel the in-flight answer for them.
      * @throws Error On Talks (V2) and Clips (V3) agents, when no video is currently playing or the
-     * stream is not a Fluent stream.
+     * stream is not a fluent stream.
      */
     interrupt(interrupt: Interrupt): void;
 
@@ -858,7 +853,8 @@ export interface AgentManager {
      * Expressive (V4) agents only, after {@link AgentManager.connect | connect()}; otherwise the
      * returned promise rejects.
      *
-     * @param language - Language name or BCP-47 code (e.g. "English" or "en-US")
+     * @param language - The language to transcribe in, as a name or a BCP-47 code — `"English"` or
+     * `"en-US"`.
      * @returns Resolves once the new language has been sent to the agent.
      */
     setSttLanguage(language: string): Promise<void>;
@@ -872,7 +868,7 @@ export interface AgentManager {
      *
      * @param topic - Data-channel topic to send on. {@link PublicDataChannelTopic} is exported from
      * the package root and lists every topic this method accepts.
-     * @param payload - Plain object, serialized as JSON
+     * @param payload - A plain object, sent as JSON.
      * @returns Resolves once the payload has been sent.
      * @example
      * ```ts
@@ -895,7 +891,8 @@ export interface AgentManager {
      * handler. Progress is reported through
      * {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
      *
-     * @param name - Tool name (must match the tool name defined in the agent config)
+     * @param name - Name of the tool, which must match the one defined in the agent's
+     * configuration.
      * @param handler - Async function receiving args, must return a JSON string (max 15KiB). See
      * {@link ClientToolHandler}.
      */
@@ -906,7 +903,7 @@ export interface AgentManager {
      *
      * After this the agent's calls to that tool fail rather than reaching your code.
      *
-     * @param name - Tool name to unregister
+     * @param name - Name of the tool whose handler should be removed.
      */
     unregisterClientTool(name: string): void;
 }

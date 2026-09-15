@@ -19,7 +19,7 @@ interface Jsep {
 }
 
 /**
- * STUN/TURN server credentials returned by the D-ID API for establishing the WebRTC connection.
+ * STUN/TURN server credentials returned by the Agents API for establishing the WebRTC connection.
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
  */
 export interface IceServer {

@@ -90,6 +90,29 @@ export class BaseError extends Error {
      * Subclasses extend the payload with the fields listed on their own pages.
      *
      * @returns The error as plain, JSON-serializable data.
+     * @example An HttpError from a request that was refused
+     * ```json
+     * {
+     *     "kind": "InsufficientCreditsError",
+     *     "message": "Account has insufficient credits",
+     *     "httpStatus": 402,
+     *     "endpoint": "/agt_x/chat/cht_y",
+     *     "method": "POST"
+     * }
+     * ```
+     * @example A NetworkError from a request that never left the browser
+     * ```json
+     * {
+     *     "kind": "NetworkError",
+     *     "message": "Network request failed",
+     *     "cause": "Failed to fetch",
+     *     "endpoint": "/agt_x/chat/cht_y",
+     *     "method": "POST",
+     *     "durationMs": 12,
+     *     "online": false,
+     *     "visibility": "visible"
+     * }
+     * ```
      */
     toJson(): ErrorJson {
         // the cause's message — Error causes only, and only when it adds to ours (payload is public)

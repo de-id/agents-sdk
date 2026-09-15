@@ -1,7 +1,8 @@
 import { BaseError } from './base-error';
 
 /**
- * A method was called with arguments, or in a state, that the SDK will not send to the API.
+ * A method was called with arguments, or in a state, that the SDK will not send to the Agents
+ * API.
  *
  * This is one of the two SDK errors that are only ever thrown to the caller and never delivered to
  * {@link AgentManagerCallbacks.onError | onError} (the other is {@link ChatCreationFailed}): it is
@@ -14,7 +15,8 @@ import { BaseError } from './base-error';
  * {@link AgentManager.submitFeedback | submitFeedback()} when no chat has started, plus, for
  * `rate()` alone, when no message with the given id is in the transcript.
  *
- * Nothing was sent to the API when this is raised, so the session stays usable: fix the argument or
+ * Nothing was sent to the Agents API when this is raised, so the session stays usable: fix the
+ * argument or
  * wait for {@link ConnectionState.Connected | 'connected'} and call again.
  * {@link BaseError.kind | kind} is `'ValidationError'`.
  *
