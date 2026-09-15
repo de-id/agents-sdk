@@ -650,10 +650,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw new ValidationError('Please connect to the agent first');
             }
 
-            return items.streamingManager.speak({
+            const response = await items.streamingManager.speak({
                 script,
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
             });
+
+            return response ?? { duration: 0, video_id: '', status: 'success' };
         },
         interrupt,
         registerClientTool,

@@ -620,6 +620,14 @@ describe('createAgentManager', () => {
                 expect(mockStreamingManager.speak).not.toHaveBeenCalled();
             });
 
+            it('Should resolve the default response when the streaming manager resolves nothing', async () => {
+                mockStreamingManager.speak.mockResolvedValueOnce(undefined);
+
+                const result = await manager.speak('Hello world');
+
+                expect(result).toEqual({ duration: 0, video_id: '', status: 'success' });
+            });
+
             it('should throw error if not connected', async () => {
                 await manager.disconnect();
 

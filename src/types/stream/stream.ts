@@ -34,7 +34,6 @@ export enum StreamEvents {
     StreamStarted = 'stream/started',
     StreamFailed = 'stream/error',
     StreamReady = 'stream/ready',
-    StreamCreated = 'stream/created',
     StreamInterrupt = 'stream/interrupt',
     StreamVideoCreated = 'stream-video/started',
     StreamVideoDone = 'stream-video/done',
