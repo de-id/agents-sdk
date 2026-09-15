@@ -61,16 +61,46 @@ function applicationError(message: string): RpcError {
 }
 
 /**
- * Creates a new Agent Manager instance for interacting with an agent, chat, and related connections.
+ * Creates an {@link AgentManager} for one agent: its chat, its video stream and its connections.
  *
- * @param {string} agent - The ID or instance of the agent to chat with.
- * @param {AgentManagerOptions} options - Configurations for the Agent Manager API.
- * * @returns {Promise<AgentManager>} - A promise that resolves to an instance of the AgentsAPI interface.
+ * Fetches the agent from the Agents API before it resolves, so the returned manager already has
+ * {@link AgentManager.agent | agent} and {@link AgentManager.starterMessages | starterMessages}
+ * filled in. No stream is opened until {@link AgentManager.connect | connect()} is called.
+ * {@link AgentManagerOptions.callbacks | callbacks} must include
+ * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady}, which is what attaches the
+ * streamed media to a video element.
  *
- * @throws {Error} Throws an error if the agent is not initialized.
+ * @param agent - Id of the agent to talk to — the `data-agent-id` from its Embed snippet in D-ID
+ * Studio.
+ * @param options - Credentials, callbacks and everything else the manager needs. See
+ * {@link AgentManagerOptions}.
+ * @returns A manager for that agent, ready to {@link AgentManager.connect | connect()}.
+ * @throws {@link HttpError} When the agent cannot be fetched — an unknown id, or a client key that
+ * is not authorized for the agent or the calling domain.
+ * @throws {@link ValidationError} From the returned manager's methods, such as
+ * {@link AgentManager.chat | chat()} and {@link AgentManager.speak | speak()}, when they are called
+ * with invalid arguments or before the manager is connected. `createAgentManager` itself does not
+ * validate the options it is given.
  *
  * @example
- * const agentManager = await createAgentManager('id-agent123', { auth: { type: 'key', clientKey: '123', externalId: '123' } });
+ * ```ts
+ * import * as sdk from '@d-id/client-sdk';
+ *
+ * const agentManager = await sdk.createAgentManager('agt_fumf1234', {
+ *     auth: { type: 'key', clientKey: 'YOUR_CLIENT_KEY' },
+ *     callbacks: {
+ *         // Required: hand the streamed media to your video element.
+ *         onSrcObjectReady(value) {
+ *             videoElement.srcObject = value;
+ *         },
+ *     },
+ * });
+ *
+ * await agentManager.connect();
+ * await agentManager.chat('What is the distance to the moon?');
+ * ```
+ *
+ * @category Agent Manager
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
     let firstConnection = true;
