@@ -1,7 +1,3 @@
----
-category: Agent Manager
----
-
 # Migration Guide: v2 → v3
 
 `@d-id/client-sdk` v3 is a **breaking** release that trims the package's public surface to what the SDK supports. The generated API reference at https://sdk.d-id.com/ describes exactly what is left, and every change is listed below.

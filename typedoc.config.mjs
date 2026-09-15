@@ -24,7 +24,7 @@ const config = {
     name: 'D-ID Client SDK',
     includeVersion: true,
     readme: 'README.md',
-    projectDocuments: ['MIGRATION.md'],
+    projectDocuments: ['docs-assets/migration.md'],
     hostedBaseUrl: 'https://sdk.d-id.com/',
     useHostedBaseUrlForAbsoluteLinks: true,
     cname: 'sdk.d-id.com',
@@ -54,6 +54,7 @@ const config = {
     categorizeByGroup: false,
     defaultCategory: 'Other',
     categoryOrder: [
+        'Guides',
         'Agent Manager',
         'Authentication',
         'Callbacks & Events',
