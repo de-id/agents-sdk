@@ -112,8 +112,8 @@ const config = {
 
     // PublicDataChannelTopic borrows one member of the internal DataChannelTopic enum on purpose
 
-    // Validation. notDocumented is switched on by the doc-comments PR (Task 16).
-    validation: { notExported: true, invalidLink: true, rewrittenLink: true, notDocumented: false },
+    // Validation
+    validation: { notExported: true, invalidLink: true, rewrittenLink: true, notDocumented: true },
     requiredToBeDocumented: [
         'Class',
         'Interface',
