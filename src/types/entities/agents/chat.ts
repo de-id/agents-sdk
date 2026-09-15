@@ -16,7 +16,7 @@ export interface RatingEntity {
      * or to {@link AgentManager.deleteRate | deleteRate()} to remove it.
      */
     id: string;
-    /** Id of the D-ID account that owns the agent the rating was left on. Set by the API. */
+    /** Id of the D-ID account that owns the agent the rating was left on. Set by the Agents API. */
     owner_id: string;
     /** Id of the agent whose answer was rated. */
     agent_id: string;
@@ -41,7 +41,7 @@ export interface RatingEntity {
      * {@link AgentManagerOptions.externalId | externalId} for `type: 'key'` authorization.
      */
     external_id: string;
-    /** Identity the API attributed the rating to. Set by the API. */
+    /** Identity the Agents API attributed the rating to. Set by the Agents API. */
     created_by: string;
     /** Id of the chat the rated message belongs to — the value
      * {@link AgentManagerCallbacks.onNewChat | onNewChat} reported. */
@@ -336,10 +336,10 @@ export enum ChatMode {
     /**
      * A text-only test conversation, used by the agent playground in D-ID Studio.
      *
-     * Produces no video, and marks each chat request with a playground header so the server can
-     * treat
-     * it as a test. Chats in this mode always go over the Agents API, even for Expressive (V4)
-     * agents, which otherwise chat over the data channel. Applications normally use
+     * Produces no video, and marks each chat request with a playground header so the Agents API
+     * can treat it as a test. Chats in this mode always go over the Agents API, even for
+     * Expressive (V4) agents, which otherwise chat over the data channel. Applications normally
+     * use
      * {@link ChatMode.Functional} or {@link ChatMode.TextOnly} instead.
      */
     Playground = 'Playground',
@@ -379,8 +379,7 @@ export enum ChatMode {
  * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} instead and use this only for the
  * fields that never reach a {@link Message}. Expressive (V4) agents chat over the data channel
  * rather than over the Agents API — except in {@link ChatMode.Playground} — so for them the
- * object is
- * empty and the answer arrives through the callback.
+ * object is empty and the answer arrives through the callback.
  *
  * @category Chat
  */
@@ -393,7 +392,8 @@ export interface ChatResponse {
      * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
      */
     result?: string;
-    /** The API's own list of ids for the documents behind the answer. The SDK never reads it;
+    /** The Agents API's own list of ids for the documents behind the answer. The SDK never reads
+     * it;
      * {@link ChatResponse.matches | matches} is what it keeps on the message. */
     documentIds?: string[];
     /**

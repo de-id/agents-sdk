@@ -105,7 +105,7 @@ export interface SendStreamPayloadResponse {
      */
     session_id?: string;
     /**
-     * Duration of the generated video as reported by the streams API for Talks (V2) and Clips (V3)
+     * Duration of the generated video as reported by the Agents API for Talks (V2) and Clips (V3)
      * agents. `0` when the call produced no discrete video — on Expressive (V4) agents, and in a
      * text-only chat mode.
      */

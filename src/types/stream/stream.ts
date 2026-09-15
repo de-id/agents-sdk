@@ -232,8 +232,13 @@ export enum PublicDataChannelTopic {
     Presentation = 'did.presentation',
 }
 /**
- * The value type of {@link PublicDataChannelTopic}.
- * @hidden The const object of the same name carries the documentation.
+ * The topic strings {@link AgentManager.sendDataChannelMessage | sendDataChannelMessage()}
+ * accepts — the value type of the const object of the same name.
+ *
+ * This is the type of that method's `topic` parameter. Take the value from the const object
+ * rather than writing the string out, so the wire string stays in one place.
+ *
+ * @category Agent Manager
  */
 
 /**
@@ -242,17 +247,16 @@ export enum PublicDataChannelTopic {
  * The first argument of
  * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange}.
  * {@link ConnectionState.Connected | 'connected'} is the point at which
- * {@link AgentManager.chat | chat()} and {@link AgentManager.speak | speak()} can be called, and
- * the only member every agent type reports; the rest say which types reach them.
+ * {@link AgentManager.chat | chat()} and {@link AgentManager.speak | speak()} can be called.
+ *
+ * Every agent type reports `'connecting'`, `'connected'`, `'fail'` and `'disconnected'`; `'new'`,
+ * `'completed'` and `'closed'` are WebRTC ICE states that only Talks (V2) and Clips (V3) agents
+ * reach, and `'disconnecting'` is Expressive (V4) only.
  *
  * @category Callbacks & Events
  */
 export enum ConnectionState {
-    /**
-     * The connection object exists but nothing has been negotiated yet.
-     *
-     * Talks (V2) and Clips (V3) agents only: it is the WebRTC connection's own `new` ICE state.
-     */
+    /** The connection object exists but nothing has been negotiated yet. */
     New = 'new',
     /** The connection could not be established, or dropped irrecoverably. */
     Fail = 'fail',
@@ -260,18 +264,13 @@ export enum ConnectionState {
     Connected = 'connected',
     /** The connection is being established, or re-established after a drop. */
     Connecting = 'connecting',
-    /**
-     * The connection has been shut down and cannot be used again.
-     *
-     * Talks (V2) and Clips (V3) agents only: it is the WebRTC connection's own `closed` ICE state.
-     */
+    /** The connection has been shut down and cannot be used again. */
     Closed = 'closed',
     /**
      * Negotiation finished and the connection is fully established.
      *
-     * Talks (V2) and Clips (V3) agents only: it is the WebRTC connection's own `completed` ICE
-     * state, reached after {@link ConnectionState.Connected | 'connected'}. Gate the application
-     * on `'connected'` rather than on this — it is the state every agent type reports.
+     * It is reached after {@link ConnectionState.Connected | 'connected'}, so gate the application
+     * on that one instead: it is the state every agent type reports.
      */
     Completed = 'completed',
     /**

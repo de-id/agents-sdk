@@ -13,8 +13,8 @@ export enum Providers {
     Amazon = 'amazon',
     /** Azure OpenAI text-to-speech; see {@link AzureOpenAiTtsProvider}. */
     AzureOpenAi = 'azure-openai',
-    /** Microsoft Azure text-to-speech, which the API documents as its default when a script names
-     * no provider; see {@link MicrosoftTtsProvider}. */
+    /** Microsoft Azure text-to-speech, which the Agents API documents as its default when a
+     * script names no provider; see {@link MicrosoftTtsProvider}. */
     Microsoft = 'microsoft',
     /** ElevenLabs text-to-speech; see {@link ElevenlabsTtsProvider}. */
     Elevenlabs = 'elevenlabs',

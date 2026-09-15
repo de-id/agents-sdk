@@ -320,12 +320,13 @@ export interface StreamOptions {
     /**
      * Whether the stream plays a warmup video while the connection settles.
      *
-     * With it on, the SDK waits for video to actually arrive before it reports
-     * {@link ConnectionState.Connected | 'connected'}, so
-     * {@link AgentManager.connect | connect()} resolves with the agent already on screen rather
-     * than on an empty stream. That is the whole of what the application observes; the warmup
-     * video itself is not distinguishable from any other. A fluent stream ignores the option — the
-     * warmup only runs on legacy streams (see {@link StreamOptions.fluent | fluent}).
+     * With it on the server plays a short warmup video as soon as the connection is up, and the
+     * SDK holds back {@link ConnectionState.Connected | 'connected'} — and so the resolution of
+     * {@link AgentManager.connect | connect()} — until that video has played out. Without it,
+     * `'connected'` is reported as soon as the data channel opens. The application sees nothing of
+     * the warmup video itself beyond the delay; it is not distinguishable from any other. A fluent
+     * stream ignores the option — the warmup only runs on legacy streams (see
+     * {@link StreamOptions.fluent | fluent}).
      *
      * @default false
      */
@@ -554,8 +555,7 @@ export interface AgentManager {
      * Returns whether the current stream supports interrupting the agent mid-answer.
      *
      * True on a fluent stream — a Clips (V3) agent built on a Pro avatar, or any Expressive (V4)
-     * agent — once connected. This says
-     * the stream supports interrupting at all;
+     * agent — once connected. This says the stream supports interrupting at all;
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} says whether
      * there is something to interrupt right now.
      *
@@ -593,8 +593,8 @@ export interface AgentManager {
      * @returns Resolves when the agent is connected and ready.
      * @throws {@link HttpError} When creating the stream or the chat comes back non-2xx — a client
      * key that is not authorized for the agent or the calling domain, or an account out of
-     * credits. The SDK retries a failed initialization up to three times first, except on `429`
-     * and on an out-of-credits response.
+     * credits. The SDK tries the initialization up to three times first, except on `429` and on an
+     * out-of-credits response.
      * @throws {@link NetworkError} When those requests never reach the server.
      * @example
      * ```ts
@@ -771,7 +771,7 @@ export interface AgentManager {
      * response with `duration` `0` and an empty `video_id` when the call produced no discrete video
      * — on Expressive (V4) agents, and in a text-only chat mode.
      * @throws {@link ValidationError} When the manager is not connected to a stream yet.
-     * @throws {@link HttpError} On Talks (V2) and Clips (V3) agents, when the streams API answers
+     * @throws {@link HttpError} On Talks (V2) and Clips (V3) agents, when the Agents API answers
      * the request non-2xx. Expressive (V4) agents send the script over the data channel instead,
      * so no HTTP request is made.
      * @throws {@link NetworkError} On Talks (V2) and Clips (V3) agents, when that request never
@@ -795,7 +795,7 @@ export interface AgentManager {
      * ```ts
      * const speak = await agentManager.speak({
      *     type: 'audio',
-     *     audio_url: 'http://www.yourwebsite.com/audio.mp3',
+     *     audio_url: 'https://www.yourwebsite.com/audio.mp3',
      * });
      * ```
      */
@@ -827,12 +827,11 @@ export interface AgentManager {
      * Interrupts the current video stream mid-playback, so the user can talk over the agent.
      *
      * Supported on fluent streams: Clips (V3) agents built on a Pro avatar, and all Expressive
-     * (V4) agents. It returns
-     * without doing anything when the stream does not support interrupting at all; past that the
-     * behaviour differs by agent type. On Expressive (V4) agents it is a no-op when there is
-     * nothing to interrupt. On Talks (V2) and Clips (V3) agents it throws when no video is playing
-     * or the stream is not fluent — and by then the last message has already been marked
-     * interrupted, so check
+     * (V4) agents. It returns without doing anything when the stream does not support interrupting
+     * at all; past that the behaviour differs by agent type. On Expressive (V4) agents it is a
+     * no-op when there is nothing to interrupt. On Talks (V2) and Clips (V3) agents it throws when
+     * no video is playing or the stream is not fluent — and by then the last message has already
+     * been marked interrupted, so check
      * {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()} and
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} first.
      *
@@ -893,7 +892,8 @@ export interface AgentManager {
      *
      * @param name - Name of the tool, which must match the one defined in the agent's
      * configuration.
-     * @param handler - Async function receiving args, must return a JSON string (max 15KiB). See
+     * @param handler - The function that runs when the agent calls the tool. It receives the
+     * arguments the LLM produced and must resolve to a JSON string of at most 15 KiB. See
      * {@link ClientToolHandler}.
      */
     registerClientTool(name: string, handler: ClientToolHandler): void;

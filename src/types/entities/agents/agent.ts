@@ -79,7 +79,7 @@ export interface AgentAvatar {
 export interface Agent {
     /** Id of the agent: the same value passed to {@link createAgentManager}. */
     id: string;
-    /** Id of the D-ID account that owns the agent. Set by the API. */
+    /** Id of the D-ID account that owns the agent. Set by the Agents API. */
     owner_id?: string;
     /** The agent's display name. */
     name?: string;

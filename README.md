@@ -21,7 +21,7 @@ The SDK supports three avatar types:
 
 **Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/docs/agent-quickstart) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
 
-> 📚 **Full API reference:** [sdk.d-id.com](/) — every method, callback, option and type, generated from the source on each release. ![Docs coverage](/coverage.svg)
+> 📚 **Full API reference:** [sdk.d-id.com](https://sdk.d-id.com/) — every method, callback, option and type, generated from the source on each release. ![Docs coverage](https://sdk.d-id.com/coverage.svg)
 
 ## Getting Started
 
@@ -55,11 +55,11 @@ In your front-end application,
 2. Paste the `data-agent-id` obtained in the prerequisites step in the `agentId` variable
 3. Paste the `data-client-key` obtained in the prerequisites step in the `auth.clientKey` variable
 4. Define an object called `callbacks`. `onSrcObjectReady` is mandatory: it hands you the media stream to render, so without it the agent has nowhere to play.
-   See [`AgentManagerCallbacks`](/interfaces/AgentManagerCallbacks.html) in the API reference.
+   See [`AgentManagerCallbacks`](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html) in the API reference.
 5. Define an object called `streamOptions` [optional — Talks (V2) and Clips (V3) agents only]
-   See [`StreamOptions`](/interfaces/StreamOptions.html) in the API reference.
+   See [`StreamOptions`](https://sdk.d-id.com/interfaces/StreamOptions.html) in the API reference.
 6. Create an instance of the `createAgentManager` object called `agentManager` with the values created above.
-   See [`AgentManager`](/interfaces/AgentManager.html) in the API reference.
+   See [`AgentManager`](https://sdk.d-id.com/interfaces/AgentManager.html) in the API reference.
 7. Open the session with `connect()`, and wait for it to resolve before speaking to the agent.
 8. Make the agent talk: `speak()` says exactly what you give it, `chat()` has the agent answer with its own LLM.
 
@@ -111,12 +111,12 @@ await agentManager.chat('What is the distance to the moon?');
 
 ## Usage
 
-Everything the `agentManager` exposes — methods, callbacks, stream options and every type — is documented in the **[API reference](/)**, generated from the source on each release. Start with:
+Everything the `agentManager` exposes — methods, callbacks, stream options and every type — is documented in the **[API reference](https://sdk.d-id.com/)**, generated from the source on each release. Start with:
 
-- [`createAgentManager()`](/functions/createAgentManager.html) — initialization and options
-- [`AgentManager`](/interfaces/AgentManager.html) — `connect()`, `speak()`, `chat()`, `interrupt()`, microphone and camera publishing, client tools
-- [`AgentManagerCallbacks`](/interfaces/AgentManagerCallbacks.html) — `onSrcObjectReady` (mandatory), `onVideoStateChange`, `onConnectionStateChange`, `onNewMessage`, …
-- [`StreamOptions`](/interfaces/StreamOptions.html) — Talks (V2) and Clips (V3) transport options
+- [`createAgentManager()`](https://sdk.d-id.com/functions/createAgentManager.html) — initialization and options
+- [`AgentManager`](https://sdk.d-id.com/interfaces/AgentManager.html) — `connect()`, `speak()`, `chat()`, `interrupt()`, microphone and camera publishing, client tools
+- [`AgentManagerCallbacks`](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html) — `onSrcObjectReady` (mandatory), `onVideoStateChange`, `onConnectionStateChange`, `onNewMessage`, …
+- [`StreamOptions`](https://sdk.d-id.com/interfaces/StreamOptions.html) — Talks (V2) and Clips (V3) transport options
 
 ## See it in Action
 

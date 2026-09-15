@@ -16,8 +16,7 @@ import { BaseError } from './base-error';
  * `rate()` alone, when no message with the given id is in the transcript.
  *
  * Nothing was sent to the Agents API when this is raised, so the session stays usable: fix the
- * argument or
- * wait for {@link ConnectionState.Connected | 'connected'} and call again.
+ * argument or wait for {@link ConnectionState.Connected | 'connected'} and call again.
  * {@link BaseError.kind | kind} is `'ValidationError'`.
  *
  * @category Errors
