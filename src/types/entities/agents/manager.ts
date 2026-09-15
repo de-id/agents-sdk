@@ -56,21 +56,28 @@ export enum ChatProgress {
 export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data: any) => void;
 
 /**
- * Standalone signature of {@link AgentManagerCallbacks.onConnectionStateChange}.
- *
- * Exported so a handler that lives outside the callbacks object can be typed. The callbacks object
- * itself also receives a second `reason` argument, which this alias omits.
- *
- * @param state - The state the connection to the agent's stream has just reached.
- * @category Callbacks & Events
- */
-/**
  * Handlers the SDK calls as the connection, the video stream and the chat change state.
  *
  * Pass the object as {@link AgentManagerOptions.callbacks}. Only
  * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is required — without it there
  * is nothing to render the agent into. Every handler is called from the SDK's own event handling,
  * so keep the work inside short.
+ *
+ * The handlers fall into four groups: the connection
+ * ({@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange},
+ * {@link AgentManagerCallbacks.onConnectivityStateChange | onConnectivityStateChange},
+ * {@link AgentManagerCallbacks.onError | onError}), the video stream
+ * ({@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady},
+ * {@link AgentManagerCallbacks.onStreamCreated | onStreamCreated},
+ * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange},
+ * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange},
+ * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange}), the chat
+ * ({@link AgentManagerCallbacks.onNewChat | onNewChat}, {@link AgentManagerCallbacks.onNewMessage | onNewMessage},
+ * {@link AgentManagerCallbacks.onModeChange | onModeChange}) and client tools
+ * ({@link AgentManagerCallbacks.onToolEvent | onToolEvent},
+ * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}). A handler that
+ * lives outside the object can be typed with an indexed access such as
+ * `AgentManagerCallbacks['onNewMessage']`.
  *
  * @category Callbacks & Events
  */

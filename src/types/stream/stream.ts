@@ -20,9 +20,8 @@ export type CompatibilityMode = 'on' | 'off' | 'auto';
 /**
  * Whether the agent's video is currently playing.
  *
- * The argument of {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} and of
- * {@link VideoStateChangeCallback}: it tells the application when to show the streamed video and
- * when to fall back to the agent's idle video.
+ * The argument of {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange}: it tells
+ * the application when to show the streamed video and when to fall back to the agent's idle video.
  *
  * @category Callbacks & Events
  */
@@ -203,10 +202,9 @@ export enum PublicDataChannelTopic {
  * The state of the connection between the browser and the agent's stream.
  *
  * The first argument of
- * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange} and of
- * {@link ConnectionStateChangeCallback}. {@link ConnectionState.Connected | 'connected'} is the
- * point at which {@link AgentManager.chat | chat()} and {@link AgentManager.speak | speak()} can be
- * called.
+ * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange}.
+ * {@link ConnectionState.Connected | 'connected'} is the point at which
+ * {@link AgentManager.chat | chat()} and {@link AgentManager.speak | speak()} can be called.
  *
  * @category Callbacks & Events
  */
