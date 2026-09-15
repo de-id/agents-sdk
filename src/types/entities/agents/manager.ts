@@ -309,55 +309,52 @@ export interface AgentManagerCallbacks {
  */
 export interface StreamOptions {
     /**
-     * Defines the video codec to be used in the stream.
+     * Which video codec the stream negotiates.
      *
-     * When set to `on`: VP8 will be used.
-     * When set to `off`: H264 will be used.
-     * When set to `auto`: the codec is selected according to the browser.
+     * See {@link CompatibilityMode}.
      *
      * @default auto
      */
     compatibilityMode?: CompatibilityMode;
 
     /**
-     * Whether to stream a warmup video on the connection.
+     * Whether the stream plays a warmup video while the connection settles.
      *
-     * If set to `true`, a warmup video is streamed once the connection is established, which hides
-     * the delay before the first real answer. At the end of the warmup video a message containing
-     * `stream/ready` is sent on the data channel. Fluent streams ignore it — the warmup only runs
-     * on legacy streams (see {@link StreamOptions.fluent | fluent}).
+     * With it on, the SDK waits for video to actually arrive before it reports
+     * {@link ConnectionState.Connected | 'connected'}, so
+     * {@link AgentManager.connect | connect()} resolves with the agent already on screen rather
+     * than on an empty stream. That is the whole of what the application observes; the warmup
+     * video itself is not distinguishable from any other. Fluent streams ignore the option — the
+     * warmup only runs on legacy streams (see {@link StreamOptions.fluent | fluent}).
      *
      * @default false
      */
     streamWarmup?: boolean;
 
     /**
-     * Maximum duration (in seconds) between messages before the session times out.
+     * How long the session may sit idle between messages before the server ends it, in seconds.
      *
-     * Can only be used with proper permissions.
-     *
-     * @maximum 300
-     * @example 180
+     * Up to 300, and only for accounts whose plan allows it. When the session does time out,
+     * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange} reports
+     * {@link ConnectionState.Disconnected | 'disconnected'} with the reason
+     * {@link StreamEndReason.Inactivity | 'inactivity'}. Leave it out and the server decides.
      */
     sessionTimeout?: number;
 
     /**
-     * Desired stream resolution for the session, as the maximum height or width in pixels.
+     * Maximum height or width of the streamed video, in pixels, between 150 and 1080.
      *
-     * Supported only with Talks presenters (photo-based). When the resolution is not configured it
-     * defaults to the agent's own output resolution.
-     *
-     * @minimum 150
-     * @maximum 1080
+     * The aspect ratio of the source image is preserved. Talks (V2) agents only (photo-based).
+     * Leave it out and the stream uses the agent's own output resolution.
      */
 
     /**
      * Whether to request a fluent stream.
      *
      * `true` streams one video for both the idle and talking states; `false` uses the legacy mode,
-     * where the application swaps between two video elements. Supported with agents created with
-     * V3 Pro Avatars, and always enabled for Expressive (V4) avatars. Fluent streams are also what
-     * makes {@link AgentManager.interrupt | interrupt()} available.
+     * where the application swaps between two video elements. Clips (V3) agents built on a Pro
+     * avatar; always on for Expressive (V4). A fluent stream is also what makes
+     * {@link AgentManager.interrupt | interrupt()} available.
      *
      * @default false
      */
@@ -436,7 +433,23 @@ export interface AgentManagerOptions {
      */
     verbose?: boolean;
     /**
-     * Whether to enable analytics (Mixpanel) tracking.
+     * Whether the SDK reports usage analytics. Set it to `false` to send nothing.
+     *
+     * It is on unless you turn it off. The SDK posts an event to Mixpanel for each step of a
+     * session — connect, reconnect and disconnect, every message sent and answered, every
+     * {@link AgentManager.speak | speak()}, mode change, rating, feedback, tool call, video start
+     * and stop, interrupt and error. Each event carries the agent id, the visitor id derived from
+     * {@link AgentManagerOptions.externalId | externalId}, the page URL, the screen size, the user
+     * agent, the SDK version and whatever
+     * {@link AgentManagerOptions.mixpanelAdditionalProperties | mixpanelAdditionalProperties}
+     * added. Conversation text is included too: the agent's answer on `agent-message-received`,
+     * and the script on `agent-speak`.
+     *
+     * The events go to D-ID's own Mixpanel project unless
+     * {@link AgentManagerOptions.mixpanelKey | mixpanelKey} points them at yours. Events that fail
+     * to post are buffered in memory (at most 50) and retried when the tab comes back online or
+     * becomes visible.
+     *
      * @default true
      */
     enableAnalytics?: boolean;
@@ -475,6 +488,20 @@ export interface AgentManagerOptions {
      * They are delivered to {@link AgentManagerCallbacks.onNewMessage | onNewMessage} so the UI can
      * render them. On Talks (V2) and Clips (V3) agents they are also sent as context with the next
      * {@link AgentManager.chat | chat()} request. See {@link Message}.
+     *
+     * The SDK passes them through exactly as given: it does not fill in
+     * {@link Message.parts | parts}, so build them with {@link parseMessageParts} or a restored
+     * transcript renders as nothing.
+     *
+     * @example Restoring a transcript
+     * ```ts
+     * import { parseMessageParts } from '@d-id/client-sdk';
+     *
+     * const initialMessages = stored.map(message => ({
+     *     ...message,
+     *     parts: parseMessageParts(message.content),
+     * }));
+     * ```
      */
     initialMessages?: Message[];
     /**
@@ -505,6 +532,10 @@ export interface AgentManagerOptions {
  * {@link AgentManager.starterMessages | starterMessages}, are readable as soon as the manager
  * exists; everything else is a method. Some methods work only with some avatar types: each one
  * says so, and {@link AgentAvatar} is where the session's tier is read from.
+ *
+ * Every method that reaches the Agents API can reject with an {@link HttpError} when the request
+ * comes back non-2xx, or a {@link NetworkError} when it never reaches the server; the individual
+ * `@throws` entries below name the errors that are specific to each method.
  *
  * @category Agent Manager
  */
@@ -555,6 +586,7 @@ export interface AgentManager {
      * @returns The {@link STTTokenResponse} for this agent.
      * @throws {@link HttpError} When the service does not answer with a token, or the request comes
      * back non-2xx for any other reason.
+     * @throws {@link NetworkError} When the request never reaches the server.
      */
     getSTTToken(): Promise<STTTokenResponse>;
     /**
@@ -566,6 +598,11 @@ export interface AgentManager {
      * current one use {@link AgentManager.reconnect | reconnect()}.
      *
      * @returns Resolves when the agent is connected and ready.
+     * @throws {@link HttpError} When creating the stream or the chat comes back non-2xx — a client
+     * key that is not authorized for the agent or the calling domain, or an account out of
+     * credits. The SDK retries a failed initialization up to three times first, except on `429`
+     * and on an out-of-credits response.
+     * @throws {@link NetworkError} When those requests never reach the server.
      * @example
      * ```ts
      * await agentManager.connect();
@@ -581,6 +618,8 @@ export interface AgentManager {
      * the SDK falls back to a disconnect and a fresh connect, which starts a new chat id.
      *
      * @returns Resolves when the new stream is connected.
+     * @throws {@link HttpError} When creating the new stream comes back non-2xx.
+     * @throws {@link NetworkError} When that request never reaches the server.
      */
     reconnect(): Promise<void>;
     /**
@@ -668,6 +707,10 @@ export interface AgentManager {
      * @returns The {@link ChatResponse} for this turn.
      * @throws {@link ValidationError} When the message is empty or too long, when the chat mode has
      * chat disabled or is in maintenance, or when the manager is not connected yet.
+     * @throws {@link ChatCreationFailed} When the session has no chat yet and the Agents API
+     * answers the creation request without one.
+     * @throws {@link HttpError} When the message request comes back non-2xx.
+     * @throws {@link NetworkError} When the message request never reaches the server.
      * @example
      * ```ts
      * const chat = await agentManager.chat('What is the distance to the moon?');
@@ -684,7 +727,10 @@ export interface AgentManager {
      * @param rateId - Id of an existing rating to update; omit to create a new one.
      * @returns The created or updated {@link RatingEntity}.
      * @throws {@link ValidationError} When no chat has started, or when no message with that id is
-     * in the transcript.
+     * in the transcript. Thrown synchronously, so catch it around the call rather than on the
+     * returned promise.
+     * @throws {@link HttpError} When the rating request comes back non-2xx.
+     * @throws {@link NetworkError} When the rating request never reaches the server.
      */
     rate(messageId: string, score: 1 | -1, rateId?: string): Promise<RatingEntity>;
     /**
@@ -692,7 +738,10 @@ export interface AgentManager {
      *
      * @param id - id of Rating entity.
      * @returns The {@link RatingEntity} that was deleted.
-     * @throws {@link ValidationError} When no chat has started.
+     * @throws {@link ValidationError} When no chat has started. Thrown synchronously, so catch it
+     * around the call rather than on the returned promise.
+     * @throws {@link HttpError} When the delete request comes back non-2xx.
+     * @throws {@link NetworkError} When the delete request never reaches the server.
      */
     deleteRate(id: string): Promise<RatingEntity>;
     /**
@@ -704,7 +753,10 @@ export interface AgentManager {
      * @param rating - integer score from 1 to 5
      * @param answer - optional free-text answer
      * @returns The stored {@link SubmitFeedbackResponse}.
-     * @throws {@link ValidationError} When no chat has started.
+     * @throws {@link ValidationError} When no chat has started. Thrown synchronously, so catch it
+     * around the call rather than on the returned promise.
+     * @throws {@link HttpError} When the feedback request comes back non-2xx.
+     * @throws {@link NetworkError} When the feedback request never reaches the server.
      */
     submitFeedback(rating: number, answer?: string): Promise<SubmitFeedbackResponse>;
     /**
@@ -725,6 +777,11 @@ export interface AgentManager {
      * response with `duration` `0` and an empty `video_id` when the call produced no discrete video
      * — on Expressive (V4) agents, and in a text-only chat mode.
      * @throws {@link ValidationError} When the manager is not connected to a stream yet.
+     * @throws {@link HttpError} On Talks (V2) and Clips (V3) agents, when the streams API answers
+     * the request non-2xx. Expressive (V4) agents send the script over the data channel instead,
+     * so no HTTP request is made.
+     * @throws {@link NetworkError} On Talks (V2) and Clips (V3) agents, when that request never
+     * reaches the server.
      * @example Text
      * ```ts
      * const speak = await agentManager.speak({

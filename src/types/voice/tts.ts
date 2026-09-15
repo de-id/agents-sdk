@@ -86,7 +86,6 @@ export interface ElevenlabsTtsProvider {
      * The voice_id from the list of available voices. For the list of voices:
      * https://docs.d-id.com/docs/tts-elevenlabs
      * @example "21m00Tcm4TlvDq8ikWAM"
-     * @default 21m00Tcm4TlvDq8ikWAM
      */
     voice_id: string;
 
@@ -97,7 +96,8 @@ export interface ElevenlabsTtsProvider {
 }
 
 /**
- * AzureMicrosoft provider details, contains the provider type and requested voice id and style
+ * Microsoft Azure provider details: the provider type, the requested voice id and optional
+ * delivery settings.
  *
  * Pass it as {@link TextStreamScript.provider} to pick a Microsoft Azure voice explicitly,
  * optionally with {@link VoiceConfigMicrosoft} to set style, rate and pitch. The API documents
@@ -114,7 +114,6 @@ export interface MicrosoftTtsProvider {
      * The voice_id from the list of available voices.
      * For the list of voices: https://docs.d-id.com/docs/tts-microsoft
      * @example "en-US-JennyNeural"
-     * @default en-US-JennyNeural
      */
     voice_id: string;
 
@@ -135,7 +134,8 @@ export interface MicrosoftTtsProvider {
 }
 
 /**
- * AzureOpenAi provider details, contains the provider type and requested voice id and style
+ * Azure OpenAI provider details: the provider type, the requested voice id and optional delivery
+ * settings.
  *
  * The same shape as {@link MicrosoftTtsProvider} — `voice_id`, an optional
  * {@link VoiceConfigMicrosoft} as `voice_config`, `voice_name` and `voice_language` — with the
@@ -210,14 +210,19 @@ export interface VoiceConfigMicrosoft {
  */
 export interface VoiceConfigElevenlabs {
     /**
-     * How stable the voice is and the randomness of each new generation.
-     * @example "0"
+     * How stable the voice is, and how much each generation varies.
+     *
+     * A number from 0 to 1: lower is more expressive and more variable between generations, higher
+     * is flatter and more repeatable.
+     * @example 0.5
      */
     stability?: number;
 
     /**
-     * The similarity slider dictates how closely the AI should adhere to the original voice when attempting to replicate it.
-     * @example "0"
+     * How closely the synthesised speech should adhere to the original voice it was cloned from.
+     *
+     * A number from 0 to 1: higher follows the original more strictly.
+     * @example 0.5
      */
     similarity_boost?: number;
 }

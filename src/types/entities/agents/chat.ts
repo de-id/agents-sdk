@@ -152,9 +152,9 @@ export type MessagePart =
  * The SDK keeps the whole transcript and hands a fresh copy of it to
  * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} every time a message is added or
  * changed, oldest first. While an answer streams in, the last message's
- * {@link Message.content | content} and {@link Message.parts | parts} grow with each `partial`
- * callback and are final on `answer`. The same shape is accepted by
- * {@link AgentManagerOptions.initialMessages | initialMessages} to seed a transcript.
+ * {@link Message.content | content} and {@link Message.parts | parts} are replaced with the latest
+ * text on each `partial` callback — not appended to — and are final on `answer`. The same shape is
+ * accepted by {@link AgentManagerOptions.initialMessages | initialMessages} to seed a transcript.
  *
  * @category Chat
  */
@@ -187,9 +187,15 @@ export interface Message {
     /**
      * {@link Message.content | content} split into renderable pieces by {@link parseMessageParts}.
      *
-     * Kept in step with `content`, including while the answer streams in. Render these instead of
-     * the raw string when the agent may answer with images, videos or links; a message with no
-     * markup is a single `text` part, and an empty message is an empty array.
+     * Kept in step with `content` on every message the SDK creates, including while an answer
+     * streams in. Render these instead of the raw string when the agent may answer with images,
+     * videos or links; a message with no markup is a single `text` part, and an empty message is
+     * an empty array.
+     *
+     * The one exception is
+     * {@link AgentManagerOptions.initialMessages | initialMessages}, which the SDK passes through
+     * unchanged: build their parts yourself with {@link parseMessageParts}, or they render as
+     * nothing.
      */
     parts: MessagePart[];
     /** When the message was added, as an ISO 8601 timestamp. */
