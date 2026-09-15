@@ -689,11 +689,17 @@ export interface TurnEventPayload {
  * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange} together with
  * {@link ConnectionState.Disconnected | 'disconnected'}, and is how you tell a session the server
  * closed on purpose from a connection that simply dropped — `reason` is an opaque transport
- * diagnostic in the latter case, so compare it against these values rather than parsing it.
+ * diagnostic in the latter case, so compare it against these values rather than parsing it. A
+ * close reason the SDK does not recognise is forwarded as-is, which is the other reason to compare
+ * against the enum. Which members can arrive depends on the agent type: Talks (V2) and Clips (V3)
+ * agents report only {@link StreamEndReason.Ok | Ok},
+ * {@link StreamEndReason.UnknownError | UnknownError},
+ * {@link StreamEndReason.NetworkIssue | NetworkIssue} and
+ * {@link StreamEndReason.Inactivity | Inactivity}.
  * {@link AgentManager.reconnect | reconnect()} still works afterwards; it starts a new stream
  * rather than resuming the ended one.
  *
- * @example
+ * @example Reacting to the limits an Expressive (V4) session reports
  * ```ts
  * import { ConnectionState, StreamEndReason } from '@d-id/client-sdk';
  *
@@ -718,9 +724,17 @@ export enum StreamEndReason {
     UnknownError = 'unknown_error',
     /** The session ended because the connection to the browser broke down. */
     NetworkIssue = 'network_issue',
-    /** The session ended because it reached the message limit configured for the agent. */
+    /**
+     * The session ended because it reached the message limit configured for the agent.
+     *
+     * Expressive (V4) agents.
+     */
     MessageLimit = 'message_limit',
-    /** The session ended because it reached its maximum duration. */
+    /**
+     * The session ended because it reached its maximum duration.
+     *
+     * Expressive (V4) agents.
+     */
     TimeLimit = 'time_limit',
     /**
      * The session ended because nothing happened for too long.
@@ -729,7 +743,11 @@ export enum StreamEndReason {
      * Clips (V3).
      */
     Inactivity = 'inactivity',
-    /** The agent itself ended the call. */
+    /**
+     * The agent itself ended the call.
+     *
+     * Expressive (V4) agents.
+     */
     EndedByAgent = 'ended_by_agent',
 }
 

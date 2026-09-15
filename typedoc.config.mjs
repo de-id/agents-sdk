@@ -46,6 +46,8 @@ const config = {
         '<a href="https://github.com/de-id/agents-sdk/issues/new?labels=documentation">Report a documentation issue</a>',
     ].join(' · '),
     sourceLinkTemplate: 'https://github.com/de-id/agents-sdk/blob/{gitRevision}/{path}#L{line}',
+    // Show source paths from the repo root (src/...) in "Defined in" labels
+    basePath: '.',
 
     // Plugins
     plugin: ['typedoc-plugin-mdn-links', 'typedoc-plugin-coverage', './docs-assets/typedoc-seo.mjs'],
