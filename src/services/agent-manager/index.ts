@@ -368,7 +368,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-data-message', { topic });
 
-            return items.streamingManager.sendDataChannelMessage(topic, JSON.stringify(payload));
+            // Same wire strings as the internal enum; the cast only bridges the two enum types.
+            return items.streamingManager.sendDataChannelMessage(
+                topic as string as DataChannelTopic,
+                JSON.stringify(payload)
+            );
         },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {

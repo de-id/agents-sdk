@@ -3,7 +3,6 @@ import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/repor
 import { Auth } from '../auth';
 import { ChatProgressCallback } from '../entities/agents/manager';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
-import { DataChannelTopic } from './data-channel';
 import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
 
 export type CompatibilityMode = 'on' | 'off' | 'auto';
@@ -47,17 +46,19 @@ export enum StreamEvents {
 }
 
 /**
- * Topics a customer can send on via `agentManager.sendDataChannelMessage`.
- * The remaining `DataChannelTopic` members are driven by their own methods
- * (`chat`, `speak`, `interrupt`, `setSttLanguage`), which own the payload shape
- * and bookkeeping those topics expect, so they stay internal.
+ * The data-channel topics an application may send on with `sendDataChannelMessage()`.
  *
- * A const object rather than a second enum: it borrows the value from
- * `DataChannelTopic`, so there is one source of truth for the wire string and
- * no cast is needed where the topic reaches the transport.
+ * The other topics of the session's data channel are driven by their own methods (`chat()`,
+ * `speak()`, `interrupt()`, `setSttLanguage()`), which own the payload shape those topics expect,
+ * so they are not exposed. The values are the wire strings; they mirror the internal
+ * `DataChannelTopic` members of the same name.
+ *
+ * @category Agent Manager
  */
-export const PublicDataChannelTopic = { Presentation: DataChannelTopic.Presentation } as const;
-export type PublicDataChannelTopic = (typeof PublicDataChannelTopic)[keyof typeof PublicDataChannelTopic];
+export enum PublicDataChannelTopic {
+    /** Messages that drive a presentation the agent shows alongside its video, such as moving to another slide. Sent on the wire as `did.presentation`. */
+    Presentation = 'did.presentation',
+}
 
 export enum ConnectionState {
     New = 'new',

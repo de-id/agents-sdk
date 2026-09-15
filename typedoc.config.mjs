@@ -82,7 +82,6 @@ const config = {
     ],
 
     // PublicDataChannelTopic borrows one member of the internal DataChannelTopic enum on purpose
-    intentionallyNotExported: ['DataChannelTopic.Presentation'],
 
     // Validation. notDocumented is switched on by the doc-comments PR (Task 16).
     validation: { notExported: true, invalidLink: true, rewrittenLink: true, notDocumented: false },
