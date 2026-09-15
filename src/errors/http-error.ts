@@ -65,11 +65,10 @@ export class HttpError extends BaseError {
      * Path of the request that failed, relative to the API client's base path — for example
      * `/agt_x/chat/cht_y` for a message sent to a chat.
      *
-     * Absent when the error was constructed without call context. {@link NetworkError} carries the
-     * same value under the name {@link NetworkError.endpoint | endpoint}; both serialize to
-     * `endpoint` in {@link BaseError.toJson | toJson()}.
+     * Absent when the error was constructed without call context. {@link NetworkError.endpoint}
+     * is the same value on a transport failure.
      */
-    readonly url?: string;
+    readonly endpoint?: string;
     /**
      * HTTP method of the request that failed, such as `GET` or `POST`.
      *
@@ -87,7 +86,7 @@ export class HttpError extends BaseError {
         super((parsed?.description ?? body).slice(0, 256), parsed?.kind ?? 'HttpError');
 
         this.status = status;
-        this.url = meta.url;
+        this.endpoint = meta.endpoint;
         this.method = meta.method;
     }
 
@@ -96,7 +95,7 @@ export class HttpError extends BaseError {
      * {@link BaseError.toJson | BaseError.toJson()} already returns.
      *
      * Adds `httpStatus` from {@link HttpError.status | status}, and `endpoint` and `method` when the
-     * call context is known. The raw `status` and `url` property names are not part of the payload.
+     * call context is known. The raw `status` property is serialized as `httpStatus`.
      *
      * @returns The error as plain, JSON-serializable data.
      */
@@ -104,7 +103,7 @@ export class HttpError extends BaseError {
         return {
             ...super.toJson(),
             httpStatus: this.status,
-            ...(this.url ? { endpoint: this.url } : {}),
+            ...(this.endpoint ? { endpoint: this.endpoint } : {}),
             ...(this.method ? { method: this.method } : {}),
         };
     }

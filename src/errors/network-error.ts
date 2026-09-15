@@ -63,9 +63,7 @@ export class NetworkError extends BaseError {
      */
     constructor(originalError?: unknown, meta: RequestMeta = {}) {
         super('Network request failed', 'NetworkError', originalError);
-        // Naming drift kept on purpose: `HttpError` exposes the same value as `url`, and both
-        // serialize it as `endpoint` in toJson(). Renaming either property is a breaking change.
-        this.endpoint = meta.url;
+        this.endpoint = meta.endpoint;
         this.method = meta.method;
         this.durationMs = meta.durationMs;
         this.online = meta.online;

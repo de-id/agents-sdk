@@ -67,7 +67,7 @@ export function createClient(
                 }
 
                 const error = new NetworkError(networkError, {
-                    url,
+                    endpoint: url,
                     method,
                     durationMs: Math.round(performance.now() - start),
                     online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
@@ -82,7 +82,7 @@ export function createClient(
 
         if (!request.ok) {
             const errorText = await request.text().catch(() => `Failed to fetch with status ${request.status}`);
-            const error = new HttpError(request.status, errorText, { url, method });
+            const error = new HttpError(request.status, errorText, { endpoint: url, method });
 
             if (!skipErrorHandler) {
                 onError?.(error, { url, options: fetchOptions, headers: request.headers });

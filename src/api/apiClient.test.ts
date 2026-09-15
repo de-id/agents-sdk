@@ -61,7 +61,7 @@ describe('createClient', () => {
         expect(err.kind).toBe('NotFoundError'); // parsed from server envelope
         expect(err.message).toBe('agent not found');
         expect(err.status).toBe(404);
-        expect(err.url).toBe('/agents/missing');
+        expect(err.endpoint).toBe('/agents/missing');
         expect(err.method).toBe('GET');
         expect(data).toMatchObject({ url: '/agents/missing' });
     });

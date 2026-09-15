@@ -75,7 +75,7 @@ describe('SDK errors', () => {
     describe('HttpError', () => {
         it('should parse the server { kind, description } envelope and record the call', () => {
             const body = JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' });
-            const err = new HttpError(402, body, { url: '/agents/x/chat', method: 'POST' });
+            const err = new HttpError(402, body, { endpoint: '/agents/x/chat', method: 'POST' });
 
             expect(err).toBeInstanceOf(HttpError);
             expect(err.kind).toBe('InsufficientCreditsError');
@@ -106,7 +106,7 @@ describe('SDK errors', () => {
         });
 
         it('should expose only mapped keys in toJson, never raw status/url/method', () => {
-            const json = new HttpError(500, 'boom', { url: '/x', method: 'GET' }).toJson();
+            const json = new HttpError(500, 'boom', { endpoint: '/x', method: 'GET' }).toJson();
             expect(Object.keys(json).sort()).toEqual(['endpoint', 'httpStatus', 'kind', 'message', 'method']);
             expect(json).not.toHaveProperty('status');
             expect(json).not.toHaveProperty('url');
@@ -123,7 +123,10 @@ describe('SDK errors', () => {
 
     describe('NetworkError', () => {
         it('should record the failing call (endpoint + method) and the underlying cause', () => {
-            const err = new NetworkError(new TypeError('Failed to fetch'), { url: '/agents/x/chat', method: 'POST' });
+            const err = new NetworkError(new TypeError('Failed to fetch'), {
+                endpoint: '/agents/x/chat',
+                method: 'POST',
+            });
 
             expect(err.kind).toBe('NetworkError');
             expect(err.toJson()).toEqual({
@@ -145,7 +148,7 @@ describe('SDK errors', () => {
 
         it('should serialize the captured context signals', () => {
             const err = new NetworkError(new TypeError('Load failed'), {
-                url: '/streams',
+                endpoint: '/streams',
                 method: 'POST',
                 durationMs: 1234,
                 online: false,

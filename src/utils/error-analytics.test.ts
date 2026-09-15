@@ -8,7 +8,7 @@ describe('toErrorAnalytics', () => {
         const err = new HttpError(
             402,
             JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' }),
-            { url: '/agents/x/chat', method: 'POST' }
+            { endpoint: '/agents/x/chat', method: 'POST' }
         );
         expect(toErrorAnalytics(err)).toEqual(err.toJson());
         expect(toErrorAnalytics(err)).toEqual({
@@ -55,7 +55,7 @@ describe('toErrorAnalytics', () => {
     describe('payload safety (the Mixpanel payload is publicly visible)', () => {
         it('should emit only allow-listed scalar keys', () => {
             const payloads = [
-                toErrorAnalytics(new HttpError(500, JSON.stringify({ kind: 'X' }), { url: '/x', method: 'GET' })),
+                toErrorAnalytics(new HttpError(500, JSON.stringify({ kind: 'X' }), { endpoint: '/x', method: 'GET' })),
                 toErrorAnalytics(new ValidationError('bad', 'secretFieldName')),
                 toErrorAnalytics(new BaseError('boom', 'X', { token: 'SECRET' })),
                 toErrorAnalytics(new Error('boom')),

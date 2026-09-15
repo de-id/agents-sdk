@@ -43,6 +43,7 @@ Shapes are unchanged; only the names differ.
 - `Subject` enum — the Knowledge API never served those prefixed values; it returns the bare status string (`'created' | 'processed' | 'done' | 'rejected' | 'error'`). The SDK exposes no knowledge methods — manage knowledge through the D-ID API.
 - `Providers.Afflorithmics`, `Afflorithmics_tts_provider` and `VoiceConfigAfflorithmics` — the provider is no longer offered.
 - `TextToSpeechProviders`, `ExtendedTextToSpeechProviders` and `mapVideoType` — unused; `speak()` takes `StreamTextToSpeechProviders`.
+- `HttpError.url` is now `HttpError.endpoint`, the same name `NetworkError` and `toJson()` use for the failing request's path.
 - `PublicDataChannelTopic` is a string enum instead of a const object with a derived type; `PublicDataChannelTopic.Presentation` and its value are unchanged.
 - `StreamOptions.outputResolution` — the Agents API ignores the field; the stream keeps the agent's configured resolution.
 - `ConnectionStateChangeCallback` and `VideoStateChangeCallback` — use `AgentManagerCallbacks['onConnectionStateChange']` and `AgentManagerCallbacks['onVideoStateChange']`.

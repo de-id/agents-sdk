@@ -4,7 +4,7 @@
  * @internal Implementation type; not part of the public SDK surface.
  */
 export interface RequestMeta {
-    url?: string;
+    endpoint?: string;
     method?: string;
     durationMs?: number;
     online?: boolean;
