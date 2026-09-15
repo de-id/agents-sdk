@@ -339,8 +339,7 @@ export enum ChatMode {
      * Produces no video, and marks each chat request with a playground header so the Agents API
      * can treat it as a test. Chats in this mode always go over the Agents API, even for
      * Expressive (V4) agents, which otherwise chat over the data channel. Applications normally
-     * use
-     * {@link ChatMode.Functional} or {@link ChatMode.TextOnly} instead.
+     * use {@link ChatMode.Functional} or {@link ChatMode.TextOnly} instead.
      */
     Playground = 'Playground',
     /**
@@ -392,9 +391,10 @@ export interface ChatResponse {
      * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}.
      */
     result?: string;
-    /** The Agents API's own list of ids for the documents behind the answer. The SDK never reads
-     * it;
-     * {@link ChatResponse.matches | matches} is what it keeps on the message. */
+    /**
+     * The Agents API's own list of ids for the documents behind the answer. The SDK never reads it;
+     * {@link ChatResponse.matches | matches} is what it keeps on the message.
+     */
     documentIds?: string[];
     /**
      * The knowledge citations behind the answer.

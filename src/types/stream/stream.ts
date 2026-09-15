@@ -207,10 +207,8 @@ export enum StreamEvents {
  * {@link AgentManager.setSttLanguage | setSttLanguage()}), which own the payload shape and
  * bookkeeping those topics expect, so they stay internal.
  *
- * A const object rather than a second enum: it borrows the value from the internal topic enum, so
- * there is one source of truth for the wire string and no cast is needed where the topic reaches
- * the transport. The type of the same name is its value type — the type of the `topic` parameter.
- * Expressive (V4) agents only.
+ * The members' values are the wire strings. Take the value from the enum rather than writing the
+ * string out, so the wire string stays in one place. Expressive (V4) agents only.
  *
  * @example
  * ```ts
@@ -231,15 +229,6 @@ export enum PublicDataChannelTopic {
      */
     Presentation = 'did.presentation',
 }
-/**
- * The topic strings {@link AgentManager.sendDataChannelMessage | sendDataChannelMessage()}
- * accepts — the value type of the const object of the same name.
- *
- * This is the type of that method's `topic` parameter. Take the value from the const object
- * rather than writing the string out, so the wire string stays in one place.
- *
- * @category Agent Manager
- */
 
 /**
  * The state of the connection between the browser and the agent's stream.
