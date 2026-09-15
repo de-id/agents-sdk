@@ -362,9 +362,10 @@ export enum ChatMode {
      * Expressive (V4) agents.
      *
      * {@link AgentManager.chat | chat()} throws a {@link ValidationError} under the same
-     * creation-time rule as {@link ChatMode.DirectPlayback}. The two modes are otherwise equivalent
-     * in the current implementation. As with {@link ChatMode.DirectPlayback}, the stream keeps
-     * running only when this is the mode set at creation; switching into it later with
+     * creation-time rule as {@link ChatMode.DirectPlayback}. The one difference between the two is
+     * the notifications web socket: this mode still opens it on a Talks (V2) or Clips (V3) agent,
+     * where {@link ChatMode.DirectPlayback} skips it. As with {@link ChatMode.DirectPlayback}, the
+     * stream keeps running only when this is the mode set at creation; switching into it later with
      * {@link AgentManager.changeMode | changeMode()} disconnects the stream.
      */
     Off = 'Off',

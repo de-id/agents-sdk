@@ -721,6 +721,7 @@ describe('createAgentManager', () => {
                 });
             });
 
+            // Guards propagation from a misbehaving streaming manager: the real ones never throw.
             it('should handle validateInterrupt rejection', async () => {
                 // Add a message to interrupt
                 await manager.chat('Hello');
