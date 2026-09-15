@@ -19,21 +19,57 @@ function parseServerError(body: string): ServerErrorBody | undefined {
     return undefined;
 }
 
+/**
+ * A request to the D-ID API came back with a non-2xx status.
+ *
+ * Raised for every REST call the SDK makes on the application's behalf: fetching the agent in
+ * {@link createAgentManager}, creating the stream and the chat during
+ * {@link AgentManager.connect | connect()}, sending a message with
+ * {@link AgentManager.chat | chat()}, and the rating and feedback calls. The same error is both
+ * handed to {@link AgentManagerCallbacks.onError | onError} and thrown, so it also rejects the
+ * promise of whichever method made the request — catch it around that call, or handle it centrally
+ * in the callback. Common cases are `401` or `403` for a client key that is not authorized for the
+ * agent or the calling domain, `404` for an unknown agent id, and `402` when the account is out of
+ * credits. A `429` is retried first: the SDK makes up to three attempts a second apart, and only
+ * the last failure surfaces.
+ *
+ * {@link BaseError.kind | kind} is the server's own classification when the response body is D-ID's
+ * `{ kind, description }` envelope — for example `'InsufficientCreditsError'` — and `'HttpError'`
+ * otherwise, so a message-independent branch on a specific API failure is possible.
+ *
+ * @category Errors
+ */
 export class HttpError extends BaseError {
+    /**
+     * HTTP status code of the response, such as `401`, `404` or `500`.
+     */
     readonly status: number;
+    /**
+     * Path of the request that failed, relative to the API host — for example `/agents/agt_x/chat`.
+     *
+     * Absent when the error was constructed without call context.
+     */
     readonly url?: string;
+    /**
+     * HTTP method of the request that failed, such as `GET` or `POST`.
+     *
+     * Absent when the error was constructed without call context.
+     */
     readonly method?: string;
 
     /**
-     * Wraps a non-2xx response, reusing the server's own `kind` and `description` when it sent them.
+     * Builds the error from the failing response. The SDK does this itself when a request is not
+     * `ok`.
      *
-     * The SDK constructs `HttpError` itself; applications receive instances through `onError`
-     * and rejected promises rather than calling this.
+     * The message is the envelope's `description` when the body is D-ID's `{ kind, description }`
+     * JSON, and the raw body otherwise — truncated to 256 characters either way, because a gateway
+     * can answer a 5xx with a whole HTML page.
      *
      * @param status - HTTP status code of the response.
-     * @param body - Raw response body; a `{ kind, description }` envelope is parsed out of it.
-     * @param meta - Request context captured when the call was made.
-     * @internal Constructed by the SDK; not part of the public SDK surface.
+     * @param body - Raw response body, parsed as the `{ kind, description }` envelope when it is
+     * one.
+     * @param meta - The call that failed: its `url` and `method`. Both end up in
+     * {@link HttpError.toJson | toJson()} when given.
      */
     constructor(status: number, body: string, meta: RequestMeta = {}) {
         const parsed = parseServerError(body);
@@ -45,6 +81,15 @@ export class HttpError extends BaseError {
         this.method = meta.method;
     }
 
+    /**
+     * Serializes the error, adding the failing call to what {@link BaseError.toJson | toJson()}
+     * already returns.
+     *
+     * Adds `httpStatus` from {@link HttpError.status | status}, and `endpoint` and `method` when the
+     * call context is known. The raw `status` and `url` property names are not part of the payload.
+     *
+     * @returns The error as plain, JSON-serializable data.
+     */
     toJson(): ErrorJson {
         return {
             ...super.toJson(),
