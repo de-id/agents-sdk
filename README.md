@@ -3,21 +3,21 @@
 <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-evenly; min-height: 1px; font-size: 16px;">
   <img style="width: auto; height: 200px; object-fit: contain;" src="https://create-images-results.d-id.com/api_docs/assets/agents_sdk_cover_v2.png" alt="Agents SDK Cover" />
   <span style="width: 67%; text-align: justify;">
-    <br> Welcome to the Agents SDK documentation!<br> Here, you’ll find everything you need to know to get started with the SDK, understand its core concepts, utilize built-in methods, and access additional resources.<br> This guide is designed to help you integrate the Agents SDK into your projects effectively and efficiently.
+    <br> This guide covers installing the SDK, connecting to an agent and where to find the full API reference.
   </span>
 </div>
 
 ## ✴️ Introduction
 
-The D-ID Agents SDK provides a seamless integration pathway for embedding your created Agents or real-time streaming avatars into web applications.
+The D-ID Agents SDK embeds your created Agents or real-time streaming avatars into web applications.
 
-With a streamlined and user-friendly workflow, you can easily harness the capabilities of the D-ID Agents and Streams API right out of the box.
+It wraps the D-ID Agents and Streams APIs.
 
 The SDK supports three avatar types:
 
 - **Talks (V2)** — Photo-based presenters using WebRTC streaming.
 - **Clips (V3)** — Pre-built presenter avatars using WebRTC streaming.
-- **Expressives (V4)** — Next-generation avatars using LiveKit-based streaming, supporting microphone input and always-on fluent mode.
+- **Expressive (V4)** — Next-generation avatars using LiveKit-based streaming, supporting microphone input and always-on fluent mode.
 
 **Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/docs/agent-quickstart) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
 
@@ -55,11 +55,11 @@ In your front-end application,
 2. Paste the `data-agent-id` obtained in the prerequisites step in the `agentId` variable
 3. Paste the `data-client-key` obtained in the prerequisites step in the `auth.clientKey` variable
 4. Define an object called `callbacks`.
-   This will be explained in the [Usage section](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html) in this guide.
+   See [`AgentManagerCallbacks`](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html) in the API reference.
 5. Define an object called `streamOptions` [optional — v2/v3 avatars only]
-   This will be explained in the [Usage section](https://sdk.d-id.com/interfaces/StreamOptions.html) in this guide.
-6. Create an instance of the `createAgentManger` object called `agentManager` with the values created above.
-   This will be explained later in the [Usage section](https://sdk.d-id.com/interfaces/AgentManager.html) in this guide.
+   See [`StreamOptions`](https://sdk.d-id.com/interfaces/StreamOptions.html) in the API reference.
+6. Create an instance of the `createAgentManager` object called `agentManager` with the values created above.
+   See [`AgentManager`](https://sdk.d-id.com/interfaces/AgentManager.html) in the API reference.
 
 Example:
 
