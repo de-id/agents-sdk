@@ -10,7 +10,7 @@ Project rules for Claude Code in `@d-id/client-sdk`.
 - **Removing or renaming an export is a breaking change.** Bump the major version, add a section to `MIGRATION.md`, and update `src/public-api.test.ts` in the same commit.
 - **Never `export *` from the root.** Implementation types stay under `src/types/*`, tagged `@internal`, so a mistaken re-export cannot reach the reference.
 - **Doc comments must be true to the code.** Verify a behaviour claim at its call site before writing it; do not restate the README.
-- Preview locally with `yarn docs:build` and open `docs-site/index.html`.
+- Preview locally with `yarn docs:serve` (builds, then serves the site at http://localhost:4173 and opens it).
 
 ## Before committing
 

@@ -31,6 +31,7 @@
     "test-build": "node .infra/build.js -m development",
     "docs:build": "typedoc",
     "docs:check": "typedoc --out .docs-check-site",
+    "docs:serve": "yarn docs:build && vite preview --outDir docs-site --port 4173 --strictPort --open",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:ci": "jest --watchAll=false --passWithNoTests --verbose=false",
