@@ -12,6 +12,9 @@ on:
         default: main
         type: string
 
+permissions:
+  contents: read
+
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -26,12 +29,12 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      # No dependency cache: the ref is user-chosen, and a cache written here would be shared with
+      # every workflow run on the default branch (CodeQL: cache poisoning).
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'yarn'
-          cache-dependency-path: yarn.lock
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
