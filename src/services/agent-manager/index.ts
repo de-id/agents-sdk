@@ -254,6 +254,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) }, loadedTimestamp);
     });
 
+    // One `connect()` at a time: React StrictMode double-invokes effects, and a second run would
+    // overwrite `items.streamingManager` and leave the first session open on the server.
+    let connectInFlight: Promise<void> | undefined;
+
     async function connect(newChat: boolean) {
         rotateConnectionId();
         managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
@@ -383,14 +387,34 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         changeMode,
         enrichAnalytics: analytics.enrich,
         async connect() {
-            await connect(true);
+            if (connectInFlight) {
+                return connectInFlight;
+            }
 
-            analytics.track('agent-chat', {
-                event: 'connect',
-                mode: items.chatMode,
-            });
+            if (items.streamingManager) {
+                throw new ValidationError('Already connected; call disconnect() first');
+            }
+
+            connectInFlight = (async () => {
+                await connect(true);
+
+                analytics.track('agent-chat', {
+                    event: 'connect',
+                    mode: items.chatMode,
+                });
+            })();
+
+            try {
+                await connectInFlight;
+            } finally {
+                connectInFlight = undefined;
+            }
         },
         async reconnect() {
+            if (connectInFlight) {
+                throw new ValidationError('A connect() is in flight; wait for it before calling reconnect()');
+            }
+
             const streamingManager = items.streamingManager as { reconnect?: () => Promise<void> } | undefined;
             let fallbackReason: string | undefined;
 

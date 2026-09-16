@@ -342,6 +342,60 @@ describe('createAgentManager', () => {
                 await expect(manager.connect()).rejects.toThrow('Connection failed');
                 expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Fail);
             });
+
+            describe('is idempotent', () => {
+                it('should return the in-flight promise instead of opening a second session', async () => {
+                    let release: (value: any) => void = () => {};
+                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
+                        new Promise(resolve => {
+                            release = resolve;
+                        })
+                    );
+
+                    const first = manager.connect();
+                    const second = manager.connect();
+
+                    release({ streamingManager: mockStreamingManager, chat: mockChat });
+                    await expect(Promise.all([first, second])).resolves.toEqual([undefined, undefined]);
+
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should reject a second connect once a session is open', async () => {
+                    await manager.connect();
+
+                    await expect(manager.connect()).rejects.toThrow(ValidationError);
+                    await expect(manager.connect()).rejects.toThrow('Already connected; call disconnect() first');
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should connect again after disconnect', async () => {
+                    await manager.connect();
+                    await manager.disconnect();
+
+                    await expect(manager.connect()).resolves.toBeUndefined();
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(2);
+                });
+
+                it('should reject reconnect while a connect is in flight', async () => {
+                    let release: (value: any) => void = () => {};
+                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
+                        new Promise(resolve => {
+                            release = resolve;
+                        })
+                    );
+
+                    const connecting = manager.connect();
+                    const reconnecting = manager.reconnect();
+
+                    await expect(reconnecting).rejects.toThrow(
+                        'A connect() is in flight; wait for it before calling reconnect()'
+                    );
+
+                    release({ streamingManager: mockStreamingManager, chat: mockChat });
+                    await connecting;
+                });
+            });
         });
 
         describe('reconnect', () => {

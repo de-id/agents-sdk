@@ -93,6 +93,7 @@ Shapes are unchanged; only the names differ.
 - `initialMessages` get their `Message.parts` filled from `content` when they arrive with empty or missing `parts`; a non-empty array you supply is kept, and the SDK no longer pushes into the array you passed.
 - The five Expressive-only media methods reject with a `ValidationError` instead of a plain `Error` when the session is a Talks (V2) or Clips (V3) one, or `connect()` has not run yet.
 - `rate()`, `deleteRate()` and `submitFeedback()` are `async`: their `ValidationError` guard now rejects the returned promise instead of throwing synchronously, so `.catch()` sees it.
+- `connect()` is idempotent: a call made while one is still in flight returns that same promise, and a call made when a session is already open rejects with a `ValidationError` instead of silently leaking the first session. `reconnect()` rejects the same way while a `connect()` is in flight. Call `disconnect()` before connecting again.
 - `changeMode()` now returns a `Promise` — it always was asynchronous (it disconnects the stream); await it, and catch `ValidationError` for unsupported modes.
 - A `429` from the Agents API is now retried twice, one second apart, before it surfaces as an `HttpError`; in v2 the retry never fired.
 - `AgentManagerOptions.baseURL`, `AgentManagerOptions.wsURL` and `AgentManager.enrichAnalytics()` are documented as advanced members instead of hidden; their behaviour is unchanged.

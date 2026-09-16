@@ -602,10 +602,16 @@ export interface AgentManager {
      *
      * Resolves once the connection reaches {@link ConnectionState.Connected | 'connected'}, by
      * which point {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} has been called
-     * with the media stream to render. Calling it again starts a fresh conversation; to keep the
-     * current one use {@link AgentManager.reconnect | reconnect()}.
+     * with the media stream to render.
+     *
+     * One session at a time: while a call is still in flight a second call returns that same
+     * promise rather than opening a second session, which is what makes it safe in a React
+     * StrictMode effect. Once a session exists it rejects instead — call
+     * {@link AgentManager.disconnect | disconnect()} first to start a fresh conversation, or
+     * {@link AgentManager.reconnect | reconnect()} to keep the current one.
      *
      * @returns Resolves when the agent is connected and ready.
+     * @throws {@link ValidationError} When a session is already open.
      * @throws {@link HttpError} When creating the stream or the chat comes back non-2xx — a client
      * key that is not authorized for the agent or the calling domain, or an account out of
      * credits. The SDK tries the initialization up to three times first, except on `429` and on an
@@ -626,6 +632,8 @@ export interface AgentManager {
      * the SDK falls back to a disconnect and a fresh connect, which starts a new chat id.
      *
      * @returns Resolves when the new stream is connected.
+     * @throws {@link ValidationError} When a {@link AgentManager.connect | connect()} is still in
+     * flight; wait for it to settle first.
      * @throws {@link HttpError} When creating the new stream comes back non-2xx.
      * @throws {@link NetworkError} When that request never reaches the server.
      */
