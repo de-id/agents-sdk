@@ -756,11 +756,12 @@ export interface ToolCallErrorPayload {
     /**
      * Whatever the failed call produced, if anything.
      *
-     * A `string` when the server answers a failure with the reason as plain text rather than a
-     * structured result — that text is also given to you as
-     * {@link ToolCallErrorPayload.error | error}, so narrow this one before you index into it.
+     * Any JSON value — the server's own type for a tool result is unconstrained, and on a failure
+     * it is commonly the reason as a plain string rather than a structured result. Narrow it
+     * before use. The string case is also given to you as
+     * {@link ToolCallErrorPayload.error | error}, which is what to show.
      */
-    output: Record<string, unknown> | string;
+    output: unknown;
     /** How long the call ran before failing, in milliseconds. */
     durationMs: number;
     /** Any additional metadata the server reported with the failure. */
@@ -822,8 +823,9 @@ export interface ToolCallDoneWirePayload {
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
  */
 export interface ToolCallErrorWirePayload extends Omit<ToolCallDoneWirePayload, 'output'> {
-    // The server answers some failures with the reason as a plain string here instead of a result.
-    output: Record<string, unknown> | string;
+    // Any JSON value: the server's `ToolResult.output` is unconstrained, and some failures carry
+    // the reason as a plain string here instead of a result.
+    output: unknown;
 }
 
 /**

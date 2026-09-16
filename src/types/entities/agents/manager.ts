@@ -771,6 +771,13 @@ export interface AgentManager {
      * old one. On Expressive (V4) agents the transport is asked to reconnect first; if that fails
      * the SDK falls back to a disconnect and a fresh connect, which starts a new chat id.
      *
+     * One session-opening operation runs at a time, teardown included, so this and
+     * {@link AgentManager.connect | connect()} cannot interleave. Do not race them: a `connect()`
+     * called while this is running joins *this* operation, which continues the existing chat
+     * rather than starting a new one, so
+     * {@link AgentManagerCallbacks.onNewChat | onNewChat} does not fire for it; the other order
+     * starts a new chat, and this one continues that. Call one or the other.
+     *
      * @returns Resolves when the new stream is connected.
      * @throws {@link ValidationError} When a {@link AgentManager.connect | connect()} is still in
      * flight; wait for it to settle first.

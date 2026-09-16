@@ -356,21 +356,65 @@ describe('createAgentManager', () => {
                 expect(createSocketManager).toHaveBeenCalled();
             });
 
-            it('should keep a connected Functional session when the server reports the same mode', async () => {
-                const manager = await createAgentManager('agent-123', mockOptions);
-
+            it('should tear the session down when a connected Off session moves to Functional', async () => {
+                // Off keeps the notifications web socket but creates no chat, so a Functional
+                // session built out of it would accept `chat()` with nothing to send it to.
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(mode =>
+                    [ChatMode.DirectPlayback, ChatMode.Off].includes(mode)
+                );
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Off });
                 await manager.connect();
-
+                expect(createSocketManager).toHaveBeenCalled();
                 expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
-            });
-
-            it('should keep a connected TextOnly session that already has a socket and a chat', async () => {
-                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
-                await manager.connect();
 
                 await manager.changeMode(ChatMode.Functional);
 
+                expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(() => false);
+            });
+
+            it('should not tear an Expressive (V4) session down at the end of connect', async () => {
+                // A V4 session never has a notifications web socket, so `sessionSupports` must not
+                // ask for one: dropping the `!isStreamsV2` guard would disconnect every V4 session
+                // at the end of every connect, when the tail applies the synthesised Functional
+                // chat mode.
+                mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Functional });
+
+                await manager.connect();
+
+                expect(createSocketManager).not.toHaveBeenCalled();
                 expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+                expect(manager.getChatMode()).toBe(ChatMode.Functional);
+            });
+
+            it('should keep a connected TextOnly session that already has a socket and a chat', async () => {
+                // The chat reports TextOnly, so the `connect()` tail leaves the mode alone and the
+                // `changeMode()` below is the real transition rather than a no-op.
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: { ...mockChat, chat_mode: ChatMode.TextOnly },
+                });
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
+                await manager.connect();
+                expect(manager.getChatMode()).toBe(ChatMode.TextOnly);
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(manager.getChatMode()).toBe(ChatMode.Functional);
+                expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+            });
+
+            it('should not report a disconnect for a session that was never opened', async () => {
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Off });
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(mockOptions.callbacks.onConnectionStateChange).not.toHaveBeenCalled();
             });
 
             it('should reject chat after changeMode moves a session into Off', async () => {
@@ -626,18 +670,109 @@ describe('createAgentManager', () => {
                     expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
                 });
 
-                it('should let an in-flight connect settle before disconnecting', async () => {
+                it('should disconnect without waiting for an in-flight connect', async () => {
                     const release = deferStreamAndChat();
 
                     const connecting = manager.connect();
-                    const disconnecting = manager.disconnect();
+                    // Let the connect get as far as waiting on the stream.
+                    await new Promise(resolve => setTimeout(resolve, 0));
+
+                    // Resolves while the connect is still pending: a connect is bounded by three
+                    // 45-second attempts and a web socket with no timeout, and an unmount handler
+                    // must not inherit that.
+                    await manager.disconnect();
+                    expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
 
                     release();
-                    await Promise.all([connecting, disconnecting]);
+                    await connecting;
 
-                    // The session the connect opened was the one torn down, not a leftover.
+                    // The session the connect went on to open is torn down, not left running.
                     expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+                    expect(manager.getConnectionState()).toBe(ConnectionState.Disconnected);
+                    expect(manager.getSessionInfo()).toBeUndefined();
                     await expect(manager.connect()).resolves.toBeUndefined();
+                });
+
+                it('should not open a session when a disconnect lands during a reconnect', async () => {
+                    // The window the in-flight guard used to leave open: on an Expressive (V4) agent
+                    // the transport is asked to reconnect first, and nothing was in flight while that
+                    // ran — so a `disconnect()` resolved on a session the fallback then replaced.
+                    mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
+                    mockStreamingManager.reconnect = jest.fn();
+                    const expressive = await createAgentManager('agent-123', mockOptions);
+                    await expressive.connect();
+
+                    let failTransport: (error: Error) => void = () => {};
+                    mockStreamingManager.reconnect.mockReturnValueOnce(
+                        new Promise((_resolve, reject) => {
+                            failTransport = reject;
+                        })
+                    );
+                    (initializeStreamAndChat as jest.Mock).mockClear();
+
+                    const reconnecting = expressive.reconnect();
+                    await new Promise(resolve => setTimeout(resolve, 0));
+
+                    await expressive.disconnect();
+                    failTransport(new Error('transport gone'));
+                    await reconnecting;
+
+                    // The fallback connect does not run, so no second session is opened.
+                    expect(initializeStreamAndChat).not.toHaveBeenCalled();
+                    expect(expressive.getConnectionState()).toBe(ConnectionState.Disconnected);
+                    expect(mockAnalytics.track).toHaveBeenCalledWith(
+                        'agent-chat',
+                        expect.objectContaining({ event: 'reconnect', success: false })
+                    );
+                });
+
+                it('should join the attempt when a callback calls connect() from inside connect()', async () => {
+                    let reentrant: Promise<void> | undefined;
+                    let reentrantManager: AgentManager | undefined;
+                    const options = {
+                        ...mockOptions,
+                        callbacks: {
+                            ...mockOptions.callbacks,
+                            onConnectionStateChange: jest.fn((state: ConnectionState) => {
+                                if (state === ConnectionState.Connecting && !reentrant) {
+                                    reentrant = reentrantManager?.connect();
+                                }
+                            }),
+                        },
+                    };
+                    reentrantManager = await createAgentManager('agent-123', options);
+                    (initializeStreamAndChat as jest.Mock).mockClear();
+
+                    await reentrantManager.connect();
+                    await reentrant;
+
+                    // The guard is published before `connect()` runs its synchronous prefix, so the
+                    // handler's call joined the attempt instead of opening a second session.
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should keep the session a DirectPlayback reconnect just built', async () => {
+                    // The chat is carried over from the earlier Functional connect and still says
+                    // `Functional`, but it says nothing about *this* session — which is a
+                    // DirectPlayback one and therefore has no notifications web socket. Reading the
+                    // mode off it made the tail tear down the session it had just built, while
+                    // `reconnect()` reported success.
+                    await manager.connect();
+                    await manager.changeMode(ChatMode.DirectPlayback);
+                    mockStreamingManager.disconnect.mockClear();
+                    (createSocketManager as jest.Mock).mockClear();
+
+                    await manager.reconnect();
+
+                    expect(manager.getChatMode()).toBe(ChatMode.DirectPlayback);
+                    expect(createSocketManager).not.toHaveBeenCalled();
+                    // The session the reconnect just opened is still there.
+                    expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+                    expect(manager.getStreamType()).toBe(StreamType.Legacy);
+                    expect(mockAnalytics.track).toHaveBeenCalledWith(
+                        'agent-chat',
+                        expect.objectContaining({ event: 'reconnect', success: true })
+                    );
                 });
 
                 it('should reject reconnect while a connect is in flight', async () => {

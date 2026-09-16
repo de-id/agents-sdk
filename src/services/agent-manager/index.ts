@@ -292,24 +292,50 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) }, loadedTimestamp);
     });
 
-    // One `connect()` at a time: a second run would overwrite `items.streamingManager` and leave
-    // the first session open on the server. Every path that opens a session goes through
-    // `runConnect`, so a racing caller joins the attempt already running.
-    let connectInFlight: Promise<void> | undefined;
+    // One session-opening operation at a time: React StrictMode double-invokes effects, and a
+    // second run would overwrite `items.streamingManager` and leave the first session open on the
+    // server. Every path that opens a session goes through `runOp`, so a public `connect()` racing
+    // a `reconnect()` or the chat retry joins the operation already running — and a `reconnect()`
+    // holds the flag for its *whole* body, teardown included, so a `disconnect()` cannot slip
+    // between the teardown and the new session.
+    let opInFlight: Promise<void> | undefined;
+
+    // Set by the public `disconnect()` while an operation is running. `disconnect()` does not wait
+    // for that operation — a connect can take minutes — so the operation checks the flag once it
+    // has a session and tears down what it built.
+    let disconnectRequested = false;
+
+    function runOp(body: () => Promise<void>): Promise<void> {
+        disconnectRequested = false;
+
+        // `Promise.resolve().then(body)` rather than `body()`: the assignment below has to happen
+        // before the body runs, or a handler called from the body's synchronous prefix — the
+        // `onConnectionStateChange(Connecting)` at the top of `connect()` — would see no operation
+        // in flight and start a second one.
+        opInFlight = Promise.resolve()
+            .then(body)
+            .finally(() => {
+                opInFlight = undefined;
+            });
+
+        return opInFlight;
+    }
 
     function runConnect(newChat: boolean): Promise<void> {
-        if (connectInFlight) {
-            return connectInFlight;
+        if (opInFlight) {
+            return opInFlight;
         }
 
-        connectInFlight = connect(newChat).finally(() => {
-            connectInFlight = undefined;
-        });
-
-        return connectInFlight;
+        return runOp(() => connect(newChat));
     }
 
     async function connect(newChat: boolean) {
+        // A `disconnect()` that arrived before this leg started — the second leg of a `reconnect()`,
+        // say. Opening a session now would hand back one the caller believes it closed.
+        if (disconnectRequested) {
+            return;
+        }
+
         rotateConnectionId();
         managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
@@ -360,20 +386,33 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 delayMs: 1000,
             }
         ).catch(e => {
+            // `Promise.all` below would discard a socket that has already opened, and nothing else
+            // holds a reference to it — `items.socketManager` is only assigned on the happy path.
+            websocketPromise.then(socket => socket?.disconnect()).catch(() => {});
+
             applyMode(ChatMode.Maintenance);
             managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
         });
 
+        const previousChatId = items.chat?.id;
         const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
 
-        if (chat && chat.id !== items.chat?.id) {
-            managerOptions.callbacks.onNewChat?.(chat.id);
+        const isNewChat = !!chat && chat.id !== previousChatId;
+        if (isNewChat) {
+            managerOptions.callbacks.onNewChat?.(chat!.id);
         }
 
         items.streamingManager = streamingManager;
         items.socketManager = socketManager;
         items.chat = chat;
+
+        // A `disconnect()` that arrived while this was connecting: tear down what was just built
+        // rather than leaving a session the caller believes it closed.
+        if (disconnectRequested) {
+            await disconnect();
+            return;
+        }
 
         flushClientToolsToRoom();
 
@@ -385,7 +424,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             mode: items.chatMode,
         });
 
-        const serverMode = chat?.chat_mode ?? items.chatMode;
+        // Only a chat this connect created says anything about *this* session's mode. A chat
+        // carried over from an earlier connect (`runConnect(false)`, from `reconnect()` or the chat
+        // retry) still holds the mode it was created in, and adopting it here made the tail tear
+        // down the session it had just built — a DirectPlayback reconnect would read `Functional`
+        // off the old chat, find no notifications socket, and disconnect.
+        const serverMode = (isNewChat ? chat?.chat_mode : undefined) ?? items.chatMode;
         if (isStreamsV2 && isChatModeWithoutChat(serverMode)) {
             // The session is up; keep the mode we have rather than failing a working connection.
             console.warn(`[AgentManager] Ignoring chat mode "${serverMode}": ${UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE}`);
@@ -427,10 +471,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-mode-change', { mode });
             items.chatMode = mode;
 
-            // Every mode but Functional tears the stream down — and so does Functional when the
-            // open session cannot carry a conversation: a DirectPlayback session has neither the
-            // notifications web socket nor a chat, so `chat()` would never be answered.
-            if (mode !== ChatMode.Functional || !sessionSupports(mode)) {
+            // Every mode but Functional tears the stream down. Functional does too when the open
+            // session cannot carry a conversation — a DirectPlayback session has neither the
+            // notifications web socket the answer arrives on nor a chat to send to, so it would
+            // accept `chat()` and never answer. `connect()` then builds the right session.
+            // The second clause needs a session to be open at all: without it a `changeMode()`
+            // into Functional on a manager that has never connected reported a `Disconnected` for
+            // a session that never existed.
+            const hasSession = !!items.streamingManager || !!items.socketManager;
+
+            if (items.chatMode !== ChatMode.Functional || (hasSession && !sessionSupports(items.chatMode))) {
                 await disconnect();
             }
 
@@ -460,8 +510,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         changeMode,
         enrichAnalytics: analytics.enrich,
         async connect() {
-            if (connectInFlight) {
-                return connectInFlight;
+            if (opInFlight) {
+                return opInFlight;
             }
 
             if (items.streamingManager) {
@@ -470,46 +520,63 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             await runConnect(true);
 
-            analytics.track('agent-chat', {
-                event: 'connect',
-                mode: items.chatMode,
-            });
+            // Not tracked when a `disconnect()` overtook the attempt and tore the session down
+            // again: nothing is connected, and the event is what the reference calls a session.
+            if (items.streamingManager) {
+                analytics.track('agent-chat', {
+                    event: 'connect',
+                    mode: items.chatMode,
+                });
+            }
         },
         async reconnect() {
-            if (connectInFlight) {
+            if (opInFlight) {
                 throw new ValidationError('A connect() is in flight; wait for it before calling reconnect()');
             }
 
-            const streamingManager = items.streamingManager as { reconnect?: () => Promise<void> } | undefined;
-            let fallbackReason: string | undefined;
+            // The whole body holds the flag, teardown included. With only the connect guarded, a
+            // `disconnect()` during the teardown — or during the Expressive (V4) transport's own
+            // reconnect — found nothing in flight, resolved, and then watched this open a new
+            // session the caller believed it had closed.
+            return runOp(async () => {
+                const streamingManager = items.streamingManager as { reconnect?: () => Promise<void> } | undefined;
+                let fallbackReason: string | undefined;
 
-            if (isStreamsV2 && streamingManager?.reconnect) {
-                try {
-                    await streamingManager.reconnect();
-                } catch (error) {
-                    const analyticsError = toErrorAnalytics(error);
-                    // Keep the Agents API's own classification where there is one — `kind` is the
-                    // literal `'HttpError'` for every failed request since 3.0.
-                    fallbackReason = analyticsError.code ?? analyticsError.kind;
+                if (isStreamsV2 && streamingManager?.reconnect) {
+                    try {
+                        await streamingManager.reconnect();
+                    } catch (error) {
+                        const analyticsError = toErrorAnalytics(error);
+                        // Keep the Agents API's own classification where there is one — `kind` is
+                        // the literal `'HttpError'` for every failed request since 3.0.
+                        fallbackReason = analyticsError.code ?? analyticsError.kind;
+                        await disconnect();
+                        await connect(false);
+                    }
+                } else {
                     await disconnect();
-                    await runConnect(false);
+                    await connect(false);
                 }
-            } else {
-                await disconnect();
-                await runConnect(false);
-            }
 
-            analytics.track('agent-chat', {
-                event: 'reconnect',
-                mode: items.chatMode,
-                success: true,
-                ...(fallbackReason && { fallbackReason }),
+                analytics.track('agent-chat', {
+                    event: 'reconnect',
+                    mode: items.chatMode,
+                    // Truthful: a `disconnect()` that arrived mid-flight, or a server mode that
+                    // tore the session down, leaves nothing connected.
+                    success: !!items.streamingManager,
+                    ...(fallbackReason && { fallbackReason }),
+                });
             });
         },
         async disconnect() {
-            // Let an in-flight connect settle first, so its assignment of `items.streamingManager`
-            // cannot land after this call cleared it and leave a session running on the server.
-            await connectInFlight?.catch(() => {});
+            // Not awaited: a connect can take minutes (three attempts, 45 s each, plus a web
+            // socket with no timeout of its own), and an unmount handler must not inherit that.
+            // The flag is what closes the race — the operation checks it once it has a session and
+            // tears down what it built.
+            if (opInFlight) {
+                disconnectRequested = true;
+            }
+
             await disconnect();
 
             analytics.track('agent-chat', {
