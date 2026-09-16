@@ -79,6 +79,8 @@ Shapes are unchanged; only the names differ.
 - `ErrorJson`'s index signature is `unknown` instead of `any`, so a key it does not declare has to be narrowed before it is used; `code` is declared alongside `kind`, `message` and `cause`.
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, videoId: '' }` instead of `undefined`, matching its declared type.
 - The three `onToolEvent` payloads are camelCase like the rest of the SDK: `call_id` is now `callId`, `execution_mode` `executionMode`, `turn_id` `turnId` and `duration_ms` `durationMs`; only the documented fields are forwarded.
+- `ToolCallStartedPayload.executionMode` is required and normalised to `'blocking'` when the server omits it, matching `RunningToolCall.executionMode` for the same call; `ToolCallStartedPayload.output` is optional, because a started event is emitted before the tool has run.
+- `ToolCallErrorPayload` carries the failure text as `error?: string`, taken from `extra.error.message` or from a plain-string `output`; the structured failure stays in `extra.error`.
 - `SpeakResponse` fields are camelCase: `sessionId`, `videoId` (`status` and `duration` are unchanged). The Agents API still answers in snake_case; the SDK converts.
 - `StreamCreatedInfo` fields are camelCase: `agentId`, `sessionId`, `streamId`.
 - `Message.created_at` is now `Message.createdAt`; the SDK sets it, and an `initialMessages` transcript restored from your own storage must use the new name.

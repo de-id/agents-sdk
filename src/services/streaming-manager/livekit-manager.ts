@@ -16,10 +16,12 @@ import {
     StreamType,
     ToolCallDonePayload,
     ToolCallDoneWirePayload,
+    ToolCallErrorPayload,
     ToolCallErrorWirePayload,
     ToolCallEvent,
     ToolCallStartedPayload,
     ToolCallStartedWirePayload,
+    ToolCallWireError,
     TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
@@ -102,11 +104,13 @@ function toStartedPayload(wire: ToolCallStartedWirePayload): ToolCallStartedPayl
         callId: wire.call_id,
         name: wire.name,
         input: wire.input,
-        output: wire.output,
+        // A started event is emitted before the tool has run, so it normally carries no output.
+        ...(wire.output !== undefined ? { output: wire.output } : {}),
         // The server omits the field on some started events; the public payload declares a boolean.
         interruptible: wire.interruptible === true,
-        // Spread, so an event that carries neither does not gain the keys with an undefined value.
-        ...(wire.execution_mode !== undefined ? { executionMode: wire.execution_mode } : {}),
+        // Normalized exactly as `RunningToolCall.executionMode` is, so the two agree about the call.
+        executionMode: wire.execution_mode === 'async' ? 'async' : 'blocking',
+        // Spread, so an event that does not carry it does not gain the key with an undefined value.
         ...(wire.turn_id !== undefined ? { turnId: wire.turn_id } : {}),
         timestamp: wire.timestamp,
     };
@@ -122,6 +126,24 @@ function toFinishedPayload(wire: ToolCallDoneWirePayload): ToolCallDonePayload {
         extra: wire.extra,
         timestamp: wire.timestamp,
     };
+}
+
+// The server describes the failure under `extra.error` (`{ kind, code, message, data }`), and
+// answers some failures with the reason as a plain-string `output` instead.
+function toErrorText(wire: ToolCallErrorWirePayload): string | undefined {
+    const error = (wire.extra as { error?: ToolCallWireError } | undefined)?.error;
+
+    if (typeof error?.message === 'string' && error.message) {
+        return error.message;
+    }
+
+    return typeof wire.output === 'string' && wire.output ? wire.output : undefined;
+}
+
+function toErrorPayload(wire: ToolCallErrorWirePayload): ToolCallErrorPayload {
+    const error = toErrorText(wire);
+
+    return { ...toFinishedPayload(wire), ...(error !== undefined ? { error } : {}) };
 }
 
 export function handleInitError(
@@ -433,7 +455,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 call: {
                     callId: payload.callId,
                     name: payload.name,
-                    executionMode: payload.executionMode === 'async' ? 'async' : 'blocking',
+                    executionMode: payload.executionMode,
                 },
                 interruptible: payload.interruptible === true,
                 turnId: payload.turnId ?? currentTurnId,
@@ -454,7 +476,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         if (subject === StreamEvents.ToolCallError) {
-            const payload = toFinishedPayload(data as ToolCallErrorWirePayload);
+            const payload = toErrorPayload(data as ToolCallErrorWirePayload);
             resolvePendingToolCall(payload.callId);
             callbacks.onToolEvent?.(ToolCallEvent.Error, payload);
         }

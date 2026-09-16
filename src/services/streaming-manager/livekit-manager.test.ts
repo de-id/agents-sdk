@@ -1634,6 +1634,138 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             });
         });
 
+        it('should normalize a started event with no execution_mode and no output', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Started, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                interruptible: false,
+                executionMode: 'blocking',
+                timestamp,
+            });
+        });
+
+        it('should surface the error text a failed tool call reports in extra.error', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+            const extra = { error: { kind: 'timeout', code: 504, message: 'Upstream timed out' } };
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    duration_ms: 60_000,
+                    extra,
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Error, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: {},
+                durationMs: 60_000,
+                extra,
+                error: 'Upstream timed out',
+                timestamp,
+            });
+        });
+
+        it('should fall back to a plain-string output for the error text', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: 'ConnectionError: refused',
+                    duration_ms: 12,
+                    extra: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(
+                ToolCallEvent.Error,
+                expect.objectContaining({ error: 'ConnectionError: refused' })
+            );
+        });
+
+        it('should leave error absent when the server described no failure', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    duration_ms: 12,
+                    extra: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+            // ASSERT:
+            const [, payload] = onToolEvent.mock.calls[0];
+            expect(payload).not.toHaveProperty('error');
+        });
+
         it('should emit onInterruptibleChange(false) when a blocking tool-call/started arrives', async () => {
             // ARRANGE:
             const onInterruptibleChange = jest.fn();

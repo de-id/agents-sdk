@@ -228,8 +228,9 @@ export enum ToolCallEvent {
      */
     Done = 'tool-call/done',
     /**
-     * A tool call failed; the payload is a {@link ToolCallErrorPayload}, carrying whatever the
-     * server reported about the failure. The agent carries on with the conversation.
+     * A tool call failed; the payload is a {@link ToolCallErrorPayload}, carrying the reason in
+     * {@link ToolCallErrorPayload.error | error} when the server gave one. The agent carries on
+     * with the conversation.
      */
     Error = 'tool-call/error',
 }
@@ -674,8 +675,13 @@ export interface ToolCallStartedPayload {
     name: string;
     /** The arguments the agent's LLM produced for this call. */
     input: Record<string, unknown>;
-    /** The tool's result. The started event is emitted before the tool has run, so it holds nothing useful yet. */
-    output: Record<string, unknown>;
+    /**
+     * The tool's result, when the server sent one.
+     *
+     * The event is emitted before the tool has run, so it is normally absent; read the
+     * {@link ToolCallDonePayload.output | output} of the matching done event instead.
+     */
+    output?: Record<string, unknown>;
     /**
      * Whether the server considers the agent interruptible while this call is outstanding.
      *
@@ -686,10 +692,14 @@ export interface ToolCallStartedPayload {
      */
     interruptible: boolean;
     /**
-     * Whether the agent waits for this call. See {@link ToolExecutionMode}; anything other than
-     * `async` is treated as `blocking`.
+     * Whether the agent waits for this call. See {@link ToolExecutionMode}.
+     *
+     * Always present: a server event that omits it, or carries anything other than `async`, is
+     * reported as `'blocking'` — the same normalization
+     * {@link RunningToolCall.executionMode | RunningToolCall.executionMode} applies, so the two
+     * agree about the same call.
      */
-    executionMode?: ToolExecutionMode;
+    executionMode: ToolExecutionMode;
     /** The conversational turn this call belongs to, or `null` when it belongs to no turn. */
     turnId?: number | null;
     /** When the call started, as reported by the server. */
@@ -725,7 +735,8 @@ export interface ToolCallDonePayload {
  * The payload of a {@link ToolCallEvent.Error} event: a tool call failed.
  *
  * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
- * {@link ToolEventCallback}. The agent carries on with the conversation; the SDK does not retry.
+ * {@link ToolEventCallback}. Read {@link ToolCallErrorPayload.error | error} for what went wrong.
+ * The agent carries on with the conversation; the SDK does not retry.
  *
  * @category Callbacks & Events
  */
@@ -742,6 +753,16 @@ export interface ToolCallErrorPayload {
     durationMs: number;
     /** Any additional metadata the server reported with the failure. */
     extra: Record<string, unknown>;
+    /**
+     * What went wrong, in one line, when the server said.
+     *
+     * Taken from the failure the server reports in {@link ToolCallErrorPayload.extra | extra}
+     * (`extra.error.message`), and from {@link ToolCallErrorPayload.output | output} when that is
+     * a plain string instead. Absent when the server sent neither, which is why an application
+     * that shows the reason needs a fallback of its own; the full structured failure — its kind,
+     * code and any data — is in `extra.error`.
+     */
+    error?: string;
     /** When the call failed, as reported by the server. */
     timestamp: string;
 }
@@ -789,6 +810,17 @@ export interface ToolCallDoneWirePayload {
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
  */
 export type ToolCallErrorWirePayload = ToolCallDoneWirePayload;
+
+/**
+ * The failure the server describes under a `tool-call/error` event's `extra.error`.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface ToolCallWireError {
+    kind?: string;
+    code?: number | string;
+    message?: string;
+    data?: unknown;
+}
 
 /**
  * Data-channel payload identifying the conversational turn a `turn/started` or `turn/ended` event belongs to.
@@ -888,7 +920,7 @@ export enum StreamEndReason {
  *         } else if (event === ToolCallEvent.Done) {
  *             console.log('done', data.name, data.output, data.durationMs);
  *         } else {
- *             console.log('failed', data.name, data.extra);
+ *             console.log('failed', data.name, data.error ?? 'no reason given');
  *         }
  *     },
  * };
@@ -908,7 +940,8 @@ export type ToolEventCallback = {
     (event: ToolCallEvent.Done, data: ToolCallDonePayload): void;
     /**
      * @param event - Always {@link ToolCallEvent.Error} in this overload.
-     * @param data - The call that has just failed, with whatever the server reported about it.
+     * @param data - The call that has just failed, with the reason in
+     * {@link ToolCallErrorPayload.error | error} when the server gave one.
      */
     (event: ToolCallEvent.Error, data: ToolCallErrorPayload): void;
 };
