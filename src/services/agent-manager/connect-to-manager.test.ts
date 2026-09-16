@@ -458,7 +458,7 @@ describe('connect-to-manager', () => {
 
         describe('onToolEvent', () => {
             const startedPayload = {
-                call_id: 'call-1',
+                callId: 'call-1',
                 name: 'lookup',
                 input: { q: 'hello' },
                 output: {},
@@ -467,7 +467,7 @@ describe('connect-to-manager', () => {
             const donePayload = {
                 ...startedPayload,
                 output: { result: 'ok' },
-                duration_ms: 123,
+                durationMs: 123,
                 extra: { region: 'eu' },
             };
             const errorPayload = {

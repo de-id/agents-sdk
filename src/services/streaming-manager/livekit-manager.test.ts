@@ -1572,11 +1572,50 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onToolEvent).toHaveBeenCalledWith(
                 ToolCallEvent.Started,
                 expect.objectContaining({
-                    call_id: 'call-123',
+                    callId: 'call-123',
                     name: 'get_weather',
                     input: { location: 'Tel Aviv' },
                 })
             );
+        });
+
+        it('should convert the snake_case wire fields to a camelCase ToolCallStartedPayload', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    output: {},
+                    interruptible: true,
+                    execution_mode: 'async',
+                    turn_id: 7,
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Started, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: {},
+                interruptible: true,
+                executionMode: 'async',
+                turnId: 7,
+                timestamp,
+            });
         });
 
         it('should emit onInterruptibleChange(false) when a blocking tool-call/started arrives', async () => {
@@ -1988,11 +2027,48 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onToolEvent).toHaveBeenCalledWith(
                 ToolCallEvent.Done,
                 expect.objectContaining({
-                    call_id: 'call-123',
+                    callId: 'call-123',
                     output: { temp: 22 },
-                    duration_ms: 500,
+                    durationMs: 500,
                 })
             );
+        });
+
+        it('should convert the snake_case wire fields to a camelCase ToolCallDonePayload', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallDone,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    output: { temp: 22 },
+                    duration_ms: 500,
+                    extra: { region: 'eu' },
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Done, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: { temp: 22 },
+                durationMs: 500,
+                extra: { region: 'eu' },
+                timestamp,
+            });
         });
     });
 
@@ -2040,10 +2116,47 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             expect(onToolEvent).toHaveBeenCalledWith(
                 ToolCallEvent.Error,
                 expect.objectContaining({
-                    call_id: 'call-123',
+                    callId: 'call-123',
                     extra: { message: 'upstream timeout' },
                 })
             );
+        });
+
+        it('should convert the snake_case wire fields to a camelCase ToolCallErrorPayload', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    output: {},
+                    duration_ms: 120,
+                    extra: { message: 'upstream timeout' },
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Error, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: {},
+                durationMs: 120,
+                extra: { message: 'upstream timeout' },
+                timestamp,
+            });
         });
     });
 

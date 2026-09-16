@@ -164,7 +164,7 @@ function trackLegacyVideoAnalytics(
 
 function trackToolEventAnalytics(event: ToolCallEvent, payload: ToolEventPayload, analytics: Analytics) {
     const baseProps: Record<string, unknown> = {
-        call_id: payload.call_id,
+        call_id: payload.callId,
         name: payload.name,
     };
 
@@ -177,7 +177,7 @@ function trackToolEventAnalytics(event: ToolCallEvent, payload: ToolEventPayload
     analytics.track('agent-tool-call', {
         ...baseProps,
         event: event === ToolCallEvent.Done ? 'done' : 'error',
-        duration_ms: finishedPayload.duration_ms,
+        duration_ms: finishedPayload.durationMs,
         extra_keys: finishedPayload.extra ? Object.keys(finishedPayload.extra).length : 0,
     });
 }

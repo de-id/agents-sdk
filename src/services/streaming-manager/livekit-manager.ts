@@ -15,9 +15,12 @@ import {
     StreamingState,
     StreamType,
     ToolCallDonePayload,
+    ToolCallDoneWirePayload,
     ToolCallErrorPayload,
+    ToolCallErrorWirePayload,
     ToolCallEvent,
     ToolCallStartedPayload,
+    ToolCallStartedWirePayload,
     TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
@@ -90,6 +93,37 @@ const connectivityQualityToState = {
 const streamError = (message = 'Stream Error') => new StreamError(message);
 
 type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
+
+/**
+ * The server sends tool-call events with snake_case fields; the public payloads are camelCase.
+ * This is the single place the two shapes meet.
+ */
+function toStartedPayload(wire: ToolCallStartedWirePayload): ToolCallStartedPayload {
+    return {
+        callId: wire.call_id,
+        name: wire.name,
+        input: wire.input,
+        output: wire.output,
+        interruptible: wire.interruptible,
+        executionMode: wire.execution_mode,
+        turnId: wire.turn_id,
+        timestamp: wire.timestamp,
+    };
+}
+
+function toFinishedPayload(wire: ToolCallDoneWirePayload): ToolCallDonePayload;
+function toFinishedPayload(wire: ToolCallErrorWirePayload): ToolCallErrorPayload;
+function toFinishedPayload(wire: ToolCallDoneWirePayload): ToolCallDonePayload {
+    return {
+        callId: wire.call_id,
+        name: wire.name,
+        input: wire.input,
+        output: wire.output,
+        durationMs: wire.duration_ms,
+        extra: wire.extra,
+        timestamp: wire.timestamp,
+    };
+}
 
 export function handleInitError(
     error: unknown,
@@ -395,15 +429,15 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
      */
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
-            const payload = data as ToolCallStartedPayload;
-            pendingToolCalls.set(payload.call_id, {
+            const payload = toStartedPayload(data as ToolCallStartedWirePayload);
+            pendingToolCalls.set(payload.callId, {
                 call: {
-                    callId: payload.call_id,
+                    callId: payload.callId,
                     name: payload.name,
-                    executionMode: payload.execution_mode === 'async' ? 'async' : 'blocking',
+                    executionMode: payload.executionMode === 'async' ? 'async' : 'blocking',
                 },
                 interruptible: payload.interruptible === true,
-                turnId: payload.turn_id ?? currentTurnId,
+                turnId: payload.turnId ?? currentTurnId,
             });
             recomputeInterruptible();
             emitRunningToolCalls();
@@ -414,15 +448,15 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
 
         if (subject === StreamEvents.ToolCallDone) {
-            const payload = data as ToolCallDonePayload;
-            resolvePendingToolCall(payload.call_id);
+            const payload = toFinishedPayload(data as ToolCallDoneWirePayload);
+            resolvePendingToolCall(payload.callId);
             callbacks.onToolEvent?.(ToolCallEvent.Done, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallError) {
-            const payload = data as ToolCallErrorPayload;
-            resolvePendingToolCall(payload.call_id);
+            const payload = toFinishedPayload(data as ToolCallErrorWirePayload);
+            resolvePendingToolCall(payload.callId);
             callbacks.onToolEvent?.(ToolCallEvent.Error, payload);
         }
     }

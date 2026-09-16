@@ -623,7 +623,7 @@ export type ClientToolHandler = (args: Record<string, unknown>) => Promise<strin
  * Whether the agent waits for a tool call to finish before it carries on.
  *
  * Set on the agent's tool configuration, and reported on {@link RunningToolCall.executionMode} and
- * {@link ToolCallStartedPayload.execution_mode}. Only a `blocking` call suspends the agent, which
+ * {@link ToolCallStartedPayload.executionMode}. Only a `blocking` call suspends the agent, which
  * is why one being outstanding is what makes the agent uninterruptible — see
  * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange}.
  *
@@ -639,14 +639,13 @@ export type ToolExecutionMode = 'blocking' | 'async';
  * when it starts and disappears when it finishes, fails, or — for a `blocking` call — when its turn
  * ends; an `async` call outlives its turn.
  *
- * The fields are camelCase because this is the SDK's own view of a call; the same call arrives in
- * {@link AgentManagerCallbacks.onToolEvent | onToolEvent} as a raw server payload, where the
- * equivalent fields are snake_case — `callId` here is `call_id` there.
- *
  * @category Callbacks & Events
  */
 export interface RunningToolCall {
-    /** Id of this call, matching the `call_id` of the {@link ToolCallStartedPayload} that announced it. */
+    /**
+     * Id of this call, matching the {@link ToolCallStartedPayload.callId | callId} of the
+     * {@link ToolCallStartedPayload} that announced it.
+     */
     callId: string;
     /** Name of the tool being called, as configured on the agent. */
     name: string;
@@ -669,7 +668,7 @@ export interface RunningToolCall {
  */
 export interface ToolCallStartedPayload {
     /** Id of this call. The matching done or error payload carries the same id. */
-    call_id: string;
+    callId: string;
     /** Name of the tool the agent is calling, as configured on the agent. */
     name: string;
     /** The arguments the agent's LLM produced for this call. */
@@ -681,7 +680,7 @@ export interface ToolCallStartedPayload {
      *
      * Informational: the SDK does not forward it.
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} is derived from
-     * the {@link ToolCallStartedPayload.execution_mode | execution_mode} of the calls still
+     * the {@link ToolCallStartedPayload.executionMode | executionMode} of the calls still
      * running, not from this field.
      */
     interruptible: boolean;
@@ -689,9 +688,9 @@ export interface ToolCallStartedPayload {
      * Whether the agent waits for this call. See {@link ToolExecutionMode}; anything other than
      * `async` is treated as `blocking`.
      */
-    execution_mode?: ToolExecutionMode;
+    executionMode?: ToolExecutionMode;
     /** The conversational turn this call belongs to, or `null` when it belongs to no turn. */
-    turn_id?: number | null;
+    turnId?: number | null;
     /** When the call started, as reported by the server. */
     timestamp: string;
 }
@@ -706,7 +705,7 @@ export interface ToolCallStartedPayload {
  */
 export interface ToolCallDonePayload {
     /** Id of the call that finished, matching the {@link ToolCallStartedPayload} that announced it. */
-    call_id: string;
+    callId: string;
     /** Name of the tool that was called. */
     name: string;
     /** The arguments the call was made with. */
@@ -714,7 +713,7 @@ export interface ToolCallDonePayload {
     /** The result the tool returned. */
     output: Record<string, unknown>;
     /** How long the call took, in milliseconds. */
-    duration_ms: number;
+    durationMs: number;
     /** Any additional metadata the tool reported alongside its result. */
     extra: Record<string, unknown>;
     /** When the call finished, as reported by the server. */
@@ -731,7 +730,7 @@ export interface ToolCallDonePayload {
  */
 export interface ToolCallErrorPayload {
     /** Id of the call that failed, matching the {@link ToolCallStartedPayload} that announced it. */
-    call_id: string;
+    callId: string;
     /** Name of the tool that was called. */
     name: string;
     /** The arguments the call was made with. */
@@ -739,7 +738,7 @@ export interface ToolCallErrorPayload {
     /** Whatever the failed call produced, if anything. */
     output: Record<string, unknown>;
     /** How long the call ran before failing, in milliseconds. */
-    duration_ms: number;
+    durationMs: number;
     /** Any additional metadata the server reported with the failure. */
     extra: Record<string, unknown>;
     /** When the call failed, as reported by the server. */
@@ -751,6 +750,44 @@ export interface ToolCallErrorPayload {
  * @internal Implementation type; not part of the public SDK surface.
  */
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
+
+/**
+ * Data-channel wire shape of a `tool-call/started` event, converted to
+ * {@link ToolCallStartedPayload} before it reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface ToolCallStartedWirePayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    interruptible: boolean;
+    execution_mode?: ToolExecutionMode;
+    turn_id?: number | null;
+    timestamp: string;
+}
+
+/**
+ * Data-channel wire shape of a `tool-call/done` event, converted to {@link ToolCallDonePayload}
+ * before it reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface ToolCallDoneWirePayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    duration_ms: number;
+    extra: Record<string, unknown>;
+    timestamp: string;
+}
+
+/**
+ * Data-channel wire shape of a `tool-call/error` event, converted to {@link ToolCallErrorPayload}
+ * before it reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export type ToolCallErrorWirePayload = ToolCallDoneWirePayload;
 
 /**
  * Data-channel payload identifying the conversational turn a `turn/started` or `turn/ended` event belongs to.
@@ -848,7 +885,7 @@ export enum StreamEndReason {
  *         if (event === ToolCallEvent.Started) {
  *             console.log('started', data.name, data.input);
  *         } else if (event === ToolCallEvent.Done) {
- *             console.log('done', data.name, data.output, data.duration_ms);
+ *             console.log('done', data.name, data.output, data.durationMs);
  *         } else {
  *             console.log('failed', data.name, data.extra);
  *         }
