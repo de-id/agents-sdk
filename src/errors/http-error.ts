@@ -31,13 +31,14 @@ function parseServerError(body: string): ServerErrorBody | undefined {
  * in the callback. For the message-send request behind {@link AgentManager.chat | chat()} the
  * callback may not fire; the error is still thrown. Typical cases are `401` or `403` for a client
  * key that is not authorized for the agent or the calling domain, and `404` for an unknown agent
- * id; an account that is out of credits comes back with {@link BaseError.kind | kind}
+ * id; an account that is out of credits comes back with {@link HttpError.code | code}
  * `'InsufficientCreditsError'`. A `429` is retried twice, one second apart (three attempts in
  * total), before it surfaces.
  *
- * {@link BaseError.kind | kind} is the server's own classification when the response body is D-ID's
- * `{ kind, description }` envelope — the `'InsufficientCreditsError'` above is one — and
- * `'HttpError'` otherwise, so a message-independent branch on a specific API failure is possible.
+ * {@link BaseError.kind | kind} is always `'HttpError'`, so a `switch` on it narrows a caught value
+ * to this class. The server's own classification lives on {@link HttpError.code | code} — the
+ * `'InsufficientCreditsError'` above is one — so a message-independent branch on a specific API
+ * failure is possible.
  *
  * The message is the envelope's `description` when the body is that JSON, and the raw body
  * otherwise — truncated to 256 characters either way, because a gateway can answer a 5xx with a
@@ -47,15 +48,21 @@ function parseServerError(body: string): ServerErrorBody | undefined {
  */
 export class HttpError extends BaseError {
     /**
-     * The server's own classification of the failure, and `'HttpError'` when the response body was
-     * not D-ID's `{ kind, description }` envelope.
-     *
-     * The only {@link BaseError.kind | kind} in the SDK that is not a fixed literal, so it stays
-     * typed `string`: an account out of credits comes back as `'InsufficientCreditsError'`, for
-     * instance. Use {@link HttpError.status | status} for the transport-level branch and this for
-     * the API-level one.
+     * Always `'HttpError'`. Branch on it to tell this failure from the other SDK errors.
      */
-    declare readonly kind: string;
+    readonly kind: 'HttpError' = 'HttpError';
+
+    /**
+     * The Agents API's own classification of the failure — the `kind` from D-ID's
+     * `{ kind, description }` error body — and `'HttpError'` when the response was not that
+     * envelope.
+     *
+     * An account out of credits comes back as `'InsufficientCreditsError'`, for instance. It is a
+     * plain `string` because the set is the API's, not the SDK's, and grows without an SDK release.
+     * Use {@link HttpError.status | status} for the transport-level branch, this for the API-level
+     * one, and {@link BaseError.kind | kind} to tell an `HttpError` from the SDK's other errors.
+     */
+    readonly code: string;
 
     /**
      * HTTP status code of the response, such as `401`, `404` or `500`.
@@ -83,8 +90,9 @@ export class HttpError extends BaseError {
     constructor(status: number, body: string, meta: RequestMeta = {}) {
         const parsed = parseServerError(body);
         // Cap the body — a non-JSON 5xx (e.g. a gateway's HTML page) is the only unbounded message source.
-        super((parsed?.description ?? body).slice(0, 256), parsed?.kind ?? 'HttpError');
+        super((parsed?.description ?? body).slice(0, 256), 'HttpError');
 
+        this.code = parsed?.kind ?? 'HttpError';
         this.status = status;
         this.endpoint = meta.endpoint;
         this.method = meta.method;
@@ -94,14 +102,16 @@ export class HttpError extends BaseError {
      * Serializes the error, adding the failing call to what
      * {@link BaseError.toJson | BaseError.toJson()} already returns.
      *
-     * Adds `httpStatus` from {@link HttpError.status | status}, and `endpoint` and `method` when the
-     * call context is known. The raw `status` property is serialized as `httpStatus`.
+     * Adds {@link HttpError.code | code}, `httpStatus` from {@link HttpError.status | status}, and
+     * `endpoint` and `method` when the call context is known. The raw `status` property is
+     * serialized as `httpStatus`.
      *
      * @returns The error as plain, JSON-serializable data.
      */
     toJson(): ErrorJson {
         return {
             ...super.toJson(),
+            code: this.code,
             httpStatus: this.status,
             ...(this.endpoint ? { endpoint: this.endpoint } : {}),
             ...(this.method ? { method: this.method } : {}),

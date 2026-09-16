@@ -1,6 +1,7 @@
 export * from './base-error';
 export * from './chat/chat-creation-failed';
 export * from './chat/chat-mode-downgraded';
+export type { DIDError } from './did-error';
 export * from './http-error';
 export * from './network-error';
 export * from './request-meta';

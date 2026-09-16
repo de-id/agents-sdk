@@ -291,7 +291,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     error?.message !== 'Could not connect' &&
                     !(
                         error instanceof HttpError &&
-                        (error.status === 429 || error.kind === 'InsufficientCreditsError')
+                        (error.status === 429 || error.code === 'InsufficientCreditsError')
                     ),
                 delayMs: 1000,
             }

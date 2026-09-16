@@ -1,7 +1,7 @@
 import { BaseError, HttpError, ValidationError, WsError } from '../errors';
 import { toErrorAnalytics } from './error-analytics';
 
-const ALLOWED_KEYS = ['kind', 'message', 'cause', 'httpStatus', 'endpoint', 'method'];
+const ALLOWED_KEYS = ['kind', 'code', 'message', 'cause', 'httpStatus', 'endpoint', 'method'];
 
 describe('toErrorAnalytics', () => {
     it("should delegate to an SDK error's own toJson()", () => {
@@ -12,7 +12,8 @@ describe('toErrorAnalytics', () => {
         );
         expect(toErrorAnalytics(err)).toEqual(err.toJson());
         expect(toErrorAnalytics(err)).toEqual({
-            kind: 'InsufficientCreditsError',
+            kind: 'HttpError',
+            code: 'InsufficientCreditsError',
             message: 'no credits',
             httpStatus: 402,
             endpoint: '/agents/x/chat',
@@ -23,6 +24,7 @@ describe('toErrorAnalytics', () => {
     it('should classify every SDK error by its kind', () => {
         expect(toErrorAnalytics(new HttpError(500, 'boom'))).toMatchObject({
             kind: 'HttpError',
+            code: 'HttpError',
             httpStatus: 500,
         });
         expect(toErrorAnalytics(new ValidationError('bad'))).toMatchObject({ kind: 'ValidationError', message: 'bad' });

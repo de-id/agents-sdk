@@ -1,15 +1,18 @@
+import type { DIDError } from './did-error';
+
 /**
  * The JSON-safe payload {@link BaseError.toJson | toJson()} produces, for logs and error reports.
  *
  * Only the fields the SDK deliberately exposes are present, so the payload can be forwarded to a
- * logging service as it is. Subclasses add their own keys: {@link HttpError} adds `httpStatus` and,
- * when the failing call is known, `endpoint` and `method`; {@link NetworkError} adds `endpoint`,
- * `method`, `durationMs`, `online` and `visibility`.
+ * logging service as it is. Subclasses add their own keys: {@link HttpError} adds `code` and
+ * `httpStatus` and, when the failing call is known, `endpoint` and `method`; {@link NetworkError}
+ * adds `endpoint`, `method`, `durationMs`, `online` and `visibility`.
  *
  * @example An HttpError from a request that was refused
  * ```json
  * {
- *     "kind": "InsufficientCreditsError",
+ *     "kind": "HttpError",
+ *     "code": "InsufficientCreditsError",
  *     "message": "Account has insufficient credits",
  *     "httpStatus": 402,
  *     "endpoint": "/agt_x/chat/cht_y",
@@ -36,9 +39,17 @@ export interface ErrorJson {
      */
     cause?: string;
     /**
-     * Additional fields contributed by a subclass, such as `httpStatus` on {@link HttpError}.
+     * The Agents API's own classification of the failure, from {@link HttpError.code | code}.
+     *
+     * Present on an {@link HttpError} only.
      */
-    [key: string]: any;
+    code?: string;
+    /**
+     * Additional fields contributed by a subclass, such as `httpStatus` on {@link HttpError}.
+     *
+     * Typed `unknown`, so a key that is not declared above has to be narrowed before it is used.
+     */
+    [key: string]: unknown;
 }
 
 /**
@@ -63,7 +74,8 @@ export interface ErrorJson {
  *
  * Subclasses: {@link HttpError}, {@link NetworkError}, {@link WsError}, {@link StreamError},
  * {@link ValidationError}, {@link ChatCreationFailed} and {@link ChatModeDowngraded}. When the
- * caught value is typed `unknown`, {@link isDIDError} narrows it to this class.
+ * caught value is typed `unknown`, {@link isDIDError} narrows it to {@link DIDError}, the union of
+ * those seven, so a `switch` on {@link BaseError.kind | kind} then narrows it to one class.
  *
  * @category Errors
  */
@@ -81,14 +93,14 @@ export class BaseError extends Error {
          * Stable machine-readable code for this failure, and the value to branch on.
          *
          * Every subclass redeclares it as the literal it always carries, so a `switch` on `kind`
-         * narrows the caught error to that class: `'NetworkError'` on {@link NetworkError},
-         * `'WSError'` on {@link WsError}, `'StreamError'` on {@link StreamError},
-         * `'ValidationError'` on {@link ValidationError}, `'ChatCreationFailed'` on
-         * {@link ChatCreationFailed} and `'ChatModeDowngraded'` on {@link ChatModeDowngraded}.
-         * {@link HttpError} is the one that stays a plain `string`, because it reuses the server's
-         * own classification when the response carries one and is `'HttpError'` otherwise. On a
-         * `BaseError` built directly it is whatever the caller passed, and `'Error'` when nothing
-         * was.
+         * narrows a value {@link isDIDError} has recognized to that class: `'HttpError'` on
+         * {@link HttpError}, `'NetworkError'` on {@link NetworkError}, `'WSError'` on
+         * {@link WsError}, `'StreamError'` on {@link StreamError}, `'ValidationError'` on
+         * {@link ValidationError}, `'ChatCreationFailed'` on {@link ChatCreationFailed} and
+         * `'ChatModeDowngraded'` on {@link ChatModeDowngraded}. It stays a plain `string` here on
+         * the base class: on a `BaseError` built directly it is whatever the caller passed, and
+         * `'Error'` when nothing was. The Agents API's own classification of a failed request is
+         * {@link HttpError.code | HttpError.code}, not this.
          */
         public readonly kind: string = 'Error',
         /**
@@ -153,12 +165,13 @@ export class BaseError extends Error {
  *
  * It accepts any `Error` carrying a string `kind`, which every {@link BaseError} has, so it also
  * recognizes SDK errors that crossed a bundle boundary, where `instanceof BaseError` can fail
- * because two copies of the class are loaded. Narrowing with it gives typed access to
- * {@link BaseError.kind | kind}, {@link BaseError.originalError | originalError} and
- * {@link BaseError.toJson | toJson()}.
+ * because two copies of the class are loaded. It narrows to {@link DIDError}, the union of the
+ * seven subclasses, so a `switch` on {@link BaseError.kind | kind} inside the branch narrows
+ * further to one class and its own fields — `error.status` on an {@link HttpError},
+ * `error.key` on a {@link ValidationError}.
  *
  * @param error - The caught value to test.
- * @returns `true` when `error` is a {@link BaseError}.
+ * @returns `true` when `error` is an error the SDK raised.
  * @example
  * ```ts
  * try {
@@ -166,6 +179,10 @@ export class BaseError extends Error {
  * } catch (error) {
  *     if (isDIDError(error)) {
  *         console.error(error.kind, error.toJson());
+ *
+ *         if (error.kind === 'HttpError' && error.status === 401) {
+ *             refreshCredentials();
+ *         }
  *     } else {
  *         throw error;
  *     }
@@ -173,6 +190,6 @@ export class BaseError extends Error {
  * ```
  * @category Errors
  */
-export function isDIDError(error: unknown): error is BaseError {
+export function isDIDError(error: unknown): error is DIDError {
     return error instanceof Error && typeof (error as { kind?: unknown }).kind === 'string';
 }

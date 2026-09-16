@@ -82,4 +82,4 @@ export {
     WsError,
     isDIDError,
 } from './errors';
-export type { ErrorJson } from './errors';
+export type { DIDError, ErrorJson } from './errors';
