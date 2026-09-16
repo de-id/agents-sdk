@@ -16,6 +16,7 @@ import {
     StreamType,
     ToolCallDonePayload,
     ToolCallErrorPayload,
+    ToolCallEvent,
     ToolCallStartedPayload,
     TurnEventPayload,
 } from '@sdk/types';
@@ -408,21 +409,21 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             emitRunningToolCalls();
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
+            callbacks.onToolEvent?.(ToolCallEvent.Started, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallDone) {
             const payload = data as ToolCallDonePayload;
             resolvePendingToolCall(payload.call_id);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallDone, payload);
+            callbacks.onToolEvent?.(ToolCallEvent.Done, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallError) {
             const payload = data as ToolCallErrorPayload;
             resolvePendingToolCall(payload.call_id);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallError, payload);
+            callbacks.onToolEvent?.(ToolCallEvent.Error, payload);
         }
     }
 

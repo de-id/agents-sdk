@@ -87,14 +87,11 @@ export enum AgentActivityState {
 }
 
 /**
- * The tool-call events delivered to
- * {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
+ * Every event the SDK receives on a stream's data channel or web socket.
  *
- * Switch on the first argument of the handler to tell them apart; it narrows the payload to
- * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} or {@link ToolCallErrorPayload} —
- * see {@link ToolEventCallback}. Expressive (V4) agents only.
- *
- * @category Callbacks & Events
+ * The three tool-call members are the only ones an application ever sees, and they reach it as
+ * {@link ToolCallEvent} instead; the rest are consumed by the SDK and surfaced as callbacks.
+ * @internal Implementation type; not part of the public SDK surface.
  */
 export enum StreamEvents {
     /**
@@ -195,6 +192,46 @@ export enum StreamEvents {
      * @internal Consumed by the SDK; it surfaces as onAgentActivityStateChange.
      */
     TurnEnded = 'turn/ended',
+}
+
+/**
+ * The tool-call events delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
+ *
+ * Switch on the first argument of the handler to tell them apart: it narrows the second argument to
+ * the payload that event carries — see {@link ToolEventCallback}. The members' values are the wire
+ * strings the server sends, so compare against the enum rather than writing the string out.
+ * Expressive (V4) agents only.
+ *
+ * @example
+ * ```ts
+ * import { ToolCallEvent } from '@d-id/client-sdk';
+ *
+ * const callbacks = {
+ *     onToolEvent(event, data) {
+ *         if (event === ToolCallEvent.Started) {
+ *             console.log('started', data.name, data.input);
+ *         }
+ *     },
+ * };
+ * ```
+ * @category Callbacks & Events
+ */
+export enum ToolCallEvent {
+    /**
+     * The agent has begun a tool call; the payload is a {@link ToolCallStartedPayload}, carrying the
+     * call's id, the tool's name and the arguments the agent's LLM produced.
+     */
+    Started = 'tool-call/started',
+    /**
+     * A tool call finished successfully; the payload is a {@link ToolCallDonePayload}, carrying the
+     * result the tool returned and how long the call took.
+     */
+    Done = 'tool-call/done',
+    /**
+     * A tool call failed; the payload is a {@link ToolCallErrorPayload}, carrying whatever the
+     * server reported about the failure. The agent carries on with the conversation.
+     */
+    Error = 'tool-call/error',
 }
 
 /**
@@ -623,7 +660,7 @@ export interface RunningToolCall {
 }
 
 /**
- * The payload of a {@link StreamEvents.ToolCallStarted} event: the agent has begun a tool call.
+ * The payload of a {@link ToolCallEvent.Started} event: the agent has begun a tool call.
  *
  * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
  * {@link ToolEventCallback}.
@@ -660,7 +697,7 @@ export interface ToolCallStartedPayload {
 }
 
 /**
- * The payload of a {@link StreamEvents.ToolCallDone} event: a tool call finished successfully.
+ * The payload of a {@link ToolCallEvent.Done} event: a tool call finished successfully.
  *
  * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
  * {@link ToolEventCallback}.
@@ -685,7 +722,7 @@ export interface ToolCallDonePayload {
 }
 
 /**
- * The payload of a {@link StreamEvents.ToolCallError} event: a tool call failed.
+ * The payload of a {@link ToolCallEvent.Error} event: a tool call failed.
  *
  * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
  * {@link ToolEventCallback}. The agent carries on with the conversation; the SDK does not retry.
@@ -804,13 +841,13 @@ export enum StreamEndReason {
  *
  * @example
  * ```ts
- * import { StreamEvents } from '@d-id/client-sdk';
+ * import { ToolCallEvent } from '@d-id/client-sdk';
  *
  * const callbacks = {
  *     onToolEvent(event, data) {
- *         if (event === StreamEvents.ToolCallStarted) {
+ *         if (event === ToolCallEvent.Started) {
  *             console.log('started', data.name, data.input);
- *         } else if (event === StreamEvents.ToolCallDone) {
+ *         } else if (event === ToolCallEvent.Done) {
  *             console.log('done', data.name, data.output, data.duration_ms);
  *         } else {
  *             console.log('failed', data.name, data.extra);
@@ -822,18 +859,18 @@ export enum StreamEndReason {
  */
 export type ToolEventCallback = {
     /**
-     * @param event - Always {@link StreamEvents.ToolCallStarted} in this overload.
+     * @param event - Always {@link ToolCallEvent.Started} in this overload.
      * @param data - The call the agent has just begun, with the arguments its LLM produced.
      */
-    (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
+    (event: ToolCallEvent.Started, data: ToolCallStartedPayload): void;
     /**
-     * @param event - Always {@link StreamEvents.ToolCallDone} in this overload.
+     * @param event - Always {@link ToolCallEvent.Done} in this overload.
      * @param data - The call that has just finished, with the result the tool returned.
      */
-    (event: StreamEvents.ToolCallDone, data: ToolCallDonePayload): void;
+    (event: ToolCallEvent.Done, data: ToolCallDonePayload): void;
     /**
-     * @param event - Always {@link StreamEvents.ToolCallError} in this overload.
+     * @param event - Always {@link ToolCallEvent.Error} in this overload.
      * @param data - The call that has just failed, with whatever the server reported about it.
      */
-    (event: StreamEvents.ToolCallError, data: ToolCallErrorPayload): void;
+    (event: ToolCallEvent.Error, data: ToolCallErrorPayload): void;
 };

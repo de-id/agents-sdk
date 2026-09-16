@@ -7,6 +7,7 @@ import {
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
+    ToolCallEvent,
     TransportProvider,
 } from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
@@ -1569,7 +1570,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCallStarted,
+                ToolCallEvent.Started,
                 expect.objectContaining({
                     call_id: 'call-123',
                     name: 'get_weather',
@@ -1985,7 +1986,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).not.toHaveBeenCalled();
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCallDone,
+                ToolCallEvent.Done,
                 expect.objectContaining({
                     call_id: 'call-123',
                     output: { temp: 22 },
@@ -2037,7 +2038,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).not.toHaveBeenCalled();
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCallError,
+                ToolCallEvent.Error,
                 expect.objectContaining({
                     call_id: 'call-123',
                     extra: { message: 'upstream timeout' },

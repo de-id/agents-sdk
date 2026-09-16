@@ -20,8 +20,8 @@ export {
     ConnectivityState,
     DataChannelTopic,
     StreamEndReason,
-    StreamEvents,
     StreamingState,
+    ToolCallEvent,
 } from './types/stream/stream';
 export type {
     ClientToolHandler,

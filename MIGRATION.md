@@ -54,7 +54,7 @@ Shapes are unchanged; only the names differ.
 - `StreamOptions.outputResolution` — the Agents API ignores the field; the stream keeps the agent's configured resolution.
 - `ConnectionStateChangeCallback` and `VideoStateChangeCallback` — use `AgentManagerCallbacks['onConnectionStateChange']` and `AgentManagerCallbacks['onVideoStateChange']`.
 - `AgentManagerOptions.microphoneStream` — it was never read by the SDK, so passing it had no effect. Call `agentManager.publishMicrophoneStream(stream)` after `connect()` instead (Expressive (V4) agents).
-- `StreamEvents.StreamCreated` — never emitted; use the `onStreamCreated` callback.
+- `StreamEvents` is no longer exported; `onToolEvent` receives a `ToolCallEvent` (`Started`, `Done`, `Error`) with the same string values, and `StreamEvents.StreamCreated` was never emitted — use the `onStreamCreated` callback.
 - `Status` and `StickyRequest` — their `status` and `session_id` fields are declared directly on `SpeakResponse`.
 - `ToolEventPayload` — use the payload the `onToolEvent` overloads narrow to: `ToolCallStartedPayload`, `ToolCallDonePayload` or `ToolCallErrorPayload`.
 - `BaseStreamScript` and `StreamScriptType` — deleted; use `SpeakScript`, or `TextStreamScript`/`AudioStreamScript` directly.

@@ -274,8 +274,8 @@ export interface AgentManagerCallbacks {
      * Called when the agent starts, finishes or fails a tool call.
      *
      * Expressive (V4) agents only. The handler takes two arguments and returns nothing: `event`,
-     * one of {@link StreamEvents.ToolCallStarted}, {@link StreamEvents.ToolCallDone} or
-     * {@link StreamEvents.ToolCallError}; and `data`, the payload that event narrows to —
+     * one of {@link ToolCallEvent.Started}, {@link ToolCallEvent.Done} or
+     * {@link ToolCallEvent.Error}; and `data`, the payload that event narrows to —
      * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} or
      * {@link ToolCallErrorPayload} respectively. The overloads that do the narrowing are on
      * {@link ToolEventCallback}, with an example handler.
