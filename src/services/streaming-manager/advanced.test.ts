@@ -1,4 +1,4 @@
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 /**
  * Advanced functionality tests for streaming manager
  * Tests complex scenarios, edge cases, and advanced features
@@ -202,7 +202,7 @@ describe('Streaming Manager Advanced', () => {
 
             mockDC.readyState = 'connecting';
 
-            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test-message');
+            manager.sendDataChannelMessage(InternalDataChannelTopic.Interrupt, 'test-message');
 
             expect(options.callbacks.onError).toHaveBeenCalledWith(expect.any(Error), { streamId: 'streamId' });
         });

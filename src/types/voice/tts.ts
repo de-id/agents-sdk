@@ -254,8 +254,4 @@ export interface VoiceConfigElevenlabs {
  * ```
  * @category Voice
  */
-export type StreamTextToSpeechProviders =
-    | MicrosoftTtsProvider
-    | AzureOpenAiTtsProvider
-    | ElevenlabsTtsProvider
-    | AmazonTtsProvider;
+export type TtsProvider = MicrosoftTtsProvider | AzureOpenAiTtsProvider | ElevenlabsTtsProvider | AmazonTtsProvider;

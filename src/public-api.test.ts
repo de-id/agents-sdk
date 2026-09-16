@@ -7,6 +7,7 @@ jest.mock('@sdk/config/environment', () => ({
 }));
 
 import * as sdk from './index';
+import { StreamEvents, ToolCallEvent } from './types/stream/stream';
 
 /**
  * Runtime exports of the package root (enums, classes, functions, consts).
@@ -24,15 +25,15 @@ const RUNTIME_EXPORTS = [
     'ChatModeDowngraded',
     'ConnectionState',
     'ConnectivityState',
+    'DataChannelTopic',
     'HttpError',
     'NetworkError',
     'Providers',
-    'PublicDataChannelTopic',
     'StreamEndReason',
     'StreamError',
-    'StreamEvents',
     'StreamType',
     'StreamingState',
+    'ToolCallEvent',
     'ValidationError',
     'AvatarType',
     'VoiceAccess',
@@ -48,5 +49,18 @@ describe('Public API', () => {
         const actual = Object.keys(sdk).sort();
 
         expect(actual).toEqual(RUNTIME_EXPORTS);
+    });
+
+    /**
+     * The public enum and the internal one the data channel dispatches on are declared separately.
+     * They must carry the same wire strings, or onToolEvent would report an event value no
+     * comparison against ToolCallEvent can match.
+     */
+    it('Should give ToolCallEvent the same wire strings as the internal StreamEvents members', () => {
+        expect([ToolCallEvent.Started, ToolCallEvent.Done, ToolCallEvent.Error]).toEqual([
+            StreamEvents.ToolCallStarted,
+            StreamEvents.ToolCallDone,
+            StreamEvents.ToolCallError,
+        ]);
     });
 });

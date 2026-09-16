@@ -2,13 +2,13 @@
  * A rating stored against one message of a chat, as the Agents API returns it.
  *
  * Produced by {@link AgentManager.rate | rate()} and returned again by
- * {@link AgentManager.deleteRate | deleteRate()}. Keep {@link RatingEntity.id | id} if the user may
+ * {@link AgentManager.deleteRate | deleteRate()}. Keep {@link Rating.id | id} if the user may
  * change their mind: pass it back to {@link AgentManager.rate | rate()} as `rateId` to update the
  * rating, or to {@link AgentManager.deleteRate | deleteRate()} to remove it.
  *
  * @category Chat
  */
-export interface RatingEntity {
+export interface Rating {
     /**
      * Id of this rating.
      *
@@ -57,11 +57,11 @@ export interface RatingEntity {
 }
 
 /**
- * Request payload for rating a chat message, derived from `RatingEntity`.
+ * Request payload for rating a chat message, derived from `Rating`.
  * @internal Implementation type; not part of the public SDK surface.
  */
 export type RatingPayload = Omit<
-    RatingEntity,
+    Rating,
     'owner_id' | 'id' | 'created_at' | 'modified_at' | 'created_by' | 'external_id' | 'agent_id' | 'chat_id'
 >;
 
@@ -199,7 +199,7 @@ export interface Message {
      */
     parts: MessagePart[];
     /** When the message was added, as an ISO 8601 timestamp. */
-    created_at?: string;
+    createdAt?: string;
     /**
      * The knowledge citations the answer was drawn from, as {@link RetrievalMetadata} entries.
      *
@@ -281,14 +281,14 @@ export interface ChatPayload {
  */
 export interface RetrievalMetadata {
     /** Id of this match. Sent back with a rating as the second half of a
-     * {@link RatingEntity.matches} pair. */
+     * {@link Rating.matches} pair. */
     id: string;
     /** The matched passage itself, as stored in the knowledge base. */
     data: string;
     /** Title of the document the passage comes from. */
     title: string;
     /** Id of the source document. Sent back with a rating as the first half of a
-     * {@link RatingEntity.matches} pair. */
+     * {@link Rating.matches} pair. */
     document_id: string;
     /** Id of the knowledge base the document belongs to — the agent's {@link Agent.knowledge}. */
     knowledge_id: string;
@@ -326,7 +326,7 @@ export enum ChatMode {
      * {@link AgentManager.chat | chat()} still returns answers through
      * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}, and
      * {@link AgentManager.speak | speak()} adds a text script to the transcript but streams no
-     * video: it resolves with a `duration` of `0` and an empty `video_id`.
+     * video: it resolves with a `duration` of `0` and an empty `videoId`.
      */
     TextOnly = 'TextOnly',
     /**
@@ -479,7 +479,7 @@ export interface Chat {
  *
  * @category Chat
  */
-export interface Interrupt {
+export interface InterruptOptions {
     /**
      * The cause: `text` when the user typed over the answer, `audio` when they started speaking,
      * `click` when they pressed a stop control, and `manual` for an interruption the application

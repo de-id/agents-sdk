@@ -11,17 +11,17 @@ export type {
     StreamOptions,
 } from './types/entities/agents/manager';
 export { AvatarType } from './types/entities/avatar';
-export type { STTTokenResponse } from './types/voice/stt';
+export type { SttTokenResponse } from './types/voice/stt';
 
 // Callbacks & Events
 export {
     AgentActivityState,
     ConnectionState,
     ConnectivityState,
-    PublicDataChannelTopic,
+    DataChannelTopic,
     StreamEndReason,
-    StreamEvents,
     StreamingState,
+    ToolCallEvent,
 } from './types/stream/stream';
 export type {
     ClientToolHandler,
@@ -35,22 +35,22 @@ export type {
 } from './types/stream/stream';
 
 // Streaming Options
-export type { SendStreamPayloadResponse } from './types/stream/rtc';
+export type { SpeakResponse } from './types/stream/rtc';
 export { StreamType } from './types/stream/stream';
 export type { CompatibilityMode } from './types/stream/stream';
 
 // Speak & Scripts
-export type { AudioStreamScript, SupportedStreamScript, TextStreamScript } from './types/stream-script';
+export type { AudioStreamScript, SpeakScript, TextStreamScript } from './types/stream-script';
 
 // Chat
 export { ChatMode } from './types/entities/agents/chat';
 export type {
     ChatResponse,
-    Interrupt,
+    InterruptOptions,
     Message,
     MessagePart,
     MessageSentiment,
-    RatingEntity,
+    Rating,
     RetrievalMetadata,
     SubmitFeedbackResponse,
 } from './types/entities/agents/chat';
@@ -64,7 +64,7 @@ export type {
     AzureOpenAiTtsProvider,
     ElevenlabsTtsProvider,
     MicrosoftTtsProvider,
-    StreamTextToSpeechProviders,
+    TtsProvider,
     Voice,
     VoiceConfigElevenlabs,
     VoiceConfigMicrosoft,

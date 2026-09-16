@@ -3,7 +3,7 @@ import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/repor
 import { Auth } from '../auth';
 import { ChatProgressCallback } from '../entities/agents/manager';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
-import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
+import { ICreateStreamRequestResponse, IceCandidate, SpeakResponse, Status } from './rtc';
 
 /**
  * Which video codec the stream should negotiate.
@@ -87,14 +87,11 @@ export enum AgentActivityState {
 }
 
 /**
- * The tool-call events delivered to
- * {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
+ * Every event the SDK receives on a stream's data channel or web socket.
  *
- * Switch on the first argument of the handler to tell them apart; it narrows the payload to
- * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} or {@link ToolCallErrorPayload} —
- * see {@link ToolEventCallback}. Expressive (V4) agents only.
- *
- * @category Callbacks & Events
+ * The three tool-call members are the only ones an application ever sees, and they reach it as
+ * {@link ToolCallEvent} instead; the rest are consumed by the SDK and surfaced as callbacks.
+ * @internal Implementation type; not part of the public SDK surface.
  */
 export enum StreamEvents {
     /**
@@ -198,6 +195,46 @@ export enum StreamEvents {
 }
 
 /**
+ * The tool-call events delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
+ *
+ * Switch on the first argument of the handler to tell them apart: it narrows the second argument to
+ * the payload that event carries — see {@link ToolEventCallback}. The members' values are the wire
+ * strings the server sends, so compare against the enum rather than writing the string out.
+ * Expressive (V4) agents only.
+ *
+ * @example
+ * ```ts
+ * import { ToolCallEvent } from '@d-id/client-sdk';
+ *
+ * const callbacks = {
+ *     onToolEvent(event, data) {
+ *         if (event === ToolCallEvent.Started) {
+ *             console.log('started', data.name, data.input);
+ *         }
+ *     },
+ * };
+ * ```
+ * @category Callbacks & Events
+ */
+export enum ToolCallEvent {
+    /**
+     * The agent has begun a tool call; the payload is a {@link ToolCallStartedPayload}, carrying the
+     * call's id, the tool's name and the arguments the agent's LLM produced.
+     */
+    Started = 'tool-call/started',
+    /**
+     * A tool call finished successfully; the payload is a {@link ToolCallDonePayload}, carrying the
+     * result the tool returned and how long the call took.
+     */
+    Done = 'tool-call/done',
+    /**
+     * A tool call failed; the payload is a {@link ToolCallErrorPayload}, carrying whatever the
+     * server reported about the failure. The agent carries on with the conversation.
+     */
+    Error = 'tool-call/error',
+}
+
+/**
  * The data-channel topics an application may send on with
  * {@link AgentManager.sendDataChannelMessage | sendDataChannelMessage()}.
  *
@@ -212,16 +249,16 @@ export enum StreamEvents {
  *
  * @example
  * ```ts
- * import { PublicDataChannelTopic } from '@d-id/client-sdk';
+ * import { DataChannelTopic } from '@d-id/client-sdk';
  *
- * await agentManager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, {
+ * await agentManager.sendDataChannelMessage(DataChannelTopic.Presentation, {
  *     type: 'navigate',
  *     slide: 3,
  * });
  * ```
  * @category Agent Manager
  */
-export enum PublicDataChannelTopic {
+export enum DataChannelTopic {
     /**
      * Messages that drive a presentation the agent is showing alongside its video, such as moving
      * to another slide. Sent on the wire as `did.presentation`; the payload shape is whatever the
@@ -323,18 +360,19 @@ export interface StreamCreatedInfo {
     /**
      * Id of the agent the stream was opened for.
      */
-    agent_id: string;
+    agentId: string;
 
     /**
      * Id of the session; the SDK sends it back on every subsequent request for this stream.
-     * On Expressive (V4) agents it is the same value as `stream_id`.
+     * On Expressive (V4) agents it is the same value as
+     * {@link StreamCreatedInfo.streamId | streamId}.
      */
-    session_id: string;
+    sessionId: string;
 
     /**
      * Id of the stream itself.
      */
-    stream_id: string;
+    streamId: string;
 }
 
 /**
@@ -444,7 +482,7 @@ export interface RtcApi {
         streamId: string,
         sessionId: string,
         payload: SendClipStreamPayload | SendTalkStreamPayload
-    ): Promise<SendStreamPayloadResponse>;
+    ): Promise<SpeakResponse>;
     close(streamId: string, sessionId: string): Promise<Status>;
 }
 
@@ -586,7 +624,7 @@ export type ClientToolHandler = (args: Record<string, unknown>) => Promise<strin
  * Whether the agent waits for a tool call to finish before it carries on.
  *
  * Set on the agent's tool configuration, and reported on {@link RunningToolCall.executionMode} and
- * {@link ToolCallStartedPayload.execution_mode}. Only a `blocking` call suspends the agent, which
+ * {@link ToolCallStartedPayload.executionMode}. Only a `blocking` call suspends the agent, which
  * is why one being outstanding is what makes the agent uninterruptible — see
  * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange}.
  *
@@ -602,14 +640,13 @@ export type ToolExecutionMode = 'blocking' | 'async';
  * when it starts and disappears when it finishes, fails, or — for a `blocking` call — when its turn
  * ends; an `async` call outlives its turn.
  *
- * The fields are camelCase because this is the SDK's own view of a call; the same call arrives in
- * {@link AgentManagerCallbacks.onToolEvent | onToolEvent} as a raw server payload, where the
- * equivalent fields are snake_case — `callId` here is `call_id` there.
- *
  * @category Callbacks & Events
  */
 export interface RunningToolCall {
-    /** Id of this call, matching the `call_id` of the {@link ToolCallStartedPayload} that announced it. */
+    /**
+     * Id of this call, matching the {@link ToolCallStartedPayload.callId | callId} of the
+     * {@link ToolCallStartedPayload} that announced it.
+     */
     callId: string;
     /** Name of the tool being called, as configured on the agent. */
     name: string;
@@ -623,7 +660,7 @@ export interface RunningToolCall {
 }
 
 /**
- * The payload of a {@link StreamEvents.ToolCallStarted} event: the agent has begun a tool call.
+ * The payload of a {@link ToolCallEvent.Started} event: the agent has begun a tool call.
  *
  * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
  * {@link ToolEventCallback}.
@@ -632,7 +669,7 @@ export interface RunningToolCall {
  */
 export interface ToolCallStartedPayload {
     /** Id of this call. The matching done or error payload carries the same id. */
-    call_id: string;
+    callId: string;
     /** Name of the tool the agent is calling, as configured on the agent. */
     name: string;
     /** The arguments the agent's LLM produced for this call. */
@@ -644,7 +681,7 @@ export interface ToolCallStartedPayload {
      *
      * Informational: the SDK does not forward it.
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} is derived from
-     * the {@link ToolCallStartedPayload.execution_mode | execution_mode} of the calls still
+     * the {@link ToolCallStartedPayload.executionMode | executionMode} of the calls still
      * running, not from this field.
      */
     interruptible: boolean;
@@ -652,15 +689,15 @@ export interface ToolCallStartedPayload {
      * Whether the agent waits for this call. See {@link ToolExecutionMode}; anything other than
      * `async` is treated as `blocking`.
      */
-    execution_mode?: ToolExecutionMode;
+    executionMode?: ToolExecutionMode;
     /** The conversational turn this call belongs to, or `null` when it belongs to no turn. */
-    turn_id?: number | null;
+    turnId?: number | null;
     /** When the call started, as reported by the server. */
     timestamp: string;
 }
 
 /**
- * The payload of a {@link StreamEvents.ToolCallDone} event: a tool call finished successfully.
+ * The payload of a {@link ToolCallEvent.Done} event: a tool call finished successfully.
  *
  * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
  * {@link ToolEventCallback}.
@@ -669,7 +706,7 @@ export interface ToolCallStartedPayload {
  */
 export interface ToolCallDonePayload {
     /** Id of the call that finished, matching the {@link ToolCallStartedPayload} that announced it. */
-    call_id: string;
+    callId: string;
     /** Name of the tool that was called. */
     name: string;
     /** The arguments the call was made with. */
@@ -677,7 +714,7 @@ export interface ToolCallDonePayload {
     /** The result the tool returned. */
     output: Record<string, unknown>;
     /** How long the call took, in milliseconds. */
-    duration_ms: number;
+    durationMs: number;
     /** Any additional metadata the tool reported alongside its result. */
     extra: Record<string, unknown>;
     /** When the call finished, as reported by the server. */
@@ -685,7 +722,7 @@ export interface ToolCallDonePayload {
 }
 
 /**
- * The payload of a {@link StreamEvents.ToolCallError} event: a tool call failed.
+ * The payload of a {@link ToolCallEvent.Error} event: a tool call failed.
  *
  * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
  * {@link ToolEventCallback}. The agent carries on with the conversation; the SDK does not retry.
@@ -694,7 +731,7 @@ export interface ToolCallDonePayload {
  */
 export interface ToolCallErrorPayload {
     /** Id of the call that failed, matching the {@link ToolCallStartedPayload} that announced it. */
-    call_id: string;
+    callId: string;
     /** Name of the tool that was called. */
     name: string;
     /** The arguments the call was made with. */
@@ -702,7 +739,7 @@ export interface ToolCallErrorPayload {
     /** Whatever the failed call produced, if anything. */
     output: Record<string, unknown>;
     /** How long the call ran before failing, in milliseconds. */
-    duration_ms: number;
+    durationMs: number;
     /** Any additional metadata the server reported with the failure. */
     extra: Record<string, unknown>;
     /** When the call failed, as reported by the server. */
@@ -714,6 +751,44 @@ export interface ToolCallErrorPayload {
  * @internal Implementation type; not part of the public SDK surface.
  */
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
+
+/**
+ * Data-channel wire shape of a `tool-call/started` event, converted to
+ * {@link ToolCallStartedPayload} before it reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface ToolCallStartedWirePayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    interruptible?: boolean;
+    execution_mode?: ToolExecutionMode;
+    turn_id?: number | null;
+    timestamp: string;
+}
+
+/**
+ * Data-channel wire shape of a `tool-call/done` event, converted to {@link ToolCallDonePayload}
+ * before it reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface ToolCallDoneWirePayload {
+    call_id: string;
+    name: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    duration_ms: number;
+    extra: Record<string, unknown>;
+    timestamp: string;
+}
+
+/**
+ * Data-channel wire shape of a `tool-call/error` event, converted to {@link ToolCallErrorPayload}
+ * before it reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export type ToolCallErrorWirePayload = ToolCallDoneWirePayload;
 
 /**
  * Data-channel payload identifying the conversational turn a `turn/started` or `turn/ended` event belongs to.
@@ -804,14 +879,14 @@ export enum StreamEndReason {
  *
  * @example
  * ```ts
- * import { StreamEvents } from '@d-id/client-sdk';
+ * import { ToolCallEvent } from '@d-id/client-sdk';
  *
  * const callbacks = {
  *     onToolEvent(event, data) {
- *         if (event === StreamEvents.ToolCallStarted) {
+ *         if (event === ToolCallEvent.Started) {
  *             console.log('started', data.name, data.input);
- *         } else if (event === StreamEvents.ToolCallDone) {
- *             console.log('done', data.name, data.output, data.duration_ms);
+ *         } else if (event === ToolCallEvent.Done) {
+ *             console.log('done', data.name, data.output, data.durationMs);
  *         } else {
  *             console.log('failed', data.name, data.extra);
  *         }
@@ -822,18 +897,18 @@ export enum StreamEndReason {
  */
 export type ToolEventCallback = {
     /**
-     * @param event - Always {@link StreamEvents.ToolCallStarted} in this overload.
+     * @param event - Always {@link ToolCallEvent.Started} in this overload.
      * @param data - The call the agent has just begun, with the arguments its LLM produced.
      */
-    (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
+    (event: ToolCallEvent.Started, data: ToolCallStartedPayload): void;
     /**
-     * @param event - Always {@link StreamEvents.ToolCallDone} in this overload.
+     * @param event - Always {@link ToolCallEvent.Done} in this overload.
      * @param data - The call that has just finished, with the result the tool returned.
      */
-    (event: StreamEvents.ToolCallDone, data: ToolCallDonePayload): void;
+    (event: ToolCallEvent.Done, data: ToolCallDonePayload): void;
     /**
-     * @param event - Always {@link StreamEvents.ToolCallError} in this overload.
+     * @param event - Always {@link ToolCallEvent.Error} in this overload.
      * @param data - The call that has just failed, with whatever the server reported about it.
      */
-    (event: StreamEvents.ToolCallError, data: ToolCallErrorPayload): void;
+    (event: ToolCallEvent.Error, data: ToolCallErrorPayload): void;
 };

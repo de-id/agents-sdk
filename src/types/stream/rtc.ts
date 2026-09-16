@@ -88,14 +88,14 @@ export interface Status {
  *
  * The fields come from the Talks (V2) and Clips (V3) API, which generates a discrete video while
  * answering the request. Where no such video exists the call still resolves, with the same stub —
- * `status` `'success'`, `duration` `0` and an empty `video_id`: on Expressive (V4) agents, whose
+ * `status` `'success'`, `duration` `0` and an empty `videoId`: on Expressive (V4) agents, whose
  * speech is streamed over the data channel rather than rendered as a separate video, and in a
  * text-only chat mode ({@link ChatMode.TextOnly}, {@link ChatMode.Playground} or
  * {@link ChatMode.Maintenance}), which produces no video at all.
  *
  * @category Speak & Scripts
  */
-export interface SendStreamPayloadResponse {
+export interface SpeakResponse {
     /**
      * Whether the server accepted the speak request — `'success'` when it did.
      */
@@ -103,7 +103,7 @@ export interface SendStreamPayloadResponse {
     /**
      * Id of the session this call was made on; the SDK sends it back on later streaming requests.
      */
-    session_id?: string;
+    sessionId?: string;
     /**
      * Duration of the generated video as reported by the Agents API for Talks (V2) and Clips (V3)
      * agents. `0` when the call produced no discrete video — on Expressive (V4) agents, and in a
@@ -118,5 +118,17 @@ export interface SendStreamPayloadResponse {
      * end of, and which {@link AgentManager.interrupt | interrupt()} cancels. Empty when the call
      * produced no discrete video — on Expressive (V4) agents, and in a text-only chat mode.
      */
+    videoId: string;
+}
+
+/**
+ * What the Agents API answers a speak request with, converted to {@link SpeakResponse} before it
+ * reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface SpeakWireResponse {
+    status: string;
+    session_id?: string;
+    duration: number;
     video_id: string;
 }

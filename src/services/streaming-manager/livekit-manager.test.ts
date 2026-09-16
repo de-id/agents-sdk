@@ -1,4 +1,4 @@
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
@@ -7,6 +7,7 @@ import {
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
+    ToolCallEvent,
     TransportProvider,
 } from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
@@ -330,17 +331,23 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
-            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
+            manager.sendDataChannelMessage(
+                InternalDataChannelTopic.SttLanguage,
+                JSON.stringify({ language: 'French' })
+            );
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(JSON.stringify({ language: 'French' }), {
-                topic: DataChannelTopic.SttLanguage,
+                topic: InternalDataChannelTopic.SttLanguage,
             });
         });
 
         it('should not send did.stt-language message before the room connects', async () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
-            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
+            manager.sendDataChannelMessage(
+                InternalDataChannelTopic.SttLanguage,
+                JSON.stringify({ language: 'French' })
+            );
 
             expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
@@ -353,13 +360,13 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             await simulateConnection();
 
             manager.sendDataChannelMessage(
-                DataChannelTopic.Presentation,
+                InternalDataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 12 })
             );
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(
                 JSON.stringify({ type: 'navigate', slide: 12 }),
-                { topic: DataChannelTopic.Presentation }
+                { topic: InternalDataChannelTopic.Presentation }
             );
         });
 
@@ -367,7 +374,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
             manager.sendDataChannelMessage(
-                DataChannelTopic.Presentation,
+                InternalDataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 1 })
             );
 
@@ -383,7 +390,9 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             expect(manager.interrupt('click')).toBe(true);
 
-            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith('', { topic: DataChannelTopic.Interrupt });
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith('', {
+                topic: InternalDataChannelTopic.Interrupt,
+            });
         });
 
         it('should return false without sending before the room connects', async () => {
@@ -1501,6 +1510,22 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
 
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: true }));
     });
+
+    it('reports the created stream to onStreamCreated with camelCase ids', async () => {
+        // ARRANGE:
+        const onStreamCreated = jest.fn();
+        options.callbacks.onStreamCreated = onStreamCreated;
+
+        // ACT:
+        await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+        // ASSERT: the session id doubles as the stream id on Expressive (V4).
+        expect(onStreamCreated).toHaveBeenCalledWith({
+            agentId: TEST_AGENT_ID,
+            sessionId: 'session-123',
+            streamId: 'session-123',
+        });
+    });
 });
 
 describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
@@ -1561,13 +1586,52 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCallStarted,
+                ToolCallEvent.Started,
                 expect.objectContaining({
-                    call_id: 'call-123',
+                    callId: 'call-123',
                     name: 'get_weather',
                     input: { location: 'Tel Aviv' },
                 })
             );
+        });
+
+        it('should convert the snake_case wire fields to a camelCase ToolCallStartedPayload', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    output: {},
+                    interruptible: true,
+                    execution_mode: 'async',
+                    turn_id: 7,
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Started, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: {},
+                interruptible: true,
+                executionMode: 'async',
+                turnId: 7,
+                timestamp,
+            });
         });
 
         it('should emit onInterruptibleChange(false) when a blocking tool-call/started arrives', async () => {
@@ -1977,13 +2041,50 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).not.toHaveBeenCalled();
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCallDone,
+                ToolCallEvent.Done,
                 expect.objectContaining({
-                    call_id: 'call-123',
+                    callId: 'call-123',
                     output: { temp: 22 },
-                    duration_ms: 500,
+                    durationMs: 500,
                 })
             );
+        });
+
+        it('should convert the snake_case wire fields to a camelCase ToolCallDonePayload', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallDone,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    output: { temp: 22 },
+                    duration_ms: 500,
+                    extra: { region: 'eu' },
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Done, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: { temp: 22 },
+                durationMs: 500,
+                extra: { region: 'eu' },
+                timestamp,
+            });
         });
     });
 
@@ -2029,12 +2130,49 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).not.toHaveBeenCalled();
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCallError,
+                ToolCallEvent.Error,
                 expect.objectContaining({
-                    call_id: 'call-123',
+                    callId: 'call-123',
                     extra: { message: 'upstream timeout' },
                 })
             );
+        });
+
+        it('should convert the snake_case wire fields to a camelCase ToolCallErrorPayload', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    output: {},
+                    duration_ms: 120,
+                    extra: { message: 'upstream timeout' },
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Error, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: {},
+                durationMs: 120,
+                extra: { message: 'upstream timeout' },
+                timestamp,
+            });
         });
     });
 

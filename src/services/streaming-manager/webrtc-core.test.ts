@@ -1,4 +1,4 @@
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 /**
  * Core functionality tests for streaming manager
  * Tests basic streaming manager creation, connection, and operations
@@ -46,7 +46,7 @@ describe('Streaming Manager Core', () => {
             expect(manager.streamId).toBe('streamId');
             expect(manager.sessionId).toBe('sessionId');
             expect(options.callbacks.onStreamCreated).toHaveBeenCalledWith(
-                expect.objectContaining({ stream_id: 'streamId', session_id: 'sessionId', agent_id: agentId })
+                expect.objectContaining({ streamId: 'streamId', sessionId: 'sessionId', agentId })
             );
         });
 
@@ -169,7 +169,9 @@ describe('Streaming Manager Core', () => {
         it('should send data channel message when connected', async () => {
             const manager = await createStreamingManager(agentId, agentStreamOptions, options);
 
-            expect(() => manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test:message')).not.toThrow();
+            expect(() =>
+                manager.sendDataChannelMessage(InternalDataChannelTopic.Interrupt, 'test:message')
+            ).not.toThrow();
             expect(typeof manager.sendDataChannelMessage).toBe('function');
             expect(typeof manager.speak).toBe('function');
             expect(typeof manager.disconnect).toBe('function');
@@ -181,7 +183,7 @@ describe('Streaming Manager Core', () => {
             const mockDC = mockPC.createDataChannel.mock.results[0].value;
             mockPC.iceConnectionState = 'new';
             mockDC.readyState = 'closed';
-            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test:message');
+            manager.sendDataChannelMessage(InternalDataChannelTopic.Interrupt, 'test:message');
             expect(mockDC.send).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
         });
@@ -205,7 +207,7 @@ describe('Streaming Manager Core', () => {
                 throw new Error('Send failed');
             });
 
-            manager.sendDataChannelMessage(DataChannelTopic.Interrupt, 'test:message');
+            manager.sendDataChannelMessage(InternalDataChannelTopic.Interrupt, 'test:message');
             expect(options.callbacks.onError).toHaveBeenCalledWith(expect.any(Error), { streamId: 'streamId' });
         });
     });

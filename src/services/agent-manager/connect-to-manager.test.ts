@@ -10,6 +10,7 @@ import {
     StreamEvents,
     StreamingState,
     StreamType,
+    ToolCallEvent,
     TransportProvider,
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
@@ -245,7 +246,7 @@ describe('connect-to-manager', () => {
         let onAgentActivityStateChange: (state: AgentActivityState) => void;
         let onFirstAudioDetected: ((metrics: { latency?: number; networkLatency?: number }) => void) | undefined;
         let onStreamReady: (() => void) | undefined;
-        let onToolEvent: ((event: StreamEvents, data: any) => void) | undefined;
+        let onToolEvent: ((event: ToolCallEvent, data: any) => void) | undefined;
 
         beforeEach(async () => {
             // Initialize callbacks to avoid undefined errors
@@ -457,7 +458,7 @@ describe('connect-to-manager', () => {
 
         describe('onToolEvent', () => {
             const startedPayload = {
-                call_id: 'call-1',
+                callId: 'call-1',
                 name: 'lookup',
                 input: { q: 'hello' },
                 output: {},
@@ -466,7 +467,7 @@ describe('connect-to-manager', () => {
             const donePayload = {
                 ...startedPayload,
                 output: { result: 'ok' },
-                duration_ms: 123,
+                durationMs: 123,
                 extra: { region: 'eu' },
             };
             const errorPayload = {
@@ -479,12 +480,9 @@ describe('connect-to-manager', () => {
             });
 
             it('forwards started event to user callback and tracks agent-tool-call', () => {
-                onToolEvent?.(StreamEvents.ToolCallStarted, startedPayload as any);
+                onToolEvent?.(ToolCallEvent.Started, startedPayload as any);
 
-                expect(mockOptions.callbacks.onToolEvent).toHaveBeenCalledWith(
-                    StreamEvents.ToolCallStarted,
-                    startedPayload
-                );
+                expect(mockOptions.callbacks.onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Started, startedPayload);
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-tool-call', {
                     event: 'started',
                     call_id: 'call-1',
@@ -493,7 +491,7 @@ describe('connect-to-manager', () => {
             });
 
             it('tracks done event with duration_ms and extra_keys count', () => {
-                onToolEvent?.(StreamEvents.ToolCallDone, donePayload as any);
+                onToolEvent?.(ToolCallEvent.Done, donePayload as any);
 
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-tool-call', {
                     event: 'done',
@@ -505,7 +503,7 @@ describe('connect-to-manager', () => {
             });
 
             it('tracks error event with duration_ms and extra_keys count', () => {
-                onToolEvent?.(StreamEvents.ToolCallError, errorPayload as any);
+                onToolEvent?.(ToolCallEvent.Error, errorPayload as any);
 
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-tool-call', {
                     event: 'error',
@@ -519,7 +517,7 @@ describe('connect-to-manager', () => {
             it('handles missing extra map by emitting extra_keys=0', () => {
                 const { extra: _extra, ...donePayloadWithoutExtra } = donePayload;
 
-                onToolEvent?.(StreamEvents.ToolCallDone, donePayloadWithoutExtra as any);
+                onToolEvent?.(ToolCallEvent.Done, donePayloadWithoutExtra as any);
 
                 expect(mockAnalytics.track).toHaveBeenCalledWith(
                     'agent-tool-call',

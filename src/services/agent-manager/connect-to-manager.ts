@@ -24,6 +24,7 @@ import {
     StreamingState,
     ToolCallDonePayload,
     ToolCallErrorPayload,
+    ToolCallEvent,
     ToolEventPayload,
     TransportProvider,
 } from '@sdk/types';
@@ -161,17 +162,13 @@ function trackLegacyVideoAnalytics(
     }
 }
 
-function trackToolEventAnalytics(
-    event: StreamEvents.ToolCallStarted | StreamEvents.ToolCallDone | StreamEvents.ToolCallError,
-    payload: ToolEventPayload,
-    analytics: Analytics
-) {
+function trackToolEventAnalytics(event: ToolCallEvent, payload: ToolEventPayload, analytics: Analytics) {
     const baseProps: Record<string, unknown> = {
-        call_id: payload.call_id,
+        call_id: payload.callId,
         name: payload.name,
     };
 
-    if (event === StreamEvents.ToolCallStarted) {
+    if (event === ToolCallEvent.Started) {
         analytics.track('agent-tool-call', { ...baseProps, event: 'started' });
         return;
     }
@@ -179,8 +176,8 @@ function trackToolEventAnalytics(
     const finishedPayload = payload as ToolCallDonePayload | ToolCallErrorPayload;
     analytics.track('agent-tool-call', {
         ...baseProps,
-        event: event === StreamEvents.ToolCallDone ? 'done' : 'error',
-        duration_ms: finishedPayload.duration_ms,
+        event: event === ToolCallEvent.Done ? 'done' : 'error',
+        duration_ms: finishedPayload.durationMs,
         extra_keys: finishedPayload.extra ? Object.keys(finishedPayload.extra).length : 0,
     });
 }

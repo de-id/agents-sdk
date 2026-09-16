@@ -5,7 +5,7 @@ import {
     ConnectivityState,
     CreateSessionV2Options,
     CreateStreamOptions,
-    Interrupt,
+    InterruptOptions,
     Message,
     PayloadType,
     RunningToolCall,
@@ -15,12 +15,15 @@ import {
     StreamingState,
     StreamType,
     ToolCallDonePayload,
-    ToolCallErrorPayload,
+    ToolCallDoneWirePayload,
+    ToolCallErrorWirePayload,
+    ToolCallEvent,
     ToolCallStartedPayload,
+    ToolCallStartedWirePayload,
     TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { noop } from '@sdk/utils';
 import { getUserContextAttributes } from '@sdk/utils/user-context';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
@@ -90,6 +93,37 @@ const streamError = (message = 'Stream Error') => new StreamError(message);
 
 type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
 
+/**
+ * The server sends tool-call events with snake_case fields; the public payloads are camelCase.
+ * This is the single place the two shapes meet.
+ */
+function toStartedPayload(wire: ToolCallStartedWirePayload): ToolCallStartedPayload {
+    return {
+        callId: wire.call_id,
+        name: wire.name,
+        input: wire.input,
+        output: wire.output,
+        // The server omits the field on some started events; the public payload declares a boolean.
+        interruptible: wire.interruptible === true,
+        // Spread, so an event that carries neither does not gain the keys with an undefined value.
+        ...(wire.execution_mode !== undefined ? { executionMode: wire.execution_mode } : {}),
+        ...(wire.turn_id !== undefined ? { turnId: wire.turn_id } : {}),
+        timestamp: wire.timestamp,
+    };
+}
+
+function toFinishedPayload(wire: ToolCallDoneWirePayload): ToolCallDonePayload {
+    return {
+        callId: wire.call_id,
+        name: wire.name,
+        input: wire.input,
+        output: wire.output,
+        durationMs: wire.duration_ms,
+        extra: wire.extra,
+        timestamp: wire.timestamp,
+    };
+}
+
 export function handleInitError(
     error: unknown,
     log: (message?: any, ...optionalParams: any[]) => void,
@@ -154,7 +188,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         });
 
         const { id, session_token, session_url, interrupt_enabled } = streamResponse;
-        callbacks.onStreamCreated?.({ session_id: id, stream_id: id, agent_id: agentId });
+        callbacks.onStreamCreated?.({ sessionId: id, streamId: id, agentId });
         sessionId = id;
         token = session_token;
         url = session_url;
@@ -394,35 +428,35 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
      */
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
-            const payload = data as ToolCallStartedPayload;
-            pendingToolCalls.set(payload.call_id, {
+            const payload = toStartedPayload(data as ToolCallStartedWirePayload);
+            pendingToolCalls.set(payload.callId, {
                 call: {
-                    callId: payload.call_id,
+                    callId: payload.callId,
                     name: payload.name,
-                    executionMode: payload.execution_mode === 'async' ? 'async' : 'blocking',
+                    executionMode: payload.executionMode === 'async' ? 'async' : 'blocking',
                 },
                 interruptible: payload.interruptible === true,
-                turnId: payload.turn_id ?? currentTurnId,
+                turnId: payload.turnId ?? currentTurnId,
             });
             recomputeInterruptible();
             emitRunningToolCalls();
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
+            callbacks.onToolEvent?.(ToolCallEvent.Started, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallDone) {
-            const payload = data as ToolCallDonePayload;
-            resolvePendingToolCall(payload.call_id);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallDone, payload);
+            const payload = toFinishedPayload(data as ToolCallDoneWirePayload);
+            resolvePendingToolCall(payload.callId);
+            callbacks.onToolEvent?.(ToolCallEvent.Done, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallError) {
-            const payload = data as ToolCallErrorPayload;
-            resolvePendingToolCall(payload.call_id);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallError, payload);
+            const payload = toFinishedPayload(data as ToolCallErrorWirePayload);
+            resolvePendingToolCall(payload.callId);
+            callbacks.onToolEvent?.(ToolCallEvent.Error, payload);
         }
     }
 
@@ -744,7 +778,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendDataChannelMessage(topic: DataChannelTopic, payload: string) {
+    async function sendDataChannelMessage(topic: InternalDataChannelTopic, payload: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(streamError(), {
@@ -792,7 +826,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            return sendDataChannelMessage(DataChannelTopic.Speak, message);
+            return sendDataChannelMessage(InternalDataChannelTopic.Speak, message);
         },
 
         disconnect: () => disconnect('user:disconnect'),
@@ -859,7 +893,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         publishCameraStream,
         unpublishCameraStream,
 
-        interrupt(type: Interrupt['type']) {
+        interrupt(type: InterruptOptions['type']) {
             // Skip text interrupts for V2/expressive: the orchestrator does not
             // cancel the in-flight LLM token stream, and an extra interrupt while
             // a previous one is still settling causes races.
@@ -868,7 +902,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // Nothing would reach the agent: sendDataChannelMessage drops the payload in this state.
             if (!isConnected || !room) return false;
 
-            sendDataChannelMessage(DataChannelTopic.Interrupt, '');
+            sendDataChannelMessage(InternalDataChannelTopic.Interrupt, '');
 
             return true;
         },

@@ -5,7 +5,7 @@ import {
     AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
-    Interrupt,
+    InterruptOptions,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
@@ -13,7 +13,7 @@ import {
     StreamInterruptPayload,
     StreamType,
 } from '@sdk/types';
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { createStreamingLogger, StreamingManager } from './common';
 import { createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
@@ -176,12 +176,12 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         interrupt_enabled: interruptAvailable,
     } = await createStream(streamOptions, signal);
 
-    // Guard before the callback: `StreamCreatedInfo.session_id` is public and declares `string`.
+    // Guard before the callback: `StreamCreatedInfo.sessionId` is public and declares `string`.
     if (!session_id) {
         throw new Error('Could not create session_id');
     }
 
-    callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id, agent_id: agentId });
+    callbacks.onStreamCreated?.({ streamId: streamIdFromServer, sessionId: session_id, agentId });
     const peerConnection = new actualRTCPC({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
@@ -328,7 +328,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     await startConnection(streamIdFromServer, sessionClientAnswer, session_id, signal);
     log('start connection OK');
 
-    async function sendDataChannelMessage(_topic: DataChannelTopic, payload: string) {
+    async function sendDataChannelMessage(_topic: InternalDataChannelTopic, payload: string) {
         if (!isConnected || pcDataChannel.readyState !== 'open') {
             log('Data channel is not ready for sending messages');
             callbacks.onError?.(new StreamError('Data channel is not ready for sending messages'), {
@@ -405,7 +405,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         interruptAvailable: interruptAvailable ?? false,
         isInterruptible: true,
 
-        interrupt(_type: Interrupt['type']) {
+        interrupt(_type: InterruptOptions['type']) {
             // Nothing to interrupt: the stream does not support it, is not fluent, or no video is playing.
             if (!interruptAvailable || streamType !== StreamType.Fluent || !currentVideoId) {
                 return false;
@@ -423,7 +423,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
             };
             // The topic is ignored here - V1 has no topic concept and the interrupt
             // is identified by the payload's `type`.
-            sendDataChannelMessage(DataChannelTopic.Interrupt, JSON.stringify(payload));
+            sendDataChannelMessage(InternalDataChannelTopic.Interrupt, JSON.stringify(payload));
 
             return true;
         },
