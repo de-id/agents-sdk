@@ -456,8 +456,8 @@ export interface AgentManagerOptions {
     /**
      * Extra properties merged into every analytics event the SDK sends.
      *
-     * A flat object — use it to tag events with your own identifiers. More properties can be added
-     * later with {@link AgentManager.enrichAnalytics | enrichAnalytics()}.
+     * A flat object — use it to tag events with your own identifiers. Every property is merged into
+     * the events the SDK sends for the whole session.
      */
     mixpanelAdditionalProperties?: Record<string, unknown>;
     /**
@@ -827,6 +827,7 @@ export interface AgentManager {
      *
      * @param properties - A flat JSON object whose properties are added to every analytics event
      * the SDK sends from now on.
+     * @internal Used by D-ID's own embedded widget; not part of the public SDK surface.
      */
     enrichAnalytics(properties: Record<string, unknown>): void;
 
