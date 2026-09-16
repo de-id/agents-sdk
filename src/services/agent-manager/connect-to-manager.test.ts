@@ -207,8 +207,6 @@ describe('connect-to-manager', () => {
 
             const result = await initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics);
 
-            // The agent manager applies the mode this returns and reports the change itself; doing
-            // it here too fired the callback twice, and ahead of `getChatMode()`.
             expect(mockOptions.callbacks.onModeChange).not.toHaveBeenCalled();
             expect(mockOptions.callbacks.onError).toHaveBeenCalledWith(
                 expect.objectContaining({ message: expect.stringContaining('Chat mode downgraded to TextOnly') })

@@ -1,6 +1,6 @@
 import { HttpError, NetworkError } from '@sdk/errors';
 import { Auth } from '@sdk/types/auth';
-import { ErrorContext } from '@sdk/types/error-context';
+import { ErrorReporter } from '@sdk/types/error-context';
 import { retryOperation } from '@sdk/utils/retry-operation';
 import { getAuthHeader } from '../auth/get-auth-header';
 import { didApiUrl } from '../config/environment';
@@ -27,12 +27,7 @@ const retryHttpTooManyRequests = <T>(operation: () => Promise<T>): Promise<T> =>
         shouldRetryFn: error => error.status === 429,
     });
 
-export function createClient(
-    auth: Auth,
-    host = didApiUrl,
-    onError?: (error: Error, errorData: ErrorContext) => void,
-    externalId?: string
-) {
+export function createClient(auth: Auth, host = didApiUrl, onError?: ErrorReporter, externalId?: string) {
     const client = async <T>(url: string, options?: RequestOptions) => {
         const { skipErrorHandler, ...fetchOptions } = options || {};
         const method = fetchOptions.method ?? 'GET';

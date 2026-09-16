@@ -46,3 +46,9 @@ export interface ErrorContext {
      */
     streamId?: string;
 }
+
+/**
+ * How the SDK's internals report a failure: the error, and the {@link ErrorContext} for it.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
+export type ErrorReporter = (error: Error, errorData: ErrorContext) => void;

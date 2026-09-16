@@ -131,16 +131,9 @@ export interface AgentManagerCallbacks {
      * the stream handed to {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} back
      * on it.
      *
-     * This is the authoritative "is the agent speaking" signal on a **legacy** stream — a Talks
-     * (V2) agent, or a Clips (V3) agent that did not ask for
-     * {@link StreamOptions.fluent | fluent} — because
-     * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange} reports
-     * nothing there but a final {@link AgentActivityState.Idle | Idle} on disconnect. On a fluent
-     * stream, and on every Expressive (V4) session, both fire and they answer different questions:
-     * this one follows the video itself (the frames arriving on the track), while
-     * `onAgentActivityStateChange` follows what the agent says it is doing, which is what to drive
-     * a typing indicator or an input lock from. Use {@link AgentManager.getStreamType | getStreamType()}
-     * to tell the two cases apart.
+     * On a **legacy** stream this is the only "is the agent speaking" signal — see
+     * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange} for
+     * which stream types report which.
      *
      * @param state - {@link StreamingState.Start | START} while the agent is speaking,
      * {@link StreamingState.Stop | STOP} once it has finished.
@@ -173,9 +166,9 @@ export interface AgentManagerCallbacks {
      * Optional only for the chat modes that never stream video — {@link ChatMode.TextOnly},
      * {@link ChatMode.Playground} and {@link ChatMode.Maintenance} — so a text-only application
      * does not have to supply a stub. {@link createAgentManager} rejects with a
-     * {@link ValidationError} when it is missing in any other mode, {@link ChatMode.Off} and
-     * {@link ChatMode.DirectPlayback} included: those two create no chat but still stream the
-     * agent's video. {@link AgentManager.connect | connect()} checks it again against the mode in
+     * {@link ValidationError} when it is missing in any other mode — {@link ChatMode.Off} and
+     * {@link ChatMode.DirectPlayback} included, since those create no chat but still stream video.
+     * {@link AgentManager.connect | connect()} checks it again against the mode in
      * effect then, so a manager created in a text-only mode and later moved into a video mode with
      * {@link AgentManager.changeMode | changeMode()} rejects rather than opening a stream with
      * nothing to render it into.
@@ -750,12 +743,10 @@ export interface AgentManager {
      * promise rather than opening a second session, which is what makes it safe in a React
      * StrictMode effect. Once a session exists it rejects instead — call
      * {@link AgentManager.disconnect | disconnect()} first to start a fresh conversation, or
-     * {@link AgentManager.reconnect | reconnect()} to keep the current one.
-     *
-     * A call made while an operation is already running joins it, so it can also resolve without
-     * opening a session — when a {@link AgentManager.disconnect | disconnect()} cancelled the
-     * operation it joined. Read {@link AgentManager.getConnectionState | getConnectionState()} if
-     * you race the two.
+     * {@link AgentManager.reconnect | reconnect()} to keep the current one. A call that joins an
+     * operation a {@link AgentManager.disconnect | disconnect()} later cancels resolves without a
+     * session open; read {@link AgentManager.getConnectionState | getConnectionState()} for what
+     * happened.
      *
      * @returns Resolves when the agent is connected and ready.
      * @throws {@link ValidationError} When a session is already open, or when
@@ -782,11 +773,9 @@ export interface AgentManager {
      * the SDK falls back to a disconnect and a fresh connect, which starts a new chat id.
      *
      * One session-opening operation runs at a time, teardown included, so this and
-     * {@link AgentManager.connect | connect()} cannot interleave. Do not race them: a `connect()`
-     * called while this is running joins *this* operation, which continues the existing chat
-     * rather than starting a new one, so
-     * {@link AgentManagerCallbacks.onNewChat | onNewChat} does not fire for it; the other order
-     * starts a new chat, and this one continues that. Call one or the other.
+     * {@link AgentManager.connect | connect()} cannot interleave — call one or the other rather
+     * than racing them. A `connect()` that joins this one continues the existing chat, so
+     * {@link AgentManagerCallbacks.onNewChat | onNewChat} does not fire for it.
      *
      * @returns Resolves when the new stream is connected.
      * @throws {@link ValidationError} When a {@link AgentManager.connect | connect()} is still in
@@ -907,12 +896,9 @@ export interface AgentManager {
      *
      * Pass `rateId` to change a rating the user already gave instead of adding another.
      *
-     * Every avatar type: the rating is stored against the chat and the message.
-     * {@link AgentManagerCallbacks.onNewChat | onNewChat} explains where an Expressive (V4)
-     * session's chat id comes from. What differs is `messageId` — the SDK only checks that the id
-     * is in the transcript it holds, and an Expressive (V4) answer that arrives over the data
-     * channel without an id of its own is given a locally generated one, which D-ID's records
-     * cannot be matched against. Rate the answers whose ids came from the server.
+     * Works on every avatar type. On an Expressive (V4) session an answer that arrived over the
+     * data channel without a server id is given a locally generated one, which D-ID's records
+     * cannot be matched against — rate the answers whose ids came from the server.
      *
      * @param messageId - Id of the message being rated.
      * @param score - 1 for a positive rating, -1 for a negative one.
@@ -926,9 +912,6 @@ export interface AgentManager {
     rate(messageId: string, score: 1 | -1, rateId?: string): Promise<Rating>;
     /**
      * Removes a rating the user gave to an answer in the chat.
-     *
-     * Every avatar type; it addresses the rating by its own id, so nothing about it differs between
-     * the tiers.
      *
      * @param id - Id of the rating to remove, as returned by
      * {@link AgentManager.rate | rate()}.

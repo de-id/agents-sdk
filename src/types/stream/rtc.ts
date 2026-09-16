@@ -97,13 +97,9 @@ export interface Status {
  */
 export interface SpeakResponse {
     /**
-     * What the server said about the request it accepted.
-     *
-     * Not a fixed set: the Agents API declares it as an open string and Talks (V2) and Clips (V3)
-     * agents pass its value through, so treat an unrecognised value as "accepted" rather than
-     * matching on it — a rejected request comes back as an {@link HttpError}, not as a status
-     * here. It is `'success'` on the stub the SDK returns where no discrete video is produced: on
-     * Expressive (V4) agents and in a text-only chat mode.
+     * What the server said about the request. Not a fixed set — the Agents API declares it as an
+     * open string — so treat an unrecognized value as accepted; a rejected request comes back as
+     * an {@link HttpError}. `'success'` on the stub the SDK returns where no video is produced.
      */
     status: string;
     /**

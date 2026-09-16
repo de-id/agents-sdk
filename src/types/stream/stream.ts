@@ -1,8 +1,8 @@
 import { Analytics } from '@sdk/services/analytics/mixpanel';
 import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/report';
 import { Auth } from '../auth';
-import { ChatProgressCallback } from '../entities/agents/manager';
-import { ErrorContext } from '../error-context';
+import { AgentManagerCallbacks, ChatProgressCallback } from '../entities/agents/manager';
+import { ErrorReporter } from '../error-context';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
 import { ICreateStreamRequestResponse, IceCandidate, SpeakResponse, Status } from './rtc';
 
@@ -387,21 +387,15 @@ export interface StreamingManagerCallbacks {
     onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
-    onError?: (error: Error, errorData: ErrorContext) => void;
+    onError?: ErrorReporter;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
     onVideoIdChange?: (videoId: string | null) => void;
     onStreamCreated?: (stream: StreamCreatedInfo) => void;
     onStreamReady?: () => void;
     onToolEvent?: ToolEventCallback;
-    onInterruptibleChange?: (
-        /** `true` while there is something to interrupt, `false` while there is not. */
-        interruptible: boolean
-    ) => void;
-    onRunningToolCallsChange?: (
-        /** Every tool call running right now, empty when none is. */
-        calls: readonly RunningToolCall[]
-    ) => void;
+    onInterruptibleChange?: AgentManagerCallbacks['onInterruptibleChange'];
+    onRunningToolCallsChange?: AgentManagerCallbacks['onRunningToolCallsChange'];
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
 

@@ -57,9 +57,7 @@ const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
     'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
 
 // `onSrcObjectReady` is what puts the agent on screen, so every mode that streams video needs it.
-// The textual modes never produce a stream to render, and a text-only application should not have
-// to pass a stub to satisfy the type. `Off` and `DirectPlayback` are *not* in that set: they create
-// no chat but do stream video.
+// `Off` and `DirectPlayback` are not in the exempt set: they create no chat but do stream video.
 const MISSING_SRC_OBJECT_READY =
     'callbacks.onSrcObjectReady is required in every chat mode that streams video; ' +
     'it is optional only in ChatMode.TextOnly, ChatMode.Playground and ChatMode.Maintenance';
@@ -117,9 +115,8 @@ const MISSING_SRC_OBJECT_READY =
  * @category Agent Manager
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
-    // The caller's handlers, read once and never written to: two managers created from one options
-    // object must not wrap each other's `callbacks.onError`, and the caller must get their own
-    // handler back when they read the property afterwards.
+    // The caller's handlers, copied once: the options object is never written to, so two managers
+    // built from one cannot wrap each other's `callbacks.onError`.
     const appCallbacks: AgentManagerCallbacks = { ...options.callbacks };
 
     let firstConnection = true;
@@ -154,10 +151,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     let connectionState: ConnectionState = ConnectionState.New;
     let sessionInfo: StreamCreatedInfo | undefined;
 
-    // One object, built once and never reassigned, is what every reporter is handed — this module,
-    // the streaming managers created in `connect()`, the socket manager. So the two variables above
-    // are recorded on whichever path reports them, with no second source of truth, and no handler
-    // can end up wrapped twice.
+    // One object, built once: every reporter is handed this, so the state above has a single source
+    // of truth and no handler is wrapped twice.
     const callbacks: AgentManagerCallbacks = {
         ...appCallbacks,
         onError(error: Error, errorData?: ErrorContext) {
@@ -210,8 +205,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const updateVideoId = (videoId: string | null) => analytics.enrich({ videoId });
 
     const interrupt = (options?: InterruptOptions) => {
-        // A stop button is the common case and carries no more information than "the user pressed
-        // it", so `interrupt()` with no argument means `{ type: 'click' }`.
+        // A stop button is the common case: `interrupt()` means `{ type: 'click' }`.
         const type = options?.type ?? 'click';
 
         const streamingManager = items.streamingManager;
@@ -225,8 +219,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         analytics.track('agent-video-interrupt', {
-            // Unreachable since `type` gained its default above; kept as the brief asked.
-            type: type || 'click',
+            type,
             video_duration_to_interrupt: interruptTimestampTracker.get(true),
             message_duration_to_interrupt: latencyTimestampTracker.get(true),
         });
@@ -267,8 +260,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     function registerClientTool(name: string, handler: ClientToolHandler): void {
         // Client tools travel over the LiveKit RPC channel, which only an Expressive (V4) session
-        // has. The WebRTC manager declares no `registerRpcMethod`, so this used to be a silent
-        // no-op — the one Expressive-only method that did not say so.
+        // has.
         if (!isStreamsV2) {
             throw new ValidationError('registerClientTool is only available on Expressive (V4) agents');
         }
@@ -290,26 +282,20 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) }, loadedTimestamp);
     });
 
-    // One session-opening operation at a time: React StrictMode double-invokes effects, and a
-    // second run would overwrite `items.streamingManager` and leave the first session open on the
-    // server. Every path that opens a session goes through `runOp`, so a public `connect()` racing
-    // a `reconnect()` or the chat retry joins the operation already running — and a `reconnect()`
-    // holds the flag for its *whole* body, teardown included, so a `disconnect()` cannot slip
-    // between the teardown and the new session.
+    // One session-opening operation at a time: a second run would overwrite
+    // `items.streamingManager` and leave the first session open on the server. Every path that
+    // opens a session goes through `runOp`, so a racing caller joins the one already running.
     let opInFlight: Promise<void> | undefined;
 
-    // Set by the public `disconnect()` while an operation is running. `disconnect()` does not wait
-    // for that operation — a connect can take minutes — so the operation checks the flag once it
-    // has a session and tears down what it built.
+    // Set by `disconnect()` while an operation is running; the operation checks it once it has a
+    // session and tears down what it built, so `disconnect()` never waits for a connect.
     let disconnectRequested = false;
 
     function runOp(body: () => Promise<void>): Promise<void> {
         disconnectRequested = false;
 
-        // `Promise.resolve().then(body)` rather than `body()`: the assignment below has to happen
-        // before the body runs, or a handler called from the body's synchronous prefix — the
-        // `onConnectionStateChange(Connecting)` at the top of `connect()` — would see no operation
-        // in flight and start a second one.
+        // `.then(body)`, not `body()`: `opInFlight` must be set before the body's synchronous
+        // prefix runs, or a handler it calls would start a second operation.
         opInFlight = Promise.resolve()
             .then(body)
             .finally(() => {
@@ -397,8 +383,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
 
         const isNewChat = !!chat && chat.id !== previousChatId;
-        if (isNewChat) {
-            callbacks.onNewChat?.(chat!.id);
+        if (chat && isNewChat) {
+            callbacks.onNewChat?.(chat.id);
         }
 
         items.streamingManager = streamingManager;
@@ -422,11 +408,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             mode: items.chatMode,
         });
 
-        // Only a chat this connect created says anything about *this* session's mode. A chat
-        // carried over from an earlier connect (`runConnect(false)`, from `reconnect()` or the chat
-        // retry) still holds the mode it was created in, and adopting it here made the tail tear
-        // down the session it had just built — a DirectPlayback reconnect would read `Functional`
-        // off the old chat, find no notifications socket, and disconnect.
+        // Only a chat this connect created says anything about this session's mode; one carried
+        // over from an earlier connect still holds the mode it was created in.
         const serverMode = (isNewChat ? chat?.chat_mode : undefined) ?? items.chatMode;
         if (isStreamsV2 && isChatModeWithoutChat(serverMode)) {
             // The session is up; keep the mode we have rather than failing a working connection.
@@ -469,16 +452,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-mode-change', { mode });
             items.chatMode = mode;
 
-            // Every mode but Functional tears the stream down. Functional does too when the open
-            // session cannot carry a conversation — a DirectPlayback session has neither the
-            // notifications web socket the answer arrives on nor a chat to send to, so it would
-            // accept `chat()` and never answer. `connect()` then builds the right session.
-            // The second clause needs a session to be open at all: without it a `changeMode()`
-            // into Functional on a manager that has never connected reported a `Disconnected` for
-            // a session that never existed.
+            // Every mode but Functional tears the stream down — and so does Functional when the
+            // open session cannot carry a conversation (a DirectPlayback session has neither the
+            // notifications web socket nor a chat). Only when a session is open at all.
             const hasSession = !!items.streamingManager || !!items.socketManager;
 
-            if (items.chatMode !== ChatMode.Functional || (hasSession && !sessionSupports(items.chatMode))) {
+            if (mode !== ChatMode.Functional || (hasSession && !sessionSupports(mode))) {
                 await disconnect();
             }
 
@@ -525,8 +504,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             await runConnect(true);
 
-            // Not tracked when a `disconnect()` overtook the attempt and tore the session down
-            // again: nothing is connected, and the event is what the reference calls a session.
+            // Not tracked when a `disconnect()` overtook the attempt: nothing is connected.
             if (items.streamingManager) {
                 analytics.track('agent-chat', {
                     event: 'connect',
@@ -539,10 +517,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw new ValidationError('A connect() is in flight; wait for it before calling reconnect()');
             }
 
-            // The whole body holds the flag, teardown included. With only the connect guarded, a
-            // `disconnect()` during the teardown — or during the Expressive (V4) transport's own
-            // reconnect — found nothing in flight, resolved, and then watched this open a new
-            // session the caller believed it had closed.
+            // The whole body holds the flag, teardown included, so a `disconnect()` cannot land
+            // between the teardown and the new session.
             return runOp(async () => {
                 const streamingManager = items.streamingManager as { reconnect?: () => Promise<void> } | undefined;
                 let fallbackReason: string | undefined;
@@ -566,8 +542,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 analytics.track('agent-chat', {
                     event: 'reconnect',
                     mode: items.chatMode,
-                    // Truthful: a `disconnect()` that arrived mid-flight, or a server mode that
-                    // tore the session down, leaves nothing connected.
+                    // A mid-flight disconnect, or a server mode that tore the session down, leaves
+                    // nothing connected.
                     success: !!items.streamingManager,
                     ...(fallbackReason && { fallbackReason }),
                 });

@@ -64,8 +64,7 @@ describe('createClient', () => {
         expect(err.status).toBe(404);
         expect(err.endpoint).toBe('/agents/missing');
         expect(err.method).toBe('GET');
-        // `toEqual`, not `toMatchObject`: the context is exactly the request, with no options,
-        // headers or body alongside it.
+        // The context is exactly the request — no options, headers or body.
         expect(data).toEqual({ endpoint: '/agents/missing', method: 'GET' });
     });
 

@@ -4,7 +4,7 @@ import {
     Chat,
     ChatPayload,
     ChatResponse,
-    ErrorContext,
+    ErrorReporter,
     Rating,
     RatingPayload,
     SttTokenResponse,
@@ -13,12 +13,7 @@ import {
 import { didApiUrl } from '../config/environment';
 import { RequestOptions, createClient } from './apiClient';
 
-export function createAgentsApi(
-    auth: Auth,
-    host: string = didApiUrl,
-    onError?: (error: Error, errorData: ErrorContext) => void,
-    externalId?: string
-) {
+export function createAgentsApi(auth: Auth, host: string = didApiUrl, onError?: ErrorReporter, externalId?: string) {
     const client = createClient(auth, `${host}/agents`, onError, externalId);
 
     return {

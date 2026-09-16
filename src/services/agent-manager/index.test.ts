@@ -189,12 +189,12 @@ describe('createAgentManager', () => {
             it.each([ChatMode.Functional, ChatMode.Off, ChatMode.DirectPlayback])(
                 'should reject without it in %s, which streams video',
                 async mode => {
-                    await expect(createAgentManager('agent-123', { ...withoutSrcObjectReady(), mode })).rejects.toThrow(
-                        ValidationError
-                    );
-                    await expect(createAgentManager('agent-123', { ...withoutSrcObjectReady(), mode })).rejects.toThrow(
-                        'callbacks.onSrcObjectReady is required'
-                    );
+                    const rejection = expect(
+                        createAgentManager('agent-123', { ...withoutSrcObjectReady(), mode })
+                    ).rejects;
+
+                    await rejection.toThrow(ValidationError);
+                    await rejection.toThrow('callbacks.onSrcObjectReady is required');
                 }
             );
 
@@ -274,10 +274,10 @@ describe('createAgentManager', () => {
             it.each([ChatMode.Off, ChatMode.DirectPlayback])('should reject %s on an expressive agent', async mode => {
                 mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
 
-                await expect(createAgentManager('agent-123', { ...mockOptions, mode })).rejects.toThrow(
-                    ValidationError
-                );
-                await expect(createAgentManager('agent-123', { ...mockOptions, mode })).rejects.toThrow(unsupported);
+                const rejection = expect(createAgentManager('agent-123', { ...mockOptions, mode })).rejects;
+
+                await rejection.toThrow(ValidationError);
+                await rejection.toThrow(unsupported);
             });
 
             it('should still create the manager for a talks agent in ChatMode.Off', async () => {
@@ -375,9 +375,6 @@ describe('createAgentManager', () => {
             it('should tear the session down when a connected Off session moves to Functional', async () => {
                 // Off keeps the notifications web socket but creates no chat, so a Functional
                 // session built out of it would accept `chat()` with nothing to send it to.
-                (isChatModeWithoutChat as jest.Mock).mockImplementation(mode =>
-                    [ChatMode.DirectPlayback, ChatMode.Off].includes(mode)
-                );
                 (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
                     streamingManager: mockStreamingManager,
                     chat: undefined,
@@ -390,7 +387,6 @@ describe('createAgentManager', () => {
                 await manager.changeMode(ChatMode.Functional);
 
                 expect(mockStreamingManager.disconnect).toHaveBeenCalled();
-                (isChatModeWithoutChat as jest.Mock).mockImplementation(() => false);
             });
 
             it('should not tear an Expressive (V4) session down at the end of connect', async () => {
@@ -1925,10 +1921,10 @@ describe('createAgentManager', () => {
             mockAgent.avatar = { type: AvatarType.Talk, voice: { language: 'en-US' } };
             const talksManager = await createAgentManager('agent-123', mockOptions);
 
-            expect(() => talksManager.registerClientTool('testTool', async () => 'result')).toThrow(ValidationError);
-            expect(() => talksManager.registerClientTool('testTool', async () => 'result')).toThrow(
-                'registerClientTool is only available on Expressive (V4) agents'
-            );
+            const register = () => talksManager.registerClientTool('testTool', async () => 'result');
+
+            expect(register).toThrow(ValidationError);
+            expect(register).toThrow('registerClientTool is only available on Expressive (V4) agents');
         });
 
         it('should let unregisterClientTool run on any agent type', async () => {

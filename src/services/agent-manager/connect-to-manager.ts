@@ -369,11 +369,8 @@ export async function initializeStreamAndChat(
     const { chat: newChat, chatMode } = chatResult;
 
     if (chatMode && options.mode !== undefined && chatMode !== options.mode) {
-        options.mode = chatMode;
-
-        // `onModeChange` is not fired here. The agent manager applies the mode this returns and is
-        // the single place that reports a change, so the callback cannot run ahead of
-        // `getChatMode()` — and a downgrade is not reported twice for one change.
+        // `onModeChange` fires in the agent manager, which applies this mode — one report, after
+        // `getChatMode()` is current.
         if (chatMode !== ChatMode.Functional) {
             options.callbacks.onError?.(new ChatModeDowngraded(chatMode));
 
