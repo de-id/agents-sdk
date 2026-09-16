@@ -46,7 +46,7 @@ describe('Streaming Manager Core', () => {
             expect(manager.streamId).toBe('streamId');
             expect(manager.sessionId).toBe('sessionId');
             expect(options.callbacks.onStreamCreated).toHaveBeenCalledWith(
-                expect.objectContaining({ stream_id: 'streamId', session_id: 'sessionId', agent_id: agentId })
+                expect.objectContaining({ streamId: 'streamId', sessionId: 'sessionId', agentId })
             );
         });
 

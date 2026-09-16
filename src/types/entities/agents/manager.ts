@@ -267,7 +267,7 @@ export interface AgentManagerCallbacks {
      * Fires before the connection reaches {@link ConnectionState.Connected | 'connected'}. The ids
      * are useful when correlating a session with D-ID support or with your own logs.
      *
-     * @param stream - The new stream's `stream_id`, `session_id` and `agent_id`.
+     * @param stream - The new stream's `streamId`, `sessionId` and `agentId`.
      */
     onStreamCreated?: (stream: StreamCreatedInfo) => void;
     /**
@@ -770,7 +770,7 @@ export interface AgentManager {
      * sent over the data channel for Expressive (V4) agents.
      * @param payload - A text or audio script, or a string treated as the text to speak.
      * @returns The {@link SpeakResponse} for the video that was produced, or the same
-     * response with `duration` `0` and an empty `video_id` when the call produced no discrete video
+     * response with `duration` `0` and an empty `videoId` when the call produced no discrete video
      * — on Expressive (V4) agents, and in a text-only chat mode.
      * @throws {@link ValidationError} When the manager is not connected to a stream yet.
      * @throws {@link HttpError} On Talks (V2) and Clips (V3) agents, when the Agents API answers

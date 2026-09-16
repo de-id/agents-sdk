@@ -326,7 +326,7 @@ export enum ChatMode {
      * {@link AgentManager.chat | chat()} still returns answers through
      * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}, and
      * {@link AgentManager.speak | speak()} adds a text script to the transcript but streams no
-     * video: it resolves with a `duration` of `0` and an empty `video_id`.
+     * video: it resolves with a `duration` of `0` and an empty `videoId`.
      */
     TextOnly = 'TextOnly',
     /**

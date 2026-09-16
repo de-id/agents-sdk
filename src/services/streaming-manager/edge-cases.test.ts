@@ -524,9 +524,9 @@ describe('Streaming Manager Edge Cases', () => {
             const mockDC = mockPC.createDataChannel.mock.results[0].value;
 
             expect(fullCallbacks.onStreamCreated).toHaveBeenCalledWith({
-                stream_id: 'streamId',
-                session_id: 'sessionId',
-                agent_id: agentId,
+                streamId: 'streamId',
+                sessionId: 'sessionId',
+                agentId,
             });
 
             const mockStream = new MediaStream();
@@ -556,9 +556,9 @@ describe('Streaming Manager Edge Cases', () => {
             const manager = await createStreamingManager(agentId, agent, optionsWithStreamCreated);
 
             expect(mockOnStreamCreated).toHaveBeenCalledWith({
-                stream_id: 'streamId',
-                session_id: 'sessionId',
-                agent_id: agentId,
+                streamId: 'streamId',
+                sessionId: 'sessionId',
+                agentId,
             });
 
             expect(manager.streamId).toBe('streamId');

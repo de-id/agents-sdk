@@ -189,7 +189,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         });
 
         const { id, session_token, session_url, interrupt_enabled } = streamResponse;
-        callbacks.onStreamCreated?.({ session_id: id, stream_id: id, agent_id: agentId });
+        callbacks.onStreamCreated?.({ sessionId: id, streamId: id, agentId });
         sessionId = id;
         token = session_token;
         url = session_url;

@@ -677,7 +677,7 @@ describe('createAgentManager', () => {
 
                 const result = await manager.speak('Hello world');
 
-                expect(result).toEqual({ duration: 0, video_id: '', status: 'success' });
+                expect(result).toEqual({ duration: 0, videoId: '', status: 'success' });
                 expect(mockStreamingManager.speak).not.toHaveBeenCalled();
             });
 
@@ -686,7 +686,7 @@ describe('createAgentManager', () => {
 
                 const result = await manager.speak('Hello world');
 
-                expect(result).toEqual({ duration: 0, video_id: '', status: 'success' });
+                expect(result).toEqual({ duration: 0, videoId: '', status: 'success' });
             });
 
             it('should throw error if not connected', async () => {

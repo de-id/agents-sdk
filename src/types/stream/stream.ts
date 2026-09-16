@@ -360,18 +360,19 @@ export interface StreamCreatedInfo {
     /**
      * Id of the agent the stream was opened for.
      */
-    agent_id: string;
+    agentId: string;
 
     /**
      * Id of the session; the SDK sends it back on every subsequent request for this stream.
-     * On Expressive (V4) agents it is the same value as `stream_id`.
+     * On Expressive (V4) agents it is the same value as
+     * {@link StreamCreatedInfo.streamId | streamId}.
      */
-    session_id: string;
+    sessionId: string;
 
     /**
      * Id of the stream itself.
      */
-    stream_id: string;
+    streamId: string;
 }
 
 /**

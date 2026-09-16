@@ -1510,6 +1510,22 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
 
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: true }));
     });
+
+    it('reports the created stream to onStreamCreated with camelCase ids', async () => {
+        // ARRANGE:
+        const onStreamCreated = jest.fn();
+        options.callbacks.onStreamCreated = onStreamCreated;
+
+        // ACT:
+        await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+        // ASSERT: the session id doubles as the stream id on Expressive (V4).
+        expect(onStreamCreated).toHaveBeenCalledWith({
+            agentId: TEST_AGENT_ID,
+            sessionId: 'session-123',
+            streamId: 'session-123',
+        });
+    });
 });
 
 describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
