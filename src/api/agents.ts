@@ -4,7 +4,7 @@ import {
     Chat,
     ChatPayload,
     ChatResponse,
-    RatingEntity,
+    Rating,
     RatingPayload,
     STTTokenResponse,
     SubmitFeedbackResponse,
@@ -31,7 +31,7 @@ export function createAgentsApi(
             return client.post<ChatResponse>(`/${agentId}/chat/${chatId}`, payload, options);
         },
         createRating(agentId: string, chatId: string, payload: RatingPayload, options?: RequestOptions) {
-            return client.post<RatingEntity>(`/${agentId}/chat/${chatId}/ratings`, payload, options);
+            return client.post<Rating>(`/${agentId}/chat/${chatId}/ratings`, payload, options);
         },
         updateRating(
             agentId: string,
@@ -40,10 +40,10 @@ export function createAgentsApi(
             payload: Partial<RatingPayload>,
             options?: RequestOptions
         ) {
-            return client.patch<RatingEntity>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, payload, options);
+            return client.patch<Rating>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, payload, options);
         },
         deleteRating(agentId: string, chatId: string, ratingId: string, options?: RequestOptions) {
-            return client.delete<RatingEntity>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, options);
+            return client.delete<Rating>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, options);
         },
         submitFeedback(
             agentId: string,

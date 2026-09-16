@@ -20,7 +20,7 @@ import {
     TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { noop } from '@sdk/utils';
 import { getUserContextAttributes } from '@sdk/utils/user-context';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
@@ -744,7 +744,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendDataChannelMessage(topic: DataChannelTopic, payload: string) {
+    async function sendDataChannelMessage(topic: InternalDataChannelTopic, payload: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
             callbacks.onError?.(streamError(), {
@@ -792,7 +792,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            return sendDataChannelMessage(DataChannelTopic.Speak, message);
+            return sendDataChannelMessage(InternalDataChannelTopic.Speak, message);
         },
 
         disconnect: () => disconnect('user:disconnect'),
@@ -868,7 +868,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             // Nothing would reach the agent: sendDataChannelMessage drops the payload in this state.
             if (!isConnected || !room) return false;
 
-            sendDataChannelMessage(DataChannelTopic.Interrupt, '');
+            sendDataChannelMessage(InternalDataChannelTopic.Interrupt, '');
 
             return true;
         },

@@ -5,8 +5,8 @@ import {
     IceCandidate,
     RtcApi,
     SendClipStreamPayload,
-    SendStreamPayloadResponse,
     SendTalkStreamPayload,
+    SpeakResponse,
     Status,
 } from '@sdk/types/index';
 import { createClient } from '../apiClient';
@@ -44,7 +44,7 @@ export function createStreamApi(
             );
         },
         sendStreamRequest(streamId: string, sessionId: string, payload: SendClipStreamPayload | SendTalkStreamPayload) {
-            return client.post<SendStreamPayloadResponse>(`/streams/${streamId}`, {
+            return client.post<SpeakResponse>(`/streams/${streamId}`, {
                 session_id: sessionId,
                 ...payload,
             });

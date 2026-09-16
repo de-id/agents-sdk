@@ -1,4 +1,4 @@
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import {
     AgentManager,
     AgentManagerOptions,
@@ -8,11 +8,11 @@ import {
     ClientToolHandler,
     ConnectionState,
     CreateStreamOptions,
+    DataChannelTopic,
     Interrupt,
     Message,
-    PublicDataChannelTopic,
+    SpeakScript,
     StreamScript,
-    SupportedStreamScript,
 } from '../../types';
 
 import { rotateConnectionId } from '@sdk/auth/get-auth-header';
@@ -367,7 +367,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     return {
         agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
-        getIsInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
+        isInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
         starterMessages: agentEntity.starter_message || [],
         getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
         changeMode,
@@ -432,11 +432,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-stt-language-change', { language });
 
             return items.streamingManager.sendDataChannelMessage(
-                DataChannelTopic.SttLanguage,
+                InternalDataChannelTopic.SttLanguage,
                 JSON.stringify({ language })
             );
         },
-        sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void> {
+        sendDataChannelMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
                 return Promise.reject(
                     new ValidationError(
@@ -449,7 +449,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             // Same wire strings as the internal enum; the cast only bridges the two enum types.
             return items.streamingManager.sendDataChannelMessage(
-                topic as string as DataChannelTopic,
+                topic as string as InternalDataChannelTopic,
                 JSON.stringify(payload)
             );
         },
@@ -533,7 +533,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
                 const chatRequestFn = useV2Path
                     ? async () => {
-                          await items.streamingManager?.sendDataChannelMessage(DataChannelTopic.Chat, userMessage);
+                          await items.streamingManager?.sendDataChannelMessage(
+                              InternalDataChannelTopic.Chat,
+                              userMessage
+                          );
                           return Promise.resolve({} as ChatResponse);
                       }
                     : async () => {
@@ -688,7 +691,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return agentsApi.submitFeedback(agentEntity.id, items.chat.id, { rating, answer });
         },
-        async speak(payload: string | SupportedStreamScript) {
+        async speak(payload: string | SpeakScript) {
             function getScript(): StreamScript {
                 if (typeof payload === 'string') {
                     return {

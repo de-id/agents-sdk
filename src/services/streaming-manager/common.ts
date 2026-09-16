@@ -1,5 +1,5 @@
 import { CreateSessionV2Options, CreateStreamOptions, Interrupt, PayloadType, StreamType } from '@sdk/types';
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');
@@ -27,7 +27,7 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * @param topic Data-channel topic to send on
      * @param payload The message payload to send, already serialized
      */
-    sendDataChannelMessage(topic: DataChannelTopic, payload: string): Promise<void>;
+    sendDataChannelMessage(topic: InternalDataChannelTopic, payload: string): Promise<void>;
 
     /**
      * Publish a microphone stream to the DataChannel

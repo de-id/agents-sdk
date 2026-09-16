@@ -1,4 +1,4 @@
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
@@ -330,17 +330,23 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
-            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
+            manager.sendDataChannelMessage(
+                InternalDataChannelTopic.SttLanguage,
+                JSON.stringify({ language: 'French' })
+            );
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(JSON.stringify({ language: 'French' }), {
-                topic: DataChannelTopic.SttLanguage,
+                topic: InternalDataChannelTopic.SttLanguage,
             });
         });
 
         it('should not send did.stt-language message before the room connects', async () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
-            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
+            manager.sendDataChannelMessage(
+                InternalDataChannelTopic.SttLanguage,
+                JSON.stringify({ language: 'French' })
+            );
 
             expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
@@ -353,13 +359,13 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             await simulateConnection();
 
             manager.sendDataChannelMessage(
-                DataChannelTopic.Presentation,
+                InternalDataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 12 })
             );
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(
                 JSON.stringify({ type: 'navigate', slide: 12 }),
-                { topic: DataChannelTopic.Presentation }
+                { topic: InternalDataChannelTopic.Presentation }
             );
         });
 
@@ -367,7 +373,7 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
             manager.sendDataChannelMessage(
-                DataChannelTopic.Presentation,
+                InternalDataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 1 })
             );
 
@@ -383,7 +389,9 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             expect(manager.interrupt('click')).toBe(true);
 
-            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith('', { topic: DataChannelTopic.Interrupt });
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith('', {
+                topic: InternalDataChannelTopic.Interrupt,
+            });
         });
 
         it('should return false without sending before the room connects', async () => {

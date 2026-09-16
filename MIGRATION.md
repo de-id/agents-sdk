@@ -34,6 +34,12 @@ import type { AgentManagerCallbacks } from '@d-id/client-sdk';
 | `VideoType`                | `AvatarType`             |
 | `IRetrivalMetadata`        | `RetrievalMetadata`      |
 | `IVoice`                   | `Voice`                  |
+| `PublicDataChannelTopic`   | `DataChannelTopic`       |
+| `SendStreamPayloadResponse` | `SpeakResponse`         |
+| `SupportedStreamScript`    | `SpeakScript`            |
+| `StreamTextToSpeechProviders` | `TtsProvider`         |
+| `RatingEntity`             | `Rating`                 |
+| `AgentManager.getIsInterruptAvailable()` | `AgentManager.isInterruptAvailable()` |
 
 Shapes are unchanged; only the names differ.
 
@@ -42,18 +48,18 @@ Shapes are unchanged; only the names differ.
 - `AgentManagerOptions.enableAnalitics` (misspelled) — use `enableAnalytics`. The misspelled key is ignored in v3.
 - `Subject` enum — the Knowledge API never served those prefixed values; it returns the bare status string (`'created' | 'processed' | 'done' | 'rejected' | 'error'`). The SDK exposes no knowledge methods — manage knowledge through the D-ID API.
 - `Providers.Afflorithmics`, `Afflorithmics_tts_provider` and `VoiceConfigAfflorithmics` — the provider is no longer offered.
-- `TextToSpeechProviders`, `ExtendedTextToSpeechProviders` and `mapVideoType` — unused; `speak()` takes `StreamTextToSpeechProviders`.
+- `TextToSpeechProviders`, `ExtendedTextToSpeechProviders` and `mapVideoType` — unused; `speak()` takes `TtsProvider`.
 - `HttpError.url` is now `HttpError.endpoint`, the same name `NetworkError` and `toJson()` use for the failing request's path.
-- `PublicDataChannelTopic` is a string enum instead of a const object with a derived type; `PublicDataChannelTopic.Presentation` and its value are unchanged.
+- `DataChannelTopic` is a string enum instead of a const object with a derived type; `DataChannelTopic.Presentation` and its value are unchanged.
 - `StreamOptions.outputResolution` — the Agents API ignores the field; the stream keeps the agent's configured resolution.
 - `ConnectionStateChangeCallback` and `VideoStateChangeCallback` — use `AgentManagerCallbacks['onConnectionStateChange']` and `AgentManagerCallbacks['onVideoStateChange']`.
 - `AgentManagerOptions.microphoneStream` — it was never read by the SDK, so passing it had no effect. Call `agentManager.publishMicrophoneStream(stream)` after `connect()` instead (Expressive (V4) agents).
 - `StreamEvents.StreamCreated` — never emitted; use the `onStreamCreated` callback.
-- `Status` and `StickyRequest` — their `status` and `session_id` fields are declared directly on `SendStreamPayloadResponse`.
+- `Status` and `StickyRequest` — their `status` and `session_id` fields are declared directly on `SpeakResponse`.
 - `ToolEventPayload` — use the payload the `onToolEvent` overloads narrow to: `ToolCallStartedPayload`, `ToolCallDonePayload` or `ToolCallErrorPayload`.
-- `BaseStreamScript` and `StreamScriptType` — deleted; use `SupportedStreamScript`, or `TextStreamScript`/`AudioStreamScript` directly.
+- `BaseStreamScript` and `StreamScriptType` — deleted; use `SpeakScript`, or `TextStreamScript`/`AudioStreamScript` directly.
 - `Chat` — no public method returns one; `onNewChat` reports the new chat's id.
-- `RateState` — the SDK never produced or consumed it; `rate()` takes `1 | -1` and returns a `RatingEntity`.
+- `RateState` — the SDK never produced or consumed it; `rate()` takes `1 | -1` and returns a `Rating`.
 - `GetAuthParams` — a shape no SDK call accepts; declare it in your own code and pass an `Auth` to `createAgentManager`.
 - `NetworkErrorMeta` — read `endpoint`, `method`, `durationMs`, `online` and `visibility` off the `NetworkError` instance.
 - `Message.videoId` — never set by the SDK; read `ChatResponse.videoId` from the `chat()` result instead.

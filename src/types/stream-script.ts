@@ -1,5 +1,5 @@
 import { Message } from './entities';
-import { StreamTextToSpeechProviders } from './voice/tts';
+import { TtsProvider } from './voice/tts';
 
 /**
  * A script that makes the agent say text you supply, synthesised by a text-to-speech provider.
@@ -39,12 +39,12 @@ export interface TextStreamScript {
      * The text-to-speech provider and voice that synthesise
      * {@link TextStreamScript.input | input}, from the list of supported providers.
      *
-     * One of the objects in {@link StreamTextToSpeechProviders}: a `type` naming the provider, the
+     * One of the objects in {@link TtsProvider}: a `type` naming the provider, the
      * `voice_id` to speak with, and optional provider-specific `voice_config`. Leave it out and the
      * SDK sends the script without a provider, so the voice is chosen server-side; the Agents API
      * documents Microsoft TTS as its default when no provider is given.
      */
-    provider?: StreamTextToSpeechProviders;
+    provider?: TtsProvider;
 
     /**
      * The text to be synthesised into speech.
@@ -119,7 +119,7 @@ export interface AudioStreamScript {
  */
 export interface LlmStreamScript {
     type: 'llm';
-    provider: StreamTextToSpeechProviders;
+    provider: TtsProvider;
     ssml?: boolean;
     llm: {
         messages: Message[];
@@ -145,4 +145,4 @@ export type StreamScript = TextStreamScript | AudioStreamScript | LlmStreamScrip
  *
  * @category Speak & Scripts
  */
-export type SupportedStreamScript = TextStreamScript | AudioStreamScript;
+export type SpeakScript = TextStreamScript | AudioStreamScript;

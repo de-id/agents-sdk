@@ -3,7 +3,7 @@ import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/repor
 import { Auth } from '../auth';
 import { ChatProgressCallback } from '../entities/agents/manager';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
-import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
+import { ICreateStreamRequestResponse, IceCandidate, SpeakResponse, Status } from './rtc';
 
 /**
  * Which video codec the stream should negotiate.
@@ -212,16 +212,16 @@ export enum StreamEvents {
  *
  * @example
  * ```ts
- * import { PublicDataChannelTopic } from '@d-id/client-sdk';
+ * import { DataChannelTopic } from '@d-id/client-sdk';
  *
- * await agentManager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, {
+ * await agentManager.sendDataChannelMessage(DataChannelTopic.Presentation, {
  *     type: 'navigate',
  *     slide: 3,
  * });
  * ```
  * @category Agent Manager
  */
-export enum PublicDataChannelTopic {
+export enum DataChannelTopic {
     /**
      * Messages that drive a presentation the agent is showing alongside its video, such as moving
      * to another slide. Sent on the wire as `did.presentation`; the payload shape is whatever the
@@ -444,7 +444,7 @@ export interface RtcApi {
         streamId: string,
         sessionId: string,
         payload: SendClipStreamPayload | SendTalkStreamPayload
-    ): Promise<SendStreamPayloadResponse>;
+    ): Promise<SpeakResponse>;
     close(streamId: string, sessionId: string): Promise<Status>;
 }
 

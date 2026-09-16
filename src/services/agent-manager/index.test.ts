@@ -1,5 +1,5 @@
 import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { RpcError } from 'livekit-client';
 import { createAgentsApi } from '../../api/agents';
 import { ValidationError } from '../../errors';
@@ -19,8 +19,8 @@ import {
     AvatarType,
     ChatMode,
     ConnectionState,
+    DataChannelTopic,
     Providers,
-    PublicDataChannelTopic,
     StreamType,
 } from '../../types';
 import { isChatModeWithoutChat } from '../../utils/chat';
@@ -1025,7 +1025,7 @@ describe('createAgentManager', () => {
             });
 
             it('should get interrupt availability', () => {
-                expect(manager.getIsInterruptAvailable()).toBe(false);
+                expect(manager.isInterruptAvailable()).toBe(false);
             });
 
             it('should get STT token', async () => {
@@ -1074,7 +1074,7 @@ describe('createAgentManager', () => {
             await manager.setSttLanguage('French');
 
             expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
-                DataChannelTopic.SttLanguage,
+                InternalDataChannelTopic.SttLanguage,
                 JSON.stringify({ language: 'French' })
             );
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-stt-language-change', { language: 'French' });
@@ -1121,14 +1121,14 @@ describe('createAgentManager', () => {
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
 
-            await manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
+            await manager.sendDataChannelMessage(DataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
 
             expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
-                PublicDataChannelTopic.Presentation,
+                DataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 3 })
             );
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-data-message', {
-                topic: PublicDataChannelTopic.Presentation,
+                topic: DataChannelTopic.Presentation,
             });
         });
 
@@ -1137,7 +1137,7 @@ describe('createAgentManager', () => {
             await manager.connect();
 
             await expect(
-                manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 1 })
+                manager.sendDataChannelMessage(DataChannelTopic.Presentation, { slide: 1 })
             ).rejects.toMatchObject({
                 kind: 'ValidationError',
                 message: 'sendDataChannelMessage is only available on Expressive (V4) agents, after connect()',
@@ -1156,9 +1156,7 @@ describe('createAgentManager', () => {
             await manager.connect();
 
             const onSettled = jest.fn();
-            const pending = manager
-                .sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 3 })
-                .then(onSettled);
+            const pending = manager.sendDataChannelMessage(DataChannelTopic.Presentation, { slide: 3 }).then(onSettled);
             await Promise.resolve();
 
             expect(onSettled).not.toHaveBeenCalled();

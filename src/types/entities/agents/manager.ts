@@ -6,17 +6,17 @@ import {
     CompatibilityMode,
     ConnectionState,
     ConnectivityState,
-    PublicDataChannelTopic,
-    SendStreamPayloadResponse,
+    DataChannelTopic,
+    SpeakResponse,
     StreamCreatedInfo,
     StreamEvents,
     StreamType,
     StreamingState,
 } from '@sdk/types/stream';
-import { SupportedStreamScript } from '@sdk/types/stream-script';
+import { SpeakScript } from '@sdk/types/stream-script';
 import type { StreamingManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
 import { Agent } from './agent';
-import { ChatMode, ChatResponse, Interrupt, Message, RatingEntity, SubmitFeedbackResponse } from './chat';
+import { ChatMode, ChatResponse, Interrupt, Message, Rating, SubmitFeedbackResponse } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -287,7 +287,7 @@ export interface AgentManagerCallbacks {
      * Expressive (V4) agents only, and about whether interrupting is allowed *right now*: it goes
      * `false` while a `blocking` client tool call is outstanding, because the agent is suspended
      * waiting for it, and back to `true` when the call finishes. That is a different question from
-     * {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()}, which says whether
+     * {@link AgentManager.isInterruptAvailable | isInterruptAvailable()}, which says whether
      * the session supports interrupting at all. Use this one to enable or disable an interrupt
      * button. Talks (V2) and Clips (V3) agents never report a change.
      */
@@ -554,7 +554,7 @@ export interface AgentManager {
      *
      * @returns `true` when {@link AgentManager.interrupt | interrupt()} can do anything.
      */
-    getIsInterruptAvailable(): boolean;
+    isInterruptAvailable(): boolean;
 
     /**
      * The agent's starter messages.
@@ -723,24 +723,24 @@ export interface AgentManager {
      * @param messageId - Id of the message being rated.
      * @param score - 1 for a positive rating, -1 for a negative one.
      * @param rateId - Id of an existing rating to update; omit to create a new one.
-     * @returns The created or updated {@link RatingEntity}.
+     * @returns The created or updated {@link Rating}.
      * @throws {@link ValidationError} When no chat has started, or when no message with that id is
      * in the transcript.
      * @throws {@link HttpError} When the rating request comes back non-2xx.
      * @throws {@link NetworkError} When the rating request never reaches the server.
      */
-    rate(messageId: string, score: 1 | -1, rateId?: string): Promise<RatingEntity>;
+    rate(messageId: string, score: 1 | -1, rateId?: string): Promise<Rating>;
     /**
      * Removes a rating the user gave to an answer in the chat.
      *
      * @param id - Id of the rating to remove, as returned by
      * {@link AgentManager.rate | rate()}.
-     * @returns The {@link RatingEntity} that was deleted.
+     * @returns The {@link Rating} that was deleted.
      * @throws {@link ValidationError} When no chat has started.
      * @throws {@link HttpError} When the delete request comes back non-2xx.
      * @throws {@link NetworkError} When the delete request never reaches the server.
      */
-    deleteRate(id: string): Promise<RatingEntity>;
+    deleteRate(id: string): Promise<Rating>;
     /**
      * Submits end-of-call feedback for the whole conversation.
      *
@@ -760,7 +760,7 @@ export interface AgentManager {
      *
      * Unlike {@link AgentManager.chat | chat()} the agent's LLM is not involved, so this is how you
      * script greetings and canned lines. Pass a plain string as a shorthand for a text script. See
-     * {@link SupportedStreamScript}, {@link TextStreamScript} and {@link AudioStreamScript}. Text
+     * {@link SpeakScript}, {@link TextStreamScript} and {@link AudioStreamScript}. Text
      * scripts also accept an optional `sentiment`, for Expressive (V4) agents only; if the
      * requested sentiment is not supported by the agent, the default sentiment is used.
      *
@@ -769,7 +769,7 @@ export interface AgentManager {
      * @see [Control the Agent](https://docs.d-id.com/docs/livekit-commands) — the `did.speak` command
      * sent over the data channel for Expressive (V4) agents.
      * @param payload - A text or audio script, or a string treated as the text to speak.
-     * @returns The {@link SendStreamPayloadResponse} for the video that was produced, or the same
+     * @returns The {@link SpeakResponse} for the video that was produced, or the same
      * response with `duration` `0` and an empty `video_id` when the call produced no discrete video
      * — on Expressive (V4) agents, and in a text-only chat mode.
      * @throws {@link ValidationError} When the manager is not connected to a stream yet.
@@ -801,7 +801,7 @@ export interface AgentManager {
      * });
      * ```
      */
-    speak(payload: SupportedStreamScript | string): Promise<SendStreamPayloadResponse>;
+    speak(payload: SpeakScript | string): Promise<SpeakResponse>;
     /**
      * Switches the chat to another mode.
      *
@@ -837,7 +837,7 @@ export interface AgentManager {
      * (V4) agent. It never throws: on every agent type it returns without doing anything when
      * interrupting is not available for the session, when it is not allowed right now, and — on
      * Talks (V2) and Clips (V3) agents — when the stream is not a fluent stream or no video is
-     * playing. Check {@link AgentManager.getIsInterruptAvailable | getIsInterruptAvailable()}
+     * playing. Check {@link AgentManager.isInterruptAvailable | isInterruptAvailable()}
      * before offering the control at all; on Expressive (V4) agents
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} tracks whether it
      * is allowed right now.
@@ -876,7 +876,7 @@ export interface AgentManager {
      * to change slide. Expressive (V4) agents only, after {@link AgentManager.connect | connect()};
      * otherwise the returned promise rejects with a {@link ValidationError}.
      *
-     * @param topic - Data-channel topic to send on. {@link PublicDataChannelTopic} is exported from
+     * @param topic - Data-channel topic to send on. {@link DataChannelTopic} is exported from
      * the package root and lists every topic this method accepts.
      * @param payload - A plain object, sent as JSON.
      * @returns Resolves once the payload has been sent. A room that has dropped since
@@ -886,15 +886,15 @@ export interface AgentManager {
      * {@link AgentManager.connect | connect()} has not run yet.
      * @example
      * ```ts
-     * import { PublicDataChannelTopic } from '@d-id/client-sdk';
+     * import { DataChannelTopic } from '@d-id/client-sdk';
      *
-     * await agentManager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, {
+     * await agentManager.sendDataChannelMessage(DataChannelTopic.Presentation, {
      *     type: 'navigate',
      *     slide: 3,
      * });
      * ```
      */
-    sendDataChannelMessage(topic: PublicDataChannelTopic, payload: Record<string, unknown>): Promise<void>;
+    sendDataChannelMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void>;
 
     /**
      * Registers a handler for a client tool, run in the browser when the agent's LLM calls it.

@@ -95,7 +95,7 @@ export interface Status {
  *
  * @category Speak & Scripts
  */
-export interface SendStreamPayloadResponse {
+export interface SpeakResponse {
     /**
      * Whether the server accepted the speak request — `'success'` when it did.
      */
