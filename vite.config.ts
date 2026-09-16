@@ -1,7 +1,7 @@
 // @ts-nocheck
 import preact from '@preact/preset-vite';
 import dns from 'dns';
-import { readFileSync } from 'fs';
+import { copyFileSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
@@ -21,6 +21,10 @@ export default ({ mode }) => {
         server: { port: 3000 },
         build: {
             minify: mode !== 'development',
+            // Published alongside the bundles: a minified SDK frame in a consumer's stack
+            // trace or debugger is otherwise unreadable, and the maps are only fetched when
+            // devtools are open.
+            sourcemap: true,
             copyPublicDir: false,
             lib: {
                 entry: resolve(__dirname, './src/index.ts'),
@@ -37,6 +41,15 @@ export default ({ mode }) => {
                 // One bundled `dist/index.d.ts`: the per-file tree's extensionless re-exports are
                 // rejected by `moduleResolution: node16` — silently, under `skipLibCheck`.
                 rollupTypes: true,
+                // `moduleResolution: node16`/`nodenext` picks the declaration file by the
+                // condition it resolved the code through. The package is `"type": "module"`,
+                // so `dist/index.d.ts` is an ES module declaration and a `require()` consumer
+                // is told it cannot be used that way. The same declarations under a `.d.cts`
+                // extension are read as CommonJS; the bundled file has no imports of its own,
+                // so a copy is all it takes.
+                afterBuild: () => {
+                    copyFileSync(resolve(__dirname, './dist/index.d.ts'), resolve(__dirname, './dist/index.d.cts'));
+                },
             }),
         ],
         resolve: {
