@@ -973,8 +973,10 @@ export interface AgentManager {
      * to change slide. Expressive (V4) agents only, after {@link AgentManager.connect | connect()};
      * otherwise the returned promise rejects with a {@link ValidationError}.
      *
-     * @param topic - Data-channel topic to send on. {@link DataChannelTopic} is exported from
-     * the package root and lists every topic this method accepts.
+     * @param topic - Data-channel topic to send on. Either a {@link DataChannelTopic} member or
+     * its string value — `DataChannelTopic.Presentation` and `'did.presentation'` are both
+     * accepted. {@link DataChannelTopic} is exported from the package root and lists every topic
+     * this method accepts.
      * @param payload - A plain object, sent as JSON.
      * @returns Resolves once the payload has been sent. A room that has dropped since
      * {@link AgentManager.connect | connect()} reports a {@link StreamError} through
@@ -991,7 +993,7 @@ export interface AgentManager {
      * });
      * ```
      */
-    sendDataChannelMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void>;
+    sendDataChannelMessage(topic: `${DataChannelTopic}`, payload: Record<string, unknown>): Promise<void>;
 
     /**
      * Registers a handler for a client tool, run in the browser when the agent's LLM calls it.

@@ -51,8 +51,12 @@ export interface AgentAvatar {
      * notifications web socket; Expressive (V4) agents connect to a real-time session instead, which
      * is what makes the microphone, camera, client tool and data-channel methods of
      * {@link AgentManager} available.
+     *
+     * Either an {@link AvatarType} member or its string value — `AvatarType.Talk` and `'talk'` are
+     * both accepted, so an {@link Agent} restored from your own storage does not have to import the
+     * enum.
      */
-    type: AvatarType;
+    type: `${AvatarType}`;
     /** The voice the agent speaks with. */
     voice?: {
         /**

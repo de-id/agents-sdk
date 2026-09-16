@@ -79,8 +79,11 @@ export interface Voice {
  * @category Voice
  */
 export interface ElevenlabsTtsProvider {
-    /** Selects ElevenLabs. Always {@link Providers.Elevenlabs} (`'elevenlabs'`). */
-    type: Providers.Elevenlabs;
+    /**
+     * Selects ElevenLabs. Either {@link Providers.Elevenlabs} or its string value `'elevenlabs'` —
+     * both are accepted, so the provider object can be written inline without importing the enum.
+     */
+    type: `${Providers.Elevenlabs}`;
 
     /**
      * Id of the voice to speak with, from D-ID's list of ElevenLabs voices.
@@ -111,8 +114,12 @@ export interface ElevenlabsTtsProvider {
  * @category Voice
  */
 export interface MicrosoftTtsProvider {
-    /** Selects Microsoft Azure. Always {@link Providers.Microsoft} (`'microsoft'`). */
-    type: Providers.Microsoft;
+    /**
+     * Selects Microsoft Azure. Either {@link Providers.Microsoft} or its string value
+     * `'microsoft'` — both are accepted, so the provider object can be written inline without
+     * importing the enum.
+     */
+    type: `${Providers.Microsoft}`;
 
     /**
      * Id of the voice to speak with, from D-ID's list of Microsoft Azure voices.
@@ -151,8 +158,12 @@ export interface MicrosoftTtsProvider {
  * @category Voice
  */
 export interface AzureOpenAiTtsProvider extends Omit<MicrosoftTtsProvider, 'type'> {
-    /** Selects Azure OpenAI. Always {@link Providers.AzureOpenAi} (`'azure-openai'`). */
-    type: Providers.AzureOpenAi;
+    /**
+     * Selects Azure OpenAI. Either {@link Providers.AzureOpenAi} or its string value
+     * `'azure-openai'` — both are accepted, so the provider object can be written inline without
+     * importing the enum.
+     */
+    type: `${Providers.AzureOpenAi}`;
 }
 
 /**
@@ -164,8 +175,11 @@ export interface AzureOpenAiTtsProvider extends Omit<MicrosoftTtsProvider, 'type
  * @category Voice
  */
 export interface AmazonTtsProvider {
-    /** Selects Amazon. Always {@link Providers.Amazon} (`'amazon'`). */
-    type: Providers.Amazon;
+    /**
+     * Selects Amazon. Either {@link Providers.Amazon} or its string value `'amazon'` — both are
+     * accepted, so the provider object can be written inline without importing the enum.
+     */
+    type: `${Providers.Amazon}`;
 
     /**
      * Id of the voice to speak with, from D-ID's list of Amazon voices.

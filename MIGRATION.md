@@ -100,6 +100,7 @@ Shapes are unchanged; only the names differ.
 - `changeMode()` now returns a `Promise` — it always was asynchronous (it disconnects the stream); await it, and catch `ValidationError` for unsupported modes.
 - A `429` from the Agents API is now retried twice, one second apart, before it surfaces as an `HttpError`; in v2 the retry never fired.
 - `AgentManagerOptions.baseURL`, `AgentManagerOptions.wsURL` and `AgentManager.enrichAnalytics()` are documented as advanced members instead of hidden; their behaviour is unchanged.
+- The enum-valued discriminants take the enum member or its plain string: the four TTS providers' `type`, `AgentAvatar.type` and the `topic` of `sendDataChannelMessage()` are typed `` `${Providers.Elevenlabs}` ``, `` `${AvatarType}` `` and `` `${DataChannelTopic}` ``, so `{ type: 'elevenlabs', voice_id }` compiles without importing `Providers` and enum-valued code keeps compiling. Reading one back into a variable annotated with the enum (`const t: AvatarType = agent.avatar.type`) no longer type-checks — annotate it `` `${AvatarType}` `` or drop the annotation.
 - `AgentManager` gained `getChatMode()`, `getConnectionState()` and `getSessionInfo()`, so the current mode, connection state and session ids no longer have to be mirrored from the callbacks; a hand-written `AgentManager` double has to implement them.
 
 ---

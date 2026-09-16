@@ -511,7 +511,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 JSON.stringify({ language })
             );
         },
-        sendDataChannelMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
+        sendDataChannelMessage(topic: `${DataChannelTopic}`, payload: Record<string, unknown>): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
                 return Promise.reject(
                     new ValidationError(
