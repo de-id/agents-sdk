@@ -42,6 +42,22 @@ const mockTrack = {
     },
 };
 
+// Stands in for livekit-client's RpcError: the SDK only relies on the constructor, the static
+// ErrorCode map and `instanceof`.
+class mockRpcError extends Error {
+    static ErrorCode = { APPLICATION_ERROR: 1500 };
+
+    constructor(
+        readonly code: number,
+        message: string,
+        readonly data?: string
+    ) {
+        super(message);
+        // The suite compiles to ES5, where subclassing Error otherwise loses the prototype.
+        Object.setPrototypeOf(this, new.target.prototype);
+    }
+}
+
 jest.mock('livekit-client', () => ({
     Room: mockRoomConstructor,
     RoomEvent: {
@@ -66,6 +82,7 @@ jest.mock('livekit-client', () => ({
         SignalReconnecting: 'signalReconnecting',
     },
     Track: mockTrack,
+    RpcError: mockRpcError,
 }));
 
 // Mock createStreamApiV2
@@ -1338,11 +1355,65 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
                 rpcMethods: new Map([['did.presentation', handler]]),
             });
 
-            // ASSERT:
-            expect(mockRoom.registerRpcMethod).toHaveBeenCalledWith('did.presentation', handler);
+            // ASSERT: registered wrapped, so a plain Error thrown by the handler keeps its message
+            expect(mockRoom.registerRpcMethod).toHaveBeenCalledWith('did.presentation', expect.any(Function));
             expect(mockRoom.registerRpcMethod.mock.invocationCallOrder[0]).toBeLessThan(
                 mockRoom.connect.mock.invocationCallOrder[0]
             );
+
+            const registered = mockRoom.registerRpcMethod.mock.calls[0][1];
+            await registered({ payload: '{}' });
+            expect(handler).toHaveBeenCalledWith({ payload: '{}' });
+        });
+
+        it('turns an error a handler throws into an RpcError carrying its message', async () => {
+            // ARRANGE:
+            const handler = jest.fn().mockRejectedValue(new Error('Wallet is locked'));
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, {
+                ...options,
+                rpcMethods: new Map([['did.presentation', handler]]),
+            });
+            const registered = mockRoom.registerRpcMethod.mock.calls[0][1];
+
+            // ACT + ASSERT:
+            await expect(registered({ payload: '{}' })).rejects.toMatchObject({
+                code: mockRpcError.ErrorCode.APPLICATION_ERROR,
+                message: 'Wallet is locked',
+            });
+            await expect(registered({ payload: '{}' })).rejects.toBeInstanceOf(mockRpcError);
+        });
+
+        it('falls back to a generic message when a handler rejects with a non-Error', async () => {
+            // ARRANGE:
+            const handler = jest.fn().mockRejectedValue('nope');
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, {
+                ...options,
+                rpcMethods: new Map([['did.presentation', handler]]),
+            });
+            const registered = mockRoom.registerRpcMethod.mock.calls[0][1];
+
+            // ACT + ASSERT:
+            await expect(registered({ payload: '{}' })).rejects.toMatchObject({
+                code: mockRpcError.ErrorCode.APPLICATION_ERROR,
+                message: 'Client tool failed',
+            });
+        });
+
+        it('passes through an RpcError a handler chose itself, keeping its code and data', async () => {
+            // ARRANGE:
+            const thrown = new mockRpcError(1600, 'declined', 'extra');
+            const handler = jest.fn().mockRejectedValue(thrown);
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, {
+                ...options,
+                rpcMethods: new Map([['did.presentation', handler]]),
+            });
+            const registered = mockRoom.registerRpcMethod.mock.calls[0][1];
+
+            // ACT + ASSERT:
+            await expect(registered({ payload: '{}' })).rejects.toBe(thrown);
         });
 
         it('registers nothing when no rpc methods are given', async () => {

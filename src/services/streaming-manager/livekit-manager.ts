@@ -44,6 +44,7 @@ import type {
     RemoteTrack,
     Room,
     RoomEvent,
+    RpcError,
     SubscriptionError,
     Track,
     TranscriptionSegment,
@@ -72,6 +73,7 @@ async function importLiveKit(): Promise<{
     ConnectionState: typeof LiveKitConnectionState;
     RemoteParticipant: typeof RemoteParticipant;
     RemoteTrack: typeof RemoteTrack;
+    RpcError: typeof RpcError;
     Track: typeof Track;
 }> {
     try {
@@ -146,6 +148,34 @@ function toErrorPayload(wire: ToolCallErrorWirePayload): ToolCallErrorPayload {
     return { ...toFinishedPayload(wire), ...(error !== undefined ? { error } : {}) };
 }
 
+/**
+ * LiveKit forwards a thrown `RpcError` to the agent that invoked the tool, and replaces anything
+ * else with `APPLICATION_ERROR`, whose message is a fixed constant — so a plain `Error`'s message
+ * would never leave the browser. Wrapping here keeps the reason.
+ *
+ * It lives in this module, which is the only one that loads `livekit-client`, and takes the class
+ * from the lazily imported module rather than a static import: a Talks (V2) or Clips (V3)
+ * integration must not download the whole transport just so the SDK can construct an error.
+ * `RpcError` truncates the message at 256 bytes.
+ */
+function wrapRpcHandler(RpcErrorClass: typeof RpcError, handler: (data: any) => Promise<string>) {
+    return async (data: any): Promise<string> => {
+        try {
+            return await handler(data);
+        } catch (error) {
+            // A handler that threw an RpcError chose its own code and data — pass it through.
+            if (error instanceof RpcErrorClass) {
+                throw error;
+            }
+
+            throw new RpcErrorClass(
+                RpcErrorClass.ErrorCode.APPLICATION_ERROR,
+                (error as Error)?.message || 'Client tool failed'
+            );
+        }
+    };
+}
+
 export function handleInitError(
     error: unknown,
     log: (message?: any, ...optionalParams: any[]) => void,
@@ -164,7 +194,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 ): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
-    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, Track } = await importLiveKit();
+    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, RpcError, Track } = await importLiveKit();
 
     const { callbacks, auth, baseURL, analytics } = options;
     let room: Room | null = null;
@@ -185,7 +215,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     });
 
     for (const [method, handler] of options.rpcMethods ?? []) {
-        room.registerRpcMethod(method, handler);
+        room.registerRpcMethod(method, wrapRpcHandler(RpcError, handler));
     }
 
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -930,7 +960,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {
-            room?.registerRpcMethod(method, handler);
+            room?.registerRpcMethod(method, wrapRpcHandler(RpcError, handler));
         },
         unregisterRpcMethod(method: string) {
             room?.unregisterRpcMethod(method);

@@ -1,6 +1,5 @@
 import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
 import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
-import { RpcError } from 'livekit-client';
 import { createAgentsApi } from '../../api/agents';
 import { ValidationError } from '../../errors';
 import {
@@ -1504,54 +1503,38 @@ describe('createAgentManager', () => {
             expect(result).toBe('result2');
         });
 
-        it('should throw an RpcError carrying the handler reason verbatim', async () => {
+        // The reason is carried in a plain Error; the LiveKit streaming manager, which owns the
+        // `livekit-client` import, turns it into the `RpcError` the transport forwards — see
+        // `livekit-manager.test.ts`.
+        it('should reject with the handler reason verbatim', async () => {
             const handler = jest.fn().mockRejectedValue(new Error('No form fields configured.'));
 
             await manager.connect();
             manager.registerClientTool('testTool', handler);
             const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
 
-            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
-                code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'No form fields configured.',
-            });
-            await expect(rpcHandler({ payload: '{}' })).rejects.toBeInstanceOf(RpcError);
+            await expect(rpcHandler({ payload: '{}' })).rejects.toThrow('No form fields configured.');
         });
 
-        it('should fall back to a generic message when a handler throws a non-Error', async () => {
+        it('should pass a non-Error rejection through untouched', async () => {
             const handler = jest.fn().mockRejectedValue('boom');
 
             await manager.connect();
             manager.registerClientTool('testTool', handler);
             const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
 
-            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
-                code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'Client tool failed',
-            });
+            await expect(rpcHandler({ payload: '{}' })).rejects.toBe('boom');
         });
 
-        it('should pass through an RpcError thrown by the handler, keeping its code and data', async () => {
-            const thrown = new RpcError(1600, 'declined', 'extra');
-            const handler = jest.fn().mockRejectedValue(thrown);
-
-            await manager.connect();
-            manager.registerClientTool('testTool', handler);
-            const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
-
-            await expect(rpcHandler({ payload: '{}' })).rejects.toBe(thrown);
-        });
-
-        it('should throw an RpcError when no handler is registered for the method', async () => {
+        it('should reject when no handler is registered for the method', async () => {
             await manager.connect();
             manager.registerClientTool('testTool', jest.fn());
             const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
             manager.unregisterClientTool('testTool');
 
-            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
-                code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'No handler registered for client tool: testTool',
-            });
+            await expect(rpcHandler({ payload: '{}' })).rejects.toThrow(
+                'No handler registered for client tool: testTool'
+            );
         });
 
         function rpcMethodsFromStream() {

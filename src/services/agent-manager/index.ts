@@ -23,7 +23,6 @@ import { getRandom } from '@sdk/utils';
 import { isStreamsV2Agent } from '@sdk/utils/agent';
 import { isChatModeWithoutChat, isTextualChat } from '@sdk/utils/chat';
 import { parseMessagePartsMemo } from '@sdk/utils/content-parser';
-import { RpcError } from 'livekit-client';
 import { createAgentsApi } from '../../api/agents';
 import { getAgentInfo, getAnalyticsInfo } from '../../utils/analytics';
 import { defer } from '../../utils/defer';
@@ -53,16 +52,6 @@ export interface AgentManagerItems {
 // The two chat modes that create no chat are a Talks (V2) / Clips (V3) feature.
 const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
     'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
-
-/**
- * LiveKit only forwards a thrown `RpcError` to the caller — it replaces anything else with
- * `APPLICATION_ERROR`, whose message is a fixed constant, so a plain `Error`'s message never
- * leaves the browser. Wrapping keeps the reason for the agent that invoked the tool.
- * `RpcError` truncates the message at 256 bytes.
- */
-function applicationError(message: string): RpcError {
-    return new RpcError(RpcError.ErrorCode.APPLICATION_ERROR, message);
-}
 
 /**
  * Creates an {@link AgentManager} for one agent: its chat, its video stream and its connections.
@@ -210,22 +199,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const clientToolHandlers = new Map<string, ClientToolHandler>();
 
+    // The reason is carried in a plain `Error`: the LiveKit streaming manager, which is the only
+    // module that loads `livekit-client`, turns it into the `RpcError` the transport forwards to
+    // the agent. Importing the class here would pull the whole transport into every bundle.
     function createRpcHandler(toolName: string) {
         return async (data: { payload: string }): Promise<string> => {
             const handler = clientToolHandlers.get(toolName);
             if (!handler) {
-                throw applicationError(`No handler registered for client tool: ${toolName}`);
+                throw new Error(`No handler registered for client tool: ${toolName}`);
             }
-            try {
-                const args = JSON.parse(data.payload);
-                return await handler(args);
-            } catch (error) {
-                // A handler that threw an RpcError chose its own code/data — pass it through.
-                if (error instanceof RpcError) {
-                    throw error;
-                }
-                throw applicationError((error as Error)?.message || 'Client tool failed');
-            }
+
+            const args = JSON.parse(data.payload);
+
+            return await handler(args);
         };
     }
 
