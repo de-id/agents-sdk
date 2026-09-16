@@ -50,11 +50,12 @@ function getAgentStreamV2Options(options?: ConnectToManagerOptions): CreateSessi
 function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
 
-    // `mixpanelAdditionalProperties` is typed `unknown` per value; the API expects `plan` to be a string.
+    // `analytics.additionalProperties` is typed `unknown` per value; the API expects `plan` to be
+    // a string.
     const endUserData =
-        options?.mixpanelAdditionalProperties?.plan !== undefined
+        options?.analytics?.additionalProperties?.plan !== undefined
             ? {
-                  plan: options.mixpanelAdditionalProperties?.plan as string,
+                  plan: options.analytics.additionalProperties.plan as string,
               }
             : undefined;
 
@@ -368,9 +369,8 @@ export async function initializeStreamAndChat(
     const { chat: newChat, chatMode } = chatResult;
 
     if (chatMode && options.mode !== undefined && chatMode !== options.mode) {
-        options.mode = chatMode;
-        options.callbacks.onModeChange?.(chatMode);
-
+        // `onModeChange` fires in the agent manager, which applies this mode — one report, after
+        // `getChatMode()` is current.
         if (chatMode !== ChatMode.Functional) {
             options.callbacks.onError?.(new ChatModeDowngraded(chatMode));
 

@@ -29,10 +29,12 @@ describe('getInitialMessages', () => {
         ]);
     });
 
-    it('should build the parts of a message whose parts field is missing altogether', () => {
-        const stored = { id: 'msg-2', role: 'user', content: 'Hello' } as Message;
+    it('should accept a row that carries only the text, and build its parts', () => {
+        // What a transcript restored from application storage looks like: no `parts`, no
+        // `createdAt`, and no cast — `Message` is the input shape as well as the output shape.
+        const stored: Message[] = [{ id: 'msg-2', role: 'user', content: 'Hello' }];
 
-        expect(getInitialMessages([stored])[0].parts).toEqual([{ type: 'text', text: 'Hello' }]);
+        expect(getInitialMessages(stored)[0].parts).toEqual([{ type: 'text', text: 'Hello' }]);
     });
 
     it('should keep parts the caller built and not mutate the message it was given', () => {

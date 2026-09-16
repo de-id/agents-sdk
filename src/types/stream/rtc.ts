@@ -97,7 +97,9 @@ export interface Status {
  */
 export interface SpeakResponse {
     /**
-     * Whether the server accepted the speak request — `'success'` when it did.
+     * What the server said about the request. Not a fixed set — the Agents API declares it as an
+     * open string — so treat an unrecognized value as accepted; a rejected request comes back as
+     * an {@link HttpError}. `'success'` on the stub the SDK returns where no video is produced.
      */
     status: string;
     /**

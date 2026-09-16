@@ -1,36 +1,18 @@
 import {
     Auth,
     CreateStreamOptions,
+    ErrorReporter,
     ICreateStreamRequestResponse,
     IceCandidate,
     RtcApi,
     SendClipStreamPayload,
     SendTalkStreamPayload,
-    SpeakResponse,
     SpeakWireResponse,
     Status,
 } from '@sdk/types/index';
 import { createClient } from '../apiClient';
 
-/**
- * The Agents API answers a speak request in snake_case; {@link SpeakResponse} is camelCase.
- * This is the single place the two shapes meet.
- */
-function toSpeakResponse(wire: SpeakWireResponse): SpeakResponse {
-    return {
-        status: wire.status,
-        sessionId: wire.session_id,
-        duration: wire.duration,
-        videoId: wire.video_id,
-    };
-}
-
-export function createStreamApi(
-    auth: Auth,
-    host: string,
-    agentId: string,
-    onError?: (error: Error, errorData: Record<string, unknown>) => void
-): RtcApi {
+export function createStreamApi(auth: Auth, host: string, agentId: string, onError?: ErrorReporter): RtcApi {
     const client = createClient(auth, `${host}/agents/${agentId}`, onError);
 
     return {
@@ -67,7 +49,13 @@ export function createStreamApi(
                 ...payload,
             });
 
-            return toSpeakResponse(wire);
+            // The Agents API answers in snake_case; `SpeakResponse` is camelCase.
+            return {
+                status: wire.status,
+                sessionId: wire.session_id,
+                duration: wire.duration,
+                videoId: wire.video_id,
+            };
         },
         close(streamId: string, sessionId: string) {
             return client.delete<Status>(`/streams/${streamId}`, { session_id: sessionId });

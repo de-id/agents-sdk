@@ -8,12 +8,14 @@ export type {
     AgentManager,
     AgentManagerCallbacks,
     AgentManagerOptions,
+    AnalyticsOptions,
     StreamOptions,
 } from './types/entities/agents/manager';
 export { AvatarType } from './types/entities/avatar';
 export type { SttTokenResponse } from './types/voice/stt';
 
 // Callbacks & Events
+export type { ErrorContext } from './types/error-context';
 export {
     AgentActivityState,
     ConnectionState,

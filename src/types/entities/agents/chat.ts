@@ -192,13 +192,22 @@ export interface Message {
      * videos or links; a message with no markup is a single `text` part, and an empty message is
      * an empty array.
      *
-     * {@link AgentManagerOptions.initialMessages | initialMessages} are treated the same way: the
-     * SDK runs the parser over the `content` of any of them that arrives with empty or missing
-     * `parts`, so a restored transcript can pass `parts: []` and still render. A non-empty array
-     * you built yourself is kept exactly as given.
+     * Optional because {@link AgentManagerOptions.initialMessages | initialMessages} take the same
+     * shape, and a transcript restored from your own storage carries only the text: leave `parts`
+     * out and the SDK runs the parser over `content` before the message reaches the transcript. A
+     * non-empty array you built yourself is kept exactly as given. Every message the SDK delivers
+     * through {@link AgentManagerCallbacks.onNewMessage | onNewMessage} has it set, seeded
+     * `initialMessages` included, so a handler can read it without a guard.
      */
-    parts: MessagePart[];
-    /** When the message was added, as an ISO 8601 timestamp. */
+    parts?: MessagePart[];
+    /**
+     * When the message was added, as an ISO 8601 timestamp.
+     *
+     * Optional for the same reason as {@link Message.parts | parts} — a restored transcript need
+     * not carry one — but set on every message the SDK builds itself, which is every message that
+     * reaches {@link AgentManagerCallbacks.onNewMessage | onNewMessage} other than a seeded
+     * {@link AgentManagerOptions.initialMessages | initialMessage} that arrived without one.
+     */
     createdAt?: string;
     /**
      * The knowledge citations the answer was drawn from, as {@link RetrievalMetadata} entries.

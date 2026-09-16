@@ -1,7 +1,8 @@
 import { Analytics } from '@sdk/services/analytics/mixpanel';
 import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/report';
 import { Auth } from '../auth';
-import { ChatProgressCallback } from '../entities/agents/manager';
+import { AgentManagerCallbacks, ChatProgressCallback } from '../entities/agents/manager';
+import { ErrorReporter } from '../error-context';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
 import { ICreateStreamRequestResponse, IceCandidate, SpeakResponse, Status } from './rtc';
 
@@ -204,9 +205,9 @@ export enum StreamEvents {
  *
  * @example
  * ```ts
- * import { ToolCallEvent } from '@d-id/client-sdk';
+ * import { AgentManagerCallbacks, ToolCallEvent } from '@d-id/client-sdk';
  *
- * const callbacks = {
+ * const callbacks: AgentManagerCallbacks = {
  *     onToolEvent(event, data) {
  *         if (event === ToolCallEvent.Started) {
  *             console.log('started', data.name, data.input);
@@ -386,21 +387,15 @@ export interface StreamingManagerCallbacks {
     onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
-    onError?: (error: Error, errorData: Record<string, unknown>) => void;
+    onError?: ErrorReporter;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
     onVideoIdChange?: (videoId: string | null) => void;
     onStreamCreated?: (stream: StreamCreatedInfo) => void;
     onStreamReady?: () => void;
     onToolEvent?: ToolEventCallback;
-    onInterruptibleChange?: (
-        /** `true` while there is something to interrupt, `false` while there is not. */
-        interruptible: boolean
-    ) => void;
-    onRunningToolCallsChange?: (
-        /** Every tool call running right now, empty when none is. */
-        calls: readonly RunningToolCall[]
-    ) => void;
+    onInterruptibleChange?: AgentManagerCallbacks['onInterruptibleChange'];
+    onRunningToolCallsChange?: AgentManagerCallbacks['onRunningToolCallsChange'];
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
 
@@ -605,21 +600,26 @@ export interface StreamInterruptPayload {
  * name defined in the agent's configuration. The SDK parses the arguments the agent's LLM produced
  * and passes them in; whatever the handler resolves with is sent back to the agent as the tool's
  * result. Throwing rejects the call, and the error message is forwarded to the agent. Expressive
- * (V4) agents only.
+ * (V4) agents only — {@link AgentManager.registerClientTool | registerClientTool()} throws a
+ * {@link ValidationError} on a Talks (V2) or Clips (V3) agent.
  *
  * @param args - The arguments the LLM produced for this call, already parsed from JSON.
  * @returns A JSON string with the tool's result, at most 15 KiB — the LiveKit RPC response limit;
- * a larger result fails the call with an RPC error.
+ * a larger result fails the call with an RPC error. A synchronous handler may return the string
+ * directly; the SDK awaits the result either way.
  * @example
  * ```ts
  * agentManager.registerClientTool('get_cart_total', async args => {
  *     const total = await cart.total(args.currency as string);
  *     return JSON.stringify({ total });
  * });
+ *
+ * // Nothing to await: the string is enough.
+ * agentManager.registerClientTool('get_locale', () => JSON.stringify({ locale: navigator.language }));
  * ```
  * @category Callbacks & Events
  */
-export type ClientToolHandler = (args: Record<string, unknown>) => Promise<string>;
+export type ClientToolHandler = (args: Record<string, unknown>) => string | Promise<string>;
 
 /**
  * Whether the agent waits for a tool call to finish before it carries on.
@@ -750,11 +750,12 @@ export interface ToolCallErrorPayload {
     /**
      * Whatever the failed call produced, if anything.
      *
-     * A `string` when the server answers a failure with the reason as plain text rather than a
-     * structured result — that text is also given to you as
-     * {@link ToolCallErrorPayload.error | error}, so narrow this one before you index into it.
+     * Any JSON value — the server's own type for a tool result is unconstrained, and on a failure
+     * it is commonly the reason as a plain string rather than a structured result. Narrow it
+     * before use. The string case is also given to you as
+     * {@link ToolCallErrorPayload.error | error}, which is what to show.
      */
-    output: Record<string, unknown> | string;
+    output: unknown;
     /** How long the call ran before failing, in milliseconds. */
     durationMs: number;
     /** Any additional metadata the server reported with the failure. */
@@ -774,7 +775,8 @@ export interface ToolCallErrorPayload {
 }
 
 /**
- * Union of the three tool-call payloads, narrowed away by the overloads on {@link ToolEventCallback}.
+ * Union of the three tool-call payloads. {@link ToolEventCallback} pairs each one with its event,
+ * so a handler never sees this union.
  * @internal Implementation type; not part of the public SDK surface.
  */
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
@@ -816,8 +818,9 @@ export interface ToolCallDoneWirePayload {
  * @internal Wire type of the streaming transport; not part of the public SDK surface.
  */
 export interface ToolCallErrorWirePayload extends Omit<ToolCallDoneWirePayload, 'output'> {
-    // The server answers some failures with the reason as a plain string here instead of a result.
-    output: Record<string, unknown> | string;
+    // Any JSON value: the server's `ToolResult.output` is unconstrained, and some failures carry
+    // the reason as a plain string here instead of a result.
+    output: unknown;
 }
 
 /**
@@ -909,20 +912,28 @@ export enum StreamEndReason {
 }
 
 /**
- * The overloaded handler type for
- * {@link AgentManagerCallbacks.onToolEvent | onToolEvent}: the event argument narrows the payload
- * argument.
+ * The handler type for {@link AgentManagerCallbacks.onToolEvent | onToolEvent}: the event argument
+ * narrows the payload argument.
  *
- * Three overloads, one per tool-call event, so the first argument narrows the second: a handler
- * written against this type sees exactly one of {@link ToolCallStartedPayload},
- * {@link ToolCallDonePayload} and {@link ToolCallErrorPayload}, never a union of the three.
- * Expressive (V4) agents only.
+ * One signature over three argument pairs, one pair per tool-call event, so the first argument
+ * narrows the second: a handler written against this type sees exactly one of
+ * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} and {@link ToolCallErrorPayload},
+ * never a union of the three — in an inline `onToolEvent(event, data) { … }` handler as much as in
+ * a standalone function annotated with this type. A payload that does not belong to its event is
+ * rejected. Expressive (V4) agents only.
+ *
+ * @param args - The event and the payload it carries, as one pair:
+ * {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload} — the call the agent has just
+ * begun, with the arguments its LLM produced; {@link ToolCallEvent.Done} with a
+ * {@link ToolCallDonePayload} — the call that has just finished, with the result the tool returned;
+ * or {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload} — the call that has just
+ * failed, with the reason in {@link ToolCallErrorPayload.error | error} when the server gave one.
  *
  * @example
  * ```ts
- * import { ToolCallEvent } from '@d-id/client-sdk';
+ * import { AgentManagerCallbacks, ToolCallEvent } from '@d-id/client-sdk';
  *
- * const callbacks = {
+ * const callbacks: AgentManagerCallbacks = {
  *     onToolEvent(event, data) {
  *         if (event === ToolCallEvent.Started) {
  *             console.log('started', data.name, data.input);
@@ -936,21 +947,9 @@ export enum StreamEndReason {
  * ```
  * @category Callbacks & Events
  */
-export type ToolEventCallback = {
-    /**
-     * @param event - Always {@link ToolCallEvent.Started} in this overload.
-     * @param data - The call the agent has just begun, with the arguments its LLM produced.
-     */
-    (event: ToolCallEvent.Started, data: ToolCallStartedPayload): void;
-    /**
-     * @param event - Always {@link ToolCallEvent.Done} in this overload.
-     * @param data - The call that has just finished, with the result the tool returned.
-     */
-    (event: ToolCallEvent.Done, data: ToolCallDonePayload): void;
-    /**
-     * @param event - Always {@link ToolCallEvent.Error} in this overload.
-     * @param data - The call that has just failed, with the reason in
-     * {@link ToolCallErrorPayload.error | error} when the server gave one.
-     */
-    (event: ToolCallEvent.Error, data: ToolCallErrorPayload): void;
-};
+export type ToolEventCallback = (
+    ...args:
+        | [event: ToolCallEvent.Started, data: ToolCallStartedPayload]
+        | [event: ToolCallEvent.Done, data: ToolCallDonePayload]
+        | [event: ToolCallEvent.Error, data: ToolCallErrorPayload]
+) => void;

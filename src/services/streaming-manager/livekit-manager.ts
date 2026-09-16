@@ -201,7 +201,8 @@ function handleInitError(
 ): void {
     log('Failed to connect to LiveKit room:', error);
     callbacks.onConnectionStateChange?.(ConnectionState.Fail, 'internal:init-error');
-    callbacks.onError?.(error as Error, { sessionId: '' });
+    // No session yet, so no id to report.
+    callbacks.onError?.(error as Error, {});
     throw error;
 }
 

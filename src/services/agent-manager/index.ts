@@ -1,6 +1,7 @@
 import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import {
     AgentManager,
+    AgentManagerCallbacks,
     AgentManagerOptions,
     Chat,
     ChatMode,
@@ -9,9 +10,11 @@ import {
     ConnectionState,
     CreateStreamOptions,
     DataChannelTopic,
+    ErrorContext,
     InterruptOptions,
     Message,
     SpeakScript,
+    StreamCreatedInfo,
     StreamScript,
 } from '../../types';
 
@@ -53,20 +56,27 @@ export interface AgentManagerItems {
 const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
     'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
 
+// `onSrcObjectReady` is what puts the agent on screen, so every mode that streams video needs it.
+// `Off` and `DirectPlayback` are not in the exempt set: they create no chat but do stream video.
+const MISSING_SRC_OBJECT_READY =
+    'callbacks.onSrcObjectReady is required in every chat mode that streams video; ' +
+    'it is optional only in ChatMode.TextOnly, ChatMode.Playground and ChatMode.Maintenance';
+
 /**
  * Creates an {@link AgentManager} for one agent: its chat, its video stream and its connections.
  *
  * Fetches the agent from the Agents API before it resolves, so the returned manager already has
  * {@link AgentManager.agent | agent} and {@link AgentManager.starterMessages | starterMessages}
  * filled in. No stream is opened until {@link AgentManager.connect | connect()} is called.
- * {@link AgentManagerOptions.callbacks | callbacks} must include
- * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady}, which is what attaches the
- * streamed media to a video element.
- *
- * One option is checked here: an Expressive (V4) agent asked for {@link ChatMode.Off} or
- * {@link ChatMode.DirectPlayback}, which only Talks (V2) and Clips (V3) agents support, rejects
- * with a {@link ValidationError}. Every other bad argument surfaces later, as a
- * {@link ValidationError} rejected by the method that was called on the returned manager, such as
+ * Two options are checked here, and both reject with a {@link ValidationError}: an Expressive (V4)
+ * agent asked for {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}, which only Talks (V2)
+ * and Clips (V3) agents support; and
+ * {@link AgentManagerOptions.callbacks | callbacks} without
+ * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} in a mode that streams video —
+ * that callback is what attaches the streamed media to a video element, and only
+ * {@link ChatMode.TextOnly}, {@link ChatMode.Playground} and {@link ChatMode.Maintenance} can do
+ * without it. Every other bad argument surfaces later, as a {@link ValidationError} rejected by the
+ * method that was called on the returned manager, such as
  * {@link AgentManager.chat | chat()} or {@link AgentManager.speak | speak()}.
  *
  * @param agent - Id of the agent to talk to: the `data-agent-id` from its Embed snippet, or the `id`
@@ -75,7 +85,9 @@ const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
  * {@link AgentManagerOptions}.
  * @returns A manager for that agent, ready to {@link AgentManager.connect | connect()}.
  * @throws {@link ValidationError} When an Expressive (V4) agent is created with
- * {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}.
+ * {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}, or when
+ * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is missing in a mode that
+ * streams video.
  * @throws {@link HttpError} When the agent cannot be fetched — an unknown id, or a client key that
  * is not authorized for the agent or the calling domain.
  * @throws {@link NetworkError} When the request for the agent never reaches the server: the browser
@@ -88,7 +100,8 @@ const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
  * const agentManager = await sdk.createAgentManager('agt_fumf1234', {
  *     auth: { type: 'key', clientKey: 'YOUR_CLIENT_KEY' },
  *     callbacks: {
- *         // Required: hand the streamed media to your video element.
+ *         // Hand the streamed media to your video element. Required in every mode that
+ *         // streams video, which is every mode but TextOnly, Playground and Maintenance.
  *         onSrcObjectReady(value) {
  *             videoElement.srcObject = value;
  *         },
@@ -102,16 +115,20 @@ const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
  * @category Agent Manager
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
-    // The caller's object is copied, never written to: two managers built from one options object
-    // must not wrap each other's `callbacks.onError`.
-    const managerOptions: AgentManagerOptions = { ...options, callbacks: { ...options.callbacks } };
+    // The caller's handlers, copied once: the options object is never written to, so two managers
+    // built from one cannot wrap each other's `callbacks.onError`.
+    const appCallbacks: AgentManagerCallbacks = { ...options.callbacks };
 
     let firstConnection = true;
 
-    const mxKey = managerOptions.mixpanelKey || mixpanelKey;
-    const wsURL = managerOptions.wsURL || didSocketApiUrl;
-    const baseURL = managerOptions.baseURL || didApiUrl;
-    const mode = managerOptions.mode || ChatMode.Functional;
+    const mxKey = options.analytics?.mixpanelKey || mixpanelKey;
+    const wsURL = options.wsURL || didSocketApiUrl;
+    const baseURL = options.baseURL || didApiUrl;
+    const mode = options.mode || ChatMode.Functional;
+
+    if (!appCallbacks.onSrcObjectReady && !isTextualChat(mode)) {
+        throw new ValidationError(MISSING_SRC_OBJECT_READY);
+    }
 
     const items: AgentManagerItems = {
         messages: [],
@@ -120,9 +137,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const analytics = initializeAnalytics({
         token: mxKey,
         agentId: agent,
-        isEnabled: managerOptions.enableAnalytics,
-        externalId: managerOptions.externalId,
-        mixpanelAdditionalProperties: managerOptions.mixpanelAdditionalProperties,
+        isEnabled: options.analytics?.enabled,
+        externalId: options.externalId,
+        mixpanelAdditionalProperties: options.analytics?.additionalProperties,
     });
 
     const initTimestamp = Date.now();
@@ -130,18 +147,31 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.track('agent-sdk', { event: 'init' }, initTimestamp);
     });
 
-    const originalOnError = managerOptions.callbacks.onError;
-    managerOptions.callbacks.onError = (error: Error, errorData?: Record<string, unknown>) => {
-        analytics.track('agent-error', { error: toErrorAnalytics(error) });
-        originalOnError?.(error, errorData);
+    // The state the getters answer from.
+    let connectionState: ConnectionState = ConnectionState.New;
+    let sessionInfo: StreamCreatedInfo | undefined;
+
+    // One object, built once: every reporter is handed this, so the state above has a single source
+    // of truth and no handler is wrapped twice.
+    const callbacks: AgentManagerCallbacks = {
+        ...appCallbacks,
+        onError(error: Error, errorData?: ErrorContext) {
+            analytics.track('agent-error', { error: toErrorAnalytics(error) });
+            appCallbacks.onError?.(error, errorData);
+        },
+        onConnectionStateChange(state: ConnectionState, reason?: string) {
+            connectionState = state;
+            appCallbacks.onConnectionStateChange?.(state, reason);
+        },
+        onStreamCreated(stream: StreamCreatedInfo) {
+            sessionInfo = stream;
+            appCallbacks.onStreamCreated?.(stream);
+        },
     };
 
-    const agentsApi = createAgentsApi(
-        managerOptions.auth,
-        baseURL,
-        managerOptions.callbacks.onError,
-        managerOptions.externalId
-    );
+    const managerOptions: AgentManagerOptions = { ...options, callbacks };
+
+    const agentsApi = createAgentsApi(managerOptions.auth, baseURL, callbacks.onError, managerOptions.externalId);
 
     const agentEntity = await agentsApi.getRuntimeById(agent);
     managerOptions.debug = managerOptions.debug || agentEntity?.advanced_settings?.ui_debug_mode;
@@ -165,16 +195,19 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, managerOptions, agentEntity, reason => {
         items.socketManager?.disconnect();
-        managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, reason);
+        callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, reason);
     });
 
     items.messages = getInitialMessages(managerOptions.initialMessages);
 
-    managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+    callbacks.onNewMessage?.([...items.messages], 'answer');
 
     const updateVideoId = (videoId: string | null) => analytics.enrich({ videoId });
 
-    const interrupt = ({ type }: InterruptOptions) => {
+    const interrupt = (options?: InterruptOptions) => {
+        // A stop button is the common case: `interrupt()` means `{ type: 'click' }`.
+        const type = options?.type ?? 'click';
+
         const streamingManager = items.streamingManager;
         if (!streamingManager?.interruptAvailable || !streamingManager.isInterruptible) {
             return;
@@ -186,7 +219,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         analytics.track('agent-video-interrupt', {
-            type: type || 'click',
+            type,
             video_duration_to_interrupt: interruptTimestampTracker.get(true),
             message_duration_to_interrupt: latencyTimestampTracker.get(true),
         });
@@ -198,7 +231,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         lastMessage.interrupted = true;
-        managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+        callbacks.onNewMessage?.([...items.messages], 'answer');
     };
 
     const clientToolHandlers = new Map<string, ClientToolHandler>();
@@ -226,6 +259,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     }
 
     function registerClientTool(name: string, handler: ClientToolHandler): void {
+        // Client tools travel over the LiveKit RPC channel, which only an Expressive (V4) session
+        // has.
+        if (!isStreamsV2) {
+            throw new ValidationError('registerClientTool is only available on Expressive (V4) agents');
+        }
+
         const isNew = !clientToolHandlers.has(name);
         clientToolHandlers.set(name, handler);
         if (isNew) {
@@ -243,40 +282,60 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) }, loadedTimestamp);
     });
 
-    // One `connect()` at a time: a second run would overwrite `items.streamingManager` and leave
-    // the first session open on the server. Every path that opens a session goes through
-    // `runConnect`, so a racing caller joins the attempt already running.
-    let connectInFlight: Promise<void> | undefined;
+    // One session-opening operation at a time: a second run would overwrite
+    // `items.streamingManager` and leave the first session open on the server. Every path that
+    // opens a session goes through `runOp`, so a racing caller joins the one already running.
+    let opInFlight: Promise<void> | undefined;
+
+    // Set by `disconnect()` while an operation is running; the operation checks it once it has a
+    // session and tears down what it built, so `disconnect()` never waits for a connect.
+    let disconnectRequested = false;
+
+    function runOp(body: () => Promise<void>): Promise<void> {
+        disconnectRequested = false;
+
+        // `.then(body)`, not `body()`: `opInFlight` must be set before the body's synchronous
+        // prefix runs, or a handler it calls would start a second operation.
+        opInFlight = Promise.resolve()
+            .then(body)
+            .finally(() => {
+                opInFlight = undefined;
+            });
+
+        return opInFlight;
+    }
 
     function runConnect(newChat: boolean): Promise<void> {
-        if (connectInFlight) {
-            return connectInFlight;
+        if (opInFlight) {
+            return opInFlight;
         }
 
-        connectInFlight = connect(newChat).finally(() => {
-            connectInFlight = undefined;
-        });
-
-        return connectInFlight;
+        return runOp(() => connect(newChat));
     }
 
     async function connect(newChat: boolean) {
+        // A `disconnect()` that arrived before this leg started — the second leg of a `reconnect()`,
+        // say. Opening a session now would hand back one the caller believes it closed.
+        if (disconnectRequested) {
+            return;
+        }
+
         rotateConnectionId();
-        managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+        callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();
 
         if (newChat && !firstConnection) {
             delete items.chat;
 
-            managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+            callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
         const websocketPromise = sessionNeedsSocket(items.chatMode)
             ? createSocketManager(
                   managerOptions.auth,
                   wsURL,
-                  { onMessage, onError: managerOptions.callbacks.onError },
+                  { onMessage, onError: callbacks.onError },
                   managerOptions.externalId
               )
             : Promise.resolve(undefined);
@@ -288,7 +347,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         ...managerOptions,
                         mode: items.chatMode,
                         callbacks: {
-                            ...managerOptions.callbacks,
+                            ...callbacks,
                             onVideoIdChange: updateVideoId,
                             onMessage,
                         },
@@ -311,20 +370,33 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 delayMs: 1000,
             }
         ).catch(e => {
+            // `Promise.all` below would discard a socket that has already opened, and nothing else
+            // holds a reference to it — `items.socketManager` is only assigned on the happy path.
+            websocketPromise.then(socket => socket?.disconnect()).catch(() => {});
+
             applyMode(ChatMode.Maintenance);
-            managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+            callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
         });
 
+        const previousChatId = items.chat?.id;
         const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
 
-        if (chat && chat.id !== items.chat?.id) {
-            managerOptions.callbacks.onNewChat?.(chat.id);
+        const isNewChat = !!chat && chat.id !== previousChatId;
+        if (chat && isNewChat) {
+            callbacks.onNewChat?.(chat.id);
         }
 
         items.streamingManager = streamingManager;
         items.socketManager = socketManager;
         items.chat = chat;
+
+        // A `disconnect()` that arrived while this was connecting: tear down what was just built
+        // rather than leaving a session the caller believes it closed.
+        if (disconnectRequested) {
+            await disconnect();
+            return;
+        }
 
         flushClientToolsToRoom();
 
@@ -336,7 +408,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             mode: items.chatMode,
         });
 
-        const serverMode = chat?.chat_mode ?? items.chatMode;
+        // Only a chat this connect created says anything about this session's mode; one carried
+        // over from an earlier connect still holds the mode it was created in.
+        const serverMode = (isNewChat ? chat?.chat_mode : undefined) ?? items.chatMode;
         if (isStreamsV2 && isChatModeWithoutChat(serverMode)) {
             // The session is up; keep the mode we have rather than failing a working connection.
             console.warn(`[AgentManager] Ignoring chat mode "${serverMode}": ${UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE}`);
@@ -352,8 +426,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         delete items.streamingManager;
         delete items.socketManager;
+        sessionInfo = undefined;
 
-        managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+        callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
     }
 
     // The answers arrive on the notifications web socket, except on an Expressive agent (data
@@ -378,13 +453,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             items.chatMode = mode;
 
             // Every mode but Functional tears the stream down — and so does Functional when the
-            // open session cannot carry a conversation: a DirectPlayback session has neither the
-            // notifications web socket nor a chat, so `chat()` would never be answered.
-            if (mode !== ChatMode.Functional || !sessionSupports(mode)) {
+            // open session cannot carry a conversation (a DirectPlayback session has neither the
+            // notifications web socket nor a chat). Only when a session is open at all.
+            const hasSession = !!items.streamingManager || !!items.socketManager;
+
+            if (mode !== ChatMode.Functional || (hasSession && !sessionSupports(mode))) {
                 await disconnect();
             }
 
-            managerOptions.callbacks.onModeChange?.(mode);
+            callbacks.onModeChange?.(mode);
         }
     }
 
@@ -400,13 +477,25 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
         isInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
-        starterMessages: agentEntity.starter_message || [],
+        // A copy: the same array instance is held by `agent.starter_message`, and handing it out
+        // made `manager.starterMessages` an alias the application could write through.
+        starterMessages: [...(agentEntity.starter_message ?? [])],
         getSttToken: () => agentsApi.getSttToken(agentEntity.id),
+        getChatMode: () => items.chatMode,
+        getConnectionState: () => connectionState,
+        getSessionInfo: () => sessionInfo,
         changeMode,
         enrichAnalytics: analytics.enrich,
         async connect() {
-            if (connectInFlight) {
-                return connectInFlight;
+            // Checked again here, not only at creation: `changeMode()` can move a manager built in
+            // a textual mode into one that streams video, and opening that stream with nothing to
+            // render it into fails silently — a paid session with no picture.
+            if (!callbacks.onSrcObjectReady && !isTextualChat(items.chatMode)) {
+                throw new ValidationError(MISSING_SRC_OBJECT_READY);
+            }
+
+            if (opInFlight) {
+                return opInFlight;
             }
 
             if (items.streamingManager) {
@@ -415,46 +504,60 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             await runConnect(true);
 
-            analytics.track('agent-chat', {
-                event: 'connect',
-                mode: items.chatMode,
-            });
+            // Not tracked when a `disconnect()` overtook the attempt: nothing is connected.
+            if (items.streamingManager) {
+                analytics.track('agent-chat', {
+                    event: 'connect',
+                    mode: items.chatMode,
+                });
+            }
         },
         async reconnect() {
-            if (connectInFlight) {
+            if (opInFlight) {
                 throw new ValidationError('A connect() is in flight; wait for it before calling reconnect()');
             }
 
-            const streamingManager = items.streamingManager as { reconnect?: () => Promise<void> } | undefined;
-            let fallbackReason: string | undefined;
+            // The whole body holds the flag, teardown included, so a `disconnect()` cannot land
+            // between the teardown and the new session.
+            return runOp(async () => {
+                const streamingManager = items.streamingManager as { reconnect?: () => Promise<void> } | undefined;
+                let fallbackReason: string | undefined;
 
-            if (isStreamsV2 && streamingManager?.reconnect) {
-                try {
-                    await streamingManager.reconnect();
-                } catch (error) {
-                    const analyticsError = toErrorAnalytics(error);
-                    // Keep the Agents API's own classification where there is one — `kind` is the
-                    // literal `'HttpError'` for every failed request since 3.0.
-                    fallbackReason = analyticsError.code ?? analyticsError.kind;
+                if (isStreamsV2 && streamingManager?.reconnect) {
+                    try {
+                        await streamingManager.reconnect();
+                    } catch (error) {
+                        const analyticsError = toErrorAnalytics(error);
+                        // Keep the Agents API's own classification where there is one — `kind` is
+                        // the literal `'HttpError'` for every failed request since 3.0.
+                        fallbackReason = analyticsError.code ?? analyticsError.kind;
+                        await disconnect();
+                        await connect(false);
+                    }
+                } else {
                     await disconnect();
-                    await runConnect(false);
+                    await connect(false);
                 }
-            } else {
-                await disconnect();
-                await runConnect(false);
-            }
 
-            analytics.track('agent-chat', {
-                event: 'reconnect',
-                mode: items.chatMode,
-                success: true,
-                ...(fallbackReason && { fallbackReason }),
+                analytics.track('agent-chat', {
+                    event: 'reconnect',
+                    mode: items.chatMode,
+                    // A mid-flight disconnect, or a server mode that tore the session down, leaves
+                    // nothing connected.
+                    success: !!items.streamingManager,
+                    ...(fallbackReason && { fallbackReason }),
+                });
             });
         },
         async disconnect() {
-            // Let an in-flight connect settle first, so its assignment of `items.streamingManager`
-            // cannot land after this call cleared it and leave a session running on the server.
-            await connectInFlight?.catch(() => {});
+            // Not awaited: a connect can take minutes (three attempts, 45 s each, plus a web
+            // socket with no timeout of its own), and an unmount handler must not inherit that.
+            // The flag is what closes the race — the operation checks it once it has a session and
+            // tears down what it built.
+            if (opInFlight) {
+                disconnectRequested = true;
+            }
+
             await disconnect();
 
             analytics.track('agent-chat', {
@@ -486,7 +589,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 JSON.stringify({ language })
             );
         },
-        sendDataChannelMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void> {
+        sendDataChannelMessage(topic: `${DataChannelTopic}`, payload: Record<string, unknown>): Promise<void> {
             if (!isStreamsV2 || !items.streamingManager) {
                 return Promise.reject(
                     new ValidationError(
@@ -566,7 +669,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     }
 
                     items.chat = newChat.chat;
-                    managerOptions.callbacks.onNewChat?.(items.chat.id);
+                    callbacks.onNewChat?.(items.chat.id);
                 }
 
                 return items.chat.id;
@@ -609,7 +712,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         const isStreamError = error?.message?.includes('Stream Error');
 
                         if (!isStreamError && !isInvalidSessionId) {
-                            managerOptions.callbacks.onError?.(error);
+                            callbacks.onError?.(error);
                             return false;
                         }
                         return true;
@@ -633,7 +736,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     createdAt: new Date(latencyTimestampTracker.update()).toISOString(),
                 });
 
-                managerOptions.callbacks.onNewMessage?.([...items.messages], 'user');
+                callbacks.onNewMessage?.([...items.messages], 'user');
 
                 const chatId = await initializeChat();
                 const response = await sendChatRequest([...items.messages], chatId);
@@ -661,7 +764,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 });
 
                 if (response.result) {
-                    managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+                    callbacks.onNewMessage?.([...items.messages], 'answer');
 
                     analytics.track('agent-message-received', {
                         latency: latencyTimestampTracker.get(true),
@@ -728,7 +831,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
-        async submitFeedback(rating: number, answer?: string) {
+        async submitFeedback(rating: 1 | 2 | 3 | 4 | 5, answer?: string) {
             if (!items.chat) {
                 throw new ValidationError('Chat is not initialized');
             }
@@ -772,7 +875,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     parts: parseMessagePartsMemo(script.input),
                     createdAt: new Date().toISOString(),
                 });
-                managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+                callbacks.onNewMessage?.([...items.messages], 'answer');
             }
 
             const noVideoResponse = { duration: 0, videoId: '', status: 'success' };

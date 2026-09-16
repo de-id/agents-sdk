@@ -1,5 +1,6 @@
 import { SttTokenResponse } from '@sdk/types';
 import { Auth } from '@sdk/types/auth';
+import { ErrorContext } from '@sdk/types/error-context';
 import {
     AgentActivityState,
     ClientToolHandler,
@@ -59,9 +60,10 @@ export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data:
 /**
  * Handlers the SDK calls as the connection, the video stream and the chat change state.
  *
- * Pass the object as {@link AgentManagerOptions.callbacks}. Only
- * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is required — without it there
- * is nothing to render the agent into. Every handler is called from the SDK's own event handling,
+ * Pass the object as {@link AgentManagerOptions.callbacks}. Every handler is optional in the type,
+ * but {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is required in practice
+ * for any chat mode that streams video — without it there is nothing to render the agent into, and
+ * {@link createAgentManager} rejects. Every handler is called from the SDK's own event handling,
  * so keep the work inside short.
  *
  * The handlers fall into four groups: the connection
@@ -79,6 +81,12 @@ export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data:
  * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}). A handler that
  * lives outside the object can be typed with an indexed access such as
  * `AgentManagerCallbacks['onNewMessage']`.
+ *
+ * The whole object is captured once, by {@link createAgentManager}, and the manager works from its
+ * own copy — assigning a handler to the object you passed afterwards has no effect, and neither
+ * does replacing {@link AgentManagerOptions.callbacks | options.callbacks}. Give each handler a
+ * stable identity that reads the current state rather than closing over it: in React, keep the
+ * state in a ref and read `ref.current` inside the handler.
  *
  * @category Callbacks & Events
  */
@@ -123,6 +131,10 @@ export interface AgentManagerCallbacks {
      * the stream handed to {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} back
      * on it.
      *
+     * On a **legacy** stream this is the only "is the agent speaking" signal — see
+     * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange} for
+     * which stream types report which.
+     *
      * @param state - {@link StreamingState.Start | START} while the agent is speaking,
      * {@link StreamingState.Stop | STOP} once it has finished.
      * @example
@@ -142,14 +154,24 @@ export interface AgentManagerCallbacks {
      */
     onVideoStateChange?: (state: StreamingState) => void;
     /**
-     * Called with the media stream carrying the agent's video and audio. Required.
+     * Called with the media stream carrying the agent's video and audio.
      *
-     * This is the one callback the SDK cannot work without: assign the value to the `srcObject` of
-     * your `<video>` element, and keep a reference to it, because
+     * This is the one callback a video session cannot work without: assign the value to the
+     * `srcObject` of your `<video>` element, and keep a reference to it, because
      * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} has to put it back
      * after the idle video has been shown. Triggered by
      * {@link AgentManager.connect | connect()}, {@link AgentManager.reconnect | reconnect()} and
      * {@link AgentManager.disconnect | disconnect()}.
+     *
+     * Optional only for the chat modes that never stream video — {@link ChatMode.TextOnly},
+     * {@link ChatMode.Playground} and {@link ChatMode.Maintenance} — so a text-only application
+     * does not have to supply a stub. {@link createAgentManager} rejects with a
+     * {@link ValidationError} when it is missing in any other mode — {@link ChatMode.Off} and
+     * {@link ChatMode.DirectPlayback} included, since those create no chat but still stream video.
+     * {@link AgentManager.connect | connect()} checks it again against the mode in
+     * effect then, so a manager created in a text-only mode and later moved into a video mode with
+     * {@link AgentManager.changeMode | changeMode()} rejects rather than opening a stream with
+     * nothing to render it into.
      *
      * @param srcObject - The live media stream to render.
      * @example
@@ -164,7 +186,7 @@ export interface AgentManagerCallbacks {
      * };
      * ```
      */
-    onSrcObjectReady: (srcObject: MediaStream) => void;
+    onSrcObjectReady?: (srcObject: MediaStream) => void;
     /**
      * Called with the whole chat transcript every time a message is added or updated.
      *
@@ -198,6 +220,11 @@ export interface AgentManagerCallbacks {
      * A chat is created while {@link AgentManager.connect | connect()} runs, and lazily on the
      * first {@link AgentManager.chat | chat()} when none exists yet. Store the id if you want to
      * correlate the conversation with your own records.
+     *
+     * On Talks (V2) and Clips (V3) agents the id comes from the Agents API. On Expressive (V4)
+     * agents the SDK derives it from the session id as `cht_<sessionId>`, which is the same id the
+     * Agents API stores the conversation under — so it correlates with D-ID's own records either
+     * way.
      *
      * @param chatId - Id of the chat that was just created.
      */
@@ -240,16 +267,23 @@ export interface AgentManagerCallbacks {
      * method ({@link AgentManager.chat | chat()}, {@link AgentManager.speak | speak()} and the
      * rating methods), so they surface as a rejected promise rather than through this callback.
      *
-     * @param error - The error that occurred.
-     * @param errorData - Extra context about the failure, such as the request URL and options.
+     * @param error - The error that occurred. Narrow it with {@link isDIDError} and branch on
+     * {@link BaseError.kind | kind}; {@link BaseError.toJson | toJson()} is what to log.
+     * @param errorData - Where the failure happened, as an {@link ErrorContext}: the endpoint and
+     * method for a failed request, the session or stream id for a failure on the stream. Every
+     * field is optional and nothing else is passed — in particular not the request body, which
+     * carries the end user's own message.
      * @example
      * ```ts
      * onError(error, errorData) {
-     *     console.log('Error:', error, 'Error Data', errorData);
+     *     reportToYourErrorService({
+     *         ...(isDIDError(error) ? error.toJson() : { message: error.message }),
+     *         ...errorData,
+     *     });
      * }
      * ```
      */
-    onError?: (error: Error, errorData?: Record<string, unknown>) => void;
+    onError?: (error: Error, errorData?: ErrorContext) => void;
     /**
      * Called when the agent moves between idle, loading, talking and running a tool.
      *
@@ -258,6 +292,14 @@ export interface AgentManagerCallbacks {
      * report just {@link AgentActivityState.Talking | Talking} and
      * {@link AgentActivityState.Idle | Idle}, and only on fluent streams, plus a final
      * {@link AgentActivityState.Idle | Idle} when the connection closes.
+     *
+     * It is the authoritative "is the agent speaking" signal wherever it reports at all — an
+     * Expressive (V4) session or a fluent stream — because it comes from the agent rather than from
+     * the video track, so it also covers thinking and tool calls, which produce no video.
+     * On a **legacy** stream it reports nothing, so use
+     * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} there; that is the
+     * branch every consumer otherwise writes for itself, keyed on
+     * {@link AgentManager.getStreamType | getStreamType()}.
      *
      * @param state - The {@link AgentActivityState} the agent has moved to.
      */
@@ -278,7 +320,7 @@ export interface AgentManagerCallbacks {
      * one of {@link ToolCallEvent.Started}, {@link ToolCallEvent.Done} or
      * {@link ToolCallEvent.Error}; and `data`, the payload that event narrows to —
      * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} or
-     * {@link ToolCallErrorPayload} respectively. The overloads that do the narrowing are on
+     * {@link ToolCallErrorPayload} respectively. The signature that does the narrowing is on
      * {@link ToolEventCallback}, with an example handler.
      */
     onToolEvent?: ToolEventCallback;
@@ -366,6 +408,60 @@ export interface StreamOptions {
 }
 
 /**
+ * What the SDK reports about the session, and where it goes.
+ *
+ * Pass it as {@link AgentManagerOptions.analytics}; every field is optional, and leaving the whole
+ * object out reports to D-ID's own project.
+ *
+ * The SDK posts an event to Mixpanel for each step of a session — connect, reconnect and
+ * disconnect, every message sent and answered, every {@link AgentManager.speak | speak()}, mode
+ * change, rating, feedback, tool call, video start and stop, interrupt and error. Each event
+ * carries the agent id, the visitor id derived from
+ * {@link AgentManagerOptions.externalId | externalId}, the page URL, the screen size, the user
+ * agent, the SDK version and whatever
+ * {@link AnalyticsOptions.additionalProperties | additionalProperties} added. **Conversation text
+ * is included too:** the agent's answer on `agent-message-received`, and the script on
+ * `agent-speak`. Set {@link AnalyticsOptions.enabled | enabled: false} to send nothing at all.
+ *
+ * Events that fail to post are buffered in memory (at most 50) and retried when the tab comes back
+ * online or becomes visible.
+ *
+ * @example Send the SDK's events to your own project, tagged with your plan
+ * ```ts
+ * const agentManager = await sdk.createAgentManager('agt_fumf1234', {
+ *     auth: { type: 'key', clientKey: 'YOUR_CLIENT_KEY' },
+ *     callbacks,
+ *     analytics: { mixpanelKey: 'YOUR_MIXPANEL_TOKEN', additionalProperties: { plan: 'pro' } },
+ * });
+ * ```
+ * @category Agent Manager
+ */
+export interface AnalyticsOptions {
+    /**
+     * Whether the SDK reports usage analytics at all. Set it to `false` to send nothing.
+     *
+     * @default true
+     */
+    enabled?: boolean;
+    /**
+     * Mixpanel project token the SDK's analytics events are sent to.
+     *
+     * Defaults to D-ID's own project. Set it to send the SDK's events to your Mixpanel project
+     * instead.
+     */
+    mixpanelKey?: string;
+    /**
+     * Extra properties merged into every analytics event the SDK sends.
+     *
+     * A flat object — use it to tag events with your own identifiers. More properties can be added
+     * later with {@link AgentManager.enrichAnalytics | enrichAnalytics()}. A `plan` property here
+     * is also forwarded to the Agents API as end-user data when a Talks (V2) or Clips (V3) stream
+     * is created.
+     */
+    additionalProperties?: Record<string, unknown>;
+}
+
+/**
  * Everything {@link createAgentManager} needs to reach an agent and report back to the application.
  *
  * {@link AgentManagerOptions.auth | auth} and {@link AgentManagerOptions.callbacks | callbacks} are
@@ -392,9 +488,9 @@ export interface AgentManagerOptions {
      * Handlers the SDK calls as the connection, the video stream and the chat change state.
      *
      * See {@link AgentManagerCallbacks}.
-     * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is mandatory — it is what
-     * connects the streamed media to your video element; the rest are optional. The handlers are
-     * captured at creation, so replacing one on this object later has no effect.
+     * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is what connects the
+     * streamed media to your video element, so every chat mode that streams video needs it. The
+     * handlers are captured at creation, so replacing one on this object later has no effect.
      */
     callbacks: AgentManagerCallbacks;
     /**
@@ -448,40 +544,12 @@ export interface AgentManagerOptions {
      */
     verbose?: boolean;
     /**
-     * Whether the SDK reports usage analytics. Set it to `false` to send nothing.
+     * What the SDK reports about the session, and where it goes.
      *
-     * It is on unless you turn it off. The SDK posts an event to Mixpanel for each step of a
-     * session — connect, reconnect and disconnect, every message sent and answered, every
-     * {@link AgentManager.speak | speak()}, mode change, rating, feedback, tool call, video start
-     * and stop, interrupt and error. Each event carries the agent id, the visitor id derived from
-     * {@link AgentManagerOptions.externalId | externalId}, the page URL, the screen size, the user
-     * agent, the SDK version and whatever
-     * {@link AgentManagerOptions.mixpanelAdditionalProperties | mixpanelAdditionalProperties}
-     * added. Conversation text is included too: the agent's answer on `agent-message-received`,
-     * and the script on `agent-speak`.
-     *
-     * The events go to D-ID's own Mixpanel project unless
-     * {@link AgentManagerOptions.mixpanelKey | mixpanelKey} points them at yours. Events that fail
-     * to post are buffered in memory (at most 50) and retried when the tab comes back online or
-     * becomes visible.
-     *
-     * @default true
+     * See {@link AnalyticsOptions}. Reporting is on unless you turn it off with
+     * `analytics: { enabled: false }`.
      */
-    enableAnalytics?: boolean;
-    /**
-     * Mixpanel project token the SDK's analytics events are sent to.
-     *
-     * Defaults to D-ID's own project. Set it to send the SDK's events to your Mixpanel project
-     * instead.
-     */
-    mixpanelKey?: string;
-    /**
-     * Extra properties merged into every analytics event the SDK sends.
-     *
-     * A flat object — use it to tag events with your own identifiers. More properties can be added
-     * later with `enrichAnalytics()`.
-     */
-    mixpanelAdditionalProperties?: Record<string, unknown>;
+    analytics?: AnalyticsOptions;
     /**
      * Your own identifier for the end user.
      *
@@ -504,13 +572,15 @@ export interface AgentManagerOptions {
      * render them. On Talks (V2) and Clips (V3) agents they are also sent as context with the next
      * {@link AgentManager.chat | chat()} request. See {@link Message}.
      *
-     * {@link Message.parts | parts} is a required field, but it does not have to be filled: pass an
-     * empty array and the SDK builds the parts from `content` with {@link parseMessageParts}, so a
-     * transcript restored from `content` alone still renders. A non-empty array is kept as given.
+     * A row from your own storage is enough: {@link Message.parts | parts} and
+     * {@link Message.createdAt | createdAt} are optional, and the SDK builds the parts from
+     * `content` with {@link parseMessageParts} for every message that arrives without them, so a
+     * transcript restored from the text alone still renders. A non-empty `parts` array is kept as
+     * given.
      *
      * @example Restoring rows that carry only the message text
      * ```ts
-     * const initialMessages = stored.map(({ id, role, content }) => ({ id, role, content, parts: [] }));
+     * const initialMessages = stored.map(({ id, role, content }) => ({ id, role, content }));
      * ```
      */
     initialMessages?: Message[];
@@ -542,6 +612,12 @@ export interface AgentManagerOptions {
  * exists; everything else is a method. Some methods work only with some avatar types: each one
  * says so, and {@link AgentAvatar} is where the session's tier is read from.
  *
+ * The manager's own state is readable at any time:
+ * {@link AgentManager.getChatMode | getChatMode()},
+ * {@link AgentManager.getConnectionState | getConnectionState()} and
+ * {@link AgentManager.getSessionInfo | getSessionInfo()} answer with what the matching callback
+ * last reported, so nothing has to be mirrored in application state.
+ *
  * Every method that reaches the Agents API can reject with an {@link HttpError} when the request
  * comes back non-2xx, or a {@link NetworkError} when it never reaches the server; the individual
  * `@throws` entries below name the errors that are specific to each method.
@@ -555,8 +631,11 @@ export interface AgentManager {
      * Fetched once while the manager is created, so it is available before
      * {@link AgentManager.connect | connect()}. Useful for rendering the agent's name, thumbnail
      * and {@link Agent.idle_video | idle_video}. See {@link Agent}.
+     *
+     * Read-only: the property cannot be reassigned, and the SDK never replaces it — the manager
+     * talks to the agent it was created for, for its whole life.
      */
-    agent: Agent;
+    readonly agent: Agent;
     /**
      * Returns the kind of stream the current session negotiated.
      *
@@ -583,8 +662,12 @@ export interface AgentManager {
      *
      * Suggested openers to offer the user as buttons; empty when the agent defines none. Available
      * before {@link AgentManager.connect | connect()}.
+     *
+     * Read-only, and a copy of {@link Agent.starter_message} rather than the same array, so
+     * sorting or filtering a local copy of it cannot change what
+     * {@link AgentManager.agent | agent} reports.
      */
-    starterMessages: string[];
+    readonly starterMessages: readonly string[];
     /**
      * Fetches a short-lived token for the D-ID speech-to-text service.
      *
@@ -598,6 +681,58 @@ export interface AgentManager {
      */
     getSttToken(): Promise<SttTokenResponse>;
     /**
+     * Returns the chat mode in effect right now.
+     *
+     * The same value {@link AgentManagerCallbacks.onModeChange | onModeChange} last reported, and
+     * the one every mode guard in the SDK reads. It is not always the mode that was asked for: the
+     * server can answer {@link AgentManager.connect | connect()} with a different mode, which the
+     * manager adopts, and a failed connection leaves the session in
+     * {@link ChatMode.Maintenance | Maintenance}. Use it instead of mirroring `onModeChange` in
+     * your own state.
+     *
+     * @returns The current {@link ChatMode}; before {@link AgentManager.connect | connect()}, the
+     * mode the manager was created with ({@link ChatMode.Functional} by default).
+     * @example
+     * ```ts
+     * if (agentManager.getChatMode() === 'maintenance') {
+     *     showBanner('The agent is temporarily unavailable.');
+     * }
+     * ```
+     */
+    getChatMode(): ChatMode;
+    /**
+     * Returns the connection state the manager last reported.
+     *
+     * The same value
+     * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange} was last
+     * called with, so a component that mounts after the session is up can read the state instead of
+     * waiting for the next change.
+     *
+     * @returns The current {@link ConnectionState}; {@link ConnectionState.New | 'new'} before the
+     * first {@link AgentManager.connect | connect()}.
+     * @example
+     * ```ts
+     * const canChat = agentManager.getConnectionState() === 'connected';
+     * ```
+     */
+    getConnectionState(): ConnectionState;
+    /**
+     * Returns the ids of the session that is open, for support and for your own logs.
+     *
+     * The same {@link StreamCreatedInfo} that
+     * {@link AgentManagerCallbacks.onStreamCreated | onStreamCreated} delivered for this session.
+     *
+     * @returns The open session's `streamId`, `sessionId` and `agentId`, or `undefined` before
+     * {@link AgentManager.connect | connect()} and after
+     * {@link AgentManager.disconnect | disconnect()}.
+     * @example
+     * ```ts
+     * const session = agentManager.getSessionInfo();
+     * console.log('session', session?.sessionId, 'stream', session?.streamId);
+     * ```
+     */
+    getSessionInfo(): StreamCreatedInfo | undefined;
+    /**
      * Opens a new session with the agent: a new WebRTC connection, a new web socket and a new chat.
      *
      * Resolves once the connection reaches {@link ConnectionState.Connected | 'connected'}, by
@@ -608,10 +743,16 @@ export interface AgentManager {
      * promise rather than opening a second session, which is what makes it safe in a React
      * StrictMode effect. Once a session exists it rejects instead — call
      * {@link AgentManager.disconnect | disconnect()} first to start a fresh conversation, or
-     * {@link AgentManager.reconnect | reconnect()} to keep the current one.
+     * {@link AgentManager.reconnect | reconnect()} to keep the current one. A call that joins an
+     * operation a {@link AgentManager.disconnect | disconnect()} later cancels resolves without a
+     * session open; read {@link AgentManager.getConnectionState | getConnectionState()} for what
+     * happened.
      *
      * @returns Resolves when the agent is connected and ready.
-     * @throws {@link ValidationError} When a session is already open.
+     * @throws {@link ValidationError} When a session is already open, or when
+     * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} was not supplied and the
+     * current {@link ChatMode} streams video — which a
+     * {@link AgentManager.changeMode | changeMode()} out of a text-only mode can bring about.
      * @throws {@link HttpError} When creating the stream or the chat comes back non-2xx — a client
      * key that is not authorized for the agent or the calling domain, or an account out of
      * credits. The SDK tries the initialization up to three times first, except on `429` and on an
@@ -630,6 +771,11 @@ export interface AgentManager {
      * — including after the server ended the previous one deliberately — rather than resuming the
      * old one. On Expressive (V4) agents the transport is asked to reconnect first; if that fails
      * the SDK falls back to a disconnect and a fresh connect, which starts a new chat id.
+     *
+     * One session-opening operation runs at a time, teardown included, so this and
+     * {@link AgentManager.connect | connect()} cannot interleave — call one or the other rather
+     * than racing them. A `connect()` that joins this one continues the existing chat, so
+     * {@link AgentManagerCallbacks.onNewChat | onNewChat} does not fire for it.
      *
      * @returns Resolves when the new stream is connected.
      * @throws {@link ValidationError} When a {@link AgentManager.connect | connect()} is still in
@@ -750,6 +896,10 @@ export interface AgentManager {
      *
      * Pass `rateId` to change a rating the user already gave instead of adding another.
      *
+     * Works on every avatar type. On an Expressive (V4) session an answer that arrived over the
+     * data channel without a server id is given a locally generated one, which D-ID's records
+     * cannot be matched against — rate the answers whose ids came from the server.
+     *
      * @param messageId - Id of the message being rated.
      * @param score - 1 for a positive rating, -1 for a negative one.
      * @param rateId - Id of an existing rating to update; omit to create a new one.
@@ -777,14 +927,21 @@ export interface AgentManager {
      * Separate from {@link AgentManager.rate | rate()}, which scores a single answer. Collect it
      * when the user ends the call, using the agent's end-of-call feedback configuration.
      *
-     * @param rating - The user's score for the conversation, a whole number from 1 to 5.
+     * Every avatar type. The agent must have end-of-call feedback switched on
+     * ({@link Agent.end_of_call_feedback}, {@link EndOfCallFeedbackConfig.enabled | enabled}) —
+     * the Agents API rejects the request otherwise, so read the configuration before offering the
+     * form. A second submission for the same conversation replaces the first.
+     *
+     * @param rating - The user's score for the conversation: 1, 2, 3, 4 or 5. The Agents API
+     * rejects anything else, whole numbers outside the range and fractions alike.
      * @param answer - The user's free-text answer to the follow-up question, when one was asked.
      * @returns The stored {@link SubmitFeedbackResponse}.
      * @throws {@link ValidationError} When no chat has started.
-     * @throws {@link HttpError} When the feedback request comes back non-2xx.
+     * @throws {@link HttpError} When the feedback request comes back non-2xx — including a `400`
+     * when the agent does not have end-of-call feedback enabled.
      * @throws {@link NetworkError} When the feedback request never reaches the server.
      */
-    submitFeedback(rating: number, answer?: string): Promise<SubmitFeedbackResponse>;
+    submitFeedback(rating: 1 | 2 | 3 | 4 | 5, answer?: string): Promise<SubmitFeedbackResponse>;
     /**
      * Makes the agent stream back a video based on the text or audio file you provide.
      *
@@ -856,13 +1013,13 @@ export interface AgentManager {
      * Adds properties to every analytics event the SDK sends from now on.
      *
      * The same thing
-     * {@link AgentManagerOptions.mixpanelAdditionalProperties | mixpanelAdditionalProperties} does
-     * at creation time, for values you only learn later.
+     * {@link AnalyticsOptions.additionalProperties | analytics.additionalProperties} does at
+     * creation time, for values you only learn later.
      *
      * Advanced. Calls merge, so a property sent twice takes the later value, and events already
      * sent are not changed. It has no visible effect when analytics is switched off with
-     * {@link AgentManagerOptions.enableAnalytics | enableAnalytics: false}, because nothing is
-     * sent at all.
+     * {@link AnalyticsOptions.enabled | analytics.enabled} set to `false`, because nothing is sent
+     * at all.
      *
      * @param properties - A flat JSON object whose properties are added to every analytics event
      * the SDK sends from now on.
@@ -887,10 +1044,18 @@ export interface AgentManager {
      * no callback.
      *
      * @param options - What caused the interruption, as an {@link InterruptOptions}: `text`,
-     * `audio`, `click` or `manual`. Expressive (V4) agents drop `text` interrupts, because the
+     * `audio`, `click` or `manual`. Optional — a stop button is the common case, so leaving it out
+     * means `{ type: 'click' }`. Expressive (V4) agents drop `text` interrupts, because the
      * orchestrator does not cancel the in-flight answer for them.
+     * @example
+     * ```ts
+     * stopButton.onclick = () => agentManager.interrupt();
+     *
+     * // The user typed over the answer instead of pressing the button.
+     * agentManager.interrupt({ type: 'text' });
+     * ```
      */
-    interrupt(options: InterruptOptions): void;
+    interrupt(options?: InterruptOptions): void;
 
     /**
      * Switches the speech-to-text language in the middle of a session.
@@ -915,8 +1080,10 @@ export interface AgentManager {
      * to change slide. Expressive (V4) agents only, after {@link AgentManager.connect | connect()};
      * otherwise the returned promise rejects with a {@link ValidationError}.
      *
-     * @param topic - Data-channel topic to send on. {@link DataChannelTopic} is exported from
-     * the package root and lists every topic this method accepts.
+     * @param topic - Data-channel topic to send on. Either a {@link DataChannelTopic} member or
+     * its string value — `DataChannelTopic.Presentation` and `'did.presentation'` are both
+     * accepted. {@link DataChannelTopic} is exported from the package root and lists every topic
+     * this method accepts.
      * @param payload - A plain object, sent as JSON.
      * @returns Resolves once the payload has been sent. A room that has dropped since
      * {@link AgentManager.connect | connect()} reports a {@link StreamError} through
@@ -933,10 +1100,16 @@ export interface AgentManager {
      * });
      * ```
      */
-    sendDataChannelMessage(topic: DataChannelTopic, payload: Record<string, unknown>): Promise<void>;
+    sendDataChannelMessage(topic: `${DataChannelTopic}`, payload: Record<string, unknown>): Promise<void>;
 
     /**
      * Registers a handler for a client tool, run in the browser when the agent's LLM calls it.
+     *
+     * Expressive (V4) agents only: client tools travel on the real-time session's RPC channel,
+     * which Talks (V2) and Clips (V3) agents do not have. It throws a {@link ValidationError} on
+     * those rather than registering a handler the agent could never call. The check is on the
+     * agent, not on the connection, so it applies before
+     * {@link AgentManager.connect | connect()} too.
      *
      * The handler executes on the client and its result is returned to the LLM. Register the
      * handlers before {@link AgentManager.connect | connect()} so the agent can call
@@ -947,15 +1120,19 @@ export interface AgentManager {
      * @param name - Name of the tool, which must match the one defined in the agent's
      * configuration.
      * @param handler - The function that runs when the agent calls the tool. It receives the
-     * arguments the LLM produced and must resolve to a JSON string of at most 15 KiB. See
+     * arguments the LLM produced and returns a JSON string of at most 15 KiB — the limit is the
+     * transport's, not the SDK's, and a larger result fails the call. See
      * {@link ClientToolHandler}.
+     * @throws {@link ValidationError} When the agent is a Talks (V2) or Clips (V3) one.
      */
     registerClientTool(name: string, handler: ClientToolHandler): void;
 
     /**
      * Removes a previously registered client tool handler.
      *
-     * After this the agent's calls to that tool fail rather than reaching your code.
+     * After this the agent's calls to that tool fail rather than reaching your code. Unlike
+     * {@link AgentManager.registerClientTool | registerClientTool()} it never throws — a name that
+     * was never registered, and any agent type, is a no-op — so it is safe in a cleanup path.
      *
      * @param name - Name of the tool whose handler should be removed.
      */
