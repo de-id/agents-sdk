@@ -20,6 +20,7 @@ import {
     ConnectionState,
     DataChannelTopic,
     Providers,
+    StreamEndReason,
     StreamType,
 } from '../../types';
 import { isChatModeWithoutChat, isTextualChat } from '../../utils/chat';
@@ -551,7 +552,18 @@ describe('createAgentManager', () => {
 
                 streamCallbacks().onConnectionStateChange(ConnectionState.Connected);
                 expect(manager.getConnectionState()).toBe(ConnectionState.Connected);
-                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Connected);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Connected,
+                    undefined
+                );
+
+                // A reason reported with the state reaches the caller alongside it.
+                streamCallbacks().onConnectionStateChange(ConnectionState.Disconnected, StreamEndReason.Inactivity);
+                expect(manager.getConnectionState()).toBe(ConnectionState.Disconnected);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Disconnected,
+                    StreamEndReason.Inactivity
+                );
 
                 await manager.disconnect();
                 expect(manager.getConnectionState()).toBe(ConnectionState.Disconnected);
@@ -578,7 +590,10 @@ describe('createAgentManager', () => {
             it('should connect successfully', async () => {
                 await manager.connect();
 
-                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Connecting);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Connecting,
+                    undefined
+                );
                 expect(initializeStreamAndChat).toHaveBeenCalled();
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-chat', {
                     event: 'connect',
@@ -603,7 +618,10 @@ describe('createAgentManager', () => {
                 (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(error);
 
                 await expect(manager.connect()).rejects.toThrow('Connection failed');
-                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Fail);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Fail,
+                    undefined
+                );
             });
 
             describe('is idempotent', () => {
@@ -877,7 +895,8 @@ describe('createAgentManager', () => {
                 expect(mockSocketManager.disconnect).toHaveBeenCalled();
                 expect(mockStreamingManager.disconnect).toHaveBeenCalled();
                 expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
-                    ConnectionState.Disconnected
+                    ConnectionState.Disconnected,
+                    undefined
                 );
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-chat', {
                     event: 'disconnect',

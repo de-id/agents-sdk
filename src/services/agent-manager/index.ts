@@ -1,6 +1,7 @@
 import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import {
     AgentManager,
+    AgentManagerCallbacks,
     AgentManagerOptions,
     Chat,
     ChatMode,
@@ -116,18 +117,19 @@ const MISSING_SRC_OBJECT_READY =
  * @category Agent Manager
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
-    // The caller's object is copied, never written to: two managers built from one options object
-    // must not wrap each other's `callbacks.onError`.
-    const managerOptions: AgentManagerOptions = { ...options, callbacks: { ...options.callbacks } };
+    // The caller's handlers, read once and never written to: two managers created from one options
+    // object must not wrap each other's `callbacks.onError`, and the caller must get their own
+    // handler back when they read the property afterwards.
+    const appCallbacks: AgentManagerCallbacks = { ...options.callbacks };
 
     let firstConnection = true;
 
-    const mxKey = managerOptions.analytics?.mixpanelKey || mixpanelKey;
-    const wsURL = managerOptions.wsURL || didSocketApiUrl;
-    const baseURL = managerOptions.baseURL || didApiUrl;
-    const mode = managerOptions.mode || ChatMode.Functional;
+    const mxKey = options.analytics?.mixpanelKey || mixpanelKey;
+    const wsURL = options.wsURL || didSocketApiUrl;
+    const baseURL = options.baseURL || didApiUrl;
+    const mode = options.mode || ChatMode.Functional;
 
-    if (!managerOptions.callbacks.onSrcObjectReady && !isTextualChat(mode)) {
+    if (!appCallbacks.onSrcObjectReady && !isTextualChat(mode)) {
         throw new ValidationError(MISSING_SRC_OBJECT_READY);
     }
 
@@ -138,9 +140,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const analytics = initializeAnalytics({
         token: mxKey,
         agentId: agent,
-        isEnabled: managerOptions.analytics?.enabled,
-        externalId: managerOptions.externalId,
-        mixpanelAdditionalProperties: managerOptions.analytics?.additionalProperties,
+        isEnabled: options.analytics?.enabled,
+        externalId: options.externalId,
+        mixpanelAdditionalProperties: options.analytics?.additionalProperties,
     });
 
     const initTimestamp = Date.now();
@@ -148,38 +150,33 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.track('agent-sdk', { event: 'init' }, initTimestamp);
     });
 
-    const originalOnError = managerOptions.callbacks.onError;
-    managerOptions.callbacks.onError = (error: Error, errorData?: ErrorContext) => {
-        analytics.track('agent-error', { error: toErrorAnalytics(error) });
-        originalOnError?.(error, errorData);
-    };
-
-    // The state the getters answer from. Both are recorded by wrapping the callback that reports
-    // them, so every path that can report one — this module, the streaming managers, the retry in
-    // `connect()` — keeps them in step without a second source of truth.
+    // The state the getters answer from.
     let connectionState: ConnectionState = ConnectionState.New;
     let sessionInfo: StreamCreatedInfo | undefined;
 
-    const originalOnConnectionStateChange = managerOptions.callbacks.onConnectionStateChange;
-    // Forwarded with the arguments it was called with, not with a fixed pair: a handler that reads
-    // `arguments.length` — or a test that asserts on the call — must see what the SDK reported.
-    managerOptions.callbacks.onConnectionStateChange = (...args: [ConnectionState, (string | undefined)?]) => {
-        connectionState = args[0];
-        originalOnConnectionStateChange?.(...args);
+    // One object, built once and never reassigned, is what every reporter is handed — this module,
+    // the streaming managers created in `connect()`, the socket manager. So the two variables above
+    // are recorded on whichever path reports them, with no second source of truth, and no handler
+    // can end up wrapped twice.
+    const callbacks: AgentManagerCallbacks = {
+        ...appCallbacks,
+        onError(error: Error, errorData?: ErrorContext) {
+            analytics.track('agent-error', { error: toErrorAnalytics(error) });
+            appCallbacks.onError?.(error, errorData);
+        },
+        onConnectionStateChange(state: ConnectionState, reason?: string) {
+            connectionState = state;
+            appCallbacks.onConnectionStateChange?.(state, reason);
+        },
+        onStreamCreated(stream: StreamCreatedInfo) {
+            sessionInfo = stream;
+            appCallbacks.onStreamCreated?.(stream);
+        },
     };
 
-    const originalOnStreamCreated = managerOptions.callbacks.onStreamCreated;
-    managerOptions.callbacks.onStreamCreated = (stream: StreamCreatedInfo) => {
-        sessionInfo = stream;
-        originalOnStreamCreated?.(stream);
-    };
+    const managerOptions: AgentManagerOptions = { ...options, callbacks };
 
-    const agentsApi = createAgentsApi(
-        managerOptions.auth,
-        baseURL,
-        managerOptions.callbacks.onError,
-        managerOptions.externalId
-    );
+    const agentsApi = createAgentsApi(managerOptions.auth, baseURL, callbacks.onError, managerOptions.externalId);
 
     const agentEntity = await agentsApi.getRuntimeById(agent);
     managerOptions.debug = managerOptions.debug || agentEntity?.advanced_settings?.ui_debug_mode;
@@ -203,12 +200,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, managerOptions, agentEntity, reason => {
         items.socketManager?.disconnect();
-        managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, reason);
+        callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, reason);
     });
 
     items.messages = getInitialMessages(managerOptions.initialMessages);
 
-    managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+    callbacks.onNewMessage?.([...items.messages], 'answer');
 
     const updateVideoId = (videoId: string | null) => analytics.enrich({ videoId });
 
@@ -241,7 +238,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         lastMessage.interrupted = true;
-        managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+        callbacks.onNewMessage?.([...items.messages], 'answer');
     };
 
     const clientToolHandlers = new Map<string, ClientToolHandler>();
@@ -338,21 +335,21 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         rotateConnectionId();
-        managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+        callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();
 
         if (newChat && !firstConnection) {
             delete items.chat;
 
-            managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+            callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
         const websocketPromise = sessionNeedsSocket(items.chatMode)
             ? createSocketManager(
                   managerOptions.auth,
                   wsURL,
-                  { onMessage, onError: managerOptions.callbacks.onError },
+                  { onMessage, onError: callbacks.onError },
                   managerOptions.externalId
               )
             : Promise.resolve(undefined);
@@ -364,7 +361,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         ...managerOptions,
                         mode: items.chatMode,
                         callbacks: {
-                            ...managerOptions.callbacks,
+                            ...callbacks,
                             onVideoIdChange: updateVideoId,
                             onMessage,
                         },
@@ -392,7 +389,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             websocketPromise.then(socket => socket?.disconnect()).catch(() => {});
 
             applyMode(ChatMode.Maintenance);
-            managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+            callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
         });
 
@@ -401,7 +398,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         const isNewChat = !!chat && chat.id !== previousChatId;
         if (isNewChat) {
-            managerOptions.callbacks.onNewChat?.(chat!.id);
+            callbacks.onNewChat?.(chat!.id);
         }
 
         items.streamingManager = streamingManager;
@@ -448,7 +445,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         delete items.socketManager;
         sessionInfo = undefined;
 
-        managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+        callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
     }
 
     // The answers arrive on the notifications web socket, except on an Expressive agent (data
@@ -485,7 +482,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 await disconnect();
             }
 
-            managerOptions.callbacks.onModeChange?.(mode);
+            callbacks.onModeChange?.(mode);
         }
     }
 
@@ -514,7 +511,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             // Checked again here, not only at creation: `changeMode()` can move a manager built in
             // a textual mode into one that streams video, and opening that stream with nothing to
             // render it into fails silently — a paid session with no picture.
-            if (!managerOptions.callbacks.onSrcObjectReady && !isTextualChat(items.chatMode)) {
+            if (!callbacks.onSrcObjectReady && !isTextualChat(items.chatMode)) {
                 throw new ValidationError(MISSING_SRC_OBJECT_READY);
             }
 
@@ -696,7 +693,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     }
 
                     items.chat = newChat.chat;
-                    managerOptions.callbacks.onNewChat?.(items.chat.id);
+                    callbacks.onNewChat?.(items.chat.id);
                 }
 
                 return items.chat.id;
@@ -739,7 +736,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         const isStreamError = error?.message?.includes('Stream Error');
 
                         if (!isStreamError && !isInvalidSessionId) {
-                            managerOptions.callbacks.onError?.(error);
+                            callbacks.onError?.(error);
                             return false;
                         }
                         return true;
@@ -763,7 +760,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     createdAt: new Date(latencyTimestampTracker.update()).toISOString(),
                 });
 
-                managerOptions.callbacks.onNewMessage?.([...items.messages], 'user');
+                callbacks.onNewMessage?.([...items.messages], 'user');
 
                 const chatId = await initializeChat();
                 const response = await sendChatRequest([...items.messages], chatId);
@@ -791,7 +788,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 });
 
                 if (response.result) {
-                    managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+                    callbacks.onNewMessage?.([...items.messages], 'answer');
 
                     analytics.track('agent-message-received', {
                         latency: latencyTimestampTracker.get(true),
@@ -902,7 +899,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     parts: parseMessagePartsMemo(script.input),
                     createdAt: new Date().toISOString(),
                 });
-                managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
+                callbacks.onNewMessage?.([...items.messages], 'answer');
             }
 
             const noVideoResponse = { duration: 0, videoId: '', status: 'success' };
