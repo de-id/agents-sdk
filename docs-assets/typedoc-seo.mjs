@@ -145,8 +145,8 @@ function llmsTxt(app, project) {
  * Only real summaries are appended — `describe()`'s "X in the … API reference" fallback would
  * double each row's weight while saying nothing, so undocumented symbols keep their bare name.
  *
- * The map is keyed by name, not by reflection: a name that owns two pages (`DataChannelTopic`
- * is both a type and a variable) is last-wins, so both of its rows show the same sentence.
+ * The map is keyed by name, not by reflection: a name that owns two pages (a `const` and the type
+ * derived from it, say) is last-wins, so both of its rows show the same sentence.
  *
  * @param {string} contents
  * @param {ProjectReflection} project
