@@ -8,7 +8,7 @@
         "declarationMap": false,
         "composite": true,
         "declaration": true,
-        // `@internal` members never reach the published `.d.ts` (vite-plugin-dts reads this).
+        // `@internal` members never reach the published `.d.ts`.
         "stripInternal": true,
         "emitDecoratorMetadata": true,
         "esModuleInterop": true,

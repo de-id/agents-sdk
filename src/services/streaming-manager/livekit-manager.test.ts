@@ -58,7 +58,7 @@ class mockRpcError extends Error {
     }
 }
 
-jest.mock('livekit-client', () => ({
+const mockLivekitClient = {
     Room: mockRoomConstructor,
     RoomEvent: {
         ConnectionStateChanged: 'ConnectionStateChanged',
@@ -83,7 +83,9 @@ jest.mock('livekit-client', () => ({
     },
     Track: mockTrack,
     RpcError: mockRpcError,
-}));
+};
+
+jest.mock('livekit-client', () => mockLivekitClient);
 
 // Mock createStreamApiV2
 const mockCreateStream = jest.fn().mockResolvedValue({
@@ -2545,5 +2547,91 @@ describe('LiveKit Streaming Manager - Stream End Reason', () => {
         getConnectionStateHandler()('disconnected');
 
         expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
+    });
+});
+
+describe('LiveKit Streaming Manager - loading livekit-client', () => {
+    const sessionOptions: CreateSessionV2Options = {
+        chat_persist: true,
+        transport: { provider: TransportProvider.Livekit },
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('should load livekit-client once for a preload and the connect that follows', async () => {
+        const load = jest.fn(() => mockLivekitClient);
+
+        await jest.isolateModulesAsync(async () => {
+            jest.resetModules();
+            jest.doMock('livekit-client', load);
+            const manager = await import('./livekit-manager');
+
+            manager.preloadLiveKit();
+            await manager.createLiveKitStreamingManager(
+                TEST_AGENT_ID,
+                sessionOptions,
+                StreamingManagerOptionsFactory.build()
+            );
+        });
+
+        expect(load).toHaveBeenCalledTimes(1);
+        expect(mockRoomConstructor).toHaveBeenCalledTimes(1);
+    });
+
+    it('should report a failed import from the connect, not from the preload', async () => {
+        await jest.isolateModulesAsync(async () => {
+            jest.resetModules();
+            jest.doMock('livekit-client', () => {
+                throw new Error('Cannot find module');
+            });
+            const manager = await import('./livekit-manager');
+
+            manager.preloadLiveKit();
+
+            await expect(
+                manager.createLiveKitStreamingManager(
+                    TEST_AGENT_ID,
+                    sessionOptions,
+                    StreamingManagerOptionsFactory.build()
+                )
+            ).rejects.toThrow('LiveKit client is required for this streaming manager');
+        });
+
+        expect(mockCreateStream).not.toHaveBeenCalled();
+    });
+
+    it('should import again after a failed import instead of caching the failure', async () => {
+        await jest.isolateModulesAsync(async () => {
+            jest.resetModules();
+            let missing = true;
+            jest.doMock('livekit-client', () => {
+                if (missing) {
+                    throw new Error('Cannot find module');
+                }
+
+                return mockLivekitClient;
+            });
+            const manager = await import('./livekit-manager');
+
+            await expect(
+                manager.createLiveKitStreamingManager(
+                    TEST_AGENT_ID,
+                    sessionOptions,
+                    StreamingManagerOptionsFactory.build()
+                )
+            ).rejects.toThrow('LiveKit client is required for this streaming manager');
+
+            missing = false;
+
+            await expect(
+                manager.createLiveKitStreamingManager(
+                    TEST_AGENT_ID,
+                    sessionOptions,
+                    StreamingManagerOptionsFactory.build()
+                )
+            ).resolves.toBeDefined();
+        });
     });
 });

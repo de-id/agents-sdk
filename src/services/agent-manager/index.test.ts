@@ -37,6 +37,10 @@ jest.mock('../analytics/mixpanel');
 jest.mock('../socket-manager');
 jest.mock('./connect-to-manager');
 jest.mock('../socket-manager/message-queue');
+jest.mock('../streaming-manager/livekit-manager', () => ({
+    ...jest.requireActual('../streaming-manager/livekit-manager'),
+    preloadLiveKit: jest.fn(),
+}));
 jest.mock('../chat/intial-messages');
 jest.mock('../chat');
 jest.mock('../../utils/retry-operation', () => ({ retryOperation: jest.fn(fn => fn()) }));
@@ -384,7 +388,9 @@ describe('createAgentManager', () => {
             });
 
             describe('is idempotent', () => {
-                it('should return the in-flight promise instead of opening a second session', async () => {
+                // Holds the stream/chat init open so a second call lands while the first is still in
+                // flight; the returned function lets it resolve.
+                function deferStreamAndChat() {
                     let release: (value: any) => void = () => {};
                     (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
                         new Promise(resolve => {
@@ -392,10 +398,16 @@ describe('createAgentManager', () => {
                         })
                     );
 
+                    return () => release({ streamingManager: mockStreamingManager, chat: mockChat });
+                }
+
+                it('should return the in-flight promise instead of opening a second session', async () => {
+                    const release = deferStreamAndChat();
+
                     const first = manager.connect();
                     const second = manager.connect();
 
-                    release({ streamingManager: mockStreamingManager, chat: mockChat });
+                    release();
                     await expect(Promise.all([first, second])).resolves.toEqual([undefined, undefined]);
 
                     expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
@@ -404,8 +416,9 @@ describe('createAgentManager', () => {
                 it('should reject a second connect once a session is open', async () => {
                     await manager.connect();
 
-                    await expect(manager.connect()).rejects.toThrow(ValidationError);
-                    await expect(manager.connect()).rejects.toThrow('Already connected; call disconnect() first');
+                    const rejection = expect(manager.connect()).rejects;
+                    await rejection.toThrow(ValidationError);
+                    await rejection.toThrow('Already connected; call disconnect() first');
                     expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
                 });
 
@@ -447,12 +460,7 @@ describe('createAgentManager', () => {
                 it('should join the attempt a reconnect already has in flight', async () => {
                     await manager.connect();
 
-                    let release: (value: any) => void = () => {};
-                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
-                        new Promise(resolve => {
-                            release = resolve;
-                        })
-                    );
+                    const release = deferStreamAndChat();
                     (initializeStreamAndChat as jest.Mock).mockClear();
 
                     const reconnecting = manager.reconnect();
@@ -461,7 +469,7 @@ describe('createAgentManager', () => {
                     await new Promise(resolve => setTimeout(resolve, 0));
                     const connecting = manager.connect();
 
-                    release({ streamingManager: mockStreamingManager, chat: mockChat });
+                    release();
                     await Promise.all([reconnecting, connecting]);
 
                     // One session, not two: the public connect joined the reconnect's attempt.
@@ -469,17 +477,12 @@ describe('createAgentManager', () => {
                 });
 
                 it('should let an in-flight connect settle before disconnecting', async () => {
-                    let release: (value: any) => void = () => {};
-                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
-                        new Promise(resolve => {
-                            release = resolve;
-                        })
-                    );
+                    const release = deferStreamAndChat();
 
                     const connecting = manager.connect();
                     const disconnecting = manager.disconnect();
 
-                    release({ streamingManager: mockStreamingManager, chat: mockChat });
+                    release();
                     await Promise.all([connecting, disconnecting]);
 
                     // The session the connect opened was the one torn down, not a leftover.
@@ -488,12 +491,7 @@ describe('createAgentManager', () => {
                 });
 
                 it('should reject reconnect while a connect is in flight', async () => {
-                    let release: (value: any) => void = () => {};
-                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
-                        new Promise(resolve => {
-                            release = resolve;
-                        })
-                    );
+                    const release = deferStreamAndChat();
 
                     const connecting = manager.connect();
                     const reconnecting = manager.reconnect();
@@ -502,7 +500,7 @@ describe('createAgentManager', () => {
                         'A connect() is in flight; wait for it before calling reconnect()'
                     );
 
-                    release({ streamingManager: mockStreamingManager, chat: mockChat });
+                    release();
                     await connecting;
                 });
             });
@@ -1614,9 +1612,6 @@ describe('createAgentManager', () => {
             expect(result).toBe('result2');
         });
 
-        // The reason is carried in a plain Error; the LiveKit streaming manager, which owns the
-        // `livekit-client` import, turns it into the `RpcError` the transport forwards — see
-        // `livekit-manager.test.ts`.
         it('should reject with the handler reason verbatim', async () => {
             const handler = jest.fn().mockRejectedValue(new Error('No form fields configured.'));
 

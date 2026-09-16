@@ -34,10 +34,8 @@ export default ({ mode }) => {
                 include: [resolve(__dirname, './src/**/*.{ts,tsx}')],
                 // Test files and test factories are not part of the published surface.
                 exclude: [resolve(__dirname, './src/**/*.test.ts'), resolve(__dirname, './src/test-utils/**')],
-                // One bundled `dist/index.d.ts` instead of a tree that mirrors `src/`. The tree's
-                // relative re-exports were extensionless, which `moduleResolution: node16` rejects
-                // — silently, under the usual `skipLibCheck: true`, leaving every symbol `any`.
-                // A single file has nothing to resolve.
+                // One bundled `dist/index.d.ts`: the per-file tree's extensionless re-exports are
+                // rejected by `moduleResolution: node16` — silently, under `skipLibCheck`.
                 rollupTypes: true,
             }),
         ],

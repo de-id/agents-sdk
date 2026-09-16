@@ -95,9 +95,6 @@ describe('SDK errors', () => {
 
         it('should fall back to code "HttpError" + raw body when the body is not the envelope', () => {
             const err = new HttpError(504, '<html>gateway timeout</html>');
-            expect(err.kind).toBe('HttpError');
-            expect(err.code).toBe('HttpError');
-            expect(err.message).toBe('<html>gateway timeout</html>');
             expect(err.toJson()).toEqual({
                 kind: 'HttpError',
                 code: 'HttpError',

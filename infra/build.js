@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import { program } from 'commander';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 function asyncExec(command) {
     return new Promise((resolve, reject) => {
@@ -30,18 +31,15 @@ try {
 
     console.log(`Succesful build ${mode}`);
 } catch (e) {
-    // A failed type-check, bundle or declaration emit must fail the build: the publish
-    // workflow runs `npm publish` straight after `yarn build`, so exiting 0 here would
-    // ship whatever happened to be left in `dist/`.
+    // The publish workflow runs `npm publish` straight after this; a failed build must not exit 0.
     console.error(e);
     process.exit(1);
 }
 
-// Local convenience: refresh a sibling `agents-ui` checkout's copy of the SDK. It is not
-// part of the build contract, so nothing below may change the exit code.
+// Local convenience: refresh a sibling `agents-ui` checkout's copy of the SDK.
 try {
     console.log('start copy');
-    const root = path.resolve(import.meta.url, '../../').split(':')[1];
+    const root = fileURLToPath(new URL('../', import.meta.url));
     const dist = path.resolve(root, './dist');
     const packageJson = path.resolve(root, './package.json');
     const embeddedModules = path.resolve(root, '../agents-ui/node_modules');

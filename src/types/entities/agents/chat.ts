@@ -304,13 +304,16 @@ export interface RetrievalMetadata {
  * {@link AgentManagerCallbacks.onModeChange | onModeChange}. Switching to anything other than
  * {@link ChatMode.Functional} disconnects the stream, and switching *into*
  * {@link ChatMode.Functional} disconnects it too when the open session cannot carry a conversation
- * — call {@link AgentManager.connect | connect()} again after either. What the mode decides is
- * narrower than it looks: whether a chat is created for the session, and whether
- * {@link AgentManager.connect | connect()} opens the notifications web socket — which is exactly
- * why a session built for one mode may not serve another. Every guard reads the mode the session
- * is in at the time of the call, not the one {@link createAgentManager} was given. {@link AgentManager.connect | connect()} establishes the
- * video stream in every mode. The server can also answer with a different mode than the one asked for when the chat
- * is created; the SDK then adopts it and reports a {@link ChatModeDowngraded} error through
+ * — call {@link AgentManager.connect | connect()} again after either.
+ *
+ * What the mode decides is narrower than it looks: whether a chat is created for the session, and
+ * whether {@link AgentManager.connect | connect()} opens the notifications web socket — which is
+ * exactly why a session built for one mode may not serve another. The video stream is established
+ * in every mode, and every guard reads the mode the session is in at the time of the call, not the
+ * one {@link createAgentManager} was given.
+ *
+ * The server can also answer with a different mode than the one asked for when the chat is created;
+ * the SDK then adopts it and reports a {@link ChatModeDowngraded} error through
  * {@link AgentManagerCallbacks.onError | onError}.
  *
  * @category Chat

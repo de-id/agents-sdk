@@ -102,13 +102,11 @@ const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
  * @category Agent Manager
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
-    // The caller's object is read once, here, and never written to: two managers created from one
-    // options object must not wrap each other's `callbacks.onError`, and the caller must get their
-    // own handler back when they read the property afterwards.
+    // The caller's object is copied, never written to: two managers built from one options object
+    // must not wrap each other's `callbacks.onError`.
     const managerOptions: AgentManagerOptions = { ...options, callbacks: { ...options.callbacks } };
 
     let firstConnection = true;
-    let videoId: string | null = null;
 
     const mxKey = managerOptions.mixpanelKey || mixpanelKey;
     const wsURL = managerOptions.wsURL || didSocketApiUrl;
@@ -154,6 +152,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         throw new ValidationError(UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE);
     }
 
+    if (isStreamsV2) {
+        // Start the transport downloading now, so `connect()` does not wait for it before it can
+        // ask for a session. Dynamically, so a Talks/Clips bundle never pulls LiveKit in; a failed
+        // prefetch is ignored, and `connect()` reports the failure if it is still there.
+        void import('../streaming-manager/livekit-manager')
+            .then(({ preloadLiveKit }) => preloadLiveKit())
+            .catch(() => {});
+    }
+
     analytics.enrich(getAgentInfo(agentEntity));
 
     const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, managerOptions, agentEntity, reason => {
@@ -165,18 +172,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
 
-    const updateVideoId = (newVideoId: string | null) => {
-        videoId = newVideoId;
-        analytics.enrich({ videoId: newVideoId });
-    };
+    const updateVideoId = (videoId: string | null) => analytics.enrich({ videoId });
 
     const interrupt = ({ type }: InterruptOptions) => {
-        if (!items.streamingManager?.interruptAvailable) {
+        const streamingManager = items.streamingManager;
+        if (!streamingManager?.interruptAvailable || !streamingManager.isInterruptible) {
             return;
         }
-        if (!items.streamingManager?.isInterruptible) return;
 
-        const sent = items.streamingManager.interrupt(type);
+        const sent = streamingManager.interrupt(type);
         if (!sent) {
             return;
         }
@@ -199,9 +203,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const clientToolHandlers = new Map<string, ClientToolHandler>();
 
-    // The reason is carried in a plain `Error`: the LiveKit streaming manager, which is the only
-    // module that loads `livekit-client`, turns it into the `RpcError` the transport forwards to
-    // the agent. Importing the class here would pull the whole transport into every bundle.
+    // The reason travels in a plain `Error`: only the LiveKit manager loads `livekit-client`, and
+    // it turns this into the `RpcError` the transport forwards to the agent.
     function createRpcHandler(toolName: string) {
         return async (data: { payload: string }): Promise<string> => {
             const handler = clientToolHandlers.get(toolName);
@@ -211,7 +214,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             const args = JSON.parse(data.payload);
 
-            return await handler(args);
+            return handler(args);
         };
     }
 
@@ -240,10 +243,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.track('agent-sdk', { event: 'loaded', ...getAnalyticsInfo(agentEntity) }, loadedTimestamp);
     });
 
-    // One `connect()` at a time: React StrictMode double-invokes effects, and a second run would
-    // overwrite `items.streamingManager` and leave the first session open on the server. Every
-    // path that opens a session goes through `runConnect`, so a public `connect()` racing a
-    // `reconnect()` or the chat retry joins the attempt already running.
+    // One `connect()` at a time: a second run would overwrite `items.streamingManager` and leave
+    // the first session open on the server. Every path that opens a session goes through
+    // `runConnect`, so a racing caller joins the attempt already running.
     let connectInFlight: Promise<void> | undefined;
 
     function runConnect(newChat: boolean): Promise<void> {
@@ -270,15 +272,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
-        const websocketPromise =
-            items.chatMode === ChatMode.DirectPlayback || isStreamsV2
-                ? Promise.resolve(undefined)
-                : createSocketManager(
-                      managerOptions.auth,
-                      wsURL,
-                      { onMessage, onError: managerOptions.callbacks.onError },
-                      managerOptions.externalId
-                  );
+        const websocketPromise = sessionNeedsSocket(items.chatMode)
+            ? createSocketManager(
+                  managerOptions.auth,
+                  wsURL,
+                  { onMessage, onError: managerOptions.callbacks.onError },
+                  managerOptions.externalId
+              )
+            : Promise.resolve(undefined);
         const initPromise = retryOperation(
             () =>
                 initializeStreamAndChat(
@@ -355,14 +356,18 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
     }
 
-    // What `connect()` builds depends on the mode: it skips the notifications web socket in
-    // DirectPlayback (and on Expressive agents, which never use one) and creates no chat in the
-    // modes without one. A session built for one mode can therefore be missing what another needs.
+    // The answers arrive on the notifications web socket, except on an Expressive agent (data
+    // channel) and in DirectPlayback (no conversation at all).
+    function sessionNeedsSocket(mode: ChatMode): boolean {
+        return !isStreamsV2 && mode !== ChatMode.DirectPlayback;
+    }
+
+    // A session built for one mode can be missing what another needs: `connect()` builds the socket
+    // and the chat from the mode it ran in.
     function sessionSupports(mode: ChatMode): boolean {
-        const needsSocket = !isStreamsV2 && mode !== ChatMode.DirectPlayback;
         const needsChat = !isChatModeWithoutChat(mode);
 
-        return (!needsSocket || !!items.socketManager) && (!needsChat || !!items.chat);
+        return (!sessionNeedsSocket(mode) || !!items.socketManager) && (!needsChat || !!items.chat);
     }
 
     // The mode change itself, without the Expressive guard: the modes the server reports go
@@ -372,11 +377,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-mode-change', { mode });
             items.chatMode = mode;
 
-            // Every mode but Functional tears the stream down. Functional does too when the open
-            // session cannot carry a conversation — a DirectPlayback session has neither the
-            // notifications web socket the answer arrives on nor a chat to send to, so it would
-            // accept `chat()` and never answer. `connect()` then builds the right session.
-            if (items.chatMode !== ChatMode.Functional || !sessionSupports(items.chatMode)) {
+            // Every mode but Functional tears the stream down — and so does Functional when the
+            // open session cannot carry a conversation: a DirectPlayback session has neither the
+            // notifications web socket nor a chat, so `chat()` would never be answered.
+            if (mode !== ChatMode.Functional || !sessionSupports(mode)) {
                 await disconnect();
             }
 
@@ -493,11 +497,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             analytics.track('agent-data-message', { topic });
 
-            // Same wire strings as the internal enum; the cast only bridges the two enum types.
-            return items.streamingManager.sendDataChannelMessage(
-                topic as string as InternalDataChannelTopic,
-                JSON.stringify(payload)
-            );
+            return items.streamingManager.sendDataChannelMessage(topic, JSON.stringify(payload));
         },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
@@ -775,15 +775,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
             }
 
-            const isTextual = isTextualChat(items.chatMode);
+            const noVideoResponse = { duration: 0, videoId: '', status: 'success' };
 
-            // If the current chat is textual, we shouldn't activate the TTS.
-            if (isTextual) {
-                return {
-                    duration: 0,
-                    videoId: '',
-                    status: 'success',
-                };
+            // A textual chat produces no video, so there is nothing to speak.
+            if (isTextualChat(items.chatMode)) {
+                return noVideoResponse;
             }
 
             if (!items.streamingManager) {
@@ -795,7 +791,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 metadata: { chat_id: items.chat?.id, agent_id: agentEntity.id },
             });
 
-            return response ?? { duration: 0, videoId: '', status: 'success' };
+            return response ?? noVideoResponse;
         },
         interrupt,
         registerClientTool,
