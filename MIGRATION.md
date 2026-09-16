@@ -68,6 +68,7 @@ Shapes are unchanged; only the names differ.
 - `NetworkErrorMeta` — read `endpoint`, `method`, `durationMs`, `online` and `visibility` off the `NetworkError` instance.
 - `Message.videoId` — never set by the SDK; read `ChatResponse.videoId` from the `chat()` result instead.
 - `SDK_VERSION` — internal analytics value; no longer exported.
+- Members and types marked `@internal` are stripped from the published `.d.ts`, so editor autocomplete no longer offers `Agent.ld_context`, `MicrosoftTtsProvider.voice_name`, `StreamingManagerOptions.rpcMethods`, the error constructors and about eighty more; none of them were supported.
 
 ## Behaviour clarifications
 
@@ -90,6 +91,7 @@ Shapes are unchanged; only the names differ.
 - `rate()`, `deleteRate()` and `submitFeedback()` are `async`: their `ValidationError` guard now rejects the returned promise instead of throwing synchronously, so `.catch()` sees it.
 - `changeMode()` now returns a `Promise` — it always was asynchronous (it disconnects the stream); await it, and catch `ValidationError` for unsupported modes.
 - A `429` from the Agents API is now retried twice, one second apart, before it surfaces as an `HttpError`; in v2 the retry never fired.
+- `AgentManagerOptions.baseURL`, `AgentManagerOptions.wsURL` and `AgentManager.enrichAnalytics()` are documented as advanced members instead of hidden; their behaviour is unchanged.
 
 ---
 

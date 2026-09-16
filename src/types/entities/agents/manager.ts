@@ -7,14 +7,15 @@ import {
     ConnectionState,
     ConnectivityState,
     DataChannelTopic,
+    RunningToolCall,
     SpeakResponse,
     StreamCreatedInfo,
     StreamEvents,
     StreamType,
     StreamingState,
+    ToolEventCallback,
 } from '@sdk/types/stream';
 import { SpeakScript } from '@sdk/types/stream-script';
-import type { StreamingManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, InterruptOptions, Message, Rating, SubmitFeedbackResponse } from './chat';
 
@@ -280,7 +281,7 @@ export interface AgentManagerCallbacks {
      * {@link ToolCallErrorPayload} respectively. The overloads that do the narrowing are on
      * {@link ToolEventCallback}, with an example handler.
      */
-    onToolEvent?: StreamManagerCallbacks['onToolEvent'];
+    onToolEvent?: ToolEventCallback;
     /**
      * Called when the agent becomes interruptible, or stops being interruptible.
      *
@@ -291,14 +292,20 @@ export interface AgentManagerCallbacks {
      * the session supports interrupting at all. Use this one to enable or disable an interrupt
      * button. Talks (V2) and Clips (V3) agents never report a change.
      */
-    onInterruptibleChange?: StreamManagerCallbacks['onInterruptibleChange'];
+    onInterruptibleChange?: (
+        /** `true` while there is something to interrupt, `false` while there is not. */
+        interruptible: boolean
+    ) => void;
     /**
      * Called whenever the set of tool calls running in the session changes.
      *
      * Expressive (V4) agents only. Fires with an empty array on disconnect, so a spinner driven by
      * this callback always clears. Each entry is a {@link RunningToolCall}.
      */
-    onRunningToolCallsChange?: StreamManagerCallbacks['onRunningToolCallsChange'];
+    onRunningToolCallsChange?: (
+        /** Every tool call running right now, empty when none is. */
+        calls: readonly RunningToolCall[]
+    ) => void;
 }
 
 /**
@@ -396,15 +403,23 @@ export interface AgentManagerOptions {
      */
     mode?: ChatMode;
     /**
-     * Base URL of the D-ID Agents API. Used by D-ID to point the SDK at a test environment.
+     * Base URL of the D-ID Agents API.
      *
-     * @internal
+     * Advanced. Points the SDK at another D-ID environment. Production applications do not set
+     * this. Every REST call the manager makes — agent lookup, chat, ratings, stream creation — is
+     * addressed against it.
+     *
+     * @defaultValue D-ID's production Agents API.
      */
     baseURL?: string;
     /**
-     * URL of the D-ID notifications web socket. Used by D-ID to point the SDK at a test environment.
+     * URL of the D-ID notifications web socket.
      *
-     * @internal
+     * Advanced. Points the SDK at another D-ID environment. Production applications do not set
+     * this. Only opened in the chat modes that stream the agent's answer, so it has no effect in
+     * {@link ChatMode.DirectPlayback | DirectPlayback} or {@link ChatMode.Off | Off}.
+     *
+     * @defaultValue D-ID's production notifications web socket.
      */
     wsURL?: string;
     /**
@@ -825,9 +840,13 @@ export interface AgentManager {
      * {@link AgentManagerOptions.mixpanelAdditionalProperties | mixpanelAdditionalProperties} does
      * at creation time, for values you only learn later.
      *
+     * Advanced. Calls merge, so a property sent twice takes the later value, and events already
+     * sent are not changed. It has no visible effect when analytics is switched off with
+     * {@link AgentManagerOptions.enableAnalytics | enableAnalytics: false}, because nothing is
+     * sent at all.
+     *
      * @param properties - A flat JSON object whose properties are added to every analytics event
      * the SDK sends from now on.
-     * @internal Used by D-ID's own embedded widget; not part of the public SDK surface.
      */
     enrichAnalytics(properties: Record<string, unknown>): void;
 
