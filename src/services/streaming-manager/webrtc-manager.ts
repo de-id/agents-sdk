@@ -18,11 +18,18 @@ import { createStreamingLogger, StreamingManager } from './common';
 import { createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
-const actualRTCPC = (
-    window.RTCPeerConnection ||
-    (window as any).webkitRTCPeerConnection ||
-    (window as any).mozRTCPeerConnection
-).bind(window);
+// Resolved on first use, not at module evaluation: importing the package must not
+// touch `window` (server-side rendering evaluates this module in Node).
+const getRTCPeerConnection = (): typeof RTCPeerConnection => {
+    const w = globalThis as any;
+    const impl = w.RTCPeerConnection || w.webkitRTCPeerConnection || w.mozRTCPeerConnection;
+
+    if (!impl) {
+        throw new Error('RTCPeerConnection is not available in this environment');
+    }
+
+    return impl.bind(w);
+};
 
 type DataChannelPayload = string | Record<string, unknown>;
 type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void;
@@ -182,7 +189,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     }
 
     callbacks.onStreamCreated?.({ streamId: streamIdFromServer, sessionId: session_id, agentId });
-    const peerConnection = new actualRTCPC({ iceServers: ice_servers });
+    const peerConnection = new (getRTCPeerConnection())({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
     const streamType = fluent ? StreamType.Fluent : StreamType.Legacy;
