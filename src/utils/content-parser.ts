@@ -32,12 +32,12 @@ interface MatchEntry {
  * {@link Message.parts}, so this is for content that comes from somewhere else — a transcript you
  * render outside the SDK, or text you assembled before handing it to a renderer.
  * {@link AgentManagerOptions.initialMessages | initialMessages} no longer need it: pass `parts: []`
- * and the SDK runs this for you. It recognises markdown
+ * and the SDK runs this for you. It recognizes markdown
  * images (`![alt](url)`), the video thumbnail form (`[![alt](thumb)](video)`), markdown links
  * (`[label](url)`) and HTML anchors (`<a href="url">label</a>`); an image whose URL looks like a
  * video becomes a `video` part instead, and a GIF is tagged with a `mimeType`, both under the rules
- * {@link MessagePart} sets out. Everything the parser does not recognise is preserved verbatim as a
- * `text` part, in its original order, and nothing is dropped or reordered; each recognised part
+ * {@link MessagePart} sets out. Everything the parser does not recognize is preserved verbatim as a
+ * `text` part, in its original order, and nothing is dropped or reordered; each recognized part
  * replaces the markup it was written as, so the parts are not a concatenation of the input.
  *
  * @param content - The message text to split, as it appears in {@link Message.content}.

@@ -107,19 +107,23 @@ export interface AgentManagerCallbacks {
      * tell a deliberate end from a dropped connection. Talks (V2) and Clips (V3) agents report
      * only `ok`, `unknown_error`, `network_issue` and `inactivity`; `message_limit`, `time_limit`
      * and `ended_by_agent` come from Expressive (V4) agents. A close reason the SDK does not
-     * recognise is forwarded as-is, so compare `reason` against the enum rather than parsing it;
+     * recognize is forwarded as-is, so compare `reason` against the enum rather than parsing it;
      * any other value is an opaque transport diagnostic.
      * {@link AgentManager.reconnect | reconnect()} still works after a deliberate end; it starts a
      * new stream rather than resuming the old one.
      * @example
      * ```ts
-     * onConnectionStateChange(state, reason) {
-     *     console.log('onConnectionStateChange(): ', state, reason);
+     * import { ConnectionState, type AgentManagerCallbacks } from '@d-id/client-sdk';
      *
-     *     if (state === 'connected') {
-     *         console.log("I'm ready to go!");
-     *     }
-     * }
+     * const callbacks: AgentManagerCallbacks = {
+     *     onConnectionStateChange(state, reason) {
+     *         console.log('onConnectionStateChange(): ', state, reason);
+     *
+     *         if (state === ConnectionState.Connected) {
+     *             console.log("I'm ready to go!");
+     *         }
+     *     },
+     * };
      * ```
      */
     onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
@@ -139,17 +143,25 @@ export interface AgentManagerCallbacks {
      * {@link StreamingState.Stop | STOP} once it has finished.
      * @example
      * ```ts
-     * onVideoStateChange(state) {
-     *     console.log('onVideoStateChange(): ', state);
+     * import { StreamingState, type AgentManagerCallbacks } from '@d-id/client-sdk';
      *
-     *     if (state === 'STOP') {
-     *         videoElement.srcObject = undefined;
-     *         videoElement.src = agentManager.agent.idle_video ?? '';
-     *     } else {
-     *         videoElement.src = '';
-     *         videoElement.srcObject = srcObject;
-     *     }
-     * }
+     * let srcObject: MediaStream | null = null;
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onSrcObjectReady(value) {
+     *         srcObject = value;
+     *         videoElement.srcObject = value;
+     *     },
+     *     onVideoStateChange(state) {
+     *         if (state === StreamingState.Stop) {
+     *             videoElement.srcObject = null;
+     *             videoElement.src = agentManager.agent.idle_video ?? '';
+     *         } else {
+     *             videoElement.src = '';
+     *             videoElement.srcObject = srcObject;
+     *         }
+     *     },
+     * };
      * ```
      */
     onVideoStateChange?: (state: StreamingState) => void;
@@ -176,9 +188,12 @@ export interface AgentManagerCallbacks {
      * @param srcObject - The live media stream to render.
      * @example
      * ```ts
-     * let srcObject;
+     * import type { AgentManagerCallbacks } from '@d-id/client-sdk';
      *
-     * const callbacks = {
+     * // Kept so `onVideoStateChange` can put it back after the idle video.
+     * let srcObject: MediaStream | null = null;
+     *
+     * const callbacks: AgentManagerCallbacks = {
      *     onSrcObjectReady(value) {
      *         videoElement.srcObject = value;
      *         srcObject = value;
@@ -204,13 +219,16 @@ export interface AgentManagerCallbacks {
      * (a message passed to {@link AgentManager.chat | chat()}, or a transcribed utterance).
      * @example
      * ```ts
-     * onNewMessage(messages, type) {
-     *     console.log(messages, type);
+     * import type { AgentManagerCallbacks } from '@d-id/client-sdk';
      *
-     *     if (type === 'answer') {
-     *         console.log(messages[messages.length - 1].content);
-     *     }
-     * }
+     * const callbacks: AgentManagerCallbacks = {
+     *     onNewMessage(messages, type) {
+     *         // `partial` fires repeatedly as the answer streams in; `answer` is the final one.
+     *         if (type === 'answer') {
+     *             console.log(messages[messages.length - 1].content);
+     *         }
+     *     },
+     * };
      * ```
      */
     onNewMessage?: (messages: Message[], type: 'answer' | 'partial' | 'user') => void;
@@ -227,6 +245,17 @@ export interface AgentManagerCallbacks {
      * way.
      *
      * @param chatId - Id of the chat that was just created.
+     * @example
+     * ```ts
+     * import type { AgentManagerCallbacks } from '@d-id/client-sdk';
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onNewChat(chatId) {
+     *         // Keep it to correlate the conversation with your own records.
+     *         localStorage.setItem('did-chat-id', chatId);
+     *     },
+     * };
+     * ```
      */
     onNewChat?: (chatId: string) => void;
     /**
@@ -236,6 +265,23 @@ export interface AgentManagerCallbacks {
      * a different mode than the one requested (for example {@link ChatMode.Maintenance}).
      *
      * @param mode - The {@link ChatMode} now in effect.
+     * @example
+     * ```ts
+     * import { ChatMode, type AgentManagerCallbacks } from '@d-id/client-sdk';
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onModeChange(mode) {
+     *         // `chat()` rejects in Maintenance too, so the composer goes with the banner below.
+     *         setComposerEnabled(
+     *             mode !== ChatMode.Off && mode !== ChatMode.DirectPlayback && mode !== ChatMode.Maintenance
+     *         );
+     *
+     *         if (mode === ChatMode.Maintenance) {
+     *             showBanner('The agent is temporarily unavailable.');
+     *         }
+     *     },
+     * };
+     * ```
      */
     onModeChange?: (mode: ChatMode) => void;
     /**
@@ -250,9 +296,13 @@ export interface AgentManagerCallbacks {
      * {@link ConnectivityState.Weak | WEAK} or {@link ConnectivityState.Unknown | UNKNOWN}.
      * @example
      * ```ts
-     * onConnectivityStateChange(state) {
-     *     console.log('onConnectivityStateChange(): ', state);
-     * }
+     * import { ConnectivityState, type AgentManagerCallbacks } from '@d-id/client-sdk';
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onConnectivityStateChange(state) {
+     *         setQualityWarningVisible(state === ConnectivityState.Weak);
+     *     },
+     * };
      * ```
      */
     onConnectivityStateChange?: (state: ConnectivityState) => void;
@@ -275,12 +325,16 @@ export interface AgentManagerCallbacks {
      * carries the end user's own message.
      * @example
      * ```ts
-     * onError(error, errorData) {
-     *     reportToYourErrorService({
-     *         ...(isDIDError(error) ? error.toJson() : { message: error.message }),
-     *         ...errorData,
-     *     });
-     * }
+     * import { isDIDError, type AgentManagerCallbacks } from '@d-id/client-sdk';
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onError(error, errorData) {
+     *         reportToYourErrorService({
+     *             ...(isDIDError(error) ? error.toJson() : { kind: 'Error', message: error.message }),
+     *             ...errorData,
+     *         });
+     *     },
+     * };
      * ```
      */
     onError?: (error: Error, errorData?: ErrorContext) => void;
@@ -302,6 +356,17 @@ export interface AgentManagerCallbacks {
      * {@link AgentManager.getStreamType | getStreamType()}.
      *
      * @param state - The {@link AgentActivityState} the agent has moved to.
+     * @example
+     * ```ts
+     * import { AgentActivityState, type AgentManagerCallbacks } from '@d-id/client-sdk';
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onAgentActivityStateChange(state) {
+     *         setTypingIndicatorVisible(state === AgentActivityState.Loading);
+     *         setComposerEnabled(state === AgentActivityState.Idle);
+     *     },
+     * };
+     * ```
      */
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
     /**
@@ -311,6 +376,17 @@ export interface AgentManagerCallbacks {
      * are useful when correlating a session with D-ID support or with your own logs.
      *
      * @param stream - The new stream's `streamId`, `sessionId` and `agentId`.
+     * @example
+     * ```ts
+     * import type { AgentManagerCallbacks } from '@d-id/client-sdk';
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onStreamCreated({ streamId, sessionId }) {
+     *         // The two ids D-ID support asks for when a session misbehaves.
+     *         console.log('stream', streamId, 'session', sessionId);
+     *     },
+     * };
+     * ```
      */
     onStreamCreated?: (stream: StreamCreatedInfo) => void;
     /**
@@ -318,10 +394,22 @@ export interface AgentManagerCallbacks {
      *
      * Expressive (V4) agents only. The handler takes two arguments and returns nothing: `event`,
      * one of {@link ToolCallEvent.Started}, {@link ToolCallEvent.Done} or
-     * {@link ToolCallEvent.Error}; and `data`, the payload that event narrows to —
+     * {@link ToolCallEvent.Error}; and `data`, the payload that event carries —
      * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} or
      * {@link ToolCallErrorPayload} respectively. The signature that does the narrowing is on
-     * {@link ToolEventCallback}, with an example handler.
+     * {@link ToolEventCallback}, which also carries a handler that branches on all three events.
+     * @example
+     * ```ts
+     * import { ToolCallEvent, type AgentManagerCallbacks } from '@d-id/client-sdk';
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onToolEvent(event, data) {
+     *         if (event === ToolCallEvent.Error) {
+     *             showBanner(`${data.name} failed: ${data.error ?? 'no reason given'}`);
+     *         }
+     *     },
+     * };
+     * ```
      */
     onToolEvent?: ToolEventCallback;
     /**
@@ -333,6 +421,16 @@ export interface AgentManagerCallbacks {
      * {@link AgentManager.isInterruptAvailable | isInterruptAvailable()}, which says whether
      * the session supports interrupting at all. Use this one to enable or disable an interrupt
      * button. Talks (V2) and Clips (V3) agents never report a change.
+     * @example
+     * ```ts
+     * import type { AgentManagerCallbacks } from '@d-id/client-sdk';
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onInterruptibleChange(interruptible) {
+     *         setStopButtonEnabled(interruptible);
+     *     },
+     * };
+     * ```
      */
     onInterruptibleChange?: (
         /** `true` while there is something to interrupt, `false` while there is not. */
@@ -341,8 +439,20 @@ export interface AgentManagerCallbacks {
     /**
      * Called whenever the set of tool calls running in the session changes.
      *
-     * Expressive (V4) agents only. Fires with an empty array on disconnect, so a spinner driven by
-     * this callback always clears. Each entry is a {@link RunningToolCall}.
+     * Expressive (V4) agents only. On disconnect it fires with an empty array if any call was
+     * still running, so a spinner driven by this callback always clears; with nothing outstanding
+     * there is nothing to clear and nothing is emitted. Each entry is a {@link RunningToolCall}.
+     * @example
+     * ```ts
+     * import { isAwaitingTool, type AgentManagerCallbacks } from '@d-id/client-sdk';
+     *
+     * const callbacks: AgentManagerCallbacks = {
+     *     onRunningToolCallsChange(calls) {
+     *         setSpinnerVisible(isAwaitingTool(calls));
+     *         setStatusText(calls.map(call => call.name).join(', '));
+     *     },
+     * };
+     * ```
      */
     onRunningToolCallsChange?: (
         /** Every tool call running right now, empty when none is. */
@@ -554,7 +664,7 @@ export interface AgentManagerOptions {
      * Your own identifier for the end user.
      *
      * It is stored in `localStorage`, sent as part of the `type: 'key'` authorization header and
-     * attached to analytics, so the same visitor is recognised across page loads. When it is
+     * attached to analytics, so the same visitor is recognized across page loads. When it is
      * omitted the SDK generates an id and reuses it.
      */
     externalId?: string;
@@ -634,6 +744,11 @@ export interface AgentManager {
      *
      * Read-only: the property cannot be reassigned, and the SDK never replaces it — the manager
      * talks to the agent it was created for, for its whole life.
+     * @example
+     * ```ts
+     * nameElement.textContent = agentManager.agent.name ?? 'Agent';
+     * thumbnailElement.src = agentManager.agent.thumbnail ?? '';
+     * ```
      */
     readonly agent: Agent;
     /**
@@ -642,6 +757,13 @@ export interface AgentManager {
      * @returns {@link StreamType.Fluent} for a fluent stream (one video for the idle and talking
      * states), {@link StreamType.Legacy} for the two-element legacy mode, or `undefined` before
      * {@link AgentManager.connect | connect()} has established a session.
+     * @example
+     * ```ts
+     * import { StreamType } from '@d-id/client-sdk';
+     *
+     * // A legacy stream is the one the application swaps the idle video in and out of.
+     * const swapsIdleVideo = agentManager.getStreamType() === StreamType.Legacy;
+     * ```
      */
     getStreamType(): StreamType | undefined;
 
@@ -654,6 +776,11 @@ export interface AgentManager {
      * interrupting is allowed right now.
      *
      * @returns `true` when {@link AgentManager.interrupt | interrupt()} can do anything.
+     * @example
+     * ```ts
+     * await agentManager.connect();
+     * setStopButtonVisible(agentManager.isInterruptAvailable());
+     * ```
      */
     isInterruptAvailable(): boolean;
 
@@ -666,6 +793,12 @@ export interface AgentManager {
      * Read-only, and a copy of {@link Agent.starter_message} rather than the same array, so
      * sorting or filtering a local copy of it cannot change what
      * {@link AgentManager.agent | agent} reports.
+     * @example
+     * ```ts
+     * for (const message of agentManager.starterMessages) {
+     *     addSuggestionButton(message, () => void agentManager.chat(message));
+     * }
+     * ```
      */
     readonly starterMessages: readonly string[];
     /**
@@ -678,6 +811,11 @@ export interface AgentManager {
      * @throws {@link HttpError} When the service does not answer with a token, or the request comes
      * back non-2xx for any other reason.
      * @throws {@link NetworkError} When the request never reaches the server.
+     * @example
+     * ```ts
+     * const { token, region } = await agentManager.getSttToken();
+     * startRecognition(token, region);
+     * ```
      */
     getSttToken(): Promise<SttTokenResponse>;
     /**
@@ -694,7 +832,9 @@ export interface AgentManager {
      * mode the manager was created with ({@link ChatMode.Functional} by default).
      * @example
      * ```ts
-     * if (agentManager.getChatMode() === 'maintenance') {
+     * import { ChatMode } from '@d-id/client-sdk';
+     *
+     * if (agentManager.getChatMode() === ChatMode.Maintenance) {
      *     showBanner('The agent is temporarily unavailable.');
      * }
      * ```
@@ -782,6 +922,15 @@ export interface AgentManager {
      * flight; wait for it to settle first.
      * @throws {@link HttpError} When creating the new stream comes back non-2xx.
      * @throws {@link NetworkError} When that request never reaches the server.
+     * @example
+     * ```ts
+     * try {
+     *     // The session expired. Start a new stream and keep the conversation.
+     *     await agentManager.reconnect();
+     * } catch {
+     *     // A connect() or another reconnect() is still in flight; let it settle first.
+     * }
+     * ```
      */
     reconnect(): Promise<void>;
     /**
@@ -792,6 +941,14 @@ export interface AgentManager {
      * agent can be used again.
      *
      * @returns Resolves once everything is closed.
+     * @example
+     * ```ts
+     * // The user left the conversation: close the session so it stops running.
+     * await agentManager.disconnect();
+     *
+     * // The manager stays usable — connect() opens a new session with a new chat.
+     * await agentManager.connect();
+     * ```
      */
     disconnect(): Promise<void>;
     /**
@@ -843,6 +1000,18 @@ export interface AgentManager {
      * @returns Resolves once the transport has switched to the new track.
      * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
      * {@link AgentManager.connect | connect()} has not run yet.
+     * @example
+     * ```ts
+     * const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId } });
+     * const [track] = stream.getAudioTracks();
+     *
+     * try {
+     *     await agentManager.replaceMicrophoneTrack(track);
+     * } catch {
+     *     // Nothing published yet, so there is no track to swap: publish instead.
+     *     await agentManager.publishMicrophoneStream(stream);
+     * }
+     * ```
      */
     replaceMicrophoneTrack(track: MediaStreamTrack): Promise<void>;
     /**
@@ -856,6 +1025,13 @@ export interface AgentManager {
      * @returns Resolves once the track is published.
      * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
      * {@link AgentManager.connect | connect()} has not run yet.
+     * @example
+     * ```ts
+     * if (agentManager.agent.vision?.enabled) {
+     *     const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+     *     await agentManager.publishCameraStream(cameraStream);
+     * }
+     * ```
      */
     publishCameraStream(stream: MediaStream): Promise<void>;
     /**
@@ -865,6 +1041,11 @@ export interface AgentManager {
      * and when nothing is published, it resolves without doing anything.
      *
      * @returns Resolves once the track is removed.
+     * @example
+     * ```ts
+     * // No guard needed: a no-op wherever there is nothing published.
+     * await agentManager.unpublishCameraStream();
+     * ```
      */
     unpublishCameraStream(): Promise<void>;
     /**
@@ -908,6 +1089,13 @@ export interface AgentManager {
      * in the transcript.
      * @throws {@link HttpError} When the rating request comes back non-2xx.
      * @throws {@link NetworkError} When the rating request never reaches the server.
+     * @example
+     * ```ts
+     * const rating = await agentManager.rate(messageId, 1);
+     *
+     * // The user changed their mind: pass the rating's id back rather than adding another.
+     * await agentManager.rate(messageId, -1, rating.id);
+     * ```
      */
     rate(messageId: string, score: 1 | -1, rateId?: string): Promise<Rating>;
     /**
@@ -919,6 +1107,11 @@ export interface AgentManager {
      * @throws {@link ValidationError} When no chat has started.
      * @throws {@link HttpError} When the delete request comes back non-2xx.
      * @throws {@link NetworkError} When the delete request never reaches the server.
+     * @example
+     * ```ts
+     * const rating = await agentManager.rate(messageId, 1);
+     * await agentManager.deleteRate(rating.id);
+     * ```
      */
     deleteRate(id: string): Promise<Rating>;
     /**
@@ -940,6 +1133,13 @@ export interface AgentManager {
      * @throws {@link HttpError} When the feedback request comes back non-2xx — including a `400`
      * when the agent does not have end-of-call feedback enabled.
      * @throws {@link NetworkError} When the feedback request never reaches the server.
+     * @example
+     * ```ts
+     * // The Agents API rejects the request unless the agent has end-of-call feedback on.
+     * if (agentManager.agent.end_of_call_feedback?.enabled) {
+     *     await agentManager.submitFeedback(5, 'The answers were clear and quick.');
+     * }
+     * ```
      */
     submitFeedback(rating: 1 | 2 | 3 | 4 | 5, answer?: string): Promise<SubmitFeedbackResponse>;
     /**
@@ -992,20 +1192,25 @@ export interface AgentManager {
     /**
      * Switches the chat to another mode.
      *
-     * Anything other than {@link ChatMode.Functional} disconnects the stream, since those modes do
-     * not produce video, which is why this is asynchronous: the returned promise resolves once that
-     * disconnect has finished. Switching *into* {@link ChatMode.Functional} disconnects it as well
-     * when the open session was built for a mode that skipped what a conversation needs — a
-     * {@link ChatMode.DirectPlayback} session has neither the notifications web socket the answer
-     * arrives on nor a chat to send to. Call {@link AgentManager.connect | connect()} again after
-     * a change that tore the session down. {@link AgentManagerCallbacks.onModeChange | onModeChange}
-     * fires once the change has been applied; passing the mode already in effect does nothing.
+     * Any mode but {@link ChatMode.Functional} disconnects the stream, and a change into
+     * `Functional` disconnects a session that was not built for a conversation (one opened in
+     * {@link ChatMode.DirectPlayback}, for example); call {@link AgentManager.connect | connect()}
+     * again after such a change. {@link AgentManagerCallbacks.onModeChange | onModeChange} fires
+     * once the change is applied; passing the mode already in effect does nothing.
      *
      * @param mode - The {@link ChatMode} to switch to.
-     * @returns A promise resolved when the mode is in effect and any disconnect it caused has
-     * completed.
+     * @returns A promise resolved when the mode is in effect and any disconnect has completed.
      * @throws {@link ValidationError} Rejects on Expressive (V4) agents for {@link ChatMode.Off} and
      * {@link ChatMode.DirectPlayback}, which those agents do not support.
+     * @example
+     * ```ts
+     * import { ChatMode } from '@d-id/client-sdk';
+     *
+     * await agentManager.changeMode(ChatMode.TextOnly); // Disconnects the stream.
+     *
+     * await agentManager.changeMode(ChatMode.Functional);
+     * await agentManager.connect();
+     * ```
      */
     changeMode(mode: ChatMode): Promise<void>;
 
@@ -1023,6 +1228,11 @@ export interface AgentManager {
      *
      * @param properties - A flat JSON object whose properties are added to every analytics event
      * the SDK sends from now on.
+     * @example
+     * ```ts
+     * // The user signed in halfway through the session.
+     * agentManager.enrichAnalytics({ plan: 'pro', locale: navigator.language });
+     * ```
      */
     enrichAnalytics(properties: Record<string, unknown>): void;
 
@@ -1070,6 +1280,11 @@ export interface AgentManager {
      * {@link AgentManagerCallbacks.onError | onError} and the promise still resolves.
      * @throws {@link ValidationError} When the session is not an Expressive (V4) one, or
      * {@link AgentManager.connect | connect()} has not run yet.
+     * @example
+     * ```ts
+     * await agentManager.setSttLanguage('en-US');
+     * await agentManager.setSttLanguage('Spanish');
+     * ```
      */
     setSttLanguage(language: string): Promise<void>;
 
@@ -1124,6 +1339,15 @@ export interface AgentManager {
      * transport's, not the SDK's, and a larger result fails the call. See
      * {@link ClientToolHandler}.
      * @throws {@link ValidationError} When the agent is a Talks (V2) or Clips (V3) one.
+     * @example
+     * ```ts
+     * if (agentManager.agent.avatar.type === 'expressive') {
+     *     agentManager.registerClientTool('get_cart_total', async args => {
+     *         const total = await cart.total(args.currency as string);
+     *         return JSON.stringify({ total });
+     *     });
+     * }
+     * ```
      */
     registerClientTool(name: string, handler: ClientToolHandler): void;
 
@@ -1135,6 +1359,11 @@ export interface AgentManager {
      * was never registered, and any agent type, is a no-op — so it is safe in a cleanup path.
      *
      * @param name - Name of the tool whose handler should be removed.
+     * @example
+     * ```ts
+     * // Safe in a cleanup path: it never throws, whatever the agent type.
+     * agentManager.unregisterClientTool('get_cart_total');
+     * ```
      */
     unregisterClientTool(name: string): void;
 }

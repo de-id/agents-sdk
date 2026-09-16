@@ -14,9 +14,9 @@ import { RunningToolCall } from '@sdk/types';
  * @returns `true` while the agent is suspended on a blocking tool call.
  * @example
  * ```ts
- * import { isAwaitingTool } from '@d-id/client-sdk';
+ * import { isAwaitingTool, type AgentManagerCallbacks } from '@d-id/client-sdk';
  *
- * const callbacks = {
+ * const callbacks: AgentManagerCallbacks = {
  *     onRunningToolCallsChange(calls) {
  *         setSpinnerVisible(isAwaitingTool(calls));
  *     },

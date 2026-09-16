@@ -32,6 +32,8 @@ const PAGE_TITLES = {
     'modules.html': `All exports | ${SITE_NAME}`,
     'hierarchy.html': `Class hierarchy | ${SITE_NAME}`,
 };
+// The tags replace the theme's own description meta, which is the only anchor they have.
+const DEFAULT_DESCRIPTION = /<meta name="description" content="[^"]*"\/>/;
 const ASSETS_DIR = dirname(fileURLToPath(import.meta.url));
 
 /** @param {import('typedoc').Application} app */
@@ -42,7 +44,7 @@ export function load(app) {
         if (Object.hasOwn(PAGE_TITLES, page.url)) {
             page.contents = page.contents.replace(
                 /<title>[^<]*<\/title>/,
-                `<title>${escapeText(PAGE_TITLES[page.url])}</title>`
+                `<title>${escapeHtml(PAGE_TITLES[page.url])}</title>`
             );
         }
         const title = /<title>([^<]*)<\/title>/.exec(page.contents)?.[1] ?? SITE_NAME;
@@ -62,18 +64,19 @@ export function load(app) {
             ['name', 'twitter:title', title],
             ['name', 'twitter:description', description],
         ]
-            .map(([attr, key, value]) => `<meta ${attr}="${key}" content="${escapeAttr(value)}"/>`)
+            .map(([attr, key, value]) => `<meta ${attr}="${key}" content="${escapeHtml(value)}"/>`)
             .join('');
-        const defaultTag = /<meta name="description" content="[^"]*"\/>/;
-        page.contents = defaultTag.test(page.contents)
-            ? page.contents.replace(defaultTag, tags)
-            : page.contents.replace('</head>', `${tags}</head>`);
+        if (!DEFAULT_DESCRIPTION.test(page.contents)) {
+            throw new Error(`typedoc-seo: no description meta to replace on ${page.url}`);
+        }
+        page.contents = page.contents.replace(DEFAULT_DESCRIPTION, tags);
 
         if (page.url === 'modules.html' && page.model instanceof ProjectReflection) {
             page.contents = annotateIndex(page.contents, page.model);
         }
-        if (page.url === 'index.html' && base) {
-            page.contents = relativizeSelfLinks(page.contents, base);
+        if (page.url === 'index.html') {
+            page.contents = dropDuplicateReadmeTitle(page.contents);
+            if (base) page.contents = relativizeSelfLinks(page.contents, base);
         }
     });
 
@@ -82,6 +85,19 @@ export function load(app) {
         writeFileSync(join(event.outputDirectory, 'llms.txt'), llmsTxt(app, event.project));
         rewriteSitemapRoot(app, event.outputDirectory);
     });
+}
+
+/**
+ * The landing page renders the README under TypeDoc's own versioned `<h1>`, so the page opens with
+ * two identical H1s. Drop the README's copy from the rendered page; the file on npm is untouched.
+ *
+ * @param {string} html
+ */
+function dropDuplicateReadmeTitle(html) {
+    return html.replace(
+        /(<div class="tsd-panel tsd-typography">)<h1 [^>]*class="tsd-anchor-link"[^>]*>.*?<\/h1>\n?/s,
+        '$1'
+    );
 }
 
 /**
@@ -161,7 +177,7 @@ function annotateIndex(contents, project) {
         /(<a href="[^"]+\.html">([^<]+)<\/a>)(<a href="#[^"]*" aria-label="Permalink")/g,
         (match, link, name, permalink) => {
             const summary = summaries.get(name);
-            return summary ? `${link} — ${escapeText(summary)}${permalink}` : match;
+            return summary ? `${link} — ${escapeHtml(summary)}${permalink}` : match;
         }
     );
 }
@@ -240,12 +256,7 @@ function truncate(text) {
 }
 
 /** @param {string} value */
-function escapeText(value) {
-    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-/** @param {string} value */
-function escapeAttr(value) {
+function escapeHtml(value) {
     return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 

@@ -24,7 +24,15 @@ const config = {
     name: 'D-ID Client SDK',
     includeVersion: true,
     readme: 'README.md',
-    projectDocuments: ['docs-assets/migration.md'],
+    // The Overview is the README, rendered as the project page; these follow it under Guides.
+    projectDocuments: [
+        'docs-assets/guides/getting-started.md',
+        'docs-assets/guides/chat-modes.md',
+        'docs-assets/guides/client-tools.md',
+        'docs-assets/guides/expressive-media.md',
+        'docs-assets/guides/handling-errors.md',
+        'docs-assets/migration.md',
+    ],
     hostedBaseUrl: 'https://sdk.d-id.com/',
     useHostedBaseUrlForAbsoluteLinks: true,
     cname: 'sdk.d-id.com',
@@ -68,7 +76,9 @@ const config = {
         'Other',
     ],
     navigation: { includeCategories: true, includeGroups: false, includeFolders: false },
-    sort: ['kind', 'alphabetical'],
+    // `alphabetical-ignoring-documents` leaves documents in the order `projectDocuments` lists
+    // them — Getting started first — while everything else stays alphabetical within its kind.
+    sort: ['kind', 'alphabetical-ignoring-documents'],
     // Within a category: what you call first, the shapes it takes next, the vocabularies last.
     kindSortOrder: [
         'Reference',

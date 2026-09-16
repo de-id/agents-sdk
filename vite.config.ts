@@ -21,6 +21,10 @@ export default ({ mode }) => {
         server: { port: 3000 },
         build: {
             minify: mode !== 'development',
+            // Published alongside the bundles: a minified SDK frame in a consumer's stack
+            // trace or debugger is otherwise unreadable, and the maps are only fetched when
+            // devtools are open.
+            sourcemap: true,
             copyPublicDir: false,
             lib: {
                 entry: resolve(__dirname, './src/index.ts'),
