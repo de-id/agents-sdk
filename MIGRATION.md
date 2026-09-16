@@ -71,6 +71,7 @@ Shapes are unchanged; only the names differ.
 
 ## Behaviour clarifications
 
+- Naming rule: shapes the SDK builds (`Message`, `SpeakResponse`, `StreamCreatedInfo`, the tool-call payloads, options) are camelCase; Agents API entities (`Agent`, `Rating`, `Voice`, the TTS provider objects) keep the API's snake_case field names.
 - Every error subclass declares its `kind` as a literal, so branching on `kind` narrows the caught error; `HttpError.kind` stays `string` because it carries the server's own classification.
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, videoId: '' }` instead of `undefined`, matching its declared type.
 - The three `onToolEvent` payloads are camelCase like the rest of the SDK: `call_id` is now `callId`, `execution_mode` `executionMode`, `turn_id` `turnId` and `duration_ms` `durationMs`; only the documented fields are forwarded.
