@@ -145,7 +145,7 @@ describe('createAgentManager', () => {
         it('should use custom configuration options', async () => {
             const customOptions = {
                 ...mockOptions,
-                mixpanelKey: 'custom-mixpanel',
+                analytics: { mixpanelKey: 'custom-mixpanel' },
                 wsURL: 'wss://custom.com',
                 baseURL: 'https://custom.com',
                 externalId: 'custom-user',
@@ -156,8 +156,24 @@ describe('createAgentManager', () => {
             expect(initializeAnalytics).toHaveBeenCalledWith({
                 token: 'custom-mixpanel',
                 agentId: 'agent-123',
-                isEnabled: true,
+                isEnabled: undefined,
                 externalId: 'custom-user',
+                mixpanelAdditionalProperties: undefined,
+            });
+        });
+
+        it('should read the three analytics settings from the grouped option', async () => {
+            await createAgentManager('agent-123', {
+                ...mockOptions,
+                analytics: { enabled: false, mixpanelKey: 'own-project', additionalProperties: { plan: 'pro' } },
+            });
+
+            expect(initializeAnalytics).toHaveBeenCalledWith({
+                token: 'own-project',
+                agentId: 'agent-123',
+                isEnabled: false,
+                externalId: undefined,
+                mixpanelAdditionalProperties: { plan: 'pro' },
             });
         });
 
@@ -1635,7 +1651,7 @@ describe('createAgentManager', () => {
         });
 
         it('should handle analytics initialization with disabled analytics', async () => {
-            const optionsWithoutAnalytics = { ...mockOptions, enableAnalytics: false };
+            const optionsWithoutAnalytics = { ...mockOptions, analytics: { enabled: false } };
 
             await createAgentManager('agent-123', optionsWithoutAnalytics);
 
@@ -1644,6 +1660,7 @@ describe('createAgentManager', () => {
                 agentId: 'agent-123',
                 isEnabled: false,
                 externalId: undefined,
+                mixpanelAdditionalProperties: undefined,
             });
         });
     });

@@ -50,11 +50,12 @@ function getAgentStreamV2Options(options?: ConnectToManagerOptions): CreateSessi
 function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
 
-    // `mixpanelAdditionalProperties` is typed `unknown` per value; the API expects `plan` to be a string.
+    // `analytics.additionalProperties` is typed `unknown` per value; the API expects `plan` to be
+    // a string.
     const endUserData =
-        options?.mixpanelAdditionalProperties?.plan !== undefined
+        options?.analytics?.additionalProperties?.plan !== undefined
             ? {
-                  plan: options.mixpanelAdditionalProperties?.plan as string,
+                  plan: options.analytics.additionalProperties.plan as string,
               }
             : undefined;
 

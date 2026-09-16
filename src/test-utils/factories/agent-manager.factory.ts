@@ -19,6 +19,6 @@ export const AgentManagerOptionsFactory = new Factory<AgentManagerOptions>().att
         onStreamCreated: jest.fn(),
     }),
     mode: ChatMode.Functional,
-    enableAnalytics: true,
+    analytics: { enabled: true },
     persistentChat: true,
 });

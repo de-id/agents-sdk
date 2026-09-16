@@ -8,6 +8,7 @@ export type {
     AgentManager,
     AgentManagerCallbacks,
     AgentManagerOptions,
+    AnalyticsOptions,
     StreamOptions,
 } from './types/entities/agents/manager';
 export { AvatarType } from './types/entities/avatar';

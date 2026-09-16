@@ -374,6 +374,60 @@ export interface StreamOptions {
 }
 
 /**
+ * What the SDK reports about the session, and where it goes.
+ *
+ * Pass it as {@link AgentManagerOptions.analytics}; every field is optional, and leaving the whole
+ * object out reports to D-ID's own project.
+ *
+ * The SDK posts an event to Mixpanel for each step of a session — connect, reconnect and
+ * disconnect, every message sent and answered, every {@link AgentManager.speak | speak()}, mode
+ * change, rating, feedback, tool call, video start and stop, interrupt and error. Each event
+ * carries the agent id, the visitor id derived from
+ * {@link AgentManagerOptions.externalId | externalId}, the page URL, the screen size, the user
+ * agent, the SDK version and whatever
+ * {@link AnalyticsOptions.additionalProperties | additionalProperties} added. **Conversation text
+ * is included too:** the agent's answer on `agent-message-received`, and the script on
+ * `agent-speak`. Set {@link AnalyticsOptions.enabled | enabled: false} to send nothing at all.
+ *
+ * Events that fail to post are buffered in memory (at most 50) and retried when the tab comes back
+ * online or becomes visible.
+ *
+ * @example Send the SDK's events to your own project, tagged with your plan
+ * ```ts
+ * const agentManager = await sdk.createAgentManager('agt_fumf1234', {
+ *     auth: { type: 'key', clientKey: 'YOUR_CLIENT_KEY' },
+ *     callbacks,
+ *     analytics: { mixpanelKey: 'YOUR_MIXPANEL_TOKEN', additionalProperties: { plan: 'pro' } },
+ * });
+ * ```
+ * @category Agent Manager
+ */
+export interface AnalyticsOptions {
+    /**
+     * Whether the SDK reports usage analytics at all. Set it to `false` to send nothing.
+     *
+     * @default true
+     */
+    enabled?: boolean;
+    /**
+     * Mixpanel project token the SDK's analytics events are sent to.
+     *
+     * Defaults to D-ID's own project. Set it to send the SDK's events to your Mixpanel project
+     * instead.
+     */
+    mixpanelKey?: string;
+    /**
+     * Extra properties merged into every analytics event the SDK sends.
+     *
+     * A flat object — use it to tag events with your own identifiers. More properties can be added
+     * later with {@link AgentManager.enrichAnalytics | enrichAnalytics()}. A `plan` property here
+     * is also forwarded to the Agents API as end-user data when a Talks (V2) or Clips (V3) stream
+     * is created.
+     */
+    additionalProperties?: Record<string, unknown>;
+}
+
+/**
  * Everything {@link createAgentManager} needs to reach an agent and report back to the application.
  *
  * {@link AgentManagerOptions.auth | auth} and {@link AgentManagerOptions.callbacks | callbacks} are
@@ -456,40 +510,12 @@ export interface AgentManagerOptions {
      */
     verbose?: boolean;
     /**
-     * Whether the SDK reports usage analytics. Set it to `false` to send nothing.
+     * What the SDK reports about the session, and where it goes.
      *
-     * It is on unless you turn it off. The SDK posts an event to Mixpanel for each step of a
-     * session — connect, reconnect and disconnect, every message sent and answered, every
-     * {@link AgentManager.speak | speak()}, mode change, rating, feedback, tool call, video start
-     * and stop, interrupt and error. Each event carries the agent id, the visitor id derived from
-     * {@link AgentManagerOptions.externalId | externalId}, the page URL, the screen size, the user
-     * agent, the SDK version and whatever
-     * {@link AgentManagerOptions.mixpanelAdditionalProperties | mixpanelAdditionalProperties}
-     * added. Conversation text is included too: the agent's answer on `agent-message-received`,
-     * and the script on `agent-speak`.
-     *
-     * The events go to D-ID's own Mixpanel project unless
-     * {@link AgentManagerOptions.mixpanelKey | mixpanelKey} points them at yours. Events that fail
-     * to post are buffered in memory (at most 50) and retried when the tab comes back online or
-     * becomes visible.
-     *
-     * @default true
+     * See {@link AnalyticsOptions}. Reporting is on unless you turn it off with
+     * `analytics: { enabled: false }`.
      */
-    enableAnalytics?: boolean;
-    /**
-     * Mixpanel project token the SDK's analytics events are sent to.
-     *
-     * Defaults to D-ID's own project. Set it to send the SDK's events to your Mixpanel project
-     * instead.
-     */
-    mixpanelKey?: string;
-    /**
-     * Extra properties merged into every analytics event the SDK sends.
-     *
-     * A flat object — use it to tag events with your own identifiers. More properties can be added
-     * later with `enrichAnalytics()`.
-     */
-    mixpanelAdditionalProperties?: Record<string, unknown>;
+    analytics?: AnalyticsOptions;
     /**
      * Your own identifier for the end user.
      *
@@ -925,13 +951,13 @@ export interface AgentManager {
      * Adds properties to every analytics event the SDK sends from now on.
      *
      * The same thing
-     * {@link AgentManagerOptions.mixpanelAdditionalProperties | mixpanelAdditionalProperties} does
-     * at creation time, for values you only learn later.
+     * {@link AnalyticsOptions.additionalProperties | analytics.additionalProperties} does at
+     * creation time, for values you only learn later.
      *
      * Advanced. Calls merge, so a property sent twice takes the later value, and events already
      * sent are not changed. It has no visible effect when analytics is switched off with
-     * {@link AgentManagerOptions.enableAnalytics | enableAnalytics: false}, because nothing is
-     * sent at all.
+     * {@link AnalyticsOptions.enabled | analytics.enabled} set to `false`, because nothing is sent
+     * at all.
      *
      * @param properties - A flat JSON object whose properties are added to every analytics event
      * the SDK sends from now on.

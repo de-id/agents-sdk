@@ -48,7 +48,7 @@ Shapes are unchanged; only the names differ.
 
 ## Removed options and types
 
-- `AgentManagerOptions.enableAnalitics` (misspelled) — use `enableAnalytics`. The misspelled key is ignored in v3.
+- `AgentManagerOptions.enableAnalytics`, `mixpanelKey` and `mixpanelAdditionalProperties` (and the misspelled `enableAnalitics`) — the three are one option now: `analytics: { enabled, mixpanelKey, additionalProperties }`. Defaults are unchanged, so `analytics` can be left out entirely; `externalId` stays top-level, because it is also the auth identity.
 - `Subject` enum — the Knowledge API never served those prefixed values; it returns the bare status string (`'created' | 'processed' | 'done' | 'rejected' | 'error'`). The SDK exposes no knowledge methods — manage knowledge through the D-ID API.
 - `Providers.Afflorithmics`, `Afflorithmics_tts_provider` and `VoiceConfigAfflorithmics` — the provider is no longer offered.
 - `TextToSpeechProviders`, `ExtendedTextToSpeechProviders` and `mapVideoType` — unused; `speak()` takes `TtsProvider`.

@@ -597,7 +597,7 @@ describe('connect-to-manager', () => {
             const optionsWithAnalytics = {
                 ...mockOptions,
                 externalId: 'analytics-user',
-                mixpanelAdditionalProperties: { plan: 'scale' },
+                analytics: { additionalProperties: { plan: 'scale' } },
             };
 
             await initializeStreamAndChat(mockAgent, optionsWithAnalytics, mockAgentsApi, mockAnalytics);

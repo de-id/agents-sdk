@@ -110,7 +110,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     let firstConnection = true;
 
-    const mxKey = managerOptions.mixpanelKey || mixpanelKey;
+    const mxKey = managerOptions.analytics?.mixpanelKey || mixpanelKey;
     const wsURL = managerOptions.wsURL || didSocketApiUrl;
     const baseURL = managerOptions.baseURL || didApiUrl;
     const mode = managerOptions.mode || ChatMode.Functional;
@@ -122,9 +122,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const analytics = initializeAnalytics({
         token: mxKey,
         agentId: agent,
-        isEnabled: managerOptions.enableAnalytics,
+        isEnabled: managerOptions.analytics?.enabled,
         externalId: managerOptions.externalId,
-        mixpanelAdditionalProperties: managerOptions.mixpanelAdditionalProperties,
+        mixpanelAdditionalProperties: managerOptions.analytics?.additionalProperties,
     });
 
     const initTimestamp = Date.now();
