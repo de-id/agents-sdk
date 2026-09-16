@@ -1,5 +1,7 @@
 # D-ID Client SDK
 
+**Version 3.0 is a breaking release.** Upgrading from 2.x? Read the [migration guide](https://sdk.d-id.com/documents/Migration_guide.html).
+
 <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-evenly; min-height: 1px; font-size: 16px;">
   <img style="width: auto; height: 200px; object-fit: contain;" src="https://create-images-results.d-id.com/api_docs/assets/agents_sdk_cover_v2.png" alt="Agents SDK Cover" />
   <span style="width: 67%; text-align: justify;">
