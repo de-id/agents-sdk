@@ -68,7 +68,7 @@ Shapes are unchanged; only the names differ.
 - `NetworkErrorMeta` — read `endpoint`, `method`, `durationMs`, `online` and `visibility` off the `NetworkError` instance.
 - `Message.videoId` — never set by the SDK; read `ChatResponse.videoId` from the `chat()` result instead.
 - `SDK_VERSION` — internal analytics value; no longer exported.
-- Members and types marked `@internal` are stripped from the published `.d.ts`, so editor autocomplete no longer offers `Agent.ld_context`, `MicrosoftTtsProvider.voice_name`, `StreamingManagerOptions.rpcMethods`, the error constructors and about eighty more; none of them were supported.
+- Members and types marked `@internal` are stripped from the published `.d.ts`, so editor autocomplete no longer offers `MicrosoftTtsProvider.voice_name`, `StreamingManagerOptions.rpcMethods`, the error constructors and about eighty more; none of them were supported.
 
 ## Behaviour clarifications
 

@@ -169,9 +169,10 @@ export interface Agent {
          */
         ui_debug_mode?: boolean;
         /**
-         * Account the agent's rendering VM is billed to.
+         * Account the agent's rendering VM is billed to. D-ID internal; kept in the declarations
+         * for D-ID's own applications, hidden from the reference.
          *
-         * @internal D-ID internal; not part of the public SDK contract.
+         * @hidden
          */
         vm_account_id?: string;
         /** Whether the embedding UI should show closed captions. The SDK does not act on it. */
@@ -180,7 +181,7 @@ export interface Agent {
     /**
      * Feature-flag targeting context for the account this agent belongs to.
      *
-     * @internal D-ID internal; not part of the public SDK contract.
+     * Used by D-ID's own applications; not part of the SDK contract and may change without notice.
      */
     ld_context?: {
         /** Key identifying the context. */

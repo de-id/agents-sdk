@@ -26,14 +26,15 @@
   "license": "MIT",
   "author": "d-id",
   "files": [
-    "dist/*"
+    "dist",
+    "!dist/src"
   ],
   "main": "./dist/index.umd.cjs",
   "module": "./dist/index.js",
-  "types": "./dist/src/index.d.ts",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.umd.cjs",
       "default": "./dist/index.js"
