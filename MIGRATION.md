@@ -21,28 +21,28 @@ Import `AgentManagerCallbacks` instead of `ManagerCallbacks`:
 import type { AgentManagerCallbacks } from '@d-id/client-sdk';
 ```
 
-## Renamed types
+## Renamed types and methods
 
-| v2                         | v3                       |
-| -------------------------- | ------------------------ |
-| `Stream_Text_Script`       | `TextStreamScript`       |
-| `Stream_Audio_Script`      | `AudioStreamScript`      |
-| `Elevenlabs_tts_provider`  | `ElevenlabsTtsProvider`  |
-| `Microsoft_tts_provider`   | `MicrosoftTtsProvider`   |
-| `AzureOpenAi_tts_provider` | `AzureOpenAiTtsProvider` |
-| `Amazon_tts_provider`      | `AmazonTtsProvider`      |
-| `VideoType`                | `AvatarType`             |
-| `IRetrivalMetadata`        | `RetrievalMetadata`      |
-| `IVoice`                   | `Voice`                  |
-| `PublicDataChannelTopic`   | `DataChannelTopic`       |
-| `SendStreamPayloadResponse` | `SpeakResponse`         |
-| `SupportedStreamScript`    | `SpeakScript`            |
-| `StreamTextToSpeechProviders` | `TtsProvider`         |
-| `RatingEntity`             | `Rating`                 |
+| v2                                       | v3                                    |
+| ---------------------------------------- | ------------------------------------- |
+| `Stream_Text_Script`                     | `TextStreamScript`                    |
+| `Stream_Audio_Script`                    | `AudioStreamScript`                   |
+| `Elevenlabs_tts_provider`                | `ElevenlabsTtsProvider`               |
+| `Microsoft_tts_provider`                 | `MicrosoftTtsProvider`                |
+| `AzureOpenAi_tts_provider`               | `AzureOpenAiTtsProvider`              |
+| `Amazon_tts_provider`                    | `AmazonTtsProvider`                   |
+| `VideoType`                              | `AvatarType`                          |
+| `IRetrivalMetadata`                      | `RetrievalMetadata`                   |
+| `IVoice`                                 | `Voice`                               |
+| `PublicDataChannelTopic`                 | `DataChannelTopic`                    |
+| `SendStreamPayloadResponse`              | `SpeakResponse`                       |
+| `SupportedStreamScript`                  | `SpeakScript`                         |
+| `StreamTextToSpeechProviders`            | `TtsProvider`                         |
+| `RatingEntity`                           | `Rating`                              |
+| `STTTokenResponse`                       | `SttTokenResponse`                    |
+| `Interrupt`                              | `InterruptOptions`                    |
 | `AgentManager.getIsInterruptAvailable()` | `AgentManager.isInterruptAvailable()` |
-| `STTTokenResponse`         | `SttTokenResponse`       |
-| `AgentManager.getSTTToken()` | `AgentManager.getSttToken()` |
-| `Interrupt`                | `InterruptOptions`       |
+| `AgentManager.getSTTToken()`             | `AgentManager.getSttToken()`          |
 
 Shapes are unchanged; only the names differ.
 
@@ -57,10 +57,10 @@ Shapes are unchanged; only the names differ.
 - `StreamOptions.outputResolution` — the Agents API ignores the field; the stream keeps the agent's configured resolution.
 - `ConnectionStateChangeCallback` and `VideoStateChangeCallback` — use `AgentManagerCallbacks['onConnectionStateChange']` and `AgentManagerCallbacks['onVideoStateChange']`.
 - `AgentManagerOptions.microphoneStream` — it was never read by the SDK, so passing it had no effect. Call `agentManager.publishMicrophoneStream(stream)` after `connect()` instead (Expressive (V4) agents).
-- `StreamEvents` is no longer exported; `onToolEvent` receives a `ToolCallEvent` (`Started`, `Done`, `Error`) with the same string values, and `StreamEvents.StreamCreated` was never emitted — use the `onStreamCreated` callback.
+- `StreamEvents` is no longer exported; `onToolEvent` receives a `ToolCallEvent` (`Started`, `Done`, `Error`) with the same string values.
+- `StreamEvents.StreamCreated` — never emitted; use the `onStreamCreated` callback.
 - `Status` and `StickyRequest` — their `status` and session-id fields are declared directly on `SpeakResponse`, as `status` and `sessionId`.
 - `ToolEventPayload` — use the payload the `onToolEvent` overloads narrow to: `ToolCallStartedPayload`, `ToolCallDonePayload` or `ToolCallErrorPayload`.
-- The three `onToolEvent` payloads are camelCase like the rest of the SDK: `call_id` is now `callId`, `execution_mode` `executionMode`, `turn_id` `turnId` and `duration_ms` `durationMs`.
 - `BaseStreamScript` and `StreamScriptType` — deleted; use `SpeakScript`, or `TextStreamScript`/`AudioStreamScript` directly.
 - `Chat` — no public method returns one; `onNewChat` reports the new chat's id.
 - `RateState` — the SDK never produced or consumed it; `rate()` takes `1 | -1` and returns a `Rating`.
@@ -73,6 +73,7 @@ Shapes are unchanged; only the names differ.
 
 - Every error subclass declares its `kind` as a literal, so branching on `kind` narrows the caught error; `HttpError.kind` stays `string` because it carries the server's own classification.
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, videoId: '' }` instead of `undefined`, matching its declared type.
+- The three `onToolEvent` payloads are camelCase like the rest of the SDK: `call_id` is now `callId`, `execution_mode` `executionMode`, `turn_id` `turnId` and `duration_ms` `durationMs`; only the documented fields are forwarded.
 - `SpeakResponse` fields are camelCase: `sessionId`, `videoId` (`status` and `duration` are unchanged). The Agents API still answers in snake_case; the SDK converts.
 - `StreamCreatedInfo` fields are camelCase: `agentId`, `sessionId`, `streamId`.
 - The five Expressive-only media methods are required members of `AgentManager` instead of optional; remove any `?.` guards.

@@ -16,7 +16,6 @@ import {
     StreamType,
     ToolCallDonePayload,
     ToolCallDoneWirePayload,
-    ToolCallErrorPayload,
     ToolCallErrorWirePayload,
     ToolCallEvent,
     ToolCallStartedPayload,
@@ -104,15 +103,15 @@ function toStartedPayload(wire: ToolCallStartedWirePayload): ToolCallStartedPayl
         name: wire.name,
         input: wire.input,
         output: wire.output,
-        interruptible: wire.interruptible,
-        executionMode: wire.execution_mode,
-        turnId: wire.turn_id,
+        // The server omits the field on some started events; the public payload declares a boolean.
+        interruptible: wire.interruptible === true,
+        // Spread, so an event that carries neither does not gain the keys with an undefined value.
+        ...(wire.execution_mode !== undefined ? { executionMode: wire.execution_mode } : {}),
+        ...(wire.turn_id !== undefined ? { turnId: wire.turn_id } : {}),
         timestamp: wire.timestamp,
     };
 }
 
-function toFinishedPayload(wire: ToolCallDoneWirePayload): ToolCallDonePayload;
-function toFinishedPayload(wire: ToolCallErrorWirePayload): ToolCallErrorPayload;
 function toFinishedPayload(wire: ToolCallDoneWirePayload): ToolCallDonePayload {
     return {
         callId: wire.call_id,

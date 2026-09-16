@@ -762,7 +762,7 @@ export interface ToolCallStartedWirePayload {
     name: string;
     input: Record<string, unknown>;
     output: Record<string, unknown>;
-    interruptible: boolean;
+    interruptible?: boolean;
     execution_mode?: ToolExecutionMode;
     turn_id?: number | null;
     timestamp: string;

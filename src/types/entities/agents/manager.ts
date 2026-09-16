@@ -456,8 +456,8 @@ export interface AgentManagerOptions {
     /**
      * Extra properties merged into every analytics event the SDK sends.
      *
-     * A flat object — use it to tag events with your own identifiers. Every property is merged into
-     * the events the SDK sends for the whole session.
+     * A flat object — use it to tag events with your own identifiers. More properties can be added
+     * later with `enrichAnalytics()`.
      */
     mixpanelAdditionalProperties?: Record<string, unknown>;
     /**
