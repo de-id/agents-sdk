@@ -162,6 +162,29 @@ describe('createAgentManager', () => {
             });
         });
 
+        it('should hand out a copy of the starter messages, not the agent entity array', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+
+            expect(manager.starterMessages).toEqual(['Hello!', 'How can I help?']);
+            expect(manager.starterMessages).not.toBe(mockAgent.starter_message);
+
+            // The `readonly` is type-level; the copy is what keeps a write off the agent.
+            // @ts-expect-error `starterMessages` is a readonly array.
+            manager.starterMessages.push('mutated');
+            expect(manager.agent.starter_message).toEqual(['Hello!', 'How can I help?']);
+
+            // @ts-expect-error `agent` is a readonly property.
+            manager.agent = {} as Agent;
+        });
+
+        it('should give an agent with no starter messages an empty array', async () => {
+            delete mockAgent.starter_message;
+
+            const manager = await createAgentManager('agent-123', mockOptions);
+
+            expect(manager.starterMessages).toEqual([]);
+        });
+
         it('should read the three analytics settings from the grouped option', async () => {
             await createAgentManager('agent-123', {
                 ...mockOptions,

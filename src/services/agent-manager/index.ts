@@ -427,7 +427,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         agent: agentEntity,
         getStreamType: () => items.streamingManager?.streamType,
         isInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
-        starterMessages: agentEntity.starter_message || [],
+        // A copy: the same array instance is held by `agent.starter_message`, and handing it out
+        // made `manager.starterMessages` an alias the application could write through.
+        starterMessages: [...(agentEntity.starter_message ?? [])],
         getSttToken: () => agentsApi.getSttToken(agentEntity.id),
         getChatMode: () => items.chatMode,
         getConnectionState: () => connectionState,

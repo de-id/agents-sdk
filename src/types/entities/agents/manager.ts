@@ -597,8 +597,11 @@ export interface AgentManager {
      * Fetched once while the manager is created, so it is available before
      * {@link AgentManager.connect | connect()}. Useful for rendering the agent's name, thumbnail
      * and {@link Agent.idle_video | idle_video}. See {@link Agent}.
+     *
+     * Read-only: the property cannot be reassigned, and the SDK never replaces it — the manager
+     * talks to the agent it was created for, for its whole life.
      */
-    agent: Agent;
+    readonly agent: Agent;
     /**
      * Returns the kind of stream the current session negotiated.
      *
@@ -625,8 +628,12 @@ export interface AgentManager {
      *
      * Suggested openers to offer the user as buttons; empty when the agent defines none. Available
      * before {@link AgentManager.connect | connect()}.
+     *
+     * Read-only, and a copy of {@link Agent.starter_message} rather than the same array, so
+     * sorting or filtering a local copy of it cannot change what
+     * {@link AgentManager.agent | agent} reports.
      */
-    starterMessages: string[];
+    readonly starterMessages: readonly string[];
     /**
      * Fetches a short-lived token for the D-ID speech-to-text service.
      *
