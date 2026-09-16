@@ -76,6 +76,7 @@ Shapes are unchanged; only the names differ.
 - The three `onToolEvent` payloads are camelCase like the rest of the SDK: `call_id` is now `callId`, `execution_mode` `executionMode`, `turn_id` `turnId` and `duration_ms` `durationMs`; only the documented fields are forwarded.
 - `SpeakResponse` fields are camelCase: `sessionId`, `videoId` (`status` and `duration` are unchanged). The Agents API still answers in snake_case; the SDK converts.
 - `StreamCreatedInfo` fields are camelCase: `agentId`, `sessionId`, `streamId`.
+- `Message.created_at` is now `Message.createdAt`; the SDK sets it, and an `initialMessages` transcript restored from your own storage must use the new name.
 - The five Expressive-only media methods are required members of `AgentManager` instead of optional; remove any `?.` guards.
 - `Agent.avatar` is typed `AgentAvatar` and its `type` is the `AvatarType` enum: build `Agent` values with `AvatarType.Talk`/`AvatarType.Clip`/`AvatarType.Expressive`; `===` comparisons against the string still compile but no longer narrow.
 - `AgentManagerOptions.mixpanelAdditionalProperties` and `enrichAnalytics()` are typed `Record<string, unknown>`; callers passing `Record<string, any>` are unaffected unless they rely on inference.

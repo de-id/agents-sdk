@@ -41,7 +41,7 @@ function handleAudioTranscribedMessage(
         role: data.role,
         content: data.content,
         parts: parseMessagePartsMemo(data.content),
-        created_at: data.created_at || new Date().toISOString(),
+        createdAt: data.created_at || new Date().toISOString(),
         transcribed: true,
     };
     items.messages.push(userMessage);
@@ -99,7 +99,7 @@ function processChatEvent(
             // by a single partial (e.g. a worker `say` greeting) never reached `onNewMessage`.
             content: '',
             parts: [],
-            created_at: data.created_at || new Date().toISOString(),
+            createdAt: data.created_at || new Date().toISOString(),
         };
         items.messages.push(currentMessage);
     } else {

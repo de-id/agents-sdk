@@ -217,7 +217,7 @@ describe('createAgentManager', () => {
 
         it('should handle initial messages correctly', async () => {
             const initialMessages = [
-                { id: '1', role: 'user' as const, content: 'Hello', parts: [], created_at: new Date().toISOString() },
+                { id: '1', role: 'user' as const, content: 'Hello', parts: [], createdAt: new Date().toISOString() },
             ];
             (getInitialMessages as jest.Mock).mockReturnValue(initialMessages);
 
@@ -622,7 +622,7 @@ describe('createAgentManager', () => {
                 expect(lastMessage.role).toBe('assistant');
                 expect(lastMessage.content).toBe(textInput);
                 expect(lastMessage.id).toBeDefined();
-                expect(lastMessage.created_at).toBeDefined();
+                expect(lastMessage.createdAt).toBeDefined();
             });
 
             it('should populate parts on speak message', async () => {

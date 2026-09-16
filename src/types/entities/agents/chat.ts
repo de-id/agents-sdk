@@ -199,7 +199,7 @@ export interface Message {
      */
     parts: MessagePart[];
     /** When the message was added, as an ISO 8601 timestamp. */
-    created_at?: string;
+    createdAt?: string;
     /**
      * The knowledge citations the answer was drawn from, as {@link RetrievalMetadata} entries.
      *

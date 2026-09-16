@@ -173,7 +173,7 @@ export interface AgentManagerCallbacks {
      * given, and again on every {@link AgentManager.connect | connect()} after the first — both
      * with type `answer`. The array is a fresh copy on each call, oldest message first; every
      * {@link Message} carries an `id`, a `role` of `user` or `assistant` (the agent), its `content`
-     * and a `created_at` timestamp.
+     * and a `createdAt` timestamp.
      *
      * @param messages - The chat so far.
      * @param type - `partial` while the agent's answer is still streaming in, `answer` for the full

@@ -584,7 +584,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     role: 'user',
                     content: userMessage,
                     parts: parseMessagePartsMemo(userMessage),
-                    created_at: new Date(latencyTimestampTracker.update()).toISOString(),
+                    createdAt: new Date(latencyTimestampTracker.update()).toISOString(),
                 });
 
                 options.callbacks.onNewMessage?.([...items.messages], 'user');
@@ -603,7 +603,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         role: 'assistant',
                         content: response.result,
                         parts: parseMessagePartsMemo(response.result),
-                        created_at: new Date().toISOString(),
+                        createdAt: new Date().toISOString(),
                         context: response.context,
                         matches: response.matches,
                     });
@@ -724,7 +724,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     role: 'assistant',
                     content: script.input,
                     parts: parseMessagePartsMemo(script.input),
-                    created_at: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
                 });
                 options.callbacks.onNewMessage?.([...items.messages], 'answer');
             }
