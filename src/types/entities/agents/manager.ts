@@ -542,6 +542,12 @@ export interface AgentManagerOptions {
  * exists; everything else is a method. Some methods work only with some avatar types: each one
  * says so, and {@link AgentAvatar} is where the session's tier is read from.
  *
+ * The manager's own state is readable at any time:
+ * {@link AgentManager.getChatMode | getChatMode()},
+ * {@link AgentManager.getConnectionState | getConnectionState()} and
+ * {@link AgentManager.getSessionInfo | getSessionInfo()} answer with what the matching callback
+ * last reported, so nothing has to be mirrored in application state.
+ *
  * Every method that reaches the Agents API can reject with an {@link HttpError} when the request
  * comes back non-2xx, or a {@link NetworkError} when it never reaches the server; the individual
  * `@throws` entries below name the errors that are specific to each method.
@@ -597,6 +603,58 @@ export interface AgentManager {
      * @throws {@link NetworkError} When the request never reaches the server.
      */
     getSttToken(): Promise<SttTokenResponse>;
+    /**
+     * Returns the chat mode in effect right now.
+     *
+     * The same value {@link AgentManagerCallbacks.onModeChange | onModeChange} last reported, and
+     * the one every mode guard in the SDK reads. It is not always the mode that was asked for: the
+     * server can answer {@link AgentManager.connect | connect()} with a different mode, which the
+     * manager adopts, and a failed connection leaves the session in
+     * {@link ChatMode.Maintenance | Maintenance}. Use it instead of mirroring `onModeChange` in
+     * your own state.
+     *
+     * @returns The current {@link ChatMode}; before {@link AgentManager.connect | connect()}, the
+     * mode the manager was created with ({@link ChatMode.Functional} by default).
+     * @example
+     * ```ts
+     * if (agentManager.getChatMode() === 'maintenance') {
+     *     showBanner('The agent is temporarily unavailable.');
+     * }
+     * ```
+     */
+    getChatMode(): ChatMode;
+    /**
+     * Returns the connection state the manager last reported.
+     *
+     * The same value
+     * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange} was last
+     * called with, so a component that mounts after the session is up can read the state instead of
+     * waiting for the next change.
+     *
+     * @returns The current {@link ConnectionState}; {@link ConnectionState.New | 'new'} before the
+     * first {@link AgentManager.connect | connect()}.
+     * @example
+     * ```ts
+     * const canChat = agentManager.getConnectionState() === 'connected';
+     * ```
+     */
+    getConnectionState(): ConnectionState;
+    /**
+     * Returns the ids of the session that is open, for support and for your own logs.
+     *
+     * The same {@link StreamCreatedInfo} that
+     * {@link AgentManagerCallbacks.onStreamCreated | onStreamCreated} delivered for this session.
+     *
+     * @returns The open session's `streamId`, `sessionId` and `agentId`, or `undefined` before
+     * {@link AgentManager.connect | connect()} and after
+     * {@link AgentManager.disconnect | disconnect()}.
+     * @example
+     * ```ts
+     * const session = agentManager.getSessionInfo();
+     * console.log('session', session?.sessionId, 'stream', session?.streamId);
+     * ```
+     */
+    getSessionInfo(): StreamCreatedInfo | undefined;
     /**
      * Opens a new session with the agent: a new WebRTC connection, a new web socket and a new chat.
      *

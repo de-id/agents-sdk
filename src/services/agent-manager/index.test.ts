@@ -355,6 +355,75 @@ describe('createAgentManager', () => {
             manager = await createAgentManager('agent-123', mockOptions);
         });
 
+        describe('state getters', () => {
+            // The callbacks the streaming manager is actually handed: the SDK's own copy, wrappers
+            // included. Reporting through them is what a real session does.
+            const streamCallbacks = () => (initializeStreamAndChat as jest.Mock).mock.calls[0][1].callbacks;
+
+            it('should report the creation-time chat mode before connect', async () => {
+                expect(manager.getChatMode()).toBe(ChatMode.Functional);
+
+                const textOnly = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
+                expect(textOnly.getChatMode()).toBe(ChatMode.TextOnly);
+            });
+
+            it('should follow changeMode', async () => {
+                await manager.changeMode(ChatMode.TextOnly);
+
+                expect(manager.getChatMode()).toBe(ChatMode.TextOnly);
+                expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledWith(ChatMode.TextOnly);
+            });
+
+            it('should adopt the mode the server answered connect with', async () => {
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: { ...mockChat, chat_mode: ChatMode.Maintenance },
+                });
+
+                await manager.connect();
+
+                expect(manager.getChatMode()).toBe(ChatMode.Maintenance);
+            });
+
+            it('should fall back to Maintenance when connecting fails', async () => {
+                (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
+
+                await expect(manager.connect()).rejects.toThrow('Connection failed');
+
+                expect(manager.getChatMode()).toBe(ChatMode.Maintenance);
+            });
+
+            it('should report New before connect and follow every state reported afterwards', async () => {
+                expect(manager.getConnectionState()).toBe(ConnectionState.New);
+
+                await manager.connect();
+                expect(manager.getConnectionState()).toBe(ConnectionState.Connecting);
+
+                streamCallbacks().onConnectionStateChange(ConnectionState.Connected);
+                expect(manager.getConnectionState()).toBe(ConnectionState.Connected);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Connected);
+
+                await manager.disconnect();
+                expect(manager.getConnectionState()).toBe(ConnectionState.Disconnected);
+            });
+
+            it('should return the session ids onStreamCreated delivered, and drop them on disconnect', async () => {
+                expect(manager.getSessionInfo()).toBeUndefined();
+
+                await manager.connect();
+                expect(manager.getSessionInfo()).toBeUndefined();
+
+                const info = { streamId: 'str_1', sessionId: 'ses_1', agentId: 'agent-123' };
+                streamCallbacks().onStreamCreated(info);
+
+                expect(manager.getSessionInfo()).toEqual(info);
+                expect(mockOptions.callbacks.onStreamCreated).toHaveBeenCalledWith(info);
+
+                await manager.disconnect();
+                expect(manager.getSessionInfo()).toBeUndefined();
+            });
+        });
+
         describe('connect', () => {
             it('should connect successfully', async () => {
                 await manager.connect();

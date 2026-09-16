@@ -12,6 +12,7 @@ import {
     InterruptOptions,
     Message,
     SpeakScript,
+    StreamCreatedInfo,
     StreamScript,
 } from '../../types';
 
@@ -134,6 +135,26 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     managerOptions.callbacks.onError = (error: Error, errorData?: Record<string, unknown>) => {
         analytics.track('agent-error', { error: toErrorAnalytics(error) });
         originalOnError?.(error, errorData);
+    };
+
+    // The state the getters answer from. Both are recorded by wrapping the callback that reports
+    // them, so every path that can report one — this module, the streaming managers, the retry in
+    // `connect()` — keeps them in step without a second source of truth.
+    let connectionState: ConnectionState = ConnectionState.New;
+    let sessionInfo: StreamCreatedInfo | undefined;
+
+    const originalOnConnectionStateChange = managerOptions.callbacks.onConnectionStateChange;
+    // Forwarded with the arguments it was called with, not with a fixed pair: a handler that reads
+    // `arguments.length` — or a test that asserts on the call — must see what the SDK reported.
+    managerOptions.callbacks.onConnectionStateChange = (...args: [ConnectionState, (string | undefined)?]) => {
+        connectionState = args[0];
+        originalOnConnectionStateChange?.(...args);
+    };
+
+    const originalOnStreamCreated = managerOptions.callbacks.onStreamCreated;
+    managerOptions.callbacks.onStreamCreated = (stream: StreamCreatedInfo) => {
+        sessionInfo = stream;
+        originalOnStreamCreated?.(stream);
     };
 
     const agentsApi = createAgentsApi(
@@ -352,6 +373,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
         delete items.streamingManager;
         delete items.socketManager;
+        sessionInfo = undefined;
 
         managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
     }
@@ -402,6 +424,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         isInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
         starterMessages: agentEntity.starter_message || [],
         getSttToken: () => agentsApi.getSttToken(agentEntity.id),
+        getChatMode: () => items.chatMode,
+        getConnectionState: () => connectionState,
+        getSessionInfo: () => sessionInfo,
         changeMode,
         enrichAnalytics: analytics.enrich,
         async connect() {

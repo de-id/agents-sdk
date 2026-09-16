@@ -16,6 +16,7 @@ export const AgentManagerOptionsFactory = new Factory<AgentManagerOptions>().att
         onVideoStateChange: jest.fn(),
         onAgentActivityStateChange: jest.fn(),
         onSrcObjectReady: jest.fn(),
+        onStreamCreated: jest.fn(),
     }),
     mode: ChatMode.Functional,
     enableAnalytics: true,
