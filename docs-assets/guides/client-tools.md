@@ -70,30 +70,23 @@ A blocking call also suspends interrupting: {@link AgentManagerCallbacks.onInter
 
 ## 2. Follow the calls
 
-{@link AgentManagerCallbacks.onToolEvent | onToolEvent} is called once when a call starts, and again when it finishes or fails. Its type, {@link ToolEventCallback}, is three overloads rather than one signature — {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload}, {@link ToolCallEvent.Done} with a {@link ToolCallDonePayload}, {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload}.
+{@link AgentManagerCallbacks.onToolEvent | onToolEvent} is called once when a call starts, and again when it finishes or fails. Its type, {@link ToolEventCallback}, pairs each {@link ToolCallEvent} with the payload that event carries — {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload}, {@link ToolCallEvent.Done} with a {@link ToolCallDonePayload}, {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload}.
 
-Overloads narrow where a function is *called*, not where it is written, so an inline handler sees `data` as the union of the three payloads however it branches on `event`. `callId`, `name`, `input` and `timestamp` are on all three and can be read straight off it; assert the payload for the fields that belong to one event.
+Branching on `event` is what narrows `data`, inside the handler and not only at the call site, so nothing has to be asserted. `callId`, `name`, `input` and `timestamp` are on all three payloads and can be read before the branch.
 
 ```ts
-import {
-    ToolCallEvent,
-    type AgentManagerCallbacks,
-    type ToolCallDonePayload,
-    type ToolCallErrorPayload,
-} from '@d-id/client-sdk';
+import { ToolCallEvent, type AgentManagerCallbacks } from '@d-id/client-sdk';
 
 const callbacks: AgentManagerCallbacks = {
     onToolEvent(event, data) {
         if (event === ToolCallEvent.Started) {
             console.log('started', data.callId, data.name, data.input);
         } else if (event === ToolCallEvent.Done) {
-            const done = data as ToolCallDonePayload;
-            console.log('done', done.name, done.output, `${done.durationMs}ms`);
+            console.log('done', data.name, data.output, `${data.durationMs}ms`);
         } else {
             // `error` is the reason when the server gave one; the structured failure is in
             // `extra.error`, and `output` is typed `unknown` — narrow it before use.
-            const failed = data as ToolCallErrorPayload;
-            console.warn('failed', failed.name, failed.error ?? 'no reason given');
+            console.warn('failed', data.name, data.error ?? 'no reason given');
         }
     },
 };
@@ -103,7 +96,7 @@ const callbacks: AgentManagerCallbacks = {
 
 ## 3. Show that the agent is busy
 
-{@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange} carries the whole set of calls running right now, as {@link RunningToolCall} entries, every time it changes. A call appears when it starts and disappears when it finishes or fails — or, for a blocking call, when its turn ends. The callback also fires with an empty array on disconnect, so a spinner driven by it always clears.
+{@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange} carries the whole set of calls running right now, as {@link RunningToolCall} entries, every time it changes. A call appears when it starts and disappears when it finishes or fails — or, for a blocking call, when its turn ends. On disconnect it fires with an empty array if any call was still running, so a spinner driven by it always clears — with nothing outstanding there is nothing to clear and nothing is emitted.
 
 {@link isAwaitingTool} answers the only question most UIs have of that array: is the agent suspended on a blocking call?
 
@@ -144,4 +137,4 @@ After a tool is unregistered the agent's calls to it fail rather than reaching y
 - {@link ToolEventCallback}, {@link ToolCallEvent} and the three payloads: {@link ToolCallStartedPayload}, {@link ToolCallDonePayload}, {@link ToolCallErrorPayload}.
 - {@link RunningToolCall}, {@link ToolExecutionMode} and {@link isAwaitingTool}.
 - {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} — why a blocking tool makes the agent uninterruptible.
-- [Expressive media](https://sdk.d-id.com/documents/Expressive_media.html) — the rest of what an Expressive (V4) session can do.
+- [Expressive media](./expressive-media.md) — the rest of what an Expressive (V4) session can do.

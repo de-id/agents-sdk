@@ -4,7 +4,7 @@
  * The value of the `type` field that discriminates the provider objects — {@link Providers.Microsoft}
  * selects a {@link MicrosoftTtsProvider}, {@link Providers.Elevenlabs} an
  * {@link ElevenlabsTtsProvider}, and so on — and of {@link Voice.provider} when you look a voice up
- * in D-ID's catalogue. Which providers an account may use depends on its plan.
+ * in D-ID's catalog. Which providers an account may use depends on its plan.
  *
  * @category Voice
  */
@@ -38,7 +38,7 @@ export enum VoiceAccess {
 }
 
 /**
- * One voice in D-ID's catalogue of text-to-speech voices.
+ * One voice in D-ID's catalog of text-to-speech voices.
  *
  * The SDK does not fetch voices itself; the type is exported so an application that lists them —
  * to build a voice picker, say — can type the result and then feed {@link Voice.id | id} and
@@ -73,7 +73,7 @@ export interface Voice {
 /**
  * ElevenLabs provider details: the provider type and the requested voice id. Available to premium users.
  *
- * Pass it as {@link TextStreamScript.provider} to have ElevenLabs synthesise the text, optionally
+ * Pass it as {@link TextStreamScript.provider} to have ElevenLabs synthesize the text, optionally
  * with {@link VoiceConfigElevenlabs} to control how closely the voice is reproduced.
  *
  * @category Voice
@@ -169,7 +169,7 @@ export interface AzureOpenAiTtsProvider extends Omit<MicrosoftTtsProvider, 'type
 /**
  * Amazon provider details: the provider type and the requested voice id.
  *
- * Pass it as {@link TextStreamScript.provider} to have Amazon synthesise the text. It is the one
+ * Pass it as {@link TextStreamScript.provider} to have Amazon synthesize the text. It is the one
  * provider with no `voice_config`: the voice is selected by `voice_id` alone.
  *
  * @category Voice
@@ -241,7 +241,7 @@ export interface VoiceConfigElevenlabs {
     stability?: number;
 
     /**
-     * How closely the synthesised speech should adhere to the original voice it was cloned from.
+     * How closely the synthesized speech should adhere to the original voice it was cloned from.
      *
      * A number from 0 to 1: higher follows the original more strictly.
      * @example 0.5

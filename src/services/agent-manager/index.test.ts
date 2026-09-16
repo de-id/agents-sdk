@@ -393,7 +393,7 @@ describe('createAgentManager', () => {
                 // A V4 session never has a notifications web socket, so `sessionSupports` must not
                 // ask for one: dropping the `!isStreamsV2` guard would disconnect every V4 session
                 // whose connect ends in a real mode transition. The session is asked for in
-                // TextOnly and the synthesised chat answers Functional — what
+                // TextOnly and the synthesized chat answers Functional — what
                 // `initializeStreamAndChat` really builds for V4 — so the tail reaches
                 // `sessionSupports` instead of returning early on an unchanged mode.
                 mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };

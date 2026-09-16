@@ -5,7 +5,7 @@ category: Guides
 
 # Handling errors
 
-Every error the SDK raises is a {@link BaseError} carrying a `kind`, and {@link isDIDError} is the guard that recognises one. Inside that guard a `switch` on `kind` narrows the value to a single class and its own fields — {@link HttpError.status | status} and {@link HttpError.code | code} on an {@link HttpError}, {@link ValidationError.key | key} on a {@link ValidationError}. This guide covers the union, the two places a failure can surface, and what to log.
+Every error the SDK raises is a {@link BaseError} carrying a `kind`, and {@link isDIDError} is the guard that recognizes one. Inside that guard a `switch` on `kind` narrows the value to a single class and its own fields — {@link HttpError.status | status} and {@link HttpError.code | code} on an {@link HttpError}, {@link ValidationError.key | key} on a {@link ValidationError}. This guide covers the union, the two places a failure can surface, and what to log.
 
 ## The union
 
@@ -54,7 +54,7 @@ function describe(error: unknown): string {
             return 'The agent is running in a limited mode.';
         default:
             // Total on purpose. To the type checker `error` is `never` here, but `isDIDError`
-            // recognises any Error carrying a string `kind` — which is what lets it see across a
+            // recognizes any Error carrying a string `kind` — which is what lets it see across a
             // bundle boundary — so a value built by another copy of the SDK can land here with a
             // `kind` outside the union.
             return 'Something went wrong.';
@@ -79,17 +79,17 @@ if (isDIDError(error) && error.kind === 'HttpError') {
 }
 ```
 
-In v2 the server's classification lived on `kind`. It moved to `code` in 3.0 so that `kind` could be a literal on every class and make the `switch` above narrow — see the [migration guide](https://sdk.d-id.com/documents/Migration_guide.html).
+In v2 the server's classification lived on `kind`. It moved to `code` in 3.0 so that `kind` could be a literal on every class and make the `switch` above narrow — see the [migration guide](../migration.md).
 
 ## What rejects, and what reaches onError
 
 A failure surfaces in one of two places, and which one it is depends on the error, not on the call.
 
-**Rejected to the caller.** {@link ValidationError} and {@link ChatCreationFailed} are thrown to whoever called the method — {@link AgentManager.chat | chat()}, {@link AgentManager.speak | speak()}, {@link AgentManager.rate | rate()}, {@link AgentManager.deleteRate | deleteRate()}, {@link AgentManager.submitFeedback | submitFeedback()}, {@link AgentManager.changeMode | changeMode()}, the Expressive-only media methods, and {@link createAgentManager} itself. They never reach {@link AgentManagerCallbacks.onError | onError}. A `ValidationError` is a programming or state error: a message that is empty or too long, a call made before `connect()`, a second `connect()` on an open session, a mode the agent does not support.
+**Rejected to the caller.** {@link ValidationError} and {@link ChatCreationFailed} are thrown to whoever called the method — {@link AgentManager.chat | chat()}, {@link AgentManager.speak | speak()}, {@link AgentManager.rate | rate()}, {@link AgentManager.deleteRate | deleteRate()}, {@link AgentManager.submitFeedback | submitFeedback()}, {@link AgentManager.changeMode | changeMode()}, {@link AgentManager.connect | connect()}, {@link AgentManager.reconnect | reconnect()}, the Expressive-only media methods, and {@link createAgentManager} itself. They never reach {@link AgentManagerCallbacks.onError | onError}. A `ValidationError` is a programming or state error: a message that is empty or too long, a call made before `connect()`, a second `connect()` on an open session, a mode the agent does not support.
 
 **Delivered to {@link AgentManagerCallbacks.onError | onError}.** {@link WsError}, {@link StreamError} and {@link ChatModeDowngraded} arrive only there — they have no call to reject, because nothing the application invoked caused them.
 
-**Both.** {@link HttpError} and {@link NetworkError} are handed to `onError` *and* rejected by the method that made the request, so either place can handle them. Two caveats: for the message-send request behind `chat()` the callback may not fire, though the error is still thrown; and `connect()` retries the initialization up to three times before its failure surfaces at all, except on a `429` and on an out-of-credits response.
+**Both.** {@link HttpError} and {@link NetworkError} are handed to `onError` *and* rejected by the method that made the request, so either place can handle them. Two caveats: for the message-send request behind `chat()` the callback may not fire, though the error is still thrown; and `connect()` retries the initialization up to three times before its failure surfaces at all, except on a `429`, on an out-of-credits response, and when the transport reports that it could not connect at all.
 
 The practical split is to catch around the call for anything with a UI consequence at that point, and to let `onError` feed the error reporter.
 
@@ -153,4 +153,4 @@ try {
 - {@link HttpError} — {@link HttpError.status | status}, {@link HttpError.code | code}, {@link HttpError.endpoint | endpoint}.
 - {@link NetworkError}, {@link StreamError}, {@link WsError}, {@link ValidationError}, {@link ChatCreationFailed}, {@link ChatModeDowngraded}.
 - {@link AgentManagerCallbacks.onError | onError} and {@link ErrorContext}.
-- [Chat modes](https://sdk.d-id.com/documents/Chat_modes.html) — what a downgrade means for the session.
+- [Chat modes](./chat-modes.md) — what a downgrade means for the session.

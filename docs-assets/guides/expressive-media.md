@@ -5,7 +5,7 @@ category: Guides
 
 # Expressive media
 
-An Expressive (V4) session is two-way. Beyond the video the agent sends, the page can publish a microphone track so the agent hears the user, publish a camera track so it sees them, change the speech-to-text language mid-conversation, interrupt an answer, and send application messages of its own on the data channel. This guide covers those methods, what they do on Talks (V2) and Clips (V3) agents, and how to tell which session you are in.
+An Expressive (V4) session is two-way: the page can publish the user's microphone and camera, interrupt the agent, and send its own data-channel messages. It can also change the speech-to-text language mid-conversation, so the agent hears the user in whatever language they switch to. This guide covers those methods, what they do on Talks (V2) and Clips (V3) agents, and how to tell which session you are in.
 
 Read the tier off {@link AgentAvatar}: `agentManager.agent.avatar.type === 'expressive'` is the check every branch below is written against.
 
@@ -24,7 +24,7 @@ await agentManager.publishMicrophoneStream(micStream);
 await agentManager.unpublishMicrophoneStream();
 ```
 
-{@link AgentManager.replaceMicrophoneTrack | replaceMicrophoneTrack()} swaps the live track without unpublishing it, which is what a device picker wants. The publication survives the swap — its LiveKit publication id (SID) and SSRC stay the same, though the `MediaStreamTrack` id changes — so the server sees continuous audio rather than a stop and a restart. It rejects with a plain `Error` from the transport when nothing is published; fall back to `publishMicrophoneStream()` there.
+{@link AgentManager.replaceMicrophoneTrack | replaceMicrophoneTrack()} swaps the live track without unpublishing it, which is what a device picker wants. The publication survives the swap — its LiveKit publication id (SID) and SSRC stay the same, though the `MediaStreamTrack` id changes — so the server sees continuous audio rather than a stop and a restart. It rejects with a plain `Error` from the transport for four different reasons — the room is not connected, the track is not an audio track, a publish is already in flight, or nothing is published to replace — so a bare `catch` that republishes would republish on three failures that have nothing to do with the swap. Only the last one is worth falling back on, and the message is what distinguishes it.
 
 ```ts
 async function useInputDevice(deviceId: string) {
@@ -33,7 +33,11 @@ async function useInputDevice(deviceId: string) {
 
     try {
         await agentManager.replaceMicrophoneTrack(track);
-    } catch {
+    } catch (error) {
+        if (!(error instanceof Error) || !error.message.includes('No microphone publication')) {
+            throw error; // Not connected, not audio, or a publish already in flight.
+        }
+
         // Nothing published yet — publish instead of swapping.
         await agentManager.publishMicrophoneStream(stream);
     }
@@ -68,7 +72,7 @@ A room that has dropped since `connect()` reports a {@link StreamError} through 
 
 ## Interrupting the agent
 
-Interrupting is a property of the *stream*, not of the avatar tier: it needs a fluent stream, which means a Clips (V3) agent built on a Pro avatar or any Expressive (V4) agent. Two different questions decide whether to show a stop button and whether to enable it.
+Interrupting is a property of the *stream*, not of the avatar tier: it needs a fluent stream, which means any Expressive (V4) agent, or a Clips (V3) agent built on a Pro avatar that asked for it — {@link StreamOptions.fluent | fluent} is off unless you set it. Two different questions decide whether to show a stop button and whether to enable it.
 
 - {@link AgentManager.isInterruptAvailable | isInterruptAvailable()} — does this session support interrupting at all? `true` on a fluent stream once connected. Ask it once the connection is up, to decide whether the control belongs on screen.
 - {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} — is interrupting allowed *right now*? Expressive (V4) agents only. It goes `false` while a `blocking` client tool call is outstanding, because the agent is suspended waiting for it, and back to `true` when the call finishes.
@@ -154,4 +158,4 @@ await agentManager.unpublishMicrophoneStream();
 - {@link AgentManager.interrupt | interrupt()}, {@link InterruptOptions}, {@link AgentManager.isInterruptAvailable | isInterruptAvailable()}, {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange}.
 - {@link AgentManager.sendDataChannelMessage | sendDataChannelMessage()} and {@link DataChannelTopic}.
 - {@link AgentManager.getStreamType | getStreamType()} and {@link StreamType} — fluent or legacy, which is what interrupting depends on.
-- [Client tools](https://sdk.d-id.com/documents/Client_tools.html) — the other half of what an Expressive (V4) session can do.
+- [Client tools](./client-tools.md) — the other half of what an Expressive (V4) session can do.

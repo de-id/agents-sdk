@@ -27,7 +27,9 @@
   "author": "d-id",
   "files": [
     "dist",
-    "!dist/src"
+    "!dist/src",
+    "!dist/index.umd.cjs.map",
+    "!dist/livekit-client.esm-*.js.map"
   ],
   "main": "./dist/index.umd.cjs",
   "module": "./dist/index.js",

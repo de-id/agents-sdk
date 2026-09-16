@@ -38,6 +38,7 @@ Expressive (V4) agents build none of that the same way. They never use the notif
 ## Choosing the mode at creation
 
 ```ts
+import * as sdk from '@d-id/client-sdk';
 import { ChatMode } from '@d-id/client-sdk';
 
 const agentManager = await sdk.createAgentManager('agt_fumf1234', {
@@ -56,7 +57,7 @@ const agentManager = await sdk.createAgentManager('agt_fumf1234', {
 });
 ```
 
-The mode is also accepted as the plain string the reference shows — `mode: 'TextOnly'` — so the enum does not have to be imported.
+Unlike `AgentAvatar.type` and the topic of {@link AgentManager.sendDataChannelMessage | sendDataChannelMessage()}, `mode` takes the enum member only: `mode: 'TextOnly'` does not compile, so {@link ChatMode} has to be imported.
 
 ## Changing the mode later
 
@@ -89,7 +90,10 @@ const callbacks: AgentManagerCallbacks = {
         videoElement.srcObject = value;
     },
     onModeChange(mode) {
-        setComposerEnabled(mode !== ChatMode.Off && mode !== ChatMode.DirectPlayback);
+        // `chat()` rejects in Maintenance too, so the composer goes with the banner below.
+        setComposerEnabled(
+            mode !== ChatMode.Off && mode !== ChatMode.DirectPlayback && mode !== ChatMode.Maintenance
+        );
         setVideoVisible(mode === ChatMode.Functional);
 
         if (mode === ChatMode.Maintenance) {
@@ -128,4 +132,4 @@ A mode the *server* reports is treated differently from one the application asks
 - {@link AgentManager.getChatMode | getChatMode()} — the mode in effect right now.
 - {@link AgentManagerCallbacks.onModeChange | onModeChange} — when the mode changes underneath you.
 - {@link ChatModeDowngraded} — the error reported when the server narrows the mode.
-- [Handling errors](https://sdk.d-id.com/documents/Handling_errors.html) — which failures reject and which reach `onError`.
+- [Handling errors](./handling-errors.md) — which failures reject and which reach `onError`.

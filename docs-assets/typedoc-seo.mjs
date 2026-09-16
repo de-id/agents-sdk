@@ -72,8 +72,9 @@ export function load(app) {
         if (page.url === 'modules.html' && page.model instanceof ProjectReflection) {
             page.contents = annotateIndex(page.contents, page.model);
         }
-        if (page.url === 'index.html' && base) {
-            page.contents = relativizeSelfLinks(page.contents, base);
+        if (page.url === 'index.html') {
+            page.contents = dropDuplicateReadmeTitle(page.contents);
+            if (base) page.contents = relativizeSelfLinks(page.contents, base);
         }
     });
 
@@ -82,6 +83,22 @@ export function load(app) {
         writeFileSync(join(event.outputDirectory, 'llms.txt'), llmsTxt(app, event.project));
         rewriteSitemapRoot(app, event.outputDirectory);
     });
+}
+
+/**
+ * The landing page renders the README, which needs its own `# D-ID Client SDK` heading to have a
+ * title on npm and on GitHub. On the site that heading arrives directly under TypeDoc's own
+ * `<h1>D-ID Client SDK - v3.0.0-0</h1>`, so the page opens with two H1s saying the same thing —
+ * and the one that carries the version is the one a reader wants. Drop the README's copy here,
+ * from the rendered page only; the file on npm is untouched.
+ *
+ * @param {string} html
+ */
+function dropDuplicateReadmeTitle(html) {
+    return html.replace(
+        /(<div class="tsd-panel tsd-typography">)<h1 [^>]*class="tsd-anchor-link"[^>]*>.*?<\/h1>\n?/s,
+        '$1'
+    );
 }
 
 /**

@@ -2,7 +2,7 @@ import { Message } from './entities';
 import { TtsProvider } from './voice/tts';
 
 /**
- * A script that makes the agent say text you supply, synthesised by a text-to-speech provider.
+ * A script that makes the agent say text you supply, synthesized by a text-to-speech provider.
  *
  * The usual payload for {@link AgentManager.speak | speak()}. The agent's LLM is not involved, so
  * the agent says exactly what {@link TextStreamScript.input | input} contains — which is what makes
@@ -36,7 +36,7 @@ export interface TextStreamScript {
     type: 'text';
 
     /**
-     * The text-to-speech provider and voice that synthesise
+     * The text-to-speech provider and voice that synthesize
      * {@link TextStreamScript.input | input}, from the list of supported providers.
      *
      * One of the objects in {@link TtsProvider}: a `type` naming the provider, the
@@ -47,7 +47,7 @@ export interface TextStreamScript {
     provider?: TtsProvider;
 
     /**
-     * The text to be synthesised into speech.
+     * The text to be synthesized into speech.
      *
      * Each provider has its own limit on the text length.
      * @example "This is an example text"
@@ -84,7 +84,7 @@ export interface TextStreamScript {
  * A script that makes the agent lip-sync an audio file you host, with no text-to-speech involved.
  *
  * The other payload {@link AgentManager.speak | speak()} accepts. Use it when the audio already
- * exists — a recording, or speech you synthesised yourself — instead of having a provider generate
+ * exists — a recording, or speech you synthesized yourself — instead of having a provider generate
  * it from text.
  *
  * @example Audio file

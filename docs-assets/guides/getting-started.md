@@ -30,9 +30,18 @@ The package ships an ES module, a UMD build and its own TypeScript types; no sep
 
 The one callback a video session cannot work without is {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady}: it hands you the `MediaStream` to put on your `<video>` element. `createAgentManager()` rejects with a {@link ValidationError} when it is missing in any chat mode that streams video — which is every mode except {@link ChatMode.TextOnly}, {@link ChatMode.Playground} and {@link ChatMode.Maintenance}.
 
+That element is yours to put on the page, and the three attributes are not optional in practice:
+
+```html
+<video id="agent-video" autoplay playsinline></video>
+```
+
+`autoplay` is what starts playback when the stream arrives — the SDK sets `srcObject` and nothing else. `playsinline` keeps iOS Safari from taking the video fullscreen the moment it plays. And browsers block autoplay with sound until the user has interacted with the page, so either start the agent from a click, or add `muted` and unmute on the first click; an agent that is muted forever is the one bug this costs a first-timer an afternoon.
+
 ```ts
 import * as sdk from '@d-id/client-sdk';
 
+const videoElement = document.getElementById('agent-video') as HTMLVideoElement;
 const agentManager = await sdk.createAgentManager('agt_fumf1234', {
     auth: { type: 'key', clientKey: 'YOUR_CLIENT_KEY' },
     callbacks: {
@@ -67,7 +76,7 @@ await agentManager.speak({ type: 'text', input: `Hi! I'm ${agentManager.agent.na
 await agentManager.chat('What is the distance to the moon?');
 ```
 
-Render the transcript from `onNewMessage` rather than from the `chat()` result: on Expressive (V4) agents the answer travels over the data channel and the resolved {@link ChatResponse} is empty.
+Render the transcript from `onNewMessage` rather than from the `chat()` result: on Expressive (V4) agents the answer travels over the data channel and the resolved {@link ChatResponse} is empty. Both promises resolve when the request is accepted, not when the agent has finished speaking — so nothing that waits on them should tear the session down.
 
 ## 6. Disconnect
 
@@ -75,6 +84,12 @@ Call {@link AgentManager.disconnect | disconnect()} when the user leaves the con
 
 ```ts
 await agentManager.disconnect();
+```
+
+Leaving the page is the case to wire up first, since nothing else ends the session for you:
+
+```ts
+window.addEventListener('beforeunload', () => void agentManager.disconnect());
 ```
 
 ## The whole thing
@@ -87,8 +102,9 @@ let srcObject: MediaStream | undefined;
 
 const agentManager = await sdk.createAgentManager('agt_fumf1234', {
     auth: { type: 'key', clientKey: 'YOUR_CLIENT_KEY' },
-    // Talks (V2) and Clips (V3) agents only; Expressive (V4) agents ignore these.
-    streamOptions: { compatibilityMode: 'auto', streamWarmup: true },
+    // Talks (V2) and Clips (V3) agents only; Expressive (V4) agents ignore these. This is
+    // the default — see StreamOptions for the codec, session timeout and fluent knobs.
+    streamOptions: { compatibilityMode: 'auto' },
     callbacks: {
         onSrcObjectReady(value) {
             srcObject = value;
@@ -121,17 +137,21 @@ const agentManager = await sdk.createAgentManager('agt_fumf1234', {
 await agentManager.connect();
 await agentManager.speak({ type: 'text', input: `Hi! I'm ${agentManager.agent.name}.` });
 await agentManager.chat('What is the distance to the moon?');
-await agentManager.disconnect();
+
+// Both calls above resolve when the request is accepted, not when the agent has spoken:
+// the answer and the video arrive afterwards, through onNewMessage and the video element.
+// So the session ends when the user leaves, not here.
+window.addEventListener('beforeunload', () => void agentManager.disconnect());
 ```
 
 `onVideoStateChange` is the right signal to swap video sources on a **legacy** stream — a Talks (V2) agent, or a Clips (V3) agent that did not ask for {@link StreamOptions.fluent | fluent}. A fluent stream sends one video for both states, and every Expressive (V4) session is fluent, so there is nothing to swap; branch on {@link AgentManager.getStreamType | getStreamType()} if the same code has to serve both.
 
 ## Where to go next
 
-- The four chat modes an application chooses between, and what each one creates on the wire: [Chat modes](https://sdk.d-id.com/documents/Chat_modes.html).
-- Running your own functions when the agent's LLM asks for them: [Client tools](https://sdk.d-id.com/documents/Client_tools.html).
-- Microphone, camera, speech-to-text and interrupts on Expressive (V4) agents: [Expressive media](https://sdk.d-id.com/documents/Expressive_media.html).
-- Which failures reject and which reach `onError`: [Handling errors](https://sdk.d-id.com/documents/Handling_errors.html).
+- The four chat modes an application chooses between, and what each one creates on the wire: [Chat modes](./chat-modes.md).
+- Running your own functions when the agent's LLM asks for them: [Client tools](./client-tools.md).
+- Microphone, camera, speech-to-text and interrupts on Expressive (V4) agents: [Expressive media](./expressive-media.md).
+- Which failures reject and which reach `onError`: [Handling errors](./handling-errors.md).
 
 ## See also
 

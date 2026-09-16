@@ -37,12 +37,15 @@ const agentManager = await sdk.createAgentManager('agt_fumf1234', {
 await agentManager.connect();
 await agentManager.speak({ type: 'text', input: "Hi! I'm Alice!" });
 await agentManager.chat('What is the distance to the moon?');
-await agentManager.disconnect();
+
+// Both calls resolve when the request is accepted, not when the agent has spoken — the
+// answer arrives through onNewMessage. So end the session when the user leaves, not here.
+window.addEventListener('beforeunload', () => void agentManager.disconnect());
 ```
 
 ## Next steps
 
-The full API reference — every method, callback, option and type, generated from the source on each release — is at **[sdk.d-id.com](https://sdk.d-id.com/)**. Start with [`createAgentManager()`](https://sdk.d-id.com/functions/createAgentManager.html), [`AgentManager`](https://sdk.d-id.com/interfaces/AgentManager.html) and [`AgentManagerCallbacks`](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html).
+The full API reference — every method, callback, option and type, generated from the source on each release — is at **[sdk.d-id.com](https://sdk.d-id.com/)**. Start with [`createAgentManager()`](https://sdk.d-id.com/functions/createAgentManager.html), [`AgentManager`](https://sdk.d-id.com/interfaces/AgentManager.html), [`AgentManagerCallbacks`](https://sdk.d-id.com/interfaces/AgentManagerCallbacks.html) and, on Talks (V2) and Clips (V3) agents, [`StreamOptions`](https://sdk.d-id.com/interfaces/StreamOptions.html).
 
 The guides:
 

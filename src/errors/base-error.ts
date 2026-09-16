@@ -67,7 +67,7 @@ export interface ErrorJson {
  * exception: a failure LiveKit raises inside a media call on an Expressive (V4) agent — no
  * microphone publication to replace, a room that is not connected — rejects with a plain `Error`,
  * and so do a few low-level guards inside {@link AgentManager.connect | connect()}, such as a
- * `livekit-client` package that is not installed, a transport the SDK does not recognise, or a
+ * `livekit-client` package that is not installed, a transport the SDK does not recognize, or a
  * stream the server created without a session id. An unknown
  * {@link AgentManagerOptions.auth | auth} type is a plain `Error` too. So keep the
  * `else throw error` branch in a handler built on {@link isDIDError}.
@@ -128,7 +128,8 @@ export class BaseError extends Error {
      * @example An HttpError from a request that was refused
      * ```json
      * {
-     *     "kind": "InsufficientCreditsError",
+     *     "kind": "HttpError",
+     *     "code": "InsufficientCreditsError",
      *     "message": "Account has insufficient credits",
      *     "httpStatus": 402,
      *     "endpoint": "/agt_x/chat/cht_y",

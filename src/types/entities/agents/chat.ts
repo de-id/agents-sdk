@@ -94,8 +94,8 @@ export interface SubmitFeedbackResponse {
  *
  * {@link parseMessageParts} splits a message's {@link Message.content | content} into these, and
  * the SDK keeps the result on {@link Message.parts}. Switch on `type` when rendering. Anything the
- * parser did not recognise is preserved verbatim as a `text` part, in its original order, and
- * nothing is dropped or reordered; a recognised image, video or link replaces the markup it was
+ * parser did not recognize is preserved verbatim as a `text` part, in its original order, and
+ * nothing is dropped or reordered; a recognized image, video or link replaces the markup it was
  * written as, so the parts are not a concatenation of the original string.
  *
  * @category Chat
@@ -498,7 +498,7 @@ export interface InterruptOptions {
      * `click` when they pressed a stop control, and `manual` for an interruption the application
      * decided on itself.
      *
-     * The SDK records it with the interruption for analytics. It changes behaviour in one case
+     * The SDK records it with the interruption for analytics. It changes behavior in one case
      * only: Expressive (V4) agents ignore a `text` interrupt, because their orchestrator does not
      * cancel the answer already in flight. Talks (V2) and Clips (V3) agents interrupt the current
      * video whatever the value.

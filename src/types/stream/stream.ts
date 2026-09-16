@@ -850,7 +850,7 @@ export interface TurnEventPayload {
  * {@link ConnectionState.Disconnected | 'disconnected'}, and is how you tell a session the server
  * closed on purpose from a connection that simply dropped — `reason` is an opaque transport
  * diagnostic in the latter case, so compare it against these values rather than parsing it. A
- * close reason the SDK does not recognise is forwarded as-is, which is the other reason to compare
+ * close reason the SDK does not recognize is forwarded as-is, which is the other reason to compare
  * against the enum. Which members can arrive depends on the agent type: Talks (V2) and Clips (V3)
  * agents report only {@link StreamEndReason.Ok | Ok},
  * {@link StreamEndReason.UnknownError | UnknownError},
@@ -861,9 +861,9 @@ export interface TurnEventPayload {
  *
  * @example Reacting to the limits an Expressive (V4) session reports
  * ```ts
- * import { ConnectionState, StreamEndReason } from '@d-id/client-sdk';
+ * import { ConnectionState, StreamEndReason, type AgentManagerCallbacks } from '@d-id/client-sdk';
  *
- * const callbacks = {
+ * const callbacks: AgentManagerCallbacks = {
  *     onConnectionStateChange(state, reason) {
  *         if (state !== ConnectionState.Disconnected) return;
  *
