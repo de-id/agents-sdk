@@ -240,7 +240,9 @@ export function createMessageEventQueue(
                 }
 
                 if (FAILED_EVENTS.includes(event)) {
-                    options.callbacks.onError?.(new StreamError(`Stream failed with event ${event}`), { data });
+                    options.callbacks.onError?.(new StreamError(`Stream failed with event ${event}`), {
+                        streamId: items.streamingManager?.streamId,
+                    });
                 }
 
                 if (data.event === SEvent.StreamDone) {

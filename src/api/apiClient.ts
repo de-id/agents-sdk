@@ -1,5 +1,6 @@
 import { HttpError, NetworkError } from '@sdk/errors';
 import { Auth } from '@sdk/types/auth';
+import { ErrorContext } from '@sdk/types/error-context';
 import { retryOperation } from '@sdk/utils/retry-operation';
 import { getAuthHeader } from '../auth/get-auth-header';
 import { didApiUrl } from '../config/environment';
@@ -29,7 +30,7 @@ const retryHttpTooManyRequests = <T>(operation: () => Promise<T>): Promise<T> =>
 export function createClient(
     auth: Auth,
     host = didApiUrl,
-    onError?: (error: Error, errorData: Record<string, unknown>) => void,
+    onError?: (error: Error, errorData: ErrorContext) => void,
     externalId?: string
 ) {
     const client = async <T>(url: string, options?: RequestOptions) => {
@@ -74,7 +75,7 @@ export function createClient(
                     visibility: typeof document !== 'undefined' ? document.visibilityState : undefined,
                 });
                 if (!skipErrorHandler) {
-                    onError?.(error, { url, options: fetchOptions });
+                    onError?.(error, { endpoint: url, method });
                 }
                 throw error;
             }
@@ -85,7 +86,7 @@ export function createClient(
             const error = new HttpError(request.status, errorText, { endpoint: url, method });
 
             if (!skipErrorHandler) {
-                onError?.(error, { url, options: fetchOptions, headers: request.headers });
+                onError?.(error, { endpoint: url, method });
             }
 
             throw error;

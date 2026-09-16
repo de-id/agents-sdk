@@ -64,7 +64,9 @@ describe('createClient', () => {
         expect(err.status).toBe(404);
         expect(err.endpoint).toBe('/agents/missing');
         expect(err.method).toBe('GET');
-        expect(data).toMatchObject({ url: '/agents/missing' });
+        // `toEqual`, not `toMatchObject`: the context is exactly the request, with no options,
+        // headers or body alongside it.
+        expect(data).toEqual({ endpoint: '/agents/missing', method: 'GET' });
     });
 
     it('should throw an HttpError when the response is 5xx', async () => {
@@ -75,7 +77,7 @@ describe('createClient', () => {
         const rejection = await client.post('/agents/x/chat', {}).catch(e => e);
         expect(rejection).toBeInstanceOf(HttpError);
         expect(rejection.status).toBe(504);
-        expect(onError.mock.calls[0][1]).toMatchObject({ url: '/agents/x/chat' });
+        expect(onError.mock.calls[0][1]).toEqual({ endpoint: '/agents/x/chat', method: 'POST' });
     });
 
     it('should retry a 429 and succeed when a later attempt is ok', async () => {
@@ -122,7 +124,7 @@ describe('createClient', () => {
         expect(onError).toHaveBeenCalledTimes(1);
         const [err, data] = onError.mock.calls[0];
         expect(err.kind).toBe('NetworkError');
-        expect(data).toMatchObject({ url: '/agents/x' });
+        expect(data).toEqual({ endpoint: '/agents/x', method: 'GET' });
     });
 
     it('should not route AbortError through onError when the request is cancelled', async () => {

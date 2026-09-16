@@ -1,6 +1,7 @@
 import {
     Auth,
     CreateStreamOptions,
+    ErrorContext,
     ICreateStreamRequestResponse,
     IceCandidate,
     RtcApi,
@@ -29,7 +30,7 @@ export function createStreamApi(
     auth: Auth,
     host: string,
     agentId: string,
-    onError?: (error: Error, errorData: Record<string, unknown>) => void
+    onError?: (error: Error, errorData: ErrorContext) => void
 ): RtcApi {
     const client = createClient(auth, `${host}/agents/${agentId}`, onError);
 

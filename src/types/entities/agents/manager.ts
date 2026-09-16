@@ -1,5 +1,6 @@
 import { SttTokenResponse } from '@sdk/types';
 import { Auth } from '@sdk/types/auth';
+import { ErrorContext } from '@sdk/types/error-context';
 import {
     AgentActivityState,
     ClientToolHandler,
@@ -240,16 +241,23 @@ export interface AgentManagerCallbacks {
      * method ({@link AgentManager.chat | chat()}, {@link AgentManager.speak | speak()} and the
      * rating methods), so they surface as a rejected promise rather than through this callback.
      *
-     * @param error - The error that occurred.
-     * @param errorData - Extra context about the failure, such as the request URL and options.
+     * @param error - The error that occurred. Narrow it with {@link isDIDError} and branch on
+     * {@link BaseError.kind | kind}; {@link BaseError.toJson | toJson()} is what to log.
+     * @param errorData - Where the failure happened, as an {@link ErrorContext}: the endpoint and
+     * method for a failed request, the session or stream id for a failure on the stream. Every
+     * field is optional and nothing else is passed — in particular not the request body, which
+     * carries the end user's own message.
      * @example
      * ```ts
      * onError(error, errorData) {
-     *     console.log('Error:', error, 'Error Data', errorData);
+     *     reportToYourErrorService({
+     *         ...(isDIDError(error) ? error.toJson() : { message: error.message }),
+     *         ...errorData,
+     *     });
      * }
      * ```
      */
-    onError?: (error: Error, errorData?: Record<string, unknown>) => void;
+    onError?: (error: Error, errorData?: ErrorContext) => void;
     /**
      * Called when the agent moves between idle, loading, talking and running a tool.
      *

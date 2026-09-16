@@ -9,6 +9,7 @@ import {
     ConnectionState,
     CreateStreamOptions,
     DataChannelTopic,
+    ErrorContext,
     InterruptOptions,
     Message,
     SpeakScript,
@@ -132,7 +133,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     });
 
     const originalOnError = managerOptions.callbacks.onError;
-    managerOptions.callbacks.onError = (error: Error, errorData?: Record<string, unknown>) => {
+    managerOptions.callbacks.onError = (error: Error, errorData?: ErrorContext) => {
         analytics.track('agent-error', { error: toErrorAnalytics(error) });
         originalOnError?.(error, errorData);
     };

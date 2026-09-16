@@ -2,6 +2,7 @@ import { Analytics } from '@sdk/services/analytics/mixpanel';
 import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/report';
 import { Auth } from '../auth';
 import { ChatProgressCallback } from '../entities/agents/manager';
+import { ErrorContext } from '../error-context';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
 import { ICreateStreamRequestResponse, IceCandidate, SpeakResponse, Status } from './rtc';
 
@@ -386,7 +387,7 @@ export interface StreamingManagerCallbacks {
     onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
-    onError?: (error: Error, errorData: Record<string, unknown>) => void;
+    onError?: (error: Error, errorData: ErrorContext) => void;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
     onVideoIdChange?: (videoId: string | null) => void;
