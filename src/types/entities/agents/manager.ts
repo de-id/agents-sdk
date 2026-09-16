@@ -955,10 +955,18 @@ export interface AgentManager {
      * no callback.
      *
      * @param options - What caused the interruption, as an {@link InterruptOptions}: `text`,
-     * `audio`, `click` or `manual`. Expressive (V4) agents drop `text` interrupts, because the
+     * `audio`, `click` or `manual`. Optional — a stop button is the common case, so leaving it out
+     * means `{ type: 'click' }`. Expressive (V4) agents drop `text` interrupts, because the
      * orchestrator does not cancel the in-flight answer for them.
+     * @example
+     * ```ts
+     * stopButton.onclick = () => agentManager.interrupt();
+     *
+     * // The user typed over the answer instead of pressing the button.
+     * agentManager.interrupt({ type: 'text' });
+     * ```
      */
-    interrupt(options: InterruptOptions): void;
+    interrupt(options?: InterruptOptions): void;
 
     /**
      * Switches the speech-to-text language in the middle of a session.

@@ -196,7 +196,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     const updateVideoId = (videoId: string | null) => analytics.enrich({ videoId });
 
-    const interrupt = ({ type }: InterruptOptions) => {
+    const interrupt = (options?: InterruptOptions) => {
+        // A stop button is the common case and carries no more information than "the user pressed
+        // it", so `interrupt()` with no argument means `{ type: 'click' }`.
+        const type = options?.type ?? 'click';
+
         const streamingManager = items.streamingManager;
         if (!streamingManager?.interruptAvailable || !streamingManager.isInterruptible) {
             return;

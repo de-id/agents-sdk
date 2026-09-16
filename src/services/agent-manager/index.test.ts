@@ -1027,6 +1027,30 @@ describe('createAgentManager', () => {
                 });
             });
 
+            it('should default to a click interrupt when called with no options', async () => {
+                await manager.chat('Hello');
+
+                manager.interrupt();
+
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
+                expect(mockAnalytics.track).toHaveBeenCalledWith(
+                    'agent-video-interrupt',
+                    expect.objectContaining({ type: 'click' })
+                );
+            });
+
+            it('should still take an explicit cause', async () => {
+                await manager.chat('Hello');
+
+                manager.interrupt({ type: 'audio' });
+
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('audio');
+                expect(mockAnalytics.track).toHaveBeenCalledWith(
+                    'agent-video-interrupt',
+                    expect.objectContaining({ type: 'audio' })
+                );
+            });
+
             // Guards propagation from a misbehaving streaming manager: the real ones never throw.
             it('should handle validateInterrupt rejection', async () => {
                 // Add a message to interrupt
