@@ -58,7 +58,11 @@ export function createStreamApi(auth: Auth, host: string, agentId: string, onErr
             };
         },
         close(streamId: string, sessionId: string) {
-            return client.delete<Status>(`/streams/${streamId}`, { session_id: sessionId });
+            // Teardown is best-effort, so it is kept out of `onError`: by the time this runs the
+            // session is often already gone server-side - expired while idle, or reaped when the
+            // peer connection closed just before - and the `missing or invalid session_id` that
+            // comes back is nothing the application can act on. `disconnect()` logs it instead.
+            return client.delete<Status>(`/streams/${streamId}`, { session_id: sessionId }, { skipErrorHandler: true });
         },
     };
 }

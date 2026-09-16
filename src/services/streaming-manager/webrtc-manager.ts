@@ -388,7 +388,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
 
                 try {
                     if (state === ConnectionState.Connected) {
-                        await close(streamIdFromServer, session_id).catch(_ => {});
+                        await close(streamIdFromServer, session_id);
                     }
                 } catch (e) {
                     log('Error on close stream connection', e);
