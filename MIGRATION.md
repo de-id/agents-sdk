@@ -104,6 +104,8 @@ Shapes are unchanged; only the names differ.
 - `onError`'s second argument is a declared `ErrorContext` (`endpoint`, `method`, `sessionId`, `streamId`, all optional) instead of `Record<string, unknown>`: `errorData.url` is now `errorData.endpoint`, and the request options, the request body and the response headers are no longer passed at all. Log the error itself — `toJson()` redacts it — and attach this alongside.
 - `submitFeedback(rating, answer?)` takes `1 | 2 | 3 | 4 | 5` instead of `number`, matching what the Agents API accepts and `rate()`'s `1 | -1`; a score computed as a `number` needs a narrow before it is passed.
 - `AgentManager.agent` and `AgentManager.starterMessages` are `readonly`, and `starterMessages` is `readonly string[]` and a copy — it used to be the very array held by `agent.starter_message`, so `manager.starterMessages.push(...)` changed the agent. Copy it before sorting or filtering in place.
+- `onSrcObjectReady` is optional on `AgentManagerCallbacks`, so a text-only application no longer has to pass a stub. It is still required for every chat mode that streams video: `createAgentManager()` rejects with a `ValidationError` when it is missing in any mode but `TextOnly`, `Playground` and `Maintenance` (`Off` and `DirectPlayback` create no chat but do stream video).
+- `ClientToolHandler` may return `string` as well as `Promise<string>`; a synchronous handler no longer has to be marked `async`.
 - `AgentManager` gained `getChatMode()`, `getConnectionState()` and `getSessionInfo()`, so the current mode, connection state and session ids no longer have to be mirrored from the callbacks; a hand-written `AgentManager` double has to implement them.
 
 ---

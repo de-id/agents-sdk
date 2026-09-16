@@ -22,7 +22,7 @@ import {
     Providers,
     StreamType,
 } from '../../types';
-import { isChatModeWithoutChat } from '../../utils/chat';
+import { isChatModeWithoutChat, isTextualChat } from '../../utils/chat';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
@@ -159,6 +159,48 @@ describe('createAgentManager', () => {
                 isEnabled: undefined,
                 externalId: 'custom-user',
                 mixpanelAdditionalProperties: undefined,
+            });
+        });
+
+        describe('onSrcObjectReady', () => {
+            const withoutSrcObjectReady = () => {
+                const { onSrcObjectReady, ...callbacks } = mockOptions.callbacks;
+                return { ...mockOptions, callbacks };
+            };
+
+            afterEach(() => {
+                (isTextualChat as jest.Mock).mockImplementation(() => false);
+            });
+
+            it.each([ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance])(
+                'should create a manager without it in %s',
+                async mode => {
+                    (isTextualChat as jest.Mock).mockImplementation(m =>
+                        [ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance].includes(m)
+                    );
+
+                    const manager = await createAgentManager('agent-123', { ...withoutSrcObjectReady(), mode });
+
+                    expect(manager).toBeDefined();
+                }
+            );
+
+            it.each([ChatMode.Functional, ChatMode.Off, ChatMode.DirectPlayback])(
+                'should reject without it in %s, which streams video',
+                async mode => {
+                    await expect(createAgentManager('agent-123', { ...withoutSrcObjectReady(), mode })).rejects.toThrow(
+                        ValidationError
+                    );
+                    await expect(createAgentManager('agent-123', { ...withoutSrcObjectReady(), mode })).rejects.toThrow(
+                        'callbacks.onSrcObjectReady is required'
+                    );
+                }
+            );
+
+            it('should not reach the Agents API when it is missing', async () => {
+                await expect(createAgentManager('agent-123', withoutSrcObjectReady())).rejects.toThrow(ValidationError);
+
+                expect(mockAgentsApi.getRuntimeById).not.toHaveBeenCalled();
             });
         });
 
@@ -1756,6 +1798,15 @@ describe('createAgentManager', () => {
             expect(handler1).not.toHaveBeenCalled();
             expect(handler2).toHaveBeenCalledWith({ key: 'val' });
             expect(result).toBe('result2');
+        });
+
+        it('should accept a synchronous handler and await its result all the same', async () => {
+            await manager.connect();
+            manager.registerClientTool('locale', args => JSON.stringify({ got: args.key }));
+
+            const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
+
+            await expect(rpcHandler({ payload: '{"key": "val"}' })).resolves.toBe('{"got":"val"}');
         });
 
         it('should reject with the handler reason verbatim', async () => {

@@ -55,20 +55,29 @@ export interface AgentManagerItems {
 const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
     'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
 
+// `onSrcObjectReady` is what puts the agent on screen, so every mode that streams video needs it.
+// The textual modes never produce a stream to render, and a text-only application should not have
+// to pass a stub to satisfy the type. `Off` and `DirectPlayback` are *not* in that set: they create
+// no chat but do stream video.
+const MISSING_SRC_OBJECT_READY =
+    'callbacks.onSrcObjectReady is required in every chat mode that streams video; ' +
+    'it is optional only in ChatMode.TextOnly, ChatMode.Playground and ChatMode.Maintenance';
+
 /**
  * Creates an {@link AgentManager} for one agent: its chat, its video stream and its connections.
  *
  * Fetches the agent from the Agents API before it resolves, so the returned manager already has
  * {@link AgentManager.agent | agent} and {@link AgentManager.starterMessages | starterMessages}
  * filled in. No stream is opened until {@link AgentManager.connect | connect()} is called.
- * {@link AgentManagerOptions.callbacks | callbacks} must include
- * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady}, which is what attaches the
- * streamed media to a video element.
- *
- * One option is checked here: an Expressive (V4) agent asked for {@link ChatMode.Off} or
- * {@link ChatMode.DirectPlayback}, which only Talks (V2) and Clips (V3) agents support, rejects
- * with a {@link ValidationError}. Every other bad argument surfaces later, as a
- * {@link ValidationError} rejected by the method that was called on the returned manager, such as
+ * Two options are checked here, and both reject with a {@link ValidationError}: an Expressive (V4)
+ * agent asked for {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}, which only Talks (V2)
+ * and Clips (V3) agents support; and
+ * {@link AgentManagerOptions.callbacks | callbacks} without
+ * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} in a mode that streams video —
+ * that callback is what attaches the streamed media to a video element, and only
+ * {@link ChatMode.TextOnly}, {@link ChatMode.Playground} and {@link ChatMode.Maintenance} can do
+ * without it. Every other bad argument surfaces later, as a {@link ValidationError} rejected by the
+ * method that was called on the returned manager, such as
  * {@link AgentManager.chat | chat()} or {@link AgentManager.speak | speak()}.
  *
  * @param agent - Id of the agent to talk to: the `data-agent-id` from its Embed snippet, or the `id`
@@ -77,7 +86,9 @@ const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
  * {@link AgentManagerOptions}.
  * @returns A manager for that agent, ready to {@link AgentManager.connect | connect()}.
  * @throws {@link ValidationError} When an Expressive (V4) agent is created with
- * {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}.
+ * {@link ChatMode.Off} or {@link ChatMode.DirectPlayback}, or when
+ * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is missing in a mode that
+ * streams video.
  * @throws {@link HttpError} When the agent cannot be fetched — an unknown id, or a client key that
  * is not authorized for the agent or the calling domain.
  * @throws {@link NetworkError} When the request for the agent never reaches the server: the browser
@@ -90,7 +101,8 @@ const UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE =
  * const agentManager = await sdk.createAgentManager('agt_fumf1234', {
  *     auth: { type: 'key', clientKey: 'YOUR_CLIENT_KEY' },
  *     callbacks: {
- *         // Required: hand the streamed media to your video element.
+ *         // Hand the streamed media to your video element. Required in every mode that
+ *         // streams video, which is every mode but TextOnly, Playground and Maintenance.
  *         onSrcObjectReady(value) {
  *             videoElement.srcObject = value;
  *         },
@@ -114,6 +126,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const wsURL = managerOptions.wsURL || didSocketApiUrl;
     const baseURL = managerOptions.baseURL || didApiUrl;
     const mode = managerOptions.mode || ChatMode.Functional;
+
+    if (!managerOptions.callbacks.onSrcObjectReady && !isTextualChat(mode)) {
+        throw new ValidationError(MISSING_SRC_OBJECT_READY);
+    }
 
     const items: AgentManagerItems = {
         messages: [],

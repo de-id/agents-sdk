@@ -60,9 +60,10 @@ export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data:
 /**
  * Handlers the SDK calls as the connection, the video stream and the chat change state.
  *
- * Pass the object as {@link AgentManagerOptions.callbacks}. Only
- * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is required — without it there
- * is nothing to render the agent into. Every handler is called from the SDK's own event handling,
+ * Pass the object as {@link AgentManagerOptions.callbacks}. Every handler is optional in the type,
+ * but {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is required in practice
+ * for any chat mode that streams video — without it there is nothing to render the agent into, and
+ * {@link createAgentManager} rejects. Every handler is called from the SDK's own event handling,
  * so keep the work inside short.
  *
  * The handlers fall into four groups: the connection
@@ -143,14 +144,22 @@ export interface AgentManagerCallbacks {
      */
     onVideoStateChange?: (state: StreamingState) => void;
     /**
-     * Called with the media stream carrying the agent's video and audio. Required.
+     * Called with the media stream carrying the agent's video and audio.
      *
-     * This is the one callback the SDK cannot work without: assign the value to the `srcObject` of
-     * your `<video>` element, and keep a reference to it, because
+     * This is the one callback a video session cannot work without: assign the value to the
+     * `srcObject` of your `<video>` element, and keep a reference to it, because
      * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} has to put it back
      * after the idle video has been shown. Triggered by
      * {@link AgentManager.connect | connect()}, {@link AgentManager.reconnect | reconnect()} and
      * {@link AgentManager.disconnect | disconnect()}.
+     *
+     * Optional only for the chat modes that never stream video — {@link ChatMode.TextOnly},
+     * {@link ChatMode.Playground} and {@link ChatMode.Maintenance} — so a text-only application
+     * does not have to supply a stub. {@link createAgentManager} rejects with a
+     * {@link ValidationError} when it is missing in any other mode, {@link ChatMode.Off} and
+     * {@link ChatMode.DirectPlayback} included: those two create no chat but still stream the
+     * agent's video. A manager created in a text-only mode without it and later moved into a video
+     * mode with {@link AgentManager.changeMode | changeMode()} has nothing to render into.
      *
      * @param srcObject - The live media stream to render.
      * @example
@@ -165,7 +174,7 @@ export interface AgentManagerCallbacks {
      * };
      * ```
      */
-    onSrcObjectReady: (srcObject: MediaStream) => void;
+    onSrcObjectReady?: (srcObject: MediaStream) => void;
     /**
      * Called with the whole chat transcript every time a message is added or updated.
      *
@@ -454,9 +463,9 @@ export interface AgentManagerOptions {
      * Handlers the SDK calls as the connection, the video stream and the chat change state.
      *
      * See {@link AgentManagerCallbacks}.
-     * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is mandatory — it is what
-     * connects the streamed media to your video element; the rest are optional. The handlers are
-     * captured at creation, so replacing one on this object later has no effect.
+     * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is what connects the
+     * streamed media to your video element, so every chat mode that streams video needs it. The
+     * handlers are captured at creation, so replacing one on this object later has no effect.
      */
     callbacks: AgentManagerCallbacks;
     /**

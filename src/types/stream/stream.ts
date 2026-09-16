@@ -610,17 +610,21 @@ export interface StreamInterruptPayload {
  *
  * @param args - The arguments the LLM produced for this call, already parsed from JSON.
  * @returns A JSON string with the tool's result, at most 15 KiB — the LiveKit RPC response limit;
- * a larger result fails the call with an RPC error.
+ * a larger result fails the call with an RPC error. A synchronous handler may return the string
+ * directly; the SDK awaits the result either way.
  * @example
  * ```ts
  * agentManager.registerClientTool('get_cart_total', async args => {
  *     const total = await cart.total(args.currency as string);
  *     return JSON.stringify({ total });
  * });
+ *
+ * // Nothing to await: the string is enough.
+ * agentManager.registerClientTool('get_locale', () => JSON.stringify({ locale: navigator.language }));
  * ```
  * @category Callbacks & Events
  */
-export type ClientToolHandler = (args: Record<string, unknown>) => Promise<string>;
+export type ClientToolHandler = (args: Record<string, unknown>) => string | Promise<string>;
 
 /**
  * Whether the agent waits for a tool call to finish before it carries on.
