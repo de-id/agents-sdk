@@ -845,14 +845,15 @@ export interface AgentManager {
      * Separate from {@link AgentManager.rate | rate()}, which scores a single answer. Collect it
      * when the user ends the call, using the agent's end-of-call feedback configuration.
      *
-     * @param rating - The user's score for the conversation, a whole number from 1 to 5.
+     * @param rating - The user's score for the conversation: 1, 2, 3, 4 or 5. The Agents API
+     * rejects anything else, whole numbers outside the range and fractions alike.
      * @param answer - The user's free-text answer to the follow-up question, when one was asked.
      * @returns The stored {@link SubmitFeedbackResponse}.
      * @throws {@link ValidationError} When no chat has started.
      * @throws {@link HttpError} When the feedback request comes back non-2xx.
      * @throws {@link NetworkError} When the feedback request never reaches the server.
      */
-    submitFeedback(rating: number, answer?: string): Promise<SubmitFeedbackResponse>;
+    submitFeedback(rating: 1 | 2 | 3 | 4 | 5, answer?: string): Promise<SubmitFeedbackResponse>;
     /**
      * Makes the agent stream back a video based on the text or audio file you provide.
      *

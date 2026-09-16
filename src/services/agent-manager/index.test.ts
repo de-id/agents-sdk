@@ -1256,6 +1256,19 @@ describe('createAgentManager', () => {
                 });
             });
 
+            it('should accept every score on the scale and reject anything else', async () => {
+                // The Agents API rejects a rating that is not an integer from 1 to 5
+                // (`feedback.ts`, "rating must be an integer between 1 and 5"), so the type does too.
+                await Promise.all(([1, 2, 3, 4, 5] as const).map(rating => manager.submitFeedback(rating)));
+
+                expect(mockAgentsApi.submitFeedback).toHaveBeenCalledTimes(5);
+
+                // @ts-expect-error 0 is below the scale.
+                await manager.submitFeedback(0);
+                // @ts-expect-error 4.5 is not a whole star.
+                await manager.submitFeedback(4.5);
+            });
+
             it('should throw error if chat not initialized when submitting feedback', async () => {
                 (initializeStreamAndChat as jest.Mock).mockResolvedValue({
                     streamingManager: mockStreamingManager,

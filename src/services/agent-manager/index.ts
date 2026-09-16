@@ -758,7 +758,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             return agentsApi.deleteRating(agentEntity.id, items.chat.id, id);
         },
-        async submitFeedback(rating: number, answer?: string) {
+        async submitFeedback(rating: 1 | 2 | 3 | 4 | 5, answer?: string) {
             if (!items.chat) {
                 throw new ValidationError('Chat is not initialized');
             }
