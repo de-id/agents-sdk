@@ -504,13 +504,15 @@ export interface AgentManagerOptions {
      * render them. On Talks (V2) and Clips (V3) agents they are also sent as context with the next
      * {@link AgentManager.chat | chat()} request. See {@link Message}.
      *
-     * {@link Message.parts | parts} is a required field, but it does not have to be filled: pass an
-     * empty array and the SDK builds the parts from `content` with {@link parseMessageParts}, so a
-     * transcript restored from `content` alone still renders. A non-empty array is kept as given.
+     * A row from your own storage is enough: {@link Message.parts | parts} and
+     * {@link Message.createdAt | createdAt} are optional, and the SDK builds the parts from
+     * `content` with {@link parseMessageParts} for every message that arrives without them, so a
+     * transcript restored from the text alone still renders. A non-empty `parts` array is kept as
+     * given.
      *
      * @example Restoring rows that carry only the message text
      * ```ts
-     * const initialMessages = stored.map(({ id, role, content }) => ({ id, role, content, parts: [] }));
+     * const initialMessages = stored.map(({ id, role, content }) => ({ id, role, content }));
      * ```
      */
     initialMessages?: Message[];
