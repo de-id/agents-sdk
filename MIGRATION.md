@@ -60,7 +60,7 @@ Shapes are unchanged; only the names differ.
 - `StreamEvents` is no longer exported; `onToolEvent` receives a `ToolCallEvent` (`Started`, `Done`, `Error`) with the same string values.
 - `StreamEvents.StreamCreated` — never emitted; use the `onStreamCreated` callback.
 - `Status` and `StickyRequest` — their `status` and session-id fields are declared directly on `SpeakResponse`, as `status` and `sessionId`.
-- `ToolEventPayload` — use the payload the `onToolEvent` overloads narrow to: `ToolCallStartedPayload`, `ToolCallDonePayload` or `ToolCallErrorPayload`.
+- `ToolEventPayload` — use the payload `onToolEvent` narrows to: `ToolCallStartedPayload`, `ToolCallDonePayload` or `ToolCallErrorPayload`.
 - `BaseStreamScript` and `StreamScriptType` — deleted; use `SpeakScript`, or `TextStreamScript`/`AudioStreamScript` directly.
 - `Chat` — no public method returns one; `onNewChat` reports the new chat's id.
 - `RateState` — the SDK never produced or consumed it; `rate()` takes `1 | -1` and returns a `Rating`.

@@ -327,7 +327,7 @@ export interface AgentManagerCallbacks {
      * one of {@link ToolCallEvent.Started}, {@link ToolCallEvent.Done} or
      * {@link ToolCallEvent.Error}; and `data`, the payload that event narrows to —
      * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} or
-     * {@link ToolCallErrorPayload} respectively. The overloads that do the narrowing are on
+     * {@link ToolCallErrorPayload} respectively. The signature that does the narrowing is on
      * {@link ToolEventCallback}, with an example handler.
      */
     onToolEvent?: ToolEventCallback;

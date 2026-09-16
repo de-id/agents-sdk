@@ -205,9 +205,9 @@ export enum StreamEvents {
  *
  * @example
  * ```ts
- * import { ToolCallEvent } from '@d-id/client-sdk';
+ * import { AgentManagerCallbacks, ToolCallEvent } from '@d-id/client-sdk';
  *
- * const callbacks = {
+ * const callbacks: AgentManagerCallbacks = {
  *     onToolEvent(event, data) {
  *         if (event === ToolCallEvent.Started) {
  *             console.log('started', data.name, data.input);
@@ -781,7 +781,8 @@ export interface ToolCallErrorPayload {
 }
 
 /**
- * Union of the three tool-call payloads, narrowed away by the overloads on {@link ToolEventCallback}.
+ * Union of the three tool-call payloads. {@link ToolEventCallback} pairs each one with its event,
+ * so a handler never sees this union.
  * @internal Implementation type; not part of the public SDK surface.
  */
 export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
@@ -917,20 +918,28 @@ export enum StreamEndReason {
 }
 
 /**
- * The overloaded handler type for
- * {@link AgentManagerCallbacks.onToolEvent | onToolEvent}: the event argument narrows the payload
- * argument.
+ * The handler type for {@link AgentManagerCallbacks.onToolEvent | onToolEvent}: the event argument
+ * narrows the payload argument.
  *
- * Three overloads, one per tool-call event, so the first argument narrows the second: a handler
- * written against this type sees exactly one of {@link ToolCallStartedPayload},
- * {@link ToolCallDonePayload} and {@link ToolCallErrorPayload}, never a union of the three.
- * Expressive (V4) agents only.
+ * One signature over three argument pairs, one pair per tool-call event, so the first argument
+ * narrows the second: a handler written against this type sees exactly one of
+ * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} and {@link ToolCallErrorPayload},
+ * never a union of the three — in an inline `onToolEvent(event, data) { … }` handler as much as in
+ * a standalone function annotated with this type. A payload that does not belong to its event is
+ * rejected. Expressive (V4) agents only.
+ *
+ * @param args - The event and the payload it carries, as one pair:
+ * {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload} — the call the agent has just
+ * begun, with the arguments its LLM produced; {@link ToolCallEvent.Done} with a
+ * {@link ToolCallDonePayload} — the call that has just finished, with the result the tool returned;
+ * or {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload} — the call that has just
+ * failed, with the reason in {@link ToolCallErrorPayload.error | error} when the server gave one.
  *
  * @example
  * ```ts
- * import { ToolCallEvent } from '@d-id/client-sdk';
+ * import { AgentManagerCallbacks, ToolCallEvent } from '@d-id/client-sdk';
  *
- * const callbacks = {
+ * const callbacks: AgentManagerCallbacks = {
  *     onToolEvent(event, data) {
  *         if (event === ToolCallEvent.Started) {
  *             console.log('started', data.name, data.input);
@@ -944,21 +953,9 @@ export enum StreamEndReason {
  * ```
  * @category Callbacks & Events
  */
-export type ToolEventCallback = {
-    /**
-     * @param event - Always {@link ToolCallEvent.Started} in this overload.
-     * @param data - The call the agent has just begun, with the arguments its LLM produced.
-     */
-    (event: ToolCallEvent.Started, data: ToolCallStartedPayload): void;
-    /**
-     * @param event - Always {@link ToolCallEvent.Done} in this overload.
-     * @param data - The call that has just finished, with the result the tool returned.
-     */
-    (event: ToolCallEvent.Done, data: ToolCallDonePayload): void;
-    /**
-     * @param event - Always {@link ToolCallEvent.Error} in this overload.
-     * @param data - The call that has just failed, with the reason in
-     * {@link ToolCallErrorPayload.error | error} when the server gave one.
-     */
-    (event: ToolCallEvent.Error, data: ToolCallErrorPayload): void;
-};
+export type ToolEventCallback = (
+    ...args:
+        | [event: ToolCallEvent.Started, data: ToolCallStartedPayload]
+        | [event: ToolCallEvent.Done, data: ToolCallDonePayload]
+        | [event: ToolCallEvent.Error, data: ToolCallErrorPayload]
+) => void;
