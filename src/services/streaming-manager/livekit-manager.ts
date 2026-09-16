@@ -145,7 +145,16 @@ function toErrorText(wire: ToolCallErrorWirePayload): string | undefined {
 function toErrorPayload(wire: ToolCallErrorWirePayload): ToolCallErrorPayload {
     const error = toErrorText(wire);
 
-    return { ...toFinishedPayload(wire), ...(error !== undefined ? { error } : {}) };
+    return {
+        callId: wire.call_id,
+        name: wire.name,
+        input: wire.input,
+        output: wire.output,
+        durationMs: wire.duration_ms,
+        extra: wire.extra,
+        ...(error !== undefined ? { error } : {}),
+        timestamp: wire.timestamp,
+    };
 }
 
 /**

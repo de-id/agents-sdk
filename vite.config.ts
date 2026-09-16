@@ -26,7 +26,8 @@ const minifyEsChunks = () => ({
         const { code: minified } = await transformWithEsbuild(code, 'chunk.js', {
             minify: true,
             target: 'es2020',
-            legalComments: 'none',
+            // Keep dependency licence banners in the published chunk.
+            legalComments: 'eof',
             sourcemap: false,
         });
 

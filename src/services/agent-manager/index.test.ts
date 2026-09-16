@@ -247,6 +247,47 @@ describe('createAgentManager', () => {
                 expect(createSocketManager).toHaveBeenCalled();
             });
 
+            it('should tear the session down when a connected DirectPlayback session moves to Functional', async () => {
+                // A DirectPlayback session has no notifications web socket and no chat, so it
+                // cannot carry a conversation: `connect()` has to run again for the new mode.
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+                const manager = await createAgentManager('agent-123', {
+                    ...mockOptions,
+                    mode: ChatMode.DirectPlayback,
+                });
+                await manager.connect();
+                expect(createSocketManager).not.toHaveBeenCalled();
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+                await expect(manager.chat('Hello')).rejects.toThrow('Streaming manager is not initialized');
+
+                // …and connecting again builds the session the new mode needs.
+                await manager.connect();
+                expect(createSocketManager).toHaveBeenCalled();
+            });
+
+            it('should keep a connected Functional session when the server reports the same mode', async () => {
+                const manager = await createAgentManager('agent-123', mockOptions);
+
+                await manager.connect();
+
+                expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+            });
+
+            it('should keep a connected TextOnly session that already has a socket and a chat', async () => {
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
+                await manager.connect();
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+            });
+
             it('should reject chat after changeMode moves a session into Off', async () => {
                 const manager = await createAgentManager('agent-123', mockOptions);
                 await manager.connect();
@@ -374,6 +415,76 @@ describe('createAgentManager', () => {
 
                     await expect(manager.connect()).resolves.toBeUndefined();
                     expect(initializeStreamAndChat).toHaveBeenCalledTimes(2);
+                });
+
+                it('should clear the guard when a connect fails, so a retry works', async () => {
+                    (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
+
+                    await expect(manager.connect()).rejects.toThrow('Connection failed');
+                    await expect(manager.connect()).resolves.toBeUndefined();
+
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(2);
+                });
+
+                it("should give a joining caller the first attempt's rejection", async () => {
+                    let reject: (error: Error) => void = () => {};
+                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
+                        new Promise((_resolve, r) => {
+                            reject = r;
+                        })
+                    );
+
+                    const first = manager.connect();
+                    const second = manager.connect();
+
+                    reject(new Error('Connection failed'));
+
+                    await expect(first).rejects.toThrow('Connection failed');
+                    await expect(second).rejects.toThrow('Connection failed');
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should join the attempt a reconnect already has in flight', async () => {
+                    await manager.connect();
+
+                    let release: (value: any) => void = () => {};
+                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
+                        new Promise(resolve => {
+                            release = resolve;
+                        })
+                    );
+                    (initializeStreamAndChat as jest.Mock).mockClear();
+
+                    const reconnecting = manager.reconnect();
+                    // Let the reconnect tear the old session down and start its own connect; the
+                    // window this closes is a public connect() landing after that teardown.
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    const connecting = manager.connect();
+
+                    release({ streamingManager: mockStreamingManager, chat: mockChat });
+                    await Promise.all([reconnecting, connecting]);
+
+                    // One session, not two: the public connect joined the reconnect's attempt.
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should let an in-flight connect settle before disconnecting', async () => {
+                    let release: (value: any) => void = () => {};
+                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
+                        new Promise(resolve => {
+                            release = resolve;
+                        })
+                    );
+
+                    const connecting = manager.connect();
+                    const disconnecting = manager.disconnect();
+
+                    release({ streamingManager: mockStreamingManager, chat: mockChat });
+                    await Promise.all([connecting, disconnecting]);
+
+                    // The session the connect opened was the one torn down, not a leftover.
+                    expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+                    await expect(manager.connect()).resolves.toBeUndefined();
                 });
 
                 it('should reject reconnect while a connect is in flight', async () => {

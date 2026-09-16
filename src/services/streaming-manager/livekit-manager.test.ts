@@ -1804,7 +1804,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onToolEvent).toHaveBeenCalledWith(
                 ToolCallEvent.Error,
-                expect.objectContaining({ error: 'ConnectionError: refused' })
+                expect.objectContaining({ error: 'ConnectionError: refused', output: 'ConnectionError: refused' })
             );
         });
 

@@ -170,6 +170,11 @@ export class BaseError extends Error {
  * further to one class and its own fields — `error.status` on an {@link HttpError},
  * `error.key` on a {@link ValidationError}.
  *
+ * The duck-typing is wider than the union it promises: a value built by a different copy of the
+ * SDK can carry a `kind` outside {@link DIDError} — a 2.x `HttpError` carried the server's
+ * classification there — so keep the `default` branch of a `switch` total rather than treating it
+ * as unreachable.
+ *
  * @param error - The caught value to test.
  * @returns `true` when `error` is an error the SDK raised.
  * @example

@@ -241,8 +241,22 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     });
 
     // One `connect()` at a time: React StrictMode double-invokes effects, and a second run would
-    // overwrite `items.streamingManager` and leave the first session open on the server.
+    // overwrite `items.streamingManager` and leave the first session open on the server. Every
+    // path that opens a session goes through `runConnect`, so a public `connect()` racing a
+    // `reconnect()` or the chat retry joins the attempt already running.
     let connectInFlight: Promise<void> | undefined;
+
+    function runConnect(newChat: boolean): Promise<void> {
+        if (connectInFlight) {
+            return connectInFlight;
+        }
+
+        connectInFlight = connect(newChat).finally(() => {
+            connectInFlight = undefined;
+        });
+
+        return connectInFlight;
+    }
 
     async function connect(newChat: boolean) {
         rotateConnectionId();
@@ -341,6 +355,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
     }
 
+    // What `connect()` builds depends on the mode: it skips the notifications web socket in
+    // DirectPlayback (and on Expressive agents, which never use one) and creates no chat in the
+    // modes without one. A session built for one mode can therefore be missing what another needs.
+    function sessionSupports(mode: ChatMode): boolean {
+        const needsSocket = !isStreamsV2 && mode !== ChatMode.DirectPlayback;
+        const needsChat = !isChatModeWithoutChat(mode);
+
+        return (!needsSocket || !!items.socketManager) && (!needsChat || !!items.chat);
+    }
+
     // The mode change itself, without the Expressive guard: the modes the server reports go
     // through here too, and those must not fail a connection that is otherwise fine.
     async function applyMode(mode: ChatMode) {
@@ -348,7 +372,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-mode-change', { mode });
             items.chatMode = mode;
 
-            if (items.chatMode !== ChatMode.Functional) {
+            // Every mode but Functional tears the stream down. Functional does too when the open
+            // session cannot carry a conversation — a DirectPlayback session has neither the
+            // notifications web socket the answer arrives on nor a chat to send to, so it would
+            // accept `chat()` and never answer. `connect()` then builds the right session.
+            if (items.chatMode !== ChatMode.Functional || !sessionSupports(items.chatMode)) {
                 await disconnect();
             }
 
@@ -381,20 +409,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 throw new ValidationError('Already connected; call disconnect() first');
             }
 
-            connectInFlight = (async () => {
-                await connect(true);
+            await runConnect(true);
 
-                analytics.track('agent-chat', {
-                    event: 'connect',
-                    mode: items.chatMode,
-                });
-            })();
-
-            try {
-                await connectInFlight;
-            } finally {
-                connectInFlight = undefined;
-            }
+            analytics.track('agent-chat', {
+                event: 'connect',
+                mode: items.chatMode,
+            });
         },
         async reconnect() {
             if (connectInFlight) {
@@ -408,13 +428,16 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 try {
                     await streamingManager.reconnect();
                 } catch (error) {
-                    fallbackReason = toErrorAnalytics(error).kind;
+                    const analyticsError = toErrorAnalytics(error);
+                    // Keep the Agents API's own classification where there is one — `kind` is the
+                    // literal `'HttpError'` for every failed request since 3.0.
+                    fallbackReason = analyticsError.code ?? analyticsError.kind;
                     await disconnect();
-                    await connect(false);
+                    await runConnect(false);
                 }
             } else {
                 await disconnect();
-                await connect(false);
+                await runConnect(false);
             }
 
             analytics.track('agent-chat', {
@@ -425,6 +448,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             });
         },
         async disconnect() {
+            // Let an in-flight connect settle first, so its assignment of `items.streamingManager`
+            // cannot land after this call cleared it and leave a session running on the server.
+            await connectInFlight?.catch(() => {});
             await disconnect();
 
             analytics.track('agent-chat', {
@@ -590,7 +616,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     },
                     onRetry: async () => {
                         await disconnect();
-                        await connect(false);
+                        await runConnect(false);
                     },
                 });
             };
