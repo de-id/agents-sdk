@@ -257,7 +257,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         const websocketPromise =
-            mode === ChatMode.DirectPlayback || isStreamsV2
+            items.chatMode === ChatMode.DirectPlayback || isStreamsV2
                 ? Promise.resolve(undefined)
                 : createSocketManager(
                       options.auth,
@@ -271,7 +271,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     agentEntity,
                     {
                         ...options,
-                        mode,
+                        mode: items.chatMode,
                         callbacks: {
                             ...options.callbacks,
                             onVideoIdChange: updateVideoId,
@@ -321,7 +321,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             mode: items.chatMode,
         });
 
-        const serverMode = chat?.chat_mode ?? mode;
+        const serverMode = chat?.chat_mode ?? items.chatMode;
         if (isStreamsV2 && isChatModeWithoutChat(serverMode)) {
             // The session is up; keep the mode we have rather than failing a working connection.
             console.warn(`[AgentManager] Ignoring chat mode "${serverMode}": ${UNSUPPORTED_CHAT_MODE_FOR_EXPRESSIVE}`);
@@ -487,8 +487,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         },
         async chat(userMessage: string) {
             const validateChatRequest = () => {
-                if (isChatModeWithoutChat(mode)) {
-                    throw new ValidationError(`${mode} is enabled, chat is disabled`);
+                if (isChatModeWithoutChat(items.chatMode)) {
+                    throw new ValidationError(`${items.chatMode} is enabled, chat is disabled`);
                 } else if (userMessage.length >= MAX_CHAT_MESSAGE_LENGTH) {
                     throw new ValidationError(`Message cannot be more than ${MAX_CHAT_MESSAGE_LENGTH} characters`);
                 } else if (userMessage.length === 0) {

@@ -215,6 +215,48 @@ describe('createAgentManager', () => {
             });
         });
 
+        describe('the chat and connect guards read the current mode', () => {
+            beforeEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(mode =>
+                    [ChatMode.DirectPlayback, ChatMode.Off].includes(mode)
+                );
+            });
+
+            afterEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(() => false);
+            });
+
+            it('should allow chat after changeMode moves a session out of Off', async () => {
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Off });
+
+                await manager.changeMode(ChatMode.Functional);
+                await manager.connect();
+
+                await expect(manager.chat('Hello')).resolves.toBeDefined();
+            });
+
+            it('should open the notifications web socket on connect once the mode allows chat', async () => {
+                const manager = await createAgentManager('agent-123', {
+                    ...mockOptions,
+                    mode: ChatMode.DirectPlayback,
+                });
+
+                await manager.changeMode(ChatMode.Functional);
+                await manager.connect();
+
+                expect(createSocketManager).toHaveBeenCalled();
+            });
+
+            it('should reject chat after changeMode moves a session into Off', async () => {
+                const manager = await createAgentManager('agent-123', mockOptions);
+                await manager.connect();
+
+                await manager.changeMode(ChatMode.Off);
+
+                await expect(manager.chat('Hello')).rejects.toThrow('Off is enabled, chat is disabled');
+            });
+        });
+
         it('should handle initial messages correctly', async () => {
             const initialMessages = [
                 { id: '1', role: 'user' as const, content: 'Hello', parts: [], createdAt: new Date().toISOString() },

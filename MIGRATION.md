@@ -88,6 +88,7 @@ Shapes are unchanged; only the names differ.
 - `interrupt()` never throws; where it used to throw on Talks (V2)/Clips (V3) streams it now returns silently, and the last message is marked `interrupted` only when an interrupt was actually sent.
 - `persistentChat` now defaults to `false` on Expressive (V4) agents too; v2 created those sessions with chat persistence on unless you passed `false`. Pass `persistentChat: true` to keep v2's behaviour.
 - `ChatMode.Off` and `ChatMode.DirectPlayback` are rejected with a `ValidationError` for Expressive (V4) agents; they were never supported there.
+- `chat()` and `connect()` now read the mode the session is in, not the one `createAgentManager` was given: `chat()` rejects whenever the current mode is `Off` or `DirectPlayback`, and works again after `changeMode(ChatMode.Functional)`; `connect()` decides on the notifications web socket the same way.
 - `initialMessages` get their `Message.parts` filled from `content` when they arrive with empty or missing `parts`; a non-empty array you supply is kept, and the SDK no longer pushes into the array you passed.
 - The five Expressive-only media methods reject with a `ValidationError` instead of a plain `Error` when the session is a Talks (V2) or Clips (V3) one, or `connect()` has not run yet.
 - `rate()`, `deleteRate()` and `submitFeedback()` are `async`: their `ValidationError` guard now rejects the returned promise instead of throwing synchronously, so `.catch()` sees it.

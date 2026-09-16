@@ -302,10 +302,12 @@ export interface RetrievalMetadata {
  * Chosen with {@link AgentManagerOptions.mode | mode} and changed later with
  * {@link AgentManager.changeMode | changeMode()}, which reports the new value through
  * {@link AgentManagerCallbacks.onModeChange | onModeChange}. Switching to anything other than
- * {@link ChatMode.Functional} disconnects the stream. What the mode decides at creation time is
- * narrower than it looks: whether a chat is created for the session, and whether the notifications
- * web socket is opened. {@link AgentManager.connect | connect()} establishes the video stream in
- * every mode. The server can also answer with a different mode than the one asked for when the chat
+ * {@link ChatMode.Functional} disconnects the stream. What the mode decides is narrower than it
+ * looks: whether a chat is created for the session, and whether
+ * {@link AgentManager.connect | connect()} opens the notifications web socket. Every guard reads
+ * the mode the session is in at the time of the call, not the one
+ * {@link createAgentManager} was given. {@link AgentManager.connect | connect()} establishes the
+ * video stream in every mode. The server can also answer with a different mode than the one asked for when the chat
  * is created; the SDK then adopts it and reports a {@link ChatModeDowngraded} error through
  * {@link AgentManagerCallbacks.onError | onError}.
  *
@@ -354,16 +356,13 @@ export enum ChatMode {
      * {@link AgentManager.changeMode | changeMode()} reject it with a {@link ValidationError} for
      * Expressive (V4) agents.
      *
-     * {@link AgentManager.chat | chat()} throws a {@link ValidationError} — but only when this was
-     * the mode {@link createAgentManager} was given, because that guard reads the creation-time
-     * mode rather than the current one; arriving here later through
-     * {@link AgentManager.changeMode | changeMode()} leaves {@link AgentManager.chat | chat()}
-     * working. Chosen at creation time it also skips the notifications web socket. Use it when
-     * the application drives the agent entirely through {@link AgentManager.speak | speak()} and
-     * never asks its LLM anything. The stream keeps running only when this is the mode
-     * {@link createAgentManager} was given; switching into it later with
-     * {@link AgentManager.changeMode | changeMode()} disconnects the stream like any other
-     * non-{@link ChatMode.Functional} mode.
+     * {@link AgentManager.chat | chat()} rejects with a {@link ValidationError} while this is the
+     * mode, however the session arrived at it. {@link AgentManager.connect | connect()} also skips
+     * the notifications web socket while it is in force. Use it when the application drives the
+     * agent entirely through {@link AgentManager.speak | speak()} and never asks its LLM anything.
+     * The stream keeps running only when this is the mode {@link createAgentManager} was given;
+     * switching into it later with {@link AgentManager.changeMode | changeMode()} disconnects the
+     * stream like any other non-{@link ChatMode.Functional} mode.
      */
     DirectPlayback = 'DirectPlayback',
     /**
@@ -373,8 +372,8 @@ export enum ChatMode {
      * {@link AgentManager.changeMode | changeMode()} reject it with a {@link ValidationError} for
      * Expressive (V4) agents.
      *
-     * {@link AgentManager.chat | chat()} throws a {@link ValidationError} under the same
-     * creation-time rule as {@link ChatMode.DirectPlayback}. The one difference between the two is
+     * {@link AgentManager.chat | chat()} rejects with a {@link ValidationError} while this is the
+     * mode, exactly as in {@link ChatMode.DirectPlayback}. The one difference between the two is
      * the notifications web socket: this mode still opens it on a Talks (V2) or Clips (V3) agent,
      * where {@link ChatMode.DirectPlayback} skips it. As with {@link ChatMode.DirectPlayback}, the
      * stream keeps running only when this is the mode set at creation; switching into it later with
