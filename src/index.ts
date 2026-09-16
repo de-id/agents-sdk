@@ -46,7 +46,7 @@ export type { AudioStreamScript, SpeakScript, TextStreamScript } from './types/s
 export { ChatMode } from './types/entities/agents/chat';
 export type {
     ChatResponse,
-    Interrupt,
+    InterruptOptions,
     Message,
     MessagePart,
     MessageSentiment,

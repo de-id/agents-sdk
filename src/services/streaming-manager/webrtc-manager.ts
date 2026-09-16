@@ -5,7 +5,7 @@ import {
     AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
-    Interrupt,
+    InterruptOptions,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
@@ -405,7 +405,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         interruptAvailable: interruptAvailable ?? false,
         isInterruptible: true,
 
-        interrupt(_type: Interrupt['type']) {
+        interrupt(_type: InterruptOptions['type']) {
             // Nothing to interrupt: the stream does not support it, is not fluent, or no video is playing.
             if (!interruptAvailable || streamType !== StreamType.Fluent || !currentVideoId) {
                 return false;

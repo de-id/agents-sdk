@@ -479,7 +479,7 @@ export interface Chat {
  *
  * @category Chat
  */
-export interface Interrupt {
+export interface InterruptOptions {
     /**
      * The cause: `text` when the user typed over the answer, `audio` when they started speaking,
      * `click` when they pressed a stop control, and `manual` for an interruption the application

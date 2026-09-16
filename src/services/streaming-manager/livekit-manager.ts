@@ -5,7 +5,7 @@ import {
     ConnectivityState,
     CreateSessionV2Options,
     CreateStreamOptions,
-    Interrupt,
+    InterruptOptions,
     Message,
     PayloadType,
     RunningToolCall,
@@ -894,7 +894,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         publishCameraStream,
         unpublishCameraStream,
 
-        interrupt(type: Interrupt['type']) {
+        interrupt(type: InterruptOptions['type']) {
             // Skip text interrupts for V2/expressive: the orchestrator does not
             // cancel the in-flight LLM token stream, and an extra interrupt while
             // a previous one is still settling causes races.

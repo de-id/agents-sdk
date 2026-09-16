@@ -42,6 +42,7 @@ import type { AgentManagerCallbacks } from '@d-id/client-sdk';
 | `AgentManager.getIsInterruptAvailable()` | `AgentManager.isInterruptAvailable()` |
 | `STTTokenResponse`         | `SttTokenResponse`       |
 | `AgentManager.getSTTToken()` | `AgentManager.getSttToken()` |
+| `Interrupt`                | `InterruptOptions`       |
 
 Shapes are unchanged; only the names differ.
 

@@ -9,7 +9,7 @@ import {
     ConnectionState,
     CreateStreamOptions,
     DataChannelTopic,
-    Interrupt,
+    InterruptOptions,
     Message,
     SpeakScript,
     StreamScript,
@@ -171,7 +171,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.enrich({ videoId: newVideoId });
     };
 
-    const interrupt = ({ type }: Interrupt) => {
+    const interrupt = ({ type }: InterruptOptions) => {
         if (!items.streamingManager?.interruptAvailable) {
             return;
         }

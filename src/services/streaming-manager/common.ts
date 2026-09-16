@@ -1,4 +1,4 @@
-import { CreateSessionV2Options, CreateStreamOptions, Interrupt, PayloadType, StreamType } from '@sdk/types';
+import { CreateSessionV2Options, CreateStreamOptions, InterruptOptions, PayloadType, StreamType } from '@sdk/types';
 import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
@@ -101,7 +101,7 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * interrupt type is one this transport drops), and `false` when the transport could not carry
      * it because the connection or the data channel is not up.
      */
-    interrupt(type: Interrupt['type']): boolean;
+    interrupt(type: InterruptOptions['type']): boolean;
 
     /**
      * Register an RPC method handler on the LiveKit room.

@@ -16,7 +16,7 @@ import {
 import { SpeakScript } from '@sdk/types/stream-script';
 import type { StreamingManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
 import { Agent } from './agent';
-import { ChatMode, ChatResponse, Interrupt, Message, Rating, SubmitFeedbackResponse } from './chat';
+import { ChatMode, ChatResponse, InterruptOptions, Message, Rating, SubmitFeedbackResponse } from './chat';
 
 /**
  * Types of events provided in Chat Progress Callback
@@ -848,11 +848,11 @@ export interface AgentManager {
      * actually sent. A call that finds nothing to interrupt leaves the message untouched and fires
      * no callback.
      *
-     * @param interrupt - What caused the interruption, as an {@link Interrupt}: `text`, `audio`,
-     * `click` or `manual`. Expressive (V4) agents drop `text` interrupts, because the orchestrator
-     * does not cancel the in-flight answer for them.
+     * @param options - What caused the interruption, as an {@link InterruptOptions}: `text`,
+     * `audio`, `click` or `manual`. Expressive (V4) agents drop `text` interrupts, because the
+     * orchestrator does not cancel the in-flight answer for them.
      */
-    interrupt(interrupt: Interrupt): void;
+    interrupt(options: InterruptOptions): void;
 
     /**
      * Switches the speech-to-text language in the middle of a session.
