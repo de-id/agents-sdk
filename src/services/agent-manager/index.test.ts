@@ -1029,9 +1029,9 @@ describe('createAgentManager', () => {
             });
 
             it('should get STT token', async () => {
-                const token = await manager.getSTTToken();
+                const token = await manager.getSttToken();
                 expect(token).toEqual({ token: 'stt-token' });
-                expect(mockAgentsApi.getSTTToken).toHaveBeenCalledWith('agent-123');
+                expect(mockAgentsApi.getSttToken).toHaveBeenCalledWith('agent-123');
             });
         });
     });

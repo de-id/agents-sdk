@@ -40,6 +40,8 @@ import type { AgentManagerCallbacks } from '@d-id/client-sdk';
 | `StreamTextToSpeechProviders` | `TtsProvider`         |
 | `RatingEntity`             | `Rating`                 |
 | `AgentManager.getIsInterruptAvailable()` | `AgentManager.isInterruptAvailable()` |
+| `STTTokenResponse`         | `SttTokenResponse`       |
+| `AgentManager.getSTTToken()` | `AgentManager.getSttToken()` |
 
 Shapes are unchanged; only the names differ.
 
@@ -73,7 +75,7 @@ Shapes are unchanged; only the names differ.
 - The five Expressive-only media methods are required members of `AgentManager` instead of optional; remove any `?.` guards.
 - `Agent.avatar` is typed `AgentAvatar` and its `type` is the `AvatarType` enum: build `Agent` values with `AvatarType.Talk`/`AvatarType.Clip`/`AvatarType.Expressive`; `===` comparisons against the string still compile but no longer narrow.
 - `AgentManagerOptions.mixpanelAdditionalProperties` and `enrichAnalytics()` are typed `Record<string, unknown>`; callers passing `Record<string, any>` are unaffected unless they rely on inference.
-- `agentManager.getSTTToken()` is now typed `Promise<STTTokenResponse>`; it never resolved `undefined` (a failed request throws `HttpError`).
+- `agentManager.getSttToken()` is now typed `Promise<SttTokenResponse>`; it never resolved `undefined` (a failed request throws `HttpError`).
 - `interrupt()` never throws; where it used to throw on Talks (V2)/Clips (V3) streams it now returns silently, and the last message is marked `interrupted` only when an interrupt was actually sent.
 - `persistentChat` now defaults to `false` on Expressive (V4) agents too; v2 created those sessions with chat persistence on unless you passed `false`. Pass `persistentChat: true` to keep v2's behaviour.
 - `ChatMode.Off` and `ChatMode.DirectPlayback` are rejected with a `ValidationError` for Expressive (V4) agents; they were never supported there.

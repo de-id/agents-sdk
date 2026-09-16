@@ -11,7 +11,7 @@ export type {
     StreamOptions,
 } from './types/entities/agents/manager';
 export { AvatarType } from './types/entities/avatar';
-export type { STTTokenResponse } from './types/voice/stt';
+export type { SttTokenResponse } from './types/voice/stt';
 
 // Callbacks & Events
 export {

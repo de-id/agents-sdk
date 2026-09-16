@@ -1,4 +1,4 @@
-import { STTTokenResponse } from '@sdk/types';
+import { SttTokenResponse } from '@sdk/types';
 import { Auth } from '@sdk/types/auth';
 import {
     AgentActivityState,
@@ -569,12 +569,12 @@ export interface AgentManager {
      * The SDK sends the request whenever it is called, connected or not; the service decides
      * whether to issue a token for the agent.
      *
-     * @returns The {@link STTTokenResponse} for this agent.
+     * @returns The {@link SttTokenResponse} for this agent.
      * @throws {@link HttpError} When the service does not answer with a token, or the request comes
      * back non-2xx for any other reason.
      * @throws {@link NetworkError} When the request never reaches the server.
      */
-    getSTTToken(): Promise<STTTokenResponse>;
+    getSttToken(): Promise<SttTokenResponse>;
     /**
      * Opens a new session with the agent: a new WebRTC connection, a new web socket and a new chat.
      *

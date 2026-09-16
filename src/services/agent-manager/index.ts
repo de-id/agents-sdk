@@ -369,7 +369,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         getStreamType: () => items.streamingManager?.streamType,
         isInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
         starterMessages: agentEntity.starter_message || [],
-        getSTTToken: () => agentsApi.getSTTToken(agentEntity.id),
+        getSttToken: () => agentsApi.getSttToken(agentEntity.id),
         changeMode,
         enrichAnalytics: analytics.enrich,
         async connect() {

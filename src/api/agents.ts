@@ -6,7 +6,7 @@ import {
     ChatResponse,
     Rating,
     RatingPayload,
-    STTTokenResponse,
+    SttTokenResponse,
     SubmitFeedbackResponse,
 } from '@sdk/types/index';
 import { didApiUrl } from '../config/environment';
@@ -53,8 +53,8 @@ export function createAgentsApi(
         ) {
             return client.post<SubmitFeedbackResponse>(`/${agentId}/chat/${chatId}/feedback`, payload, options);
         },
-        getSTTToken(agentId: string, options?: RequestOptions) {
-            return client.get<STTTokenResponse>(`/${agentId}/stt-token`, options);
+        getSttToken(agentId: string, options?: RequestOptions) {
+            return client.get<SttTokenResponse>(`/${agentId}/stt-token`, options);
         },
     };
 }
