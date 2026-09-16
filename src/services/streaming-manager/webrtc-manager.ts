@@ -18,11 +18,18 @@ import { createStreamingLogger, StreamingManager } from './common';
 import { createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
-const actualRTCPC = (
-    window.RTCPeerConnection ||
-    (window as any).webkitRTCPeerConnection ||
-    (window as any).mozRTCPeerConnection
-).bind(window);
+// Resolved on first use, not at module evaluation: importing the package must not
+// touch `window` (server-side rendering evaluates this module in Node).
+const getRTCPeerConnection = (): typeof RTCPeerConnection => {
+    const w = globalThis as any;
+    const impl = w.RTCPeerConnection || w.webkitRTCPeerConnection || w.mozRTCPeerConnection;
+
+    if (!impl) {
+        throw new Error('RTCPeerConnection is not available in this environment');
+    }
+
+    return impl.bind(w);
+};
 
 type DataChannelPayload = string | Record<string, unknown>;
 type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void;
@@ -182,7 +189,9 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     }
 
     callbacks.onStreamCreated?.({ streamId: streamIdFromServer, sessionId: session_id, agentId });
-    const peerConnection = new actualRTCPC({ iceServers: ice_servers });
+
+    const reportError = (error: Error) => callbacks.onError?.(error, { streamId: streamIdFromServer });
+    const peerConnection = new (getRTCPeerConnection())({ iceServers: ice_servers });
     const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
     const streamType = fluent ? StreamType.Fluent : StreamType.Legacy;
@@ -240,7 +249,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 addIceCandidate(streamIdFromServer, { candidate: null }, session_id, signal);
             }
         } catch (e: any) {
-            callbacks.onError?.(e, { streamId: streamIdFromServer });
+            reportError(e);
         }
     };
 
@@ -328,12 +337,10 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     await startConnection(streamIdFromServer, sessionClientAnswer, session_id, signal);
     log('start connection OK');
 
-    async function sendDataChannelMessage(_topic: InternalDataChannelTopic, payload: string) {
+    async function sendDataChannelMessage(_topic: `${InternalDataChannelTopic}`, payload: string) {
         if (!isConnected || pcDataChannel.readyState !== 'open') {
             log('Data channel is not ready for sending messages');
-            callbacks.onError?.(new StreamError('Data channel is not ready for sending messages'), {
-                streamId: streamIdFromServer,
-            });
+            reportError(new StreamError('Data channel is not ready for sending messages'));
             return;
         }
 
@@ -341,7 +348,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
             pcDataChannel.send(payload);
         } catch (e: any) {
             log('Error sending data channel message', e);
-            callbacks.onError?.(e, { streamId: streamIdFromServer });
+            reportError(e);
         }
     }
 

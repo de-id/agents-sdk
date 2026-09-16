@@ -48,7 +48,7 @@ describe('createClient', () => {
         await expect(client.get('/agents/x')).resolves.toEqual({ id: 'x' });
     });
 
-    it('should throw an HttpError with the server kind + status when the response is a non-2xx', async () => {
+    it('should throw an HttpError with the server code + status when the response is a non-2xx', async () => {
         const body = JSON.stringify({ kind: 'NotFoundError', description: 'agent not found' });
         fetchSpy.mockResolvedValue(fakeResponse({ status: 404, statusText: 'Not Found', bodyText: body }));
         const onError = jest.fn();
@@ -58,7 +58,8 @@ describe('createClient', () => {
 
         expect(onError).toHaveBeenCalledTimes(1);
         const [err, data] = onError.mock.calls[0];
-        expect(err.kind).toBe('NotFoundError'); // parsed from server envelope
+        expect(err.kind).toBe('HttpError');
+        expect(err.code).toBe('NotFoundError'); // parsed from server envelope
         expect(err.message).toBe('agent not found');
         expect(err.status).toBe(404);
         expect(err.endpoint).toBe('/agents/missing');
@@ -168,7 +169,8 @@ describe('createClient', () => {
 
             const rejection = await client.get('/agents/missing').catch(e => e);
             expect(toErrorAnalytics(rejection)).toEqual({
-                kind: 'NotFoundError',
+                kind: 'HttpError',
+                code: 'NotFoundError',
                 message: 'agent not found',
                 httpStatus: 404,
                 endpoint: '/agents/missing',
@@ -196,7 +198,7 @@ describe('createClient', () => {
     });
 
     describe('typed error contract for consumers', () => {
-        it('should expose an HTTP error with the server kind, status, and a human message', async () => {
+        it('should expose an HTTP error with the server code, status, and a human message', async () => {
             const body = JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' });
             fetchSpy.mockResolvedValue(fakeResponse({ status: 402, bodyText: body }));
             const client = createClient(auth, 'https://api.example.com');
@@ -204,7 +206,8 @@ describe('createClient', () => {
             const error = await client.get('/agents/x').catch(e => e);
             expect(isDIDError(error)).toBe(true);
             expect(error).toBeInstanceOf(HttpError);
-            expect(error.kind).toBe('InsufficientCreditsError');
+            expect(error.kind).toBe('HttpError');
+            expect(error.code).toBe('InsufficientCreditsError');
             expect(error.status).toBe(402);
             expect(error.message).toBe('no credits');
         });

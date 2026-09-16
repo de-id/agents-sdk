@@ -68,13 +68,19 @@ Shapes are unchanged; only the names differ.
 - `NetworkErrorMeta` — read `endpoint`, `method`, `durationMs`, `online` and `visibility` off the `NetworkError` instance.
 - `Message.videoId` — never set by the SDK; read `ChatResponse.videoId` from the `chat()` result instead.
 - `SDK_VERSION` — internal analytics value; no longer exported.
+- Members and types marked `@internal` are stripped from the published `.d.ts`; none of them were supported.
 
 ## Behaviour clarifications
 
+- `createAgentManager()` no longer writes into the options object it is given: it does not replace your `callbacks.onError` with its analytics wrapper and does not set `debug` from the agent's `ui_debug_mode`. Two managers can share one options object, and handlers assigned to `callbacks` after creation are no longer picked up.
 - Naming rule: shapes the SDK builds (`Message`, `SpeakResponse`, `StreamCreatedInfo`, the tool-call payloads, options) are camelCase; Agents API entities (`Agent`, `Rating`, `Voice`, the TTS provider objects) keep the API's snake_case field names.
-- Every error subclass declares its `kind` as a literal, so branching on `kind` narrows the caught error; `HttpError.kind` stays `string` because it carries the server's own classification.
+- Every error subclass declares its `kind` as a literal, `HttpError` included; the Agents API's own classification moved to the new `HttpError.code` (and to `code` in `toJson()`), so `error.kind === 'InsufficientCreditsError'` becomes `error.code === 'InsufficientCreditsError'`.
+- `isDIDError()` narrows to the new exported `DIDError` union instead of `BaseError`, so a `switch` on `kind` inside the branch now reaches `HttpError.status`, `ValidationError.key` and the other subclass fields, and an exhaustive `switch` leaves `never`.
+- `ErrorJson`'s index signature is `unknown` instead of `any`, so a key it does not declare has to be narrowed before it is used; `code` is declared alongside `kind`, `message` and `cause`.
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, videoId: '' }` instead of `undefined`, matching its declared type.
 - The three `onToolEvent` payloads are camelCase like the rest of the SDK: `call_id` is now `callId`, `execution_mode` `executionMode`, `turn_id` `turnId` and `duration_ms` `durationMs`; only the documented fields are forwarded.
+- `ToolCallStartedPayload.executionMode` is required and normalised to `'blocking'` when the server omits it, matching `RunningToolCall.executionMode` for the same call; `ToolCallStartedPayload.output` is optional, because a started event is emitted before the tool has run.
+- `ToolCallErrorPayload` carries the failure text as `error?: string`, taken from `extra.error.message` or from a plain-string `output`; the structured failure stays in `extra.error`, and `output` is typed `Record<string, unknown> | string` because that is what the server sends on a failure.
 - `SpeakResponse` fields are camelCase: `sessionId`, `videoId` (`status` and `duration` are unchanged). The Agents API still answers in snake_case; the SDK converts.
 - `StreamCreatedInfo` fields are camelCase: `agentId`, `sessionId`, `streamId`.
 - `Message.created_at` is now `Message.createdAt`; the SDK sets it, and an `initialMessages` transcript restored from your own storage must use the new name.
@@ -85,11 +91,15 @@ Shapes are unchanged; only the names differ.
 - `interrupt()` never throws; where it used to throw on Talks (V2)/Clips (V3) streams it now returns silently, and the last message is marked `interrupted` only when an interrupt was actually sent.
 - `persistentChat` now defaults to `false` on Expressive (V4) agents too; v2 created those sessions with chat persistence on unless you passed `false`. Pass `persistentChat: true` to keep v2's behaviour.
 - `ChatMode.Off` and `ChatMode.DirectPlayback` are rejected with a `ValidationError` for Expressive (V4) agents; they were never supported there.
+- `chat()` and `connect()` now read the mode the session is in, not the one `createAgentManager` was given: `chat()` rejects whenever the current mode is `Off` or `DirectPlayback`, and works again after `changeMode(ChatMode.Functional)`; `connect()` decides on the notifications web socket the same way.
+- `changeMode()` also disconnects an open session when it moves *into* `ChatMode.Functional` from a mode that was missing what Functional needs — a `DirectPlayback` session has no notifications web socket and no chat. Call `connect()` again after such a change.
 - `initialMessages` get their `Message.parts` filled from `content` when they arrive with empty or missing `parts`; a non-empty array you supply is kept, and the SDK no longer pushes into the array you passed.
 - The five Expressive-only media methods reject with a `ValidationError` instead of a plain `Error` when the session is a Talks (V2) or Clips (V3) one, or `connect()` has not run yet.
 - `rate()`, `deleteRate()` and `submitFeedback()` are `async`: their `ValidationError` guard now rejects the returned promise instead of throwing synchronously, so `.catch()` sees it.
+- `connect()` is idempotent: a call made while one is in flight joins it, and a call made when a session is already open rejects with a `ValidationError` instead of leaking the first session — call `disconnect()` first. `reconnect()` rejects the same way while a `connect()` is in flight.
 - `changeMode()` now returns a `Promise` — it always was asynchronous (it disconnects the stream); await it, and catch `ValidationError` for unsupported modes.
 - A `429` from the Agents API is now retried twice, one second apart, before it surfaces as an `HttpError`; in v2 the retry never fired.
+- `AgentManagerOptions.baseURL`, `AgentManagerOptions.wsURL` and `AgentManager.enrichAnalytics()` are documented as advanced members instead of hidden; their behaviour is unchanged.
 
 ---
 

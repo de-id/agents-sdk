@@ -8,6 +8,7 @@ import {
     StreamError,
     ValidationError,
     WsError,
+    isDIDError,
 } from './index';
 
 describe('SDK errors', () => {
@@ -78,11 +79,13 @@ describe('SDK errors', () => {
             const err = new HttpError(402, body, { endpoint: '/agents/x/chat', method: 'POST' });
 
             expect(err).toBeInstanceOf(HttpError);
-            expect(err.kind).toBe('InsufficientCreditsError');
+            expect(err.kind).toBe('HttpError');
+            expect(err.code).toBe('InsufficientCreditsError');
             expect(err.message).toBe('no credits');
             expect(err.status).toBe(402);
             expect(err.toJson()).toEqual({
-                kind: 'InsufficientCreditsError',
+                kind: 'HttpError',
+                code: 'InsufficientCreditsError',
                 message: 'no credits',
                 httpStatus: 402,
                 endpoint: '/agents/x/chat',
@@ -90,12 +93,11 @@ describe('SDK errors', () => {
             });
         });
 
-        it('should fall back to kind "HttpError" + raw body when the body is not the envelope', () => {
+        it('should fall back to code "HttpError" + raw body when the body is not the envelope', () => {
             const err = new HttpError(504, '<html>gateway timeout</html>');
-            expect(err.kind).toBe('HttpError');
-            expect(err.message).toBe('<html>gateway timeout</html>');
             expect(err.toJson()).toEqual({
                 kind: 'HttpError',
+                code: 'HttpError',
                 message: '<html>gateway timeout</html>',
                 httpStatus: 504,
             });
@@ -107,7 +109,7 @@ describe('SDK errors', () => {
 
         it('should expose only mapped keys in toJson, never raw status/url/method', () => {
             const json = new HttpError(500, 'boom', { endpoint: '/x', method: 'GET' }).toJson();
-            expect(Object.keys(json).sort()).toEqual(['endpoint', 'httpStatus', 'kind', 'message', 'method']);
+            expect(Object.keys(json).sort()).toEqual(['code', 'endpoint', 'httpStatus', 'kind', 'message', 'method']);
             expect(json).not.toHaveProperty('status');
             expect(json).not.toHaveProperty('url');
         });
@@ -115,6 +117,7 @@ describe('SDK errors', () => {
         it('should omit endpoint/method from toJson when the call context is absent', () => {
             expect(new HttpError(500, 'boom').toJson()).toEqual({
                 kind: 'HttpError',
+                code: 'HttpError',
                 message: 'boom',
                 httpStatus: 500,
             });
@@ -223,12 +226,55 @@ describe('SDK errors', () => {
             expect(seen).toEqual(['StreamError', 'ValidationError:message', 'ChatModeDowngraded']);
         });
 
-        it('should leave HttpError.kind a plain string, so the server classification survives', () => {
+        it('should keep the server classification on HttpError.code, not on kind', () => {
             const body = JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' });
-            const kind: string = new HttpError(402, body).kind;
+            const err = new HttpError(402, body);
+            const kind: 'HttpError' = err.kind;
+            const code: string = err.code;
 
-            expect(kind).toBe('InsufficientCreditsError');
-            expect(new HttpError(504, 'gateway timeout').kind).toBe('HttpError');
+            expect(kind).toBe('HttpError');
+            expect(code).toBe('InsufficientCreditsError');
+            expect(new HttpError(504, 'gateway timeout').code).toBe('HttpError');
+        });
+
+        it('should narrow a value isDIDError recognized all the way down to one class', () => {
+            const raised: unknown[] = [
+                new HttpError(402, JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' })),
+                new NetworkError(new TypeError('Failed to fetch'), { endpoint: '/agents/x', method: 'GET' }),
+                new StreamError('Stream Error'),
+            ];
+            const seen: string[] = [];
+
+            for (const error of raised) {
+                if (!isDIDError(error)) {
+                    throw error;
+                }
+
+                switch (error.kind) {
+                    case 'HttpError':
+                        // narrowed to HttpError: `status` and `code` exist on no other branch
+                        seen.push(`HttpError:${error.status}:${error.code}`);
+                        break;
+                    case 'NetworkError':
+                        // narrowed to NetworkError: `endpoint` is typed here
+                        seen.push(`NetworkError:${error.endpoint}`);
+                        break;
+                    case 'StreamError':
+                    case 'WSError':
+                    case 'ValidationError':
+                    case 'ChatCreationFailed':
+                    case 'ChatModeDowngraded':
+                        seen.push(error.kind);
+                        break;
+                    default: {
+                        // every member of DIDError is handled, so nothing is left
+                        const exhaustive: never = error;
+                        throw new Error(`unreachable: ${JSON.stringify(exhaustive)}`);
+                    }
+                }
+            }
+
+            expect(seen).toEqual(['HttpError:402:InsufficientCreditsError', 'NetworkError:/agents/x', 'StreamError']);
         });
     });
 

@@ -7,14 +7,15 @@ import {
     ConnectionState,
     ConnectivityState,
     DataChannelTopic,
+    RunningToolCall,
     SpeakResponse,
     StreamCreatedInfo,
     StreamEvents,
     StreamType,
     StreamingState,
+    ToolEventCallback,
 } from '@sdk/types/stream';
 import { SpeakScript } from '@sdk/types/stream-script';
-import type { StreamingManagerCallbacks as StreamManagerCallbacks } from '../../stream/stream';
 import { Agent } from './agent';
 import { ChatMode, ChatResponse, InterruptOptions, Message, Rating, SubmitFeedbackResponse } from './chat';
 
@@ -280,7 +281,7 @@ export interface AgentManagerCallbacks {
      * {@link ToolCallErrorPayload} respectively. The overloads that do the narrowing are on
      * {@link ToolEventCallback}, with an example handler.
      */
-    onToolEvent?: StreamManagerCallbacks['onToolEvent'];
+    onToolEvent?: ToolEventCallback;
     /**
      * Called when the agent becomes interruptible, or stops being interruptible.
      *
@@ -291,14 +292,20 @@ export interface AgentManagerCallbacks {
      * the session supports interrupting at all. Use this one to enable or disable an interrupt
      * button. Talks (V2) and Clips (V3) agents never report a change.
      */
-    onInterruptibleChange?: StreamManagerCallbacks['onInterruptibleChange'];
+    onInterruptibleChange?: (
+        /** `true` while there is something to interrupt, `false` while there is not. */
+        interruptible: boolean
+    ) => void;
     /**
      * Called whenever the set of tool calls running in the session changes.
      *
      * Expressive (V4) agents only. Fires with an empty array on disconnect, so a spinner driven by
      * this callback always clears. Each entry is a {@link RunningToolCall}.
      */
-    onRunningToolCallsChange?: StreamManagerCallbacks['onRunningToolCallsChange'];
+    onRunningToolCallsChange?: (
+        /** Every tool call running right now, empty when none is. */
+        calls: readonly RunningToolCall[]
+    ) => void;
 }
 
 /**
@@ -364,6 +371,12 @@ export interface StreamOptions {
  * {@link AgentManagerOptions.auth | auth} and {@link AgentManagerOptions.callbacks | callbacks} are
  * required; the rest have defaults that suit a browser application talking to D-ID production.
  *
+ * {@link createAgentManager} reads the object once, at creation, and never writes to it: the
+ * manager works from its own copy, so one options object can create two managers, and a property
+ * you read back afterwards is still the one you set. The same means a handler assigned to
+ * {@link AgentManagerOptions.callbacks | callbacks} after the manager exists is not picked up —
+ * give the callback a stable identity and dispatch inside it instead.
+ *
  * @category Agent Manager
  */
 export interface AgentManagerOptions {
@@ -380,7 +393,8 @@ export interface AgentManagerOptions {
      *
      * See {@link AgentManagerCallbacks}.
      * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is mandatory — it is what
-     * connects the streamed media to your video element; the rest are optional.
+     * connects the streamed media to your video element; the rest are optional. The handlers are
+     * captured at creation, so replacing one on this object later has no effect.
      */
     callbacks: AgentManagerCallbacks;
     /**
@@ -396,15 +410,23 @@ export interface AgentManagerOptions {
      */
     mode?: ChatMode;
     /**
-     * Base URL of the D-ID Agents API. Used by D-ID to point the SDK at a test environment.
+     * Base URL of the D-ID Agents API.
      *
-     * @internal
+     * Advanced. Points the SDK at another D-ID environment. Production applications do not set
+     * this. Every REST call the manager makes — agent lookup, chat, ratings, stream creation — is
+     * addressed against it.
+     *
+     * @defaultValue D-ID's production Agents API.
      */
     baseURL?: string;
     /**
-     * URL of the D-ID notifications web socket. Used by D-ID to point the SDK at a test environment.
+     * URL of the D-ID notifications web socket.
      *
-     * @internal
+     * Advanced. Points the SDK at another D-ID environment. Production applications do not set
+     * this. Only opened in the chat modes that stream the agent's answer, so it has no effect in
+     * {@link ChatMode.DirectPlayback | DirectPlayback} or {@link ChatMode.Off | Off}.
+     *
+     * @defaultValue D-ID's production notifications web socket.
      */
     wsURL?: string;
     /**
@@ -580,10 +602,16 @@ export interface AgentManager {
      *
      * Resolves once the connection reaches {@link ConnectionState.Connected | 'connected'}, by
      * which point {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} has been called
-     * with the media stream to render. Calling it again starts a fresh conversation; to keep the
-     * current one use {@link AgentManager.reconnect | reconnect()}.
+     * with the media stream to render.
+     *
+     * One session at a time: while a call is still in flight a second call returns that same
+     * promise rather than opening a second session, which is what makes it safe in a React
+     * StrictMode effect. Once a session exists it rejects instead — call
+     * {@link AgentManager.disconnect | disconnect()} first to start a fresh conversation, or
+     * {@link AgentManager.reconnect | reconnect()} to keep the current one.
      *
      * @returns Resolves when the agent is connected and ready.
+     * @throws {@link ValidationError} When a session is already open.
      * @throws {@link HttpError} When creating the stream or the chat comes back non-2xx — a client
      * key that is not authorized for the agent or the calling domain, or an account out of
      * credits. The SDK tries the initialization up to three times first, except on `429` and on an
@@ -604,6 +632,8 @@ export interface AgentManager {
      * the SDK falls back to a disconnect and a fresh connect, which starts a new chat id.
      *
      * @returns Resolves when the new stream is connected.
+     * @throws {@link ValidationError} When a {@link AgentManager.connect | connect()} is still in
+     * flight; wait for it to settle first.
      * @throws {@link HttpError} When creating the new stream comes back non-2xx.
      * @throws {@link NetworkError} When that request never reaches the server.
      */
@@ -807,8 +837,12 @@ export interface AgentManager {
      *
      * Anything other than {@link ChatMode.Functional} disconnects the stream, since those modes do
      * not produce video, which is why this is asynchronous: the returned promise resolves once that
-     * disconnect has finished. {@link AgentManagerCallbacks.onModeChange | onModeChange} fires once
-     * the change has been applied; passing the mode already in effect does nothing.
+     * disconnect has finished. Switching *into* {@link ChatMode.Functional} disconnects it as well
+     * when the open session was built for a mode that skipped what a conversation needs — a
+     * {@link ChatMode.DirectPlayback} session has neither the notifications web socket the answer
+     * arrives on nor a chat to send to. Call {@link AgentManager.connect | connect()} again after
+     * a change that tore the session down. {@link AgentManagerCallbacks.onModeChange | onModeChange}
+     * fires once the change has been applied; passing the mode already in effect does nothing.
      *
      * @param mode - The {@link ChatMode} to switch to.
      * @returns A promise resolved when the mode is in effect and any disconnect it caused has
@@ -825,9 +859,13 @@ export interface AgentManager {
      * {@link AgentManagerOptions.mixpanelAdditionalProperties | mixpanelAdditionalProperties} does
      * at creation time, for values you only learn later.
      *
+     * Advanced. Calls merge, so a property sent twice takes the later value, and events already
+     * sent are not changed. It has no visible effect when analytics is switched off with
+     * {@link AgentManagerOptions.enableAnalytics | enableAnalytics: false}, because nothing is
+     * sent at all.
+     *
      * @param properties - A flat JSON object whose properties are added to every analytics event
      * the SDK sends from now on.
-     * @internal Used by D-ID's own embedded widget; not part of the public SDK surface.
      */
     enrichAnalytics(properties: Record<string, unknown>): void;
 

@@ -28,7 +28,17 @@ export default ({ mode }) => {
                 fileName: 'index',
             },
         },
-        plugins: [preact(), dts({ include: [resolve(__dirname, './src/**/*.{ts,tsx}')] })],
+        plugins: [
+            preact(),
+            dts({
+                include: [resolve(__dirname, './src/**/*.{ts,tsx}')],
+                // Test files and test factories are not part of the published surface.
+                exclude: [resolve(__dirname, './src/**/*.test.ts'), resolve(__dirname, './src/test-utils/**')],
+                // One bundled `dist/index.d.ts`: the per-file tree's extensionless re-exports are
+                // rejected by `moduleResolution: node16` — silently, under `skipLibCheck`.
+                rollupTypes: true,
+            }),
+        ],
         resolve: {
             alias: {
                 '@sdk': resolve(__dirname, './src'),

@@ -13,12 +13,13 @@ describe('createChat', () => {
     const analytics = { track: jest.fn() } as any;
     const api = (error: unknown) => ({ newChat: jest.fn().mockRejectedValue(error) }) as any;
 
-    it('should propagate a typed HttpError untouched (kind + status intact for the connect guard)', async () => {
+    it('should propagate a typed HttpError untouched (code + status intact for the connect guard)', async () => {
         const body = JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' });
         const httpError = new HttpError(402, body);
         const error = await createChat(agent, api(httpError), analytics).catch(e => e);
         expect(error).toBe(httpError);
-        expect(error.kind).toBe('InsufficientCreditsError');
+        expect(error.kind).toBe('HttpError');
+        expect(error.code).toBe('InsufficientCreditsError');
         expect(error.status).toBe(402);
     });
 

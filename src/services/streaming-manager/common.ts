@@ -27,7 +27,7 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * @param topic Data-channel topic to send on
      * @param payload The message payload to send, already serialized
      */
-    sendDataChannelMessage(topic: InternalDataChannelTopic, payload: string): Promise<void>;
+    sendDataChannelMessage(topic: `${InternalDataChannelTopic}`, payload: string): Promise<void>;
 
     /**
      * Publish a microphone stream to the DataChannel

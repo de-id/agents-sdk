@@ -1,6 +1,5 @@
 import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
 import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
-import { RpcError } from 'livekit-client';
 import { createAgentsApi } from '../../api/agents';
 import { ValidationError } from '../../errors';
 import {
@@ -38,6 +37,10 @@ jest.mock('../analytics/mixpanel');
 jest.mock('../socket-manager');
 jest.mock('./connect-to-manager');
 jest.mock('../socket-manager/message-queue');
+jest.mock('../streaming-manager/livekit-manager', () => ({
+    ...jest.requireActual('../streaming-manager/livekit-manager'),
+    preloadLiveKit: jest.fn(),
+}));
 jest.mock('../chat/intial-messages');
 jest.mock('../chat');
 jest.mock('../../utils/retry-operation', () => ({ retryOperation: jest.fn(fn => fn()) }));
@@ -115,7 +118,8 @@ describe('createAgentManager', () => {
             expect(createAgentsApi).toHaveBeenCalledWith(
                 mockOptions.auth,
                 'https://api.d-id.com',
-                mockOptions.callbacks.onError,
+                // the SDK's own analytics wrapper, on its copy of the callbacks
+                expect.any(Function),
                 undefined
             );
             expect(mockAgentsApi.getRuntimeById).toHaveBeenCalledWith('agent-123');
@@ -215,6 +219,121 @@ describe('createAgentManager', () => {
             });
         });
 
+        describe('the chat and connect guards read the current mode', () => {
+            beforeEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(mode =>
+                    [ChatMode.DirectPlayback, ChatMode.Off].includes(mode)
+                );
+            });
+
+            afterEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(() => false);
+            });
+
+            it('should allow chat after changeMode moves a session out of Off', async () => {
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Off });
+
+                await manager.changeMode(ChatMode.Functional);
+                await manager.connect();
+
+                await expect(manager.chat('Hello')).resolves.toBeDefined();
+            });
+
+            it('should open the notifications web socket on connect once the mode allows chat', async () => {
+                const manager = await createAgentManager('agent-123', {
+                    ...mockOptions,
+                    mode: ChatMode.DirectPlayback,
+                });
+
+                await manager.changeMode(ChatMode.Functional);
+                await manager.connect();
+
+                expect(createSocketManager).toHaveBeenCalled();
+            });
+
+            it('should tear the session down when a connected DirectPlayback session moves to Functional', async () => {
+                // A DirectPlayback session has no notifications web socket and no chat, so it
+                // cannot carry a conversation: `connect()` has to run again for the new mode.
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+                const manager = await createAgentManager('agent-123', {
+                    ...mockOptions,
+                    mode: ChatMode.DirectPlayback,
+                });
+                await manager.connect();
+                expect(createSocketManager).not.toHaveBeenCalled();
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+                await expect(manager.chat('Hello')).rejects.toThrow('Streaming manager is not initialized');
+
+                // …and connecting again builds the session the new mode needs.
+                await manager.connect();
+                expect(createSocketManager).toHaveBeenCalled();
+            });
+
+            it('should keep a connected Functional session when the server reports the same mode', async () => {
+                const manager = await createAgentManager('agent-123', mockOptions);
+
+                await manager.connect();
+
+                expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+            });
+
+            it('should keep a connected TextOnly session that already has a socket and a chat', async () => {
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
+                await manager.connect();
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+            });
+
+            it('should reject chat after changeMode moves a session into Off', async () => {
+                const manager = await createAgentManager('agent-123', mockOptions);
+                await manager.connect();
+
+                await manager.changeMode(ChatMode.Off);
+
+                await expect(manager.chat('Hello')).rejects.toThrow('Off is enabled, chat is disabled');
+            });
+        });
+
+        describe("the caller's options object is read, never written", () => {
+            it('should leave callbacks.onError and debug as the caller set them', async () => {
+                const onError = mockOptions.callbacks.onError;
+
+                await createAgentManager('agent-123', mockOptions);
+                await createAgentManager('agent-456', mockOptions);
+
+                expect(mockOptions.callbacks.onError).toBe(onError);
+                expect(mockOptions.debug).toBeUndefined();
+            });
+
+            it('should deliver an error once per manager when two share one options object', async () => {
+                mockAgent.advanced_settings = { ui_debug_mode: true } as any;
+                const onError = mockOptions.callbacks.onError as jest.Mock;
+
+                await createAgentManager('agent-123', mockOptions);
+                await createAgentManager('agent-456', mockOptions);
+
+                const handlers = (createAgentsApi as jest.Mock).mock.calls.map(call => call[2]);
+                expect(handlers).toHaveLength(2);
+
+                const failure = new Error('boom');
+                handlers[1](failure);
+
+                expect(onError).toHaveBeenCalledTimes(1);
+                expect(onError).toHaveBeenCalledWith(failure, undefined);
+                expect(
+                    mockAnalytics.track.mock.calls.filter(([event]: [string]) => event === 'agent-error')
+                ).toHaveLength(1);
+            });
+        });
+
         it('should handle initial messages correctly', async () => {
             const initialMessages = [
                 { id: '1', role: 'user' as const, content: 'Hello', parts: [], createdAt: new Date().toISOString() },
@@ -266,6 +385,124 @@ describe('createAgentManager', () => {
 
                 await expect(manager.connect()).rejects.toThrow('Connection failed');
                 expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Fail);
+            });
+
+            describe('is idempotent', () => {
+                // Holds the stream/chat init open so a second call lands while the first is still in
+                // flight; the returned function lets it resolve.
+                function deferStreamAndChat() {
+                    let release: (value: any) => void = () => {};
+                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
+                        new Promise(resolve => {
+                            release = resolve;
+                        })
+                    );
+
+                    return () => release({ streamingManager: mockStreamingManager, chat: mockChat });
+                }
+
+                it('should return the in-flight promise instead of opening a second session', async () => {
+                    const release = deferStreamAndChat();
+
+                    const first = manager.connect();
+                    const second = manager.connect();
+
+                    release();
+                    await expect(Promise.all([first, second])).resolves.toEqual([undefined, undefined]);
+
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should reject a second connect once a session is open', async () => {
+                    await manager.connect();
+
+                    const rejection = expect(manager.connect()).rejects;
+                    await rejection.toThrow(ValidationError);
+                    await rejection.toThrow('Already connected; call disconnect() first');
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should connect again after disconnect', async () => {
+                    await manager.connect();
+                    await manager.disconnect();
+
+                    await expect(manager.connect()).resolves.toBeUndefined();
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(2);
+                });
+
+                it('should clear the guard when a connect fails, so a retry works', async () => {
+                    (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
+
+                    await expect(manager.connect()).rejects.toThrow('Connection failed');
+                    await expect(manager.connect()).resolves.toBeUndefined();
+
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(2);
+                });
+
+                it("should give a joining caller the first attempt's rejection", async () => {
+                    let reject: (error: Error) => void = () => {};
+                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
+                        new Promise((_resolve, r) => {
+                            reject = r;
+                        })
+                    );
+
+                    const first = manager.connect();
+                    const second = manager.connect();
+
+                    reject(new Error('Connection failed'));
+
+                    await expect(first).rejects.toThrow('Connection failed');
+                    await expect(second).rejects.toThrow('Connection failed');
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should join the attempt a reconnect already has in flight', async () => {
+                    await manager.connect();
+
+                    const release = deferStreamAndChat();
+                    (initializeStreamAndChat as jest.Mock).mockClear();
+
+                    const reconnecting = manager.reconnect();
+                    // Let the reconnect tear the old session down and start its own connect; the
+                    // window this closes is a public connect() landing after that teardown.
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    const connecting = manager.connect();
+
+                    release();
+                    await Promise.all([reconnecting, connecting]);
+
+                    // One session, not two: the public connect joined the reconnect's attempt.
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should let an in-flight connect settle before disconnecting', async () => {
+                    const release = deferStreamAndChat();
+
+                    const connecting = manager.connect();
+                    const disconnecting = manager.disconnect();
+
+                    release();
+                    await Promise.all([connecting, disconnecting]);
+
+                    // The session the connect opened was the one torn down, not a leftover.
+                    expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+                    await expect(manager.connect()).resolves.toBeUndefined();
+                });
+
+                it('should reject reconnect while a connect is in flight', async () => {
+                    const release = deferStreamAndChat();
+
+                    const connecting = manager.connect();
+                    const reconnecting = manager.reconnect();
+
+                    await expect(reconnecting).rejects.toThrow(
+                        'A connect() is in flight; wait for it before calling reconnect()'
+                    );
+
+                    release();
+                    await connecting;
+                });
             });
         });
 
@@ -1375,54 +1612,35 @@ describe('createAgentManager', () => {
             expect(result).toBe('result2');
         });
 
-        it('should throw an RpcError carrying the handler reason verbatim', async () => {
+        it('should reject with the handler reason verbatim', async () => {
             const handler = jest.fn().mockRejectedValue(new Error('No form fields configured.'));
 
             await manager.connect();
             manager.registerClientTool('testTool', handler);
             const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
 
-            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
-                code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'No form fields configured.',
-            });
-            await expect(rpcHandler({ payload: '{}' })).rejects.toBeInstanceOf(RpcError);
+            await expect(rpcHandler({ payload: '{}' })).rejects.toThrow('No form fields configured.');
         });
 
-        it('should fall back to a generic message when a handler throws a non-Error', async () => {
+        it('should pass a non-Error rejection through untouched', async () => {
             const handler = jest.fn().mockRejectedValue('boom');
 
             await manager.connect();
             manager.registerClientTool('testTool', handler);
             const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
 
-            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
-                code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'Client tool failed',
-            });
+            await expect(rpcHandler({ payload: '{}' })).rejects.toBe('boom');
         });
 
-        it('should pass through an RpcError thrown by the handler, keeping its code and data', async () => {
-            const thrown = new RpcError(1600, 'declined', 'extra');
-            const handler = jest.fn().mockRejectedValue(thrown);
-
-            await manager.connect();
-            manager.registerClientTool('testTool', handler);
-            const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
-
-            await expect(rpcHandler({ payload: '{}' })).rejects.toBe(thrown);
-        });
-
-        it('should throw an RpcError when no handler is registered for the method', async () => {
+        it('should reject when no handler is registered for the method', async () => {
             await manager.connect();
             manager.registerClientTool('testTool', jest.fn());
             const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
             manager.unregisterClientTool('testTool');
 
-            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
-                code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'No handler registered for client tool: testTool',
-            });
+            await expect(rpcHandler({ payload: '{}' })).rejects.toThrow(
+                'No handler registered for client tool: testTool'
+            );
         });
 
         function rpcMethodsFromStream() {
