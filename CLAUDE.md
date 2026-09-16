@@ -16,6 +16,3 @@ Project rules for Claude Code in `@d-id/client-sdk`.
 ## Before committing
 
 `yarn lint:fix`, then `yarn type-check && yarn test:ci && yarn docs:check`.
-
-A user-visible change gets a `CHANGELOG.md` entry in the same pull request, under an `## Unreleased`
-heading that is renamed to the version number when that version is published.

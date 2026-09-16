@@ -1,7 +1,7 @@
 // @ts-nocheck
 import preact from '@preact/preset-vite';
 import dns from 'dns';
-import { copyFileSync, readFileSync } from 'fs';
+import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
@@ -41,11 +41,6 @@ export default ({ mode }) => {
                 // One bundled `dist/index.d.ts`: the per-file tree's extensionless re-exports are
                 // rejected by `moduleResolution: node16` — silently, under `skipLibCheck`.
                 rollupTypes: true,
-                // `node16` picks declarations by resolution condition; the package is ESM, so a
-                // `require()` consumer needs the same file under `.d.cts`.
-                afterBuild: () => {
-                    copyFileSync(resolve(__dirname, './dist/index.d.ts'), resolve(__dirname, './dist/index.d.cts'));
-                },
             }),
         ],
         resolve: {
