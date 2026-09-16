@@ -24,14 +24,11 @@ On a Talks (V2) or Clips (V3) agent, {@link AgentManager.connect | connect()} bu
 
 | Mode | Chat created | Notifications web socket | WebRTC stream |
 | --- | --- | --- | --- |
-| `Functional` | yes | yes | yes |
-| `TextOnly` | yes | yes | yes |
-| `Playground` | yes | yes | yes |
-| `Maintenance` | yes | yes | yes |
+| `Functional`, `TextOnly`, `Playground`, `Maintenance` | yes | yes | yes |
 | `Off` | no | yes | yes |
 | `DirectPlayback` | no | no | yes |
 
-Two things are worth reading off that table. The stream is created in every mode, the textual ones included — the mode decides what is delivered over it, not whether it exists, which is why a {@link ChatMode.TextOnly} application that does not want a stream at all should simply not call `connect()`. And {@link ChatMode.Off} and {@link ChatMode.DirectPlayback} differ in exactly one thing: the notifications web socket, which `Off` still opens and `DirectPlayback` skips.
+The stream is created in every mode, the textual ones included — the mode decides what is delivered over it, not whether it exists, which is why a {@link ChatMode.TextOnly} application that does not want a stream at all should simply not call `connect()`. And {@link ChatMode.Off} and {@link ChatMode.DirectPlayback} differ in exactly one thing: the notifications web socket, which `Off` still opens and `DirectPlayback` skips.
 
 Expressive (V4) agents build none of that the same way. They never use the notifications web socket — chat and speech travel on the LiveKit data channel — and the SDK builds their chat itself, as `cht_<sessionId>`, with the mode {@link ChatMode.Functional}. The first `connect()` therefore adopts `Functional` and reports it through {@link AgentManagerCallbacks.onModeChange | onModeChange}, even for a manager created with {@link ChatMode.TextOnly}.
 

@@ -9,7 +9,7 @@ A client tool is a function that runs in the user's browser when the agent's LLM
 
 Client tools are an **Expressive (V4)** feature. They travel on the real-time session's RPC channel, which Talks (V2) and Clips (V3) agents do not have, so {@link AgentManager.registerClientTool | registerClientTool()} throws a {@link ValidationError} on those rather than registering a handler the agent could never call. The check is on the agent, not on the connection, so it applies before {@link AgentManager.connect | connect()} too.
 
-## 1. Register the handlers
+## Register the handlers
 
 Register before {@link AgentManager.connect | connect()}, so the agent can call a tool from the moment the session starts. Registering the same name again replaces the handler.
 
@@ -68,7 +68,7 @@ Whether the agent waits for a call is a property of the tool in the agent's conf
 
 A blocking call also suspends interrupting: {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} goes `false` while any blocking call is outstanding and back to `true` when the last one finishes, because there is nothing to interrupt while the agent is waiting.
 
-## 2. Follow the calls
+## Follow the calls
 
 {@link AgentManagerCallbacks.onToolEvent | onToolEvent} is called once when a call starts, and again when it finishes or fails. Its type, {@link ToolEventCallback}, pairs each {@link ToolCallEvent} with the payload that event carries — {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload}, {@link ToolCallEvent.Done} with a {@link ToolCallDonePayload}, {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload}.
 
@@ -94,7 +94,7 @@ const callbacks: AgentManagerCallbacks = {
 
 {@link ToolCallEvent} members are also accepted as their plain string values, so `event === 'tool-call/done'` works without importing the enum.
 
-## 3. Show that the agent is busy
+## Show that the agent is busy
 
 {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange} carries the whole set of calls running right now, as {@link RunningToolCall} entries, every time it changes. A call appears when it starts and disappears when it finishes or fails — or, for a blocking call, when its turn ends. On disconnect it fires with an empty array if any call was still running, so a spinner driven by it always clears — with nothing outstanding there is nothing to clear and nothing is emitted.
 
@@ -117,7 +117,7 @@ const callbacks: AgentManagerCallbacks = {
 };
 ```
 
-## 4. Clean up
+## Clean up
 
 {@link AgentManager.unregisterClientTool | unregisterClientTool()} removes a handler. Unlike `registerClientTool()` it never throws — an unknown name, and any avatar type, is a no-op — so it is safe in a React cleanup path that runs whatever the agent turned out to be.
 

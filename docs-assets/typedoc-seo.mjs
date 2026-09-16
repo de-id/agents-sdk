@@ -32,6 +32,8 @@ const PAGE_TITLES = {
     'modules.html': `All exports | ${SITE_NAME}`,
     'hierarchy.html': `Class hierarchy | ${SITE_NAME}`,
 };
+// The tags replace the theme's own description meta, which is the only anchor they have.
+const DEFAULT_DESCRIPTION = /<meta name="description" content="[^"]*"\/>/;
 const ASSETS_DIR = dirname(fileURLToPath(import.meta.url));
 
 /** @param {import('typedoc').Application} app */
@@ -42,7 +44,7 @@ export function load(app) {
         if (Object.hasOwn(PAGE_TITLES, page.url)) {
             page.contents = page.contents.replace(
                 /<title>[^<]*<\/title>/,
-                `<title>${escapeText(PAGE_TITLES[page.url])}</title>`
+                `<title>${escapeHtml(PAGE_TITLES[page.url])}</title>`
             );
         }
         const title = /<title>([^<]*)<\/title>/.exec(page.contents)?.[1] ?? SITE_NAME;
@@ -62,12 +64,12 @@ export function load(app) {
             ['name', 'twitter:title', title],
             ['name', 'twitter:description', description],
         ]
-            .map(([attr, key, value]) => `<meta ${attr}="${key}" content="${escapeAttr(value)}"/>`)
+            .map(([attr, key, value]) => `<meta ${attr}="${key}" content="${escapeHtml(value)}"/>`)
             .join('');
-        const defaultTag = /<meta name="description" content="[^"]*"\/>/;
-        page.contents = defaultTag.test(page.contents)
-            ? page.contents.replace(defaultTag, tags)
-            : page.contents.replace('</head>', `${tags}</head>`);
+        if (!DEFAULT_DESCRIPTION.test(page.contents)) {
+            throw new Error(`typedoc-seo: no description meta to replace on ${page.url}`);
+        }
+        page.contents = page.contents.replace(DEFAULT_DESCRIPTION, tags);
 
         if (page.url === 'modules.html' && page.model instanceof ProjectReflection) {
             page.contents = annotateIndex(page.contents, page.model);
@@ -86,11 +88,8 @@ export function load(app) {
 }
 
 /**
- * The landing page renders the README, which needs its own `# D-ID Client SDK` heading to have a
- * title on npm and on GitHub. On the site that heading arrives directly under TypeDoc's own
- * `<h1>D-ID Client SDK - v3.0.0-0</h1>`, so the page opens with two H1s saying the same thing —
- * and the one that carries the version is the one a reader wants. Drop the README's copy here,
- * from the rendered page only; the file on npm is untouched.
+ * The landing page renders the README under TypeDoc's own versioned `<h1>`, so the page opens with
+ * two identical H1s. Drop the README's copy from the rendered page; the file on npm is untouched.
  *
  * @param {string} html
  */
@@ -178,7 +177,7 @@ function annotateIndex(contents, project) {
         /(<a href="[^"]+\.html">([^<]+)<\/a>)(<a href="#[^"]*" aria-label="Permalink")/g,
         (match, link, name, permalink) => {
             const summary = summaries.get(name);
-            return summary ? `${link} — ${escapeText(summary)}${permalink}` : match;
+            return summary ? `${link} — ${escapeHtml(summary)}${permalink}` : match;
         }
     );
 }
@@ -257,12 +256,7 @@ function truncate(text) {
 }
 
 /** @param {string} value */
-function escapeText(value) {
-    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-/** @param {string} value */
-function escapeAttr(value) {
+function escapeHtml(value) {
     return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 

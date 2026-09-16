@@ -22,7 +22,7 @@ The client key is the credential to use in a page. It is scoped to one agent and
 npm i @d-id/client-sdk
 ```
 
-The package ships an ES module, a UMD build and its own TypeScript types; no separate `@types` package is needed.
+The package ships an ES module and a UMD build.
 
 ## 3. Create the manager
 
@@ -36,7 +36,7 @@ That element is yours to put on the page, and the three attributes are not optio
 <video id="agent-video" autoplay playsinline></video>
 ```
 
-`autoplay` is what starts playback when the stream arrives — the SDK sets `srcObject` and nothing else. `playsinline` keeps iOS Safari from taking the video fullscreen the moment it plays. And browsers block autoplay with sound until the user has interacted with the page, so either start the agent from a click, or add `muted` and unmute on the first click; an agent that is muted forever is the one bug this costs a first-timer an afternoon.
+`autoplay` is what starts playback when the stream arrives — the SDK sets `srcObject` and nothing else. `playsinline` keeps iOS Safari from taking the video fullscreen the moment it plays. And browsers block autoplay with sound until the user has interacted with the page, so either start the agent from a click, or add `muted` and unmute on the first click.
 
 ```ts
 import * as sdk from '@d-id/client-sdk';

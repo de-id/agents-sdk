@@ -53,10 +53,7 @@ function describe(error: unknown): string {
         case 'ChatModeDowngraded':
             return 'The agent is running in a limited mode.';
         default:
-            // Total on purpose. To the type checker `error` is `never` here, but `isDIDError`
-            // recognizes any Error carrying a string `kind` — which is what lets it see across a
-            // bundle boundary — so a value built by another copy of the SDK can land here with a
-            // `kind` outside the union.
+            // Total on purpose: a value from another copy of the SDK can land here.
             return 'Something went wrong.';
     }
 }
@@ -79,7 +76,7 @@ if (isDIDError(error) && error.kind === 'HttpError') {
 }
 ```
 
-In v2 the server's classification lived on `kind`. It moved to `code` in 3.0 so that `kind` could be a literal on every class and make the `switch` above narrow — see the [migration guide](../migration.md).
+The server's classification moved from `kind` to `code` in 3.0 — see the [migration guide](../migration.md).
 
 ## What rejects, and what reaches onError
 

@@ -41,12 +41,8 @@ export default ({ mode }) => {
                 // One bundled `dist/index.d.ts`: the per-file tree's extensionless re-exports are
                 // rejected by `moduleResolution: node16` — silently, under `skipLibCheck`.
                 rollupTypes: true,
-                // `moduleResolution: node16`/`nodenext` picks the declaration file by the
-                // condition it resolved the code through. The package is `"type": "module"`,
-                // so `dist/index.d.ts` is an ES module declaration and a `require()` consumer
-                // is told it cannot be used that way. The same declarations under a `.d.cts`
-                // extension are read as CommonJS; the bundled file has no imports of its own,
-                // so a copy is all it takes.
+                // `node16` picks declarations by resolution condition; the package is ESM, so a
+                // `require()` consumer needs the same file under `.d.cts`.
                 afterBuild: () => {
                     copyFileSync(resolve(__dirname, './dist/index.d.ts'), resolve(__dirname, './dist/index.d.cts'));
                 },

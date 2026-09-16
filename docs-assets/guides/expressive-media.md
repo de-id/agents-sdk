@@ -24,7 +24,9 @@ await agentManager.publishMicrophoneStream(micStream);
 await agentManager.unpublishMicrophoneStream();
 ```
 
-{@link AgentManager.replaceMicrophoneTrack | replaceMicrophoneTrack()} swaps the live track without unpublishing it, which is what a device picker wants. The publication survives the swap — its LiveKit publication id (SID) and SSRC stay the same, though the `MediaStreamTrack` id changes — so the server sees continuous audio rather than a stop and a restart. It rejects with a plain `Error` from the transport for four different reasons — the room is not connected, the track is not an audio track, a publish is already in flight, or nothing is published to replace — so a bare `catch` that republishes would republish on three failures that have nothing to do with the swap. Only the last one is worth falling back on, and the message is what distinguishes it.
+{@link AgentManager.replaceMicrophoneTrack | replaceMicrophoneTrack()} swaps the live track without unpublishing it, which is what a device picker wants. The publication survives the swap — its LiveKit publication id (SID) and SSRC stay the same, though the `MediaStreamTrack` id changes — so the server sees continuous audio rather than a stop and a restart.
+
+It rejects with a plain `Error` for four reasons: the room is not connected, the track is not an audio track, a publish is already in flight, or nothing is published to replace. Only the last is worth falling back on, and the message is what distinguishes it — so do not republish from a bare `catch`.
 
 ```ts
 async function useInputDevice(deviceId: string) {

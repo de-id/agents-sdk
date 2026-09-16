@@ -38,8 +38,7 @@ await agentManager.connect();
 await agentManager.speak({ type: 'text', input: "Hi! I'm Alice!" });
 await agentManager.chat('What is the distance to the moon?');
 
-// Both calls resolve when the request is accepted, not when the agent has spoken — the
-// answer arrives through onNewMessage. So end the session when the user leaves, not here.
+// Both resolve when the request is accepted, not when the agent has spoken.
 window.addEventListener('beforeunload', () => void agentManager.disconnect());
 ```
 
