@@ -1192,28 +1192,22 @@ export interface AgentManager {
     /**
      * Switches the chat to another mode.
      *
-     * Anything other than {@link ChatMode.Functional} disconnects the stream, since those modes do
-     * not produce video, which is why this is asynchronous: the returned promise resolves once that
-     * disconnect has finished. Switching *into* {@link ChatMode.Functional} disconnects it as well
-     * when the open session was built for a mode that skipped what a conversation needs — a
-     * {@link ChatMode.DirectPlayback} session has neither the notifications web socket the answer
-     * arrives on nor a chat to send to. Call {@link AgentManager.connect | connect()} again after
-     * a change that tore the session down. {@link AgentManagerCallbacks.onModeChange | onModeChange}
-     * fires once the change has been applied; passing the mode already in effect does nothing.
+     * Any mode but {@link ChatMode.Functional} disconnects the stream, and a change into
+     * `Functional` disconnects a session that was not built for a conversation (one opened in
+     * {@link ChatMode.DirectPlayback}, for example); call {@link AgentManager.connect | connect()}
+     * again after such a change. {@link AgentManagerCallbacks.onModeChange | onModeChange} fires
+     * once the change is applied; passing the mode already in effect does nothing.
      *
      * @param mode - The {@link ChatMode} to switch to.
-     * @returns A promise resolved when the mode is in effect and any disconnect it caused has
-     * completed.
+     * @returns A promise resolved when the mode is in effect and any disconnect has completed.
      * @throws {@link ValidationError} Rejects on Expressive (V4) agents for {@link ChatMode.Off} and
      * {@link ChatMode.DirectPlayback}, which those agents do not support.
      * @example
      * ```ts
      * import { ChatMode } from '@d-id/client-sdk';
      *
-     * // Tears the stream down: no mode but Functional produces video.
-     * await agentManager.changeMode(ChatMode.TextOnly);
+     * await agentManager.changeMode(ChatMode.TextOnly); // Disconnects the stream.
      *
-     * // Back to a full session: the change into Functional needs a session built for it.
      * await agentManager.changeMode(ChatMode.Functional);
      * await agentManager.connect();
      * ```

@@ -337,12 +337,10 @@ export enum ChatMode {
      */
     Functional = 'Functional',
     /**
-     * Text answers only: the chat works, but no video is produced.
+     * Text answers only: the chat works over the Agents API, but no video is produced.
      *
-     * {@link AgentManager.chat | chat()} still returns answers through
-     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}, and
-     * {@link AgentManager.speak | speak()} adds a text script to the transcript but streams no
-     * video: it resolves with a `duration` of `0` and an empty `videoId`.
+     * Talks (V2) and Clips (V3) agents. Expressive (V4) agents chat over the streaming session,
+     * which {@link AgentManager.connect | connect()} always opens in {@link ChatMode.Functional}.
      */
     TextOnly = 'TextOnly',
     /**
@@ -364,34 +362,22 @@ export enum ChatMode {
      */
     Playground = 'Playground',
     /**
-     * Speak-only: no chat is created for the session, while video still streams.
+     * Speak-only: no chat is created and no notifications web socket is opened, while video still
+     * streams. Use it when the application drives the agent entirely through
+     * {@link AgentManager.speak | speak()}.
      *
-     * Talks (V2) and Clips (V3) agents only; {@link createAgentManager} and
-     * {@link AgentManager.changeMode | changeMode()} reject it with a {@link ValidationError} for
-     * Expressive (V4) agents.
-     *
-     * {@link AgentManager.chat | chat()} rejects with a {@link ValidationError} while this is the
-     * mode, however the session arrived at it. {@link AgentManager.connect | connect()} also skips
-     * the notifications web socket while it is in force. Use it when the application drives the
-     * agent entirely through {@link AgentManager.speak | speak()} and never asks its LLM anything.
-     * The stream keeps running only when this is the mode {@link createAgentManager} was given;
-     * switching into it later with {@link AgentManager.changeMode | changeMode()} disconnects the
-     * stream like any other non-{@link ChatMode.Functional} mode.
+     * Talks (V2) and Clips (V3) agents only; rejected with a {@link ValidationError} for Expressive
+     * (V4) agents. {@link AgentManager.chat | chat()} rejects with a {@link ValidationError} in
+     * this mode.
      */
     DirectPlayback = 'DirectPlayback',
     /**
-     * Chat is switched off: no chat is created for the session, while video still streams.
+     * Chat is switched off: no chat is created for the session, while video still streams. Unlike
+     * {@link ChatMode.DirectPlayback} it keeps the notifications web socket.
      *
-     * Talks (V2) and Clips (V3) agents only; {@link createAgentManager} and
-     * {@link AgentManager.changeMode | changeMode()} reject it with a {@link ValidationError} for
-     * Expressive (V4) agents.
-     *
-     * {@link AgentManager.chat | chat()} rejects with a {@link ValidationError} while this is the
-     * mode, exactly as in {@link ChatMode.DirectPlayback}. The one difference between the two is
-     * the notifications web socket: this mode still opens it on a Talks (V2) or Clips (V3) agent,
-     * where {@link ChatMode.DirectPlayback} skips it. As with {@link ChatMode.DirectPlayback}, the
-     * stream keeps running only when this is the mode set at creation; switching into it later with
-     * {@link AgentManager.changeMode | changeMode()} disconnects the stream.
+     * Talks (V2) and Clips (V3) agents only; rejected with a {@link ValidationError} for Expressive
+     * (V4) agents. {@link AgentManager.chat | chat()} rejects with a {@link ValidationError} in
+     * this mode.
      */
     Off = 'Off',
 }
