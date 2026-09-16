@@ -72,6 +72,7 @@ Shapes are unchanged; only the names differ.
 
 ## Behaviour clarifications
 
+- `createAgentManager()` no longer writes into the options object it is given: it does not replace your `callbacks.onError` with its analytics wrapper and does not set `debug` from the agent's `ui_debug_mode`. Two managers can share one options object, and handlers assigned to `callbacks` after creation are no longer picked up.
 - Naming rule: shapes the SDK builds (`Message`, `SpeakResponse`, `StreamCreatedInfo`, the tool-call payloads, options) are camelCase; Agents API entities (`Agent`, `Rating`, `Voice`, the TTS provider objects) keep the API's snake_case field names.
 - Every error subclass declares its `kind` as a literal, `HttpError` included: its `kind` is now `'HttpError'` and the Agents API's own classification moved to the new `HttpError.code`, so `error.kind === 'InsufficientCreditsError'` becomes `error.code === 'InsufficientCreditsError'`. `toJson()` carries both `kind` and `code`.
 - `isDIDError()` narrows to the new exported `DIDError` union instead of `BaseError`, so a `switch` on `kind` inside the branch now reaches `HttpError.status`, `ValidationError.key` and the other subclass fields, and an exhaustive `switch` leaves `never`.

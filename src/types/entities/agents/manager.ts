@@ -371,6 +371,12 @@ export interface StreamOptions {
  * {@link AgentManagerOptions.auth | auth} and {@link AgentManagerOptions.callbacks | callbacks} are
  * required; the rest have defaults that suit a browser application talking to D-ID production.
  *
+ * {@link createAgentManager} reads the object once, at creation, and never writes to it: the
+ * manager works from its own copy, so one options object can create two managers, and a property
+ * you read back afterwards is still the one you set. The same means a handler assigned to
+ * {@link AgentManagerOptions.callbacks | callbacks} after the manager exists is not picked up —
+ * give the callback a stable identity and dispatch inside it instead.
+ *
  * @category Agent Manager
  */
 export interface AgentManagerOptions {
@@ -387,7 +393,8 @@ export interface AgentManagerOptions {
      *
      * See {@link AgentManagerCallbacks}.
      * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} is mandatory — it is what
-     * connects the streamed media to your video element; the rest are optional.
+     * connects the streamed media to your video element; the rest are optional. The handlers are
+     * captured at creation, so replacing one on this object later has no effect.
      */
     callbacks: AgentManagerCallbacks;
     /**

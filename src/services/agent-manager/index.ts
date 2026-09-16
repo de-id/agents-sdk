@@ -113,13 +113,18 @@ function applicationError(message: string): RpcError {
  * @category Agent Manager
  */
 export async function createAgentManager(agent: string, options: AgentManagerOptions): Promise<AgentManager> {
+    // The caller's object is read once, here, and never written to: two managers created from one
+    // options object must not wrap each other's `callbacks.onError`, and the caller must get their
+    // own handler back when they read the property afterwards.
+    const managerOptions: AgentManagerOptions = { ...options, callbacks: { ...options.callbacks } };
+
     let firstConnection = true;
     let videoId: string | null = null;
 
-    const mxKey = options.mixpanelKey || mixpanelKey;
-    const wsURL = options.wsURL || didSocketApiUrl;
-    const baseURL = options.baseURL || didApiUrl;
-    const mode = options.mode || ChatMode.Functional;
+    const mxKey = managerOptions.mixpanelKey || mixpanelKey;
+    const wsURL = managerOptions.wsURL || didSocketApiUrl;
+    const baseURL = managerOptions.baseURL || didApiUrl;
+    const mode = managerOptions.mode || ChatMode.Functional;
 
     const items: AgentManagerItems = {
         messages: [],
@@ -128,9 +133,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     const analytics = initializeAnalytics({
         token: mxKey,
         agentId: agent,
-        isEnabled: options.enableAnalytics,
-        externalId: options.externalId,
-        mixpanelAdditionalProperties: options.mixpanelAdditionalProperties,
+        isEnabled: managerOptions.enableAnalytics,
+        externalId: managerOptions.externalId,
+        mixpanelAdditionalProperties: managerOptions.mixpanelAdditionalProperties,
     });
 
     const initTimestamp = Date.now();
@@ -138,16 +143,21 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         analytics.track('agent-sdk', { event: 'init' }, initTimestamp);
     });
 
-    const originalOnError = options.callbacks.onError;
-    options.callbacks.onError = (error: Error, errorData?: Record<string, unknown>) => {
+    const originalOnError = managerOptions.callbacks.onError;
+    managerOptions.callbacks.onError = (error: Error, errorData?: Record<string, unknown>) => {
         analytics.track('agent-error', { error: toErrorAnalytics(error) });
         originalOnError?.(error, errorData);
     };
 
-    const agentsApi = createAgentsApi(options.auth, baseURL, options.callbacks.onError, options.externalId);
+    const agentsApi = createAgentsApi(
+        managerOptions.auth,
+        baseURL,
+        managerOptions.callbacks.onError,
+        managerOptions.externalId
+    );
 
     const agentEntity = await agentsApi.getRuntimeById(agent);
-    options.debug = options.debug || agentEntity?.advanced_settings?.ui_debug_mode;
+    managerOptions.debug = managerOptions.debug || agentEntity?.advanced_settings?.ui_debug_mode;
 
     const isStreamsV2 = isStreamsV2Agent(agentEntity.avatar.type);
 
@@ -157,14 +167,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     analytics.enrich(getAgentInfo(agentEntity));
 
-    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, options, agentEntity, reason => {
+    const { onMessage, clearQueue } = createMessageEventQueue(analytics, items, managerOptions, agentEntity, reason => {
         items.socketManager?.disconnect();
-        options.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, reason);
+        managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected, reason);
     });
 
-    items.messages = getInitialMessages(options.initialMessages);
+    items.messages = getInitialMessages(managerOptions.initialMessages);
 
-    options.callbacks.onNewMessage?.([...items.messages], 'answer');
+    managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
 
     const updateVideoId = (newVideoId: string | null) => {
         videoId = newVideoId;
@@ -195,7 +205,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         lastMessage.interrupted = true;
-        options.callbacks.onNewMessage?.([...items.messages], 'answer');
+        managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
     };
 
     const clientToolHandlers = new Map<string, ClientToolHandler>();
@@ -246,34 +256,34 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     async function connect(newChat: boolean) {
         rotateConnectionId();
-        options.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
+        managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
         latencyTimestampTracker.reset();
 
         if (newChat && !firstConnection) {
             delete items.chat;
 
-            options.callbacks.onNewMessage?.([...items.messages], 'answer');
+            managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
         }
 
         const websocketPromise =
             items.chatMode === ChatMode.DirectPlayback || isStreamsV2
                 ? Promise.resolve(undefined)
                 : createSocketManager(
-                      options.auth,
+                      managerOptions.auth,
                       wsURL,
-                      { onMessage, onError: options.callbacks.onError },
-                      options.externalId
+                      { onMessage, onError: managerOptions.callbacks.onError },
+                      managerOptions.externalId
                   );
         const initPromise = retryOperation(
             () =>
                 initializeStreamAndChat(
                     agentEntity,
                     {
-                        ...options,
+                        ...managerOptions,
                         mode: items.chatMode,
                         callbacks: {
-                            ...options.callbacks,
+                            ...managerOptions.callbacks,
                             onVideoIdChange: updateVideoId,
                             onMessage,
                         },
@@ -297,14 +307,14 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
         ).catch(e => {
             applyMode(ChatMode.Maintenance);
-            options.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
+            managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
         });
 
         const [socketManager, { streamingManager, chat }] = await Promise.all([websocketPromise, initPromise]);
 
         if (chat && chat.id !== items.chat?.id) {
-            options.callbacks.onNewChat?.(chat.id);
+            managerOptions.callbacks.onNewChat?.(chat.id);
         }
 
         items.streamingManager = streamingManager;
@@ -338,7 +348,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         delete items.streamingManager;
         delete items.socketManager;
 
-        options.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
+        managerOptions.callbacks.onConnectionStateChange?.(ConnectionState.Disconnected);
     }
 
     // The mode change itself, without the Expressive guard: the modes the server reports go
@@ -352,7 +362,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 await disconnect();
             }
 
-            options.callbacks.onModeChange?.(mode);
+            managerOptions.callbacks.onModeChange?.(mode);
         }
     }
 
@@ -512,15 +522,15 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         agentsApi,
                         analytics,
                         items.chatMode,
-                        options.persistentChat
+                        managerOptions.persistentChat
                     );
 
                     if (!newChat.chat) {
-                        throw new ChatCreationFailed(items.chatMode, !!options.persistentChat);
+                        throw new ChatCreationFailed(items.chatMode, !!managerOptions.persistentChat);
                     }
 
                     items.chat = newChat.chat;
-                    options.callbacks.onNewChat?.(items.chat.id);
+                    managerOptions.callbacks.onNewChat?.(items.chat.id);
                 }
 
                 return items.chat.id;
@@ -563,7 +573,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                         const isStreamError = error?.message?.includes('Stream Error');
 
                         if (!isStreamError && !isInvalidSessionId) {
-                            options.callbacks.onError?.(error);
+                            managerOptions.callbacks.onError?.(error);
                             return false;
                         }
                         return true;
@@ -587,7 +597,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     createdAt: new Date(latencyTimestampTracker.update()).toISOString(),
                 });
 
-                options.callbacks.onNewMessage?.([...items.messages], 'user');
+                managerOptions.callbacks.onNewMessage?.([...items.messages], 'user');
 
                 const chatId = await initializeChat();
                 const response = await sendChatRequest([...items.messages], chatId);
@@ -615,7 +625,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 });
 
                 if (response.result) {
-                    options.callbacks.onNewMessage?.([...items.messages], 'answer');
+                    managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
 
                     analytics.track('agent-message-received', {
                         latency: latencyTimestampTracker.get(true),
@@ -726,7 +736,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                     parts: parseMessagePartsMemo(script.input),
                     createdAt: new Date().toISOString(),
                 });
-                options.callbacks.onNewMessage?.([...items.messages], 'answer');
+                managerOptions.callbacks.onNewMessage?.([...items.messages], 'answer');
             }
 
             const isTextual = isTextualChat(items.chatMode);

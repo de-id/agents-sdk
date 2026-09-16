@@ -115,7 +115,8 @@ describe('createAgentManager', () => {
             expect(createAgentsApi).toHaveBeenCalledWith(
                 mockOptions.auth,
                 'https://api.d-id.com',
-                mockOptions.callbacks.onError,
+                // the SDK's own analytics wrapper, on its copy of the callbacks
+                expect.any(Function),
                 undefined
             );
             expect(mockAgentsApi.getRuntimeById).toHaveBeenCalledWith('agent-123');
@@ -254,6 +255,38 @@ describe('createAgentManager', () => {
                 await manager.changeMode(ChatMode.Off);
 
                 await expect(manager.chat('Hello')).rejects.toThrow('Off is enabled, chat is disabled');
+            });
+        });
+
+        describe("the caller's options object is read, never written", () => {
+            it('should leave callbacks.onError and debug as the caller set them', async () => {
+                const onError = mockOptions.callbacks.onError;
+
+                await createAgentManager('agent-123', mockOptions);
+                await createAgentManager('agent-456', mockOptions);
+
+                expect(mockOptions.callbacks.onError).toBe(onError);
+                expect(mockOptions.debug).toBeUndefined();
+            });
+
+            it('should deliver an error once per manager when two share one options object', async () => {
+                mockAgent.advanced_settings = { ui_debug_mode: true } as any;
+                const onError = mockOptions.callbacks.onError as jest.Mock;
+
+                await createAgentManager('agent-123', mockOptions);
+                await createAgentManager('agent-456', mockOptions);
+
+                const handlers = (createAgentsApi as jest.Mock).mock.calls.map(call => call[2]);
+                expect(handlers).toHaveLength(2);
+
+                const failure = new Error('boom');
+                handlers[1](failure);
+
+                expect(onError).toHaveBeenCalledTimes(1);
+                expect(onError).toHaveBeenCalledWith(failure, undefined);
+                expect(
+                    mockAnalytics.track.mock.calls.filter(([event]: [string]) => event === 'agent-error')
+                ).toHaveLength(1);
             });
         });
 
