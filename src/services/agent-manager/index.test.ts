@@ -197,6 +197,21 @@ describe('createAgentManager', () => {
                 }
             );
 
+            it('should reject connect() when changeMode moves a text-only manager into a video mode', async () => {
+                (isTextualChat as jest.Mock).mockImplementation(m =>
+                    [ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance].includes(m)
+                );
+                const manager = await createAgentManager('agent-123', {
+                    ...withoutSrcObjectReady(),
+                    mode: ChatMode.TextOnly,
+                });
+
+                await manager.changeMode(ChatMode.Functional);
+
+                await expect(manager.connect()).rejects.toThrow('callbacks.onSrcObjectReady is required');
+                expect(initializeStreamAndChat).not.toHaveBeenCalled();
+            });
+
             it('should not reach the Agents API when it is missing', async () => {
                 await expect(createAgentManager('agent-123', withoutSrcObjectReady())).rejects.toThrow(ValidationError);
 
@@ -380,16 +395,23 @@ describe('createAgentManager', () => {
             it('should not tear an Expressive (V4) session down at the end of connect', async () => {
                 // A V4 session never has a notifications web socket, so `sessionSupports` must not
                 // ask for one: dropping the `!isStreamsV2` guard would disconnect every V4 session
-                // at the end of every connect, when the tail applies the synthesised Functional
-                // chat mode.
+                // whose connect ends in a real mode transition. The session is asked for in
+                // TextOnly and the synthesised chat answers Functional — what
+                // `initializeStreamAndChat` really builds for V4 — so the tail reaches
+                // `sessionSupports` instead of returning early on an unchanged mode.
                 mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
-                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Functional });
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: { ...mockChat, chat_mode: ChatMode.Functional },
+                });
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
 
                 await manager.connect();
 
+                expect(manager.getChatMode()).toBe(ChatMode.Functional);
                 expect(createSocketManager).not.toHaveBeenCalled();
                 expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
-                expect(manager.getChatMode()).toBe(ChatMode.Functional);
+                expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledWith(ChatMode.Functional);
             });
 
             it('should keep a connected TextOnly session that already has a socket and a chat', async () => {
@@ -508,6 +530,9 @@ describe('createAgentManager', () => {
                 await manager.connect();
 
                 expect(manager.getChatMode()).toBe(ChatMode.Maintenance);
+                // Once, and from `applyMode` — the mode and the callback cannot disagree.
+                expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledTimes(1);
+                expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledWith(ChatMode.Maintenance);
             });
 
             it('should fall back to Maintenance when connecting fails', async () => {

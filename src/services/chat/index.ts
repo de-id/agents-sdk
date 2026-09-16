@@ -16,6 +16,11 @@ export async function createChat(
     persist = false,
     chat?: Chat
 ) {
+    // A chat handed in by the caller is carried over from an earlier connect and still holds the
+    // mode it was created in. Only a chat created here says anything about the mode this session
+    // is in, so only that one is allowed to answer with one.
+    const carriedOver = !!chat;
+
     if (!chat && !isChatModeWithoutChat(chatMode)) {
         chat = await agentsApi.newChat(agent.id, { persist }, getRequestHeaders(chatMode));
 
@@ -26,5 +31,5 @@ export async function createChat(
         });
     }
 
-    return { chat, chatMode: chat?.chat_mode ?? chatMode };
+    return { chat, chatMode: carriedOver ? chatMode : (chat?.chat_mode ?? chatMode) };
 }

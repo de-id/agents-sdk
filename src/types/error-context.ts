@@ -14,8 +14,9 @@
  * reporter. The error is the thing to log — {@link BaseError.toJson | toJson()} renders it with
  * the same request fields already redacted — and this is context to attach alongside it.
  *
- * Every field is optional, so read them with a guard; a failure the SDK has no context for is
- * reported with an empty object.
+ * Every field is optional, so read them with a guard — and the whole argument is optional too: a
+ * failure the SDK has no context for is reported with an empty object, or with no second argument
+ * at all.
  *
  * @category Callbacks & Events
  */

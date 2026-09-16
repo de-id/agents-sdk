@@ -17,6 +17,10 @@ export const getPresenterType = (presenter: Agent['avatar']): PresenterType => {
             return 'v3-pro';
         case AvatarType.Talk:
             return 'v2';
+        // `avatar.type` is a string union, so a hand-built `Agent` can carry a value outside the
+        // enum. Answer with the least capable tier rather than `undefined`.
+        default:
+            return 'v2';
     }
 };
 

@@ -228,6 +228,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         }
 
         analytics.track('agent-video-interrupt', {
+            // Unreachable since `type` gained its default above; kept as the brief asked.
             type: type || 'click',
             video_duration_to_interrupt: interruptTimestampTracker.get(true),
             message_duration_to_interrupt: latencyTimestampTracker.get(true),
@@ -510,6 +511,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         changeMode,
         enrichAnalytics: analytics.enrich,
         async connect() {
+            // Checked again here, not only at creation: `changeMode()` can move a manager built in
+            // a textual mode into one that streams video, and opening that stream with nothing to
+            // render it into fails silently — a paid session with no picture.
+            if (!managerOptions.callbacks.onSrcObjectReady && !isTextualChat(items.chatMode)) {
+                throw new ValidationError(MISSING_SRC_OBJECT_READY);
+            }
+
             if (opInFlight) {
                 return opInFlight;
             }

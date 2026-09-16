@@ -207,13 +207,35 @@ describe('connect-to-manager', () => {
 
             const result = await initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics);
 
-            expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledWith(ChatMode.TextOnly);
+            // The agent manager applies the mode this returns and reports the change itself; doing
+            // it here too fired the callback twice, and ahead of `getChatMode()`.
+            expect(mockOptions.callbacks.onModeChange).not.toHaveBeenCalled();
             expect(mockOptions.callbacks.onError).toHaveBeenCalledWith(
                 expect.objectContaining({ message: expect.stringContaining('Chat mode downgraded to TextOnly') })
             );
             expect(mockStreamingManager.disconnect).toHaveBeenCalled();
             expect(result.chat).toBe(mockChat);
             expect(result.streamingManager).toBeUndefined();
+        });
+
+        it('should not report a mode for a chat carried over from an earlier connect', async () => {
+            // `createChat` returns the mode it was asked for when the chat came in from the caller,
+            // so a DirectPlayback reconnect is not told it is Functional by a stale chat.
+            (createChat as jest.Mock).mockImplementation(jest.requireActual('../chat').createChat as typeof createChat);
+            const carriedOver = { ...mockChat, chat_mode: ChatMode.Functional };
+
+            const result = await initializeStreamAndChat(
+                mockAgent,
+                { ...mockOptions, mode: ChatMode.DirectPlayback },
+                mockAgentsApi,
+                mockAnalytics,
+                carriedOver
+            );
+
+            expect(mockOptions.callbacks.onModeChange).not.toHaveBeenCalled();
+            expect(mockOptions.callbacks.onError).not.toHaveBeenCalled();
+            expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+            expect(result.streamingManager).toBe(mockStreamingManager);
         });
 
         it('should not disconnect for functional mode downgrade', async () => {

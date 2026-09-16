@@ -175,8 +175,10 @@ export interface AgentManagerCallbacks {
      * does not have to supply a stub. {@link createAgentManager} rejects with a
      * {@link ValidationError} when it is missing in any other mode, {@link ChatMode.Off} and
      * {@link ChatMode.DirectPlayback} included: those two create no chat but still stream the
-     * agent's video. A manager created in a text-only mode without it and later moved into a video
-     * mode with {@link AgentManager.changeMode | changeMode()} has nothing to render into.
+     * agent's video. {@link AgentManager.connect | connect()} checks it again against the mode in
+     * effect then, so a manager created in a text-only mode and later moved into a video mode with
+     * {@link AgentManager.changeMode | changeMode()} rejects rather than opening a stream with
+     * nothing to render it into.
      *
      * @param srcObject - The live media stream to render.
      * @example
@@ -750,8 +752,16 @@ export interface AgentManager {
      * {@link AgentManager.disconnect | disconnect()} first to start a fresh conversation, or
      * {@link AgentManager.reconnect | reconnect()} to keep the current one.
      *
+     * A call made while an operation is already running joins it, so it can also resolve without
+     * opening a session — when a {@link AgentManager.disconnect | disconnect()} cancelled the
+     * operation it joined. Read {@link AgentManager.getConnectionState | getConnectionState()} if
+     * you race the two.
+     *
      * @returns Resolves when the agent is connected and ready.
-     * @throws {@link ValidationError} When a session is already open.
+     * @throws {@link ValidationError} When a session is already open, or when
+     * {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} was not supplied and the
+     * current {@link ChatMode} streams video — which a
+     * {@link AgentManager.changeMode | changeMode()} out of a text-only mode can bring about.
      * @throws {@link HttpError} When creating the stream or the chat comes back non-2xx — a client
      * key that is not authorized for the agent or the calling domain, or an account out of
      * credits. The SDK tries the initialization up to three times first, except on `429` and on an
