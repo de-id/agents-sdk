@@ -28,7 +28,14 @@ export default ({ mode }) => {
                 fileName: 'index',
             },
         },
-        plugins: [preact(), dts({ include: [resolve(__dirname, './src/**/*.{ts,tsx}')] })],
+        plugins: [
+            preact(),
+            dts({
+                include: [resolve(__dirname, './src/**/*.{ts,tsx}')],
+                // Test files and test factories are not part of the published surface.
+                exclude: [resolve(__dirname, './src/**/*.test.ts'), resolve(__dirname, './src/test-utils/**')],
+            }),
+        ],
         resolve: {
             alias: {
                 '@sdk': resolve(__dirname, './src'),
