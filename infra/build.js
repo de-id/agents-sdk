@@ -8,6 +8,7 @@ function asyncExec(command) {
         exec(command, { env: process.env }, (error, stdout, stderr) => {
             if (error) {
                 reject(error);
+                return;
             }
 
             resolve(stdout || stderr);
@@ -29,9 +30,15 @@ try {
 
     console.log(`Succesful build ${mode}`);
 } catch (e) {
+    // A failed type-check, bundle or declaration emit must fail the build: the publish
+    // workflow runs `npm publish` straight after `yarn build`, so exiting 0 here would
+    // ship whatever happened to be left in `dist/`.
     console.error(e);
+    process.exit(1);
 }
 
+// Local convenience: refresh a sibling `agents-ui` checkout's copy of the SDK. It is not
+// part of the build contract, so nothing below may change the exit code.
 try {
     console.log('start copy');
     const root = path.resolve(import.meta.url, '../../').split(':')[1];
@@ -41,19 +48,17 @@ try {
     const embeddedSdk = path.resolve(embeddedModules, './@d-id/client-sdk/dist');
     const embeddedViteCache = path.resolve(embeddedModules, './.vite');
 
-    if (!fs.existsSync(dist)) {
-        throw new Error('dist does not exist');
-    } else if (!fs.existsSync(embeddedSdk)) {
-        throw new Error('package does not exist');
+    if (!fs.existsSync(embeddedSdk)) {
+        console.log('No sibling agents-ui checkout, skipping copy');
+    } else {
+        console.log('Removing old package');
+        fs.rmSync(embeddedSdk, { recursive: true, force: true });
+        fs.rmSync(embeddedViteCache, { recursive: true, force: true });
+
+        console.log('Copying new package');
+        fs.cpSync(dist, embeddedSdk, { recursive: true });
+        fs.copyFileSync(packageJson, path.resolve(embeddedSdk, '../package.json'));
     }
-
-    console.log('Removing old package');
-    fs.rmSync(embeddedSdk, { recursive: true, force: true });
-    fs.rmSync(embeddedViteCache, { recursive: true, force: true });
-
-    console.log('Copying new package');
-    fs.cpSync(dist, embeddedSdk, { recursive: true });
-    fs.copyFileSync(packageJson, path.resolve(embeddedSdk, '../package.json'));
 } catch (e) {
     console.error('Copy failed', e);
 }
