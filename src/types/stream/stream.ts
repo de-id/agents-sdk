@@ -606,7 +606,8 @@ export interface StreamInterruptPayload {
  * name defined in the agent's configuration. The SDK parses the arguments the agent's LLM produced
  * and passes them in; whatever the handler resolves with is sent back to the agent as the tool's
  * result. Throwing rejects the call, and the error message is forwarded to the agent. Expressive
- * (V4) agents only.
+ * (V4) agents only — {@link AgentManager.registerClientTool | registerClientTool()} throws a
+ * {@link ValidationError} on a Talks (V2) or Clips (V3) agent.
  *
  * @param args - The arguments the LLM produced for this call, already parsed from JSON.
  * @returns A JSON string with the tool's result, at most 15 KiB — the LiveKit RPC response limit;

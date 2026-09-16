@@ -82,6 +82,12 @@ export type ChatProgressCallback = (progress: ChatProgress | StreamEvents, data:
  * lives outside the object can be typed with an indexed access such as
  * `AgentManagerCallbacks['onNewMessage']`.
  *
+ * The whole object is captured once, by {@link createAgentManager}, and the manager works from its
+ * own copy — assigning a handler to the object you passed afterwards has no effect, and neither
+ * does replacing {@link AgentManagerOptions.callbacks | options.callbacks}. Give each handler a
+ * stable identity that reads the current state rather than closing over it: in React, keep the
+ * state in a ref and read `ref.current` inside the handler.
+ *
  * @category Callbacks & Events
  */
 export interface AgentManagerCallbacks {
@@ -124,6 +130,17 @@ export interface AgentManagerCallbacks {
      * `STOP` point the element at the agent's idle video ({@link Agent.idle_video}); on `START` put
      * the stream handed to {@link AgentManagerCallbacks.onSrcObjectReady | onSrcObjectReady} back
      * on it.
+     *
+     * This is the authoritative "is the agent speaking" signal on a **legacy** stream — a Talks
+     * (V2) agent, or a Clips (V3) agent that did not ask for
+     * {@link StreamOptions.fluent | fluent} — because
+     * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange} reports
+     * nothing there but a final {@link AgentActivityState.Idle | Idle} on disconnect. On a fluent
+     * stream, and on every Expressive (V4) session, both fire and they answer different questions:
+     * this one follows the video itself (the frames arriving on the track), while
+     * `onAgentActivityStateChange` follows what the agent says it is doing, which is what to drive
+     * a typing indicator or an input lock from. Use {@link AgentManager.getStreamType | getStreamType()}
+     * to tell the two cases apart.
      *
      * @param state - {@link StreamingState.Start | START} while the agent is speaking,
      * {@link StreamingState.Stop | STOP} once it has finished.
@@ -209,6 +226,11 @@ export interface AgentManagerCallbacks {
      * first {@link AgentManager.chat | chat()} when none exists yet. Store the id if you want to
      * correlate the conversation with your own records.
      *
+     * On Talks (V2) and Clips (V3) agents the id comes from the Agents API. On Expressive (V4)
+     * agents the SDK derives it from the session id as `cht_<sessionId>`, which is the same id the
+     * Agents API stores the conversation under — so it correlates with D-ID's own records either
+     * way.
+     *
      * @param chatId - Id of the chat that was just created.
      */
     onNewChat?: (chatId: string) => void;
@@ -275,6 +297,14 @@ export interface AgentManagerCallbacks {
      * report just {@link AgentActivityState.Talking | Talking} and
      * {@link AgentActivityState.Idle | Idle}, and only on fluent streams, plus a final
      * {@link AgentActivityState.Idle | Idle} when the connection closes.
+     *
+     * It is the authoritative "is the agent speaking" signal wherever it reports at all — an
+     * Expressive (V4) session or a fluent stream — because it comes from the agent rather than from
+     * the video track, so it also covers thinking and tool calls, which produce no video.
+     * On a **legacy** stream it reports nothing, so use
+     * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} there; that is the
+     * branch every consumer otherwise writes for itself, keyed on
+     * {@link AgentManager.getStreamType | getStreamType()}.
      *
      * @param state - The {@link AgentActivityState} the agent has moved to.
      */
@@ -860,6 +890,13 @@ export interface AgentManager {
      *
      * Pass `rateId` to change a rating the user already gave instead of adding another.
      *
+     * Every avatar type: the rating is stored against the chat and the message.
+     * {@link AgentManagerCallbacks.onNewChat | onNewChat} explains where an Expressive (V4)
+     * session's chat id comes from. What differs is `messageId` — the SDK only checks that the id
+     * is in the transcript it holds, and an Expressive (V4) answer that arrives over the data
+     * channel without an id of its own is given a locally generated one, which D-ID's records
+     * cannot be matched against. Rate the answers whose ids came from the server.
+     *
      * @param messageId - Id of the message being rated.
      * @param score - 1 for a positive rating, -1 for a negative one.
      * @param rateId - Id of an existing rating to update; omit to create a new one.
@@ -872,6 +909,9 @@ export interface AgentManager {
     rate(messageId: string, score: 1 | -1, rateId?: string): Promise<Rating>;
     /**
      * Removes a rating the user gave to an answer in the chat.
+     *
+     * Every avatar type; it addresses the rating by its own id, so nothing about it differs between
+     * the tiers.
      *
      * @param id - Id of the rating to remove, as returned by
      * {@link AgentManager.rate | rate()}.
@@ -887,12 +927,18 @@ export interface AgentManager {
      * Separate from {@link AgentManager.rate | rate()}, which scores a single answer. Collect it
      * when the user ends the call, using the agent's end-of-call feedback configuration.
      *
+     * Every avatar type. The agent must have end-of-call feedback switched on
+     * ({@link Agent.end_of_call_feedback}, {@link EndOfCallFeedbackConfig.enabled | enabled}) —
+     * the Agents API rejects the request otherwise, so read the configuration before offering the
+     * form. A second submission for the same conversation replaces the first.
+     *
      * @param rating - The user's score for the conversation: 1, 2, 3, 4 or 5. The Agents API
      * rejects anything else, whole numbers outside the range and fractions alike.
      * @param answer - The user's free-text answer to the follow-up question, when one was asked.
      * @returns The stored {@link SubmitFeedbackResponse}.
      * @throws {@link ValidationError} When no chat has started.
-     * @throws {@link HttpError} When the feedback request comes back non-2xx.
+     * @throws {@link HttpError} When the feedback request comes back non-2xx — including a `400`
+     * when the agent does not have end-of-call feedback enabled.
      * @throws {@link NetworkError} When the feedback request never reaches the server.
      */
     submitFeedback(rating: 1 | 2 | 3 | 4 | 5, answer?: string): Promise<SubmitFeedbackResponse>;
@@ -1059,6 +1105,12 @@ export interface AgentManager {
     /**
      * Registers a handler for a client tool, run in the browser when the agent's LLM calls it.
      *
+     * Expressive (V4) agents only: client tools travel on the real-time session's RPC channel,
+     * which Talks (V2) and Clips (V3) agents do not have. It throws a {@link ValidationError} on
+     * those rather than registering a handler the agent could never call. The check is on the
+     * agent, not on the connection, so it applies before
+     * {@link AgentManager.connect | connect()} too.
+     *
      * The handler executes on the client and its result is returned to the LLM. Register the
      * handlers before {@link AgentManager.connect | connect()} so the agent can call
      * them from the moment the session starts; registering the same name again replaces the
@@ -1068,15 +1120,19 @@ export interface AgentManager {
      * @param name - Name of the tool, which must match the one defined in the agent's
      * configuration.
      * @param handler - The function that runs when the agent calls the tool. It receives the
-     * arguments the LLM produced and must resolve to a JSON string of at most 15 KiB. See
+     * arguments the LLM produced and returns a JSON string of at most 15 KiB — the limit is the
+     * transport's, not the SDK's, and a larger result fails the call. See
      * {@link ClientToolHandler}.
+     * @throws {@link ValidationError} When the agent is a Talks (V2) or Clips (V3) one.
      */
     registerClientTool(name: string, handler: ClientToolHandler): void;
 
     /**
      * Removes a previously registered client tool handler.
      *
-     * After this the agent's calls to that tool fail rather than reaching your code.
+     * After this the agent's calls to that tool fail rather than reaching your code. Unlike
+     * {@link AgentManager.registerClientTool | registerClientTool()} it never throws — a name that
+     * was never registered, and any agent type, is a no-op — so it is safe in a cleanup path.
      *
      * @param name - Name of the tool whose handler should be removed.
      */

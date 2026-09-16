@@ -268,6 +268,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     }
 
     function registerClientTool(name: string, handler: ClientToolHandler): void {
+        // Client tools travel over the LiveKit RPC channel, which only an Expressive (V4) session
+        // has. The WebRTC manager declares no `registerRpcMethod`, so this used to be a silent
+        // no-op — the one Expressive-only method that did not say so.
+        if (!isStreamsV2) {
+            throw new ValidationError('registerClientTool is only available on Expressive (V4) agents');
+        }
+
         const isNew = !clientToolHandlers.has(name);
         clientToolHandlers.set(name, handler);
         if (isNew) {

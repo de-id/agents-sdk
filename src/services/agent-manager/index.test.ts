@@ -1736,7 +1736,27 @@ describe('createAgentManager', () => {
         beforeEach(async () => {
             mockStreamingManager.registerRpcMethod = jest.fn();
             mockStreamingManager.unregisterRpcMethod = jest.fn();
+            // Client tools are an Expressive (V4) feature: the RPC channel they travel on exists
+            // only there.
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
             manager = await createAgentManager('agent-123', mockOptions);
+        });
+
+        it('should reject on a Talks (V2) or Clips (V3) agent instead of doing nothing', async () => {
+            mockAgent.avatar = { type: AvatarType.Talk, voice: { language: 'en-US' } };
+            const talksManager = await createAgentManager('agent-123', mockOptions);
+
+            expect(() => talksManager.registerClientTool('testTool', async () => 'result')).toThrow(ValidationError);
+            expect(() => talksManager.registerClientTool('testTool', async () => 'result')).toThrow(
+                'registerClientTool is only available on Expressive (V4) agents'
+            );
+        });
+
+        it('should let unregisterClientTool run on any agent type', async () => {
+            mockAgent.avatar = { type: AvatarType.Talk, voice: { language: 'en-US' } };
+            const talksManager = await createAgentManager('agent-123', mockOptions);
+
+            expect(() => talksManager.unregisterClientTool('testTool')).not.toThrow();
         });
 
         it('should register tool and call registerRpcMethod after connect', async () => {

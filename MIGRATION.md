@@ -106,6 +106,7 @@ Shapes are unchanged; only the names differ.
 - `AgentManager.agent` and `AgentManager.starterMessages` are `readonly`, and `starterMessages` is `readonly string[]` and a copy — it used to be the very array held by `agent.starter_message`, so `manager.starterMessages.push(...)` changed the agent. Copy it before sorting or filtering in place.
 - `onSrcObjectReady` is optional on `AgentManagerCallbacks`, so a text-only application no longer has to pass a stub. It is still required for every chat mode that streams video: `createAgentManager()` rejects with a `ValidationError` when it is missing in any mode but `TextOnly`, `Playground` and `Maintenance` (`Off` and `DirectPlayback` create no chat but do stream video).
 - `ClientToolHandler` may return `string` as well as `Promise<string>`; a synchronous handler no longer has to be marked `async`.
+- `registerClientTool()` throws a `ValidationError` on a Talks (V2) or Clips (V3) agent instead of registering a handler that could never be called — client tools need the Expressive (V4) session's RPC channel. `unregisterClientTool()` stays a no-op everywhere, so a cleanup path does not have to guard.
 - `AgentManager` gained `getChatMode()`, `getConnectionState()` and `getSessionInfo()`, so the current mode, connection state and session ids no longer have to be mirrored from the callbacks; a hand-written `AgentManager` double has to implement them.
 
 ---
