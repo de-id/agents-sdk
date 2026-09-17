@@ -1,9 +1,17 @@
+/**
+ * Kind of a knowledge entity as stored by the Knowledge API.
+ * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
+ */
 export enum KnowledgeType {
     Knowledge = 'knowledge',
     Document = 'document',
     Record = 'record',
 }
 
+/**
+ * File format of a document ingested into the Knowledge API.
+ * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
+ */
 export enum DocumentType {
     Pdf = 'pdf',
     Text = 'text',
@@ -20,10 +28,18 @@ export enum DocumentType {
     Video = 'video',
 }
 
+/**
+ * Result of parsing a document's raw content for the Knowledge API.
+ * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
+ */
 export interface IParserResult {
     data: string;
 }
 
+/**
+ * A knowledge entity as returned by the Knowledge API.
+ * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
+ */
 export interface KnowledgeData {
     created_at: string;
     modified_at: string;
@@ -37,6 +53,10 @@ export interface KnowledgeData {
     starter_message?: string[];
 }
 
+/**
+ * Request payload for creating a knowledge entity, derived from `KnowledgeData`.
+ * @internal The SDK exposes no knowledge methods; manage knowledge through the D-ID API.
+ */
 export type KnowledgePayload = Omit<
     KnowledgeData,
     'created_by' | 'type' | 'created_at' | 'modified_at' | 'id' | 'owner_id'

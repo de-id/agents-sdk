@@ -1,5 +1,6 @@
 import { HttpError, NetworkError } from '@sdk/errors';
 import { Auth } from '@sdk/types/auth';
+import { ErrorReporter } from '@sdk/types/error-context';
 import { retryOperation } from '@sdk/utils/retry-operation';
 import { getAuthHeader } from '../auth/get-auth-header';
 import { didApiUrl } from '../config/environment';
@@ -7,6 +8,16 @@ import { didApiUrl } from '../config/environment';
 export type RequestOptions = RequestInit & {
     skipErrorHandler?: boolean;
 };
+
+/**
+ * Internal marker thrown from the retried fetch so `retryOperation` sees a 429 as a failure.
+ * `fetch` resolves on a 429, so without this the retry predicate would never match.
+ */
+class TooManyRequests {
+    readonly status = 429;
+
+    constructor(readonly response: Response) {}
+}
 
 const retryHttpTooManyRequests = <T>(operation: () => Promise<T>): Promise<T> =>
     retryOperation(operation, {
@@ -16,12 +27,7 @@ const retryHttpTooManyRequests = <T>(operation: () => Promise<T>): Promise<T> =>
         shouldRetryFn: error => error.status === 429,
     });
 
-export function createClient(
-    auth: Auth,
-    host = didApiUrl,
-    onError?: (error: Error, errorData: object) => void,
-    externalId?: string
-) {
+export function createClient(auth: Auth, host = didApiUrl, onError?: ErrorReporter, externalId?: string) {
     const client = async <T>(url: string, options?: RequestOptions) => {
         const { skipErrorHandler, ...fetchOptions } = options || {};
         const method = fetchOptions.method ?? 'GET';
@@ -29,42 +35,53 @@ export function createClient(
 
         let request: Response;
         try {
-            request = await retryHttpTooManyRequests(() =>
-                fetch(host + (url?.startsWith('/') ? url : `/${url}`), {
+            request = await retryHttpTooManyRequests(async () => {
+                const response = await fetch(host + (url?.startsWith('/') ? url : `/${url}`), {
                     ...fetchOptions,
                     headers: {
                         ...fetchOptions.headers,
                         Authorization: getAuthHeader(auth, externalId),
                         'Content-Type': 'application/json',
                     },
-                })
-            );
-        } catch (networkError) {
-            // no response reached us (offline / DNS / refused / TLS / CORS); AbortError is a cancellation
-            const isAbort = (networkError as { name?: string })?.name === 'AbortError';
-            if (isAbort) {
-                throw networkError;
-            }
+                });
 
-            const error = new NetworkError(networkError, {
-                url,
-                method,
-                durationMs: Math.round(performance.now() - start),
-                online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
-                visibility: typeof document !== 'undefined' ? document.visibilityState : undefined,
+                if (response.status === 429) {
+                    throw new TooManyRequests(response);
+                }
+
+                return response;
             });
-            if (!skipErrorHandler) {
-                onError?.(error, { url, options: fetchOptions });
+        } catch (networkError) {
+            if (networkError instanceof TooManyRequests) {
+                // retries are exhausted; let the rate-limited response take the normal HttpError path
+                request = networkError.response;
+            } else {
+                // no response reached us (offline / DNS / refused / TLS / CORS); AbortError is a cancellation
+                const isAbort = (networkError as { name?: string })?.name === 'AbortError';
+                if (isAbort) {
+                    throw networkError;
+                }
+
+                const error = new NetworkError(networkError, {
+                    endpoint: url,
+                    method,
+                    durationMs: Math.round(performance.now() - start),
+                    online: typeof navigator !== 'undefined' ? navigator.onLine : undefined,
+                    visibility: typeof document !== 'undefined' ? document.visibilityState : undefined,
+                });
+                if (!skipErrorHandler) {
+                    onError?.(error, { endpoint: url, method });
+                }
+                throw error;
             }
-            throw error;
         }
 
         if (!request.ok) {
             const errorText = await request.text().catch(() => `Failed to fetch with status ${request.status}`);
-            const error = new HttpError(request.status, errorText, { url, method });
+            const error = new HttpError(request.status, errorText, { endpoint: url, method });
 
             if (!skipErrorHandler) {
-                onError?.(error, { url, options: fetchOptions, headers: request.headers });
+                onError?.(error, { endpoint: url, method });
             }
 
             throw error;

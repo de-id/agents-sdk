@@ -7,10 +7,10 @@ export const StreamingManagerFactory = new Factory().attrs({
     streamType: 'legacy' as const,
     interruptAvailable: false,
     isInterruptible: true,
-    speak: () => jest.fn().mockResolvedValue({ status: 'success', duration: 5000, video_id: 'video-123' }),
+    speak: () => jest.fn().mockResolvedValue({ status: 'success', duration: 5000, videoId: 'video-123' }),
     disconnect: () => jest.fn().mockResolvedValue(undefined),
     sendDataChannelMessage: () => jest.fn(),
-    interrupt: () => jest.fn(),
+    interrupt: () => jest.fn(() => true),
 });
 
 export const StreamingManagerOptionsFactory = new Factory<StreamingManagerOptions>().attrs({

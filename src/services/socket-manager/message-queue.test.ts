@@ -1,4 +1,4 @@
-import { ChatMode, ChatProgress } from '@sdk/types';
+import { ChatMode, ChatProgress, StreamEvents } from '@sdk/types';
 import { AgentManagerItems } from '../agent-manager';
 import { createMessageEventQueue } from './message-queue';
 
@@ -52,7 +52,7 @@ describe('createMessageEventQueue', () => {
                 role: 'user',
                 content: 'first question',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
                 transcribed: true,
             });
 
@@ -88,7 +88,7 @@ describe('createMessageEventQueue', () => {
                 role: 'user',
                 content: 'test',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
                 transcribed: true,
             });
 
@@ -114,7 +114,7 @@ describe('createMessageEventQueue', () => {
                 role: 'user',
                 content: 'test',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
                 transcribed: true,
             });
 
@@ -141,7 +141,7 @@ describe('createMessageEventQueue', () => {
                 role: 'user',
                 content: 'test',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
                 transcribed: true,
             });
 
@@ -169,7 +169,7 @@ describe('createMessageEventQueue', () => {
                 role: 'user',
                 content: 'first message',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
                 transcribed: true,
             });
 
@@ -301,7 +301,7 @@ describe('createMessageEventQueue', () => {
                 role: 'user',
                 content: 'test',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
                 transcribed: true,
             });
 
@@ -325,7 +325,7 @@ describe('createMessageEventQueue', () => {
                 role: 'user',
                 content: 'please book a meeting',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
                 transcribed: true,
             });
         });
@@ -483,7 +483,7 @@ describe('createMessageEventQueue', () => {
                 role: 'assistant',
                 content: '',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
             });
 
             onMessage(ChatProgress.Partial, { content: 'Hello ![img](https://example.com/pic.png)', sequence: 0 });
@@ -510,7 +510,7 @@ describe('createMessageEventQueue', () => {
                 role: 'user',
                 content: 'test',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
                 transcribed: true,
             });
 
@@ -538,7 +538,7 @@ describe('createMessageEventQueue', () => {
                 role: 'user',
                 content: 'test',
                 parts: [],
-                created_at: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
                 transcribed: true,
             });
 
@@ -569,6 +569,49 @@ describe('createMessageEventQueue', () => {
             expect(lastMessage.role).toBe('user');
             expect(lastMessage.transcribed).toBe(true);
             expect(lastMessage.parts).toEqual([{ type: 'text', text: 'Hello there' }]);
+        });
+
+        it("should read the socket's created_at into the message's createdAt", () => {
+            // ARRANGE:
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            // ACT:
+            onMessage(ChatProgress.Transcribe, {
+                content: 'Hello there',
+                role: 'user',
+                id: 'user-transcribed-1',
+                created_at: '2026-09-16T08:00:00.000Z',
+            });
+
+            // ASSERT:
+            const lastCall = mockOnNewMessage.mock.calls[mockOnNewMessage.mock.calls.length - 1];
+            const lastMessage = lastCall[0][lastCall[0].length - 1];
+            expect(lastMessage.createdAt).toBe('2026-09-16T08:00:00.000Z');
+            expect(lastMessage).not.toHaveProperty('created_at');
+        });
+    });
+
+    describe('stream failures', () => {
+        it('should report the stream id as context, not the server payload', () => {
+            mockItems.streamingManager = { streamId: 'str_1' } as AgentManagerItems['streamingManager'];
+
+            const { onMessage } = createMessageEventQueue(
+                mockAnalytics,
+                mockItems,
+                mockOptions,
+                mockAgent,
+                mockOnStreamDone
+            );
+
+            onMessage(StreamEvents.StreamFailed, { event: StreamEvents.StreamFailed, description: 'boom' });
+
+            expect(mockOptions.callbacks.onError).toHaveBeenCalledWith(expect.any(Error), { streamId: 'str_1' });
         });
     });
 });

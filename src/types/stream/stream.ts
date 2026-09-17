@@ -1,130 +1,465 @@
 import { Analytics } from '@sdk/services/analytics/mixpanel';
 import { VideoRTCStatsReport } from '@sdk/services/streaming-manager/stats/report';
 import { Auth } from '../auth';
-import { ChatProgressCallback } from '../entities/agents/manager';
+import { AgentManagerCallbacks, ChatProgressCallback } from '../entities/agents/manager';
+import { ErrorReporter } from '../error-context';
 import { CreateClipStreamRequest, CreateTalkStreamRequest, SendClipStreamPayload, SendTalkStreamPayload } from './api';
-import { DataChannelTopic } from './data-channel';
-import { ICreateStreamRequestResponse, IceCandidate, SendStreamPayloadResponse, Status } from './rtc';
+import { ICreateStreamRequestResponse, IceCandidate, SpeakResponse, Status } from './rtc';
 
+/**
+ * Which video codec the stream should negotiate.
+ *
+ * Passed as {@link StreamOptions.compatibilityMode}. `on` forces VP8 and `off` forces H264; with
+ * `auto` the SDK forwards the flag and the codec is selected according to the browser. Talks (V2)
+ * and Clips (V3) agents only — Expressive (V4) agents negotiate the codec themselves and ignore
+ * the setting.
+ *
+ * @category Streaming Options
+ */
 export type CompatibilityMode = 'on' | 'off' | 'auto';
 
+/**
+ * Whether the agent's video is currently playing.
+ *
+ * The argument of {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange}: it tells
+ * the application when to show the streamed video and when to fall back to the agent's idle video.
+ *
+ * @category Callbacks & Events
+ */
 export enum StreamingState {
+    /** The agent has started speaking; render the streamed media. */
     Start = 'START',
+    /** The agent has finished speaking; the application can switch back to the idle video. */
     Stop = 'STOP',
 }
 
+/**
+ * How well the streamed media is reaching the user.
+ *
+ * The argument of
+ * {@link AgentManagerCallbacks.onConnectivityStateChange | onConnectivityStateChange}. It is
+ * estimated from the session's own media statistics — jitter-buffer delay and freeze count for
+ * Talks (V2) and Clips (V3), the transport's reported connection quality for Expressive (V4) — so
+ * it reflects what this stream is actually getting rather than whether the browser is online.
+ *
+ * @category Callbacks & Events
+ */
 export enum ConnectivityState {
+    /** The stream is arriving smoothly. */
     Strong = 'STRONG',
+    /** The stream is degraded: video is stalling or arriving late. */
     Weak = 'WEAK',
+    /** There is not enough data to judge the connection yet, or the stream stopped arriving. */
     Unknown = 'UNKNOWN',
 }
 
+/**
+ * What the agent is doing right now, for driving the application's UI.
+ *
+ * The argument of
+ * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange}. Expressive
+ * (V4) agents move through all four states; Talks (V2) and Clips (V3) agents only alternate between
+ * {@link AgentActivityState.Talking | TALKING} and {@link AgentActivityState.Idle | IDLE}, and only
+ * on fluent streams.
+ *
+ * @category Callbacks & Events
+ */
 export enum AgentActivityState {
+    /** The agent is doing nothing and is waiting for the user — the conversational turn has ended. */
     Idle = 'IDLE',
+    /**
+     * The agent is working on an answer that has not started streaming yet.
+     *
+     * Expressive (V4) only: set when a turn starts and when the user's speech has just been
+     * transcribed. Use it for a typing or thinking indicator.
+     */
     Loading = 'LOADING',
+    /** The agent's video has started; the agent is speaking. */
     Talking = 'TALKING',
+    /**
+     * The agent is running one or more tool calls.
+     *
+     * Expressive (V4) only: set when a tool call starts, and returned to after the agent finishes
+     * speaking while any call is still outstanding (for example a client tool waiting on the user).
+     * The individual calls are reported by
+     * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}.
+     */
     ToolActive = 'TOOL_ACTIVE',
 }
 
+/**
+ * Every event the SDK receives on a stream's data channel or web socket.
+ *
+ * The three tool-call members are the only ones an application ever sees, and they reach it as
+ * {@link ToolCallEvent} instead; the rest are consumed by the SDK and surfaced as callbacks.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export enum StreamEvents {
+    /**
+     * The agent's complete answer for this turn; it becomes an `answer` message in the transcript.
+     * @internal Consumed by the SDK; it surfaces as onNewMessage.
+     */
     ChatAnswer = 'chat/answer',
+    /**
+     * A fragment of the agent's answer as it is generated; it becomes a `partial` message.
+     * @internal Consumed by the SDK; it surfaces as onNewMessage.
+     */
     ChatPartial = 'chat/partial',
+    /**
+     * The user's speech, transcribed by the server; it becomes a `user` message.
+     * @internal Consumed by the SDK; it surfaces as onNewMessage.
+     */
     ChatAudioTranscribed = 'chat/audio-transcribed',
+    /**
+     * A video finished playing, or the session ended — which one depends on where it arrives.
+     *
+     * On the data channel of a Talks (V2) or Clips (V3) stream it closes the video
+     * {@link StreamEvents.StreamStarted | 'stream/started'} opened, once per
+     * {@link AgentManager.speak | speak()}, and drives
+     * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange} with
+     * {@link StreamingState.Stop | STOP} and
+     * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange} with
+     * {@link AgentActivityState.Idle | IDLE}.
+     *
+     * On the Talks (V2) and Clips (V3) web socket, and on an Expressive (V4) stream, it instead
+     * ends the whole session: it carries the reason, which the SDK passes on as the `reason`
+     * argument of {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange}
+     * with {@link ConnectionState.Disconnected | 'disconnected'}. See {@link StreamEndReason}.
+     * @internal Consumed by the SDK; it surfaces as onVideoStateChange or onConnectionStateChange.
+     */
     StreamDone = 'stream/done',
+    /**
+     * A video started playing on a Talks (V2) or Clips (V3) stream.
+     * @internal Consumed by the SDK; it surfaces as onVideoStateChange.
+     */
     StreamStarted = 'stream/started',
+    /**
+     * The session ended because the stream failed.
+     *
+     * On the Talks (V2) and Clips (V3) web socket it is also reported through
+     * {@link AgentManagerCallbacks.onError | onError}, as a {@link StreamError}.
+     * @internal Consumed by the SDK; it surfaces as onError.
+     */
     StreamFailed = 'stream/error',
+    /**
+     * The warmup video has finished and the stream is ready for real content.
+     *
+     * Only sent when {@link StreamOptions.streamWarmup | streamWarmup} was requested.
+     * @internal Consumed by the SDK; the application never sees it.
+     */
     StreamReady = 'stream/ready',
-    StreamCreated = 'stream/created',
+    /**
+     * The video currently playing should stop.
+     *
+     * Sent by the SDK rather than received: it is the message
+     * {@link AgentManager.interrupt | interrupt()} puts on the data channel of a fluent Talks (V2)
+     * or Clips (V3) stream.
+     * @internal Sent by the SDK; the application calls interrupt() instead.
+     */
     StreamInterrupt = 'stream/interrupt',
+    /**
+     * A video for one utterance started playing.
+     * @internal Consumed by the SDK; it surfaces as onVideoStateChange.
+     */
     StreamVideoCreated = 'stream-video/started',
+    /**
+     * The video for one utterance finished playing.
+     * @internal Consumed by the SDK; it surfaces as onVideoStateChange.
+     */
     StreamVideoDone = 'stream-video/done',
+    /**
+     * Generating or streaming the video for one utterance failed.
+     * @internal Consumed by the SDK; it surfaces as onError.
+     */
     StreamVideoError = 'stream-video/error',
+    /**
+     * The server refused to generate the video for one utterance.
+     * @internal Consumed by the SDK; it surfaces as onError.
+     */
     StreamVideoRejected = 'stream-video/rejected',
+    /** The agent started a tool call; the payload is a {@link ToolCallStartedPayload}. */
     ToolCallStarted = 'tool-call/started',
+    /** A tool call finished successfully; the payload is a {@link ToolCallDonePayload}. */
     ToolCallDone = 'tool-call/done',
+    /** A tool call failed; the payload is a {@link ToolCallErrorPayload}. */
     ToolCallError = 'tool-call/error',
+    /**
+     * A conversational turn started. Expressive (V4) only.
+     * @internal Consumed by the SDK; it surfaces as onAgentActivityStateChange.
+     */
     TurnStarted = 'turn/started',
+    /**
+     * A conversational turn ended. Expressive (V4) only.
+     * @internal Consumed by the SDK; it surfaces as onAgentActivityStateChange.
+     */
     TurnEnded = 'turn/ended',
 }
 
 /**
- * Topics a customer can send on via `agentManager.sendDataChannelMessage`.
- * The remaining `DataChannelTopic` members are driven by their own methods
- * (`chat`, `speak`, `interrupt`, `setSttLanguage`), which own the payload shape
- * and bookkeeping those topics expect, so they stay internal.
+ * The tool-call events delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
  *
- * A const object rather than a second enum: it borrows the value from
- * `DataChannelTopic`, so there is one source of truth for the wire string and
- * no cast is needed where the topic reaches the transport.
+ * Switch on the first argument of the handler to tell them apart: it narrows the second argument to
+ * the payload that event carries — see {@link ToolEventCallback}. The members' values are the wire
+ * strings the server sends, so compare against the enum rather than writing the string out.
+ * Expressive (V4) agents only.
+ *
+ * @example
+ * ```ts
+ * import { AgentManagerCallbacks, ToolCallEvent } from '@d-id/client-sdk';
+ *
+ * const callbacks: AgentManagerCallbacks = {
+ *     onToolEvent(event, data) {
+ *         if (event === ToolCallEvent.Started) {
+ *             console.log('started', data.name, data.input);
+ *         }
+ *     },
+ * };
+ * ```
+ * @category Callbacks & Events
  */
-export const PublicDataChannelTopic = { Presentation: DataChannelTopic.Presentation } as const;
-export type PublicDataChannelTopic = (typeof PublicDataChannelTopic)[keyof typeof PublicDataChannelTopic];
+export enum ToolCallEvent {
+    /**
+     * The agent has begun a tool call; the payload is a {@link ToolCallStartedPayload}, carrying the
+     * call's id, the tool's name and the arguments the agent's LLM produced.
+     */
+    Started = 'tool-call/started',
+    /**
+     * A tool call finished successfully; the payload is a {@link ToolCallDonePayload}, carrying the
+     * result the tool returned and how long the call took.
+     */
+    Done = 'tool-call/done',
+    /**
+     * A tool call failed; the payload is a {@link ToolCallErrorPayload}, carrying the reason in
+     * {@link ToolCallErrorPayload.error | error} when the server gave one. The agent carries on
+     * with the conversation.
+     */
+    Error = 'tool-call/error',
+}
 
+/**
+ * The data-channel topics an application may send on with
+ * {@link AgentManager.sendDataChannelMessage | sendDataChannelMessage()}.
+ *
+ * The remaining data-channel topics are driven by their own methods
+ * ({@link AgentManager.chat | chat()}, {@link AgentManager.speak | speak()},
+ * {@link AgentManager.interrupt | interrupt()},
+ * {@link AgentManager.setSttLanguage | setSttLanguage()}), which own the payload shape and
+ * bookkeeping those topics expect, so they stay internal.
+ *
+ * The members' values are the wire strings. Take the value from the enum rather than writing the
+ * string out, so the wire string stays in one place. Expressive (V4) agents only.
+ *
+ * @example
+ * ```ts
+ * import { DataChannelTopic } from '@d-id/client-sdk';
+ *
+ * await agentManager.sendDataChannelMessage(DataChannelTopic.Presentation, {
+ *     type: 'navigate',
+ *     slide: 3,
+ * });
+ * ```
+ * @category Agent Manager
+ */
+export enum DataChannelTopic {
+    /**
+     * Messages that drive a presentation the agent is showing alongside its video, such as moving
+     * to another slide. Sent on the wire as `did.presentation`; the payload shape is whatever the
+     * presentation the agent is running expects.
+     */
+    Presentation = 'did.presentation',
+}
+
+/**
+ * The state of the connection between the browser and the agent's stream.
+ *
+ * The first argument of
+ * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange}.
+ * {@link ConnectionState.Connected | 'connected'} is the point at which
+ * {@link AgentManager.chat | chat()} and {@link AgentManager.speak | speak()} can be called.
+ *
+ * Every agent type reports `'connecting'`, `'connected'`, `'fail'` and `'disconnected'`; `'new'`,
+ * `'completed'` and `'closed'` are WebRTC ICE states that only Talks (V2) and Clips (V3) agents
+ * reach, and `'disconnecting'` is Expressive (V4) only.
+ *
+ * @category Callbacks & Events
+ */
 export enum ConnectionState {
+    /** The connection object exists but nothing has been negotiated yet. */
     New = 'new',
+    /** The connection could not be established, or dropped irrecoverably. */
     Fail = 'fail',
+    /** The stream is live: the agent can be spoken to and its video rendered. */
     Connected = 'connected',
+    /** The connection is being established, or re-established after a drop. */
     Connecting = 'connecting',
+    /** The connection has been shut down and cannot be used again. */
     Closed = 'closed',
+    /**
+     * Negotiation finished and the connection is fully established.
+     *
+     * It is reached after {@link ConnectionState.Connected | 'connected'}, so gate the application
+     * on that one instead: it is the state every agent type reports.
+     */
     Completed = 'completed',
+    /**
+     * {@link AgentManager.disconnect | disconnect()} is in progress.
+     *
+     * Expressive (V4) agents only; Talks (V2) and Clips (V3) go straight from
+     * {@link ConnectionState.Connected | 'connected'} to
+     * {@link ConnectionState.Disconnected | 'disconnected'}.
+     */
     Disconnecting = 'disconnecting',
+    /**
+     * The stream has ended.
+     *
+     * The `reason` argument of
+     * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange} says why —
+     * a {@link StreamEndReason} when the server ended the session deliberately. Reconnecting with
+     * {@link AgentManager.reconnect | reconnect()} starts a new stream.
+     */
     Disconnected = 'disconnected',
 }
 
+/**
+ * How the agent's idle and talking video are delivered.
+ *
+ * Returned by {@link AgentManager.getStreamType | getStreamType()}. Which one a session gets
+ * follows from the agent and from {@link StreamOptions.fluent | fluent}.
+ *
+ * @category Streaming Options
+ */
 export enum StreamType {
+    /**
+     * Two videos: the agent's idle video, which the application plays itself, and the streamed
+     * talking video. Switch between them in
+     * {@link AgentManagerCallbacks.onVideoStateChange | onVideoStateChange}.
+     */
     Legacy = 'legacy',
+    /**
+     * One continuous video for both the idle and the talking state, so there is nothing to swap.
+     * Expressive (V4) agents always stream this way, and it is what makes
+     * {@link AgentManager.interrupt | interrupt()} possible.
+     */
     Fluent = 'fluent',
 }
 
-/** @internal */
+/**
+ * Handler for an RPC method registered on the LiveKit room before it connects.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type RpcMethodHandler = (data: { payload: string }) => Promise<string>;
 
-export interface ManagerCallbacks {
+/**
+ * Identifiers of the stream the SDK has just opened for the session.
+ *
+ * Handed to {@link AgentManagerCallbacks.onStreamCreated | onStreamCreated} once the server has
+ * accepted the stream, before the first video frame arrives. Log the three ids together: they are
+ * what identifies the session in D-ID's own records.
+ *
+ * @category Callbacks & Events
+ */
+export interface StreamCreatedInfo {
+    /**
+     * Id of the agent the stream was opened for.
+     */
+    agentId: string;
+
+    /**
+     * Id of the session; the SDK sends it back on every subsequent request for this stream.
+     * On Expressive (V4) agents it is the same value as
+     * {@link StreamCreatedInfo.streamId | streamId}.
+     */
+    sessionId: string;
+
+    /**
+     * Id of the stream itself.
+     */
+    streamId: string;
+}
+
+/**
+ * Callback set consumed by the streaming managers (WebRTC and LiveKit).
+ * The agent manager adapts these into the public {@link AgentManagerCallbacks}.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
+export interface StreamingManagerCallbacks {
     onMessage?: ChatProgressCallback;
     onConnectionStateChange?: (state: ConnectionState, reason?: string) => void;
     onVideoStateChange?: (state: StreamingState, report?: VideoRTCStatsReport) => void;
     onSrcObjectReady?: (value: MediaStream) => void;
-    onError?: (error: Error, errorData: object) => void;
+    onError?: ErrorReporter;
     onConnectivityStateChange?: (state: ConnectivityState) => void;
     onAgentActivityStateChange?: (state: AgentActivityState) => void;
     onVideoIdChange?: (videoId: string | null) => void;
-    onStreamCreated?: (stream: { stream_id: string; session_id: string; agent_id: string }) => void;
+    onStreamCreated?: (stream: StreamCreatedInfo) => void;
     onStreamReady?: () => void;
     onToolEvent?: ToolEventCallback;
-    onInterruptibleChange?: (interruptible: boolean) => void;
-    onRunningToolCallsChange?: (calls: readonly RunningToolCall[]) => void;
+    onInterruptibleChange?: AgentManagerCallbacks['onInterruptibleChange'];
+    onRunningToolCallsChange?: AgentManagerCallbacks['onRunningToolCallsChange'];
     onFirstAudioDetected?: (metrics: AudioDetectionMetrics) => void;
 }
 
+/**
+ * Latency measurements captured when the first audio frame of a stream is detected.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface AudioDetectionMetrics {
     latency?: number;
     networkLatency?: number;
 }
 
-export type ManagerCallbackKeys = keyof ManagerCallbacks;
+/**
+ * Union of callback names accepted by {@link StreamingManagerCallbacks}.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
+export type ManagerCallbackKeys = keyof StreamingManagerCallbacks;
 
+/**
+ * Custom end-user metadata attached to a stream creation request.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface StreamEndUserData {
     plan?: string;
 }
 
+/**
+ * Options for creating a legacy (talk) stream, combining the wire request with fluent-mode extras.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface TalkStreamOptions extends CreateTalkStreamRequest {
     fluent?: boolean;
     end_user_data?: StreamEndUserData;
 }
 
+/**
+ * Options for creating a clip stream, combining the wire request with fluent-mode extras.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface ClipStreamOptions extends CreateClipStreamRequest {
     fluent?: boolean;
     end_user_data?: StreamEndUserData;
 }
 
+/**
+ * Options accepted when creating a stream, discriminated by the underlying stream type (talk or clip).
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type CreateStreamOptions = TalkStreamOptions | ClipStreamOptions;
 
+/**
+ * Maps a {@link CreateStreamOptions} variant to the payload type sent to drive that stream.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export type PayloadType<T> = T extends TalkStreamOptions
     ? SendTalkStreamPayload
     : T extends ClipStreamOptions
       ? SendClipStreamPayload
       : never;
 
+/**
+ * HTTP client surface used by the streaming managers to create and drive a WebRTC stream.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface RtcApi {
     createStream(options: CreateStreamOptions, signal?: AbortSignal): Promise<ICreateStreamRequestResponse>;
     startConnection(
@@ -143,23 +478,21 @@ export interface RtcApi {
         streamId: string,
         sessionId: string,
         payload: SendClipStreamPayload | SendTalkStreamPayload
-    ): Promise<SendStreamPayloadResponse>;
+    ): Promise<SpeakResponse>;
     close(streamId: string, sessionId: string): Promise<Status>;
 }
 
+/**
+ * Options used to construct a streaming manager (WebRTC or LiveKit) instance.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface StreamingManagerOptions {
-    callbacks: ManagerCallbacks;
+    callbacks: StreamingManagerCallbacks;
     baseURL?: string;
     debug?: boolean;
     verbose?: boolean;
     auth: Auth;
     analytics: Analytics;
-    /**
-     * Optional MediaStream to use for microphone input.
-     * If provided, the audio track from this stream will be published to the data channel.
-     * Supported by LiveKit streaming managers.
-     */
-    microphoneStream?: MediaStream;
     /**
      * RPC methods to register on the room before it connects, so the agent can
      * call them from the moment this participant joins.
@@ -168,6 +501,10 @@ export interface StreamingManagerOptions {
     rpcMethods?: ReadonlyMap<string, RpcMethodHandler>;
 }
 
+/**
+ * Trimmed set of WebRTC inbound video stats sampled from `RTCStatsReport`, sampled for internal quality analytics.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface SlimRTCStatsReport {
     index: number;
     codec: string;
@@ -192,6 +529,10 @@ export interface SlimRTCStatsReport {
     av?: AvSyncSample;
 }
 
+/**
+ * A single audio/video playout timestamp pair sampled during an utterance, used to compute lip-sync drift.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface AvSyncSample {
     /** Audio estimatedPlayoutTimestamp (ms, NTP) — playout time of the audio sample currently being rendered. */
     audioPlayout: number;
@@ -201,6 +542,10 @@ export interface AvSyncSample {
     localTs: number;
 }
 
+/**
+ * Lip-sync (audio/video) drift analysis computed over an utterance's `AvSyncSample`s.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface AvSyncReport {
     /** Measurable samples in this utterance (both audio and video playout present). Report is null if fewer than 2. */
     sampleCount: number;
@@ -214,6 +559,10 @@ export interface AvSyncReport {
     residualOffsetMs: number;
 }
 
+/**
+ * WebRTC video stats reported to analytics (Mixpanel) at stream end.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface AnalyticsRTCStatsReport {
     timestamp?: number;
     duration: number;
@@ -234,39 +583,226 @@ export interface AnalyticsRTCStatsReport {
     causes?: string[];
 }
 
+/**
+ * Data-channel payload notifying that the current stream utterance was interrupted.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface StreamInterruptPayload {
     type: StreamEvents.StreamInterrupt;
     videoId: string;
     timestamp: number;
 }
 
-export type ClientToolHandler = (args: Record<string, unknown>) => Promise<string>;
+/**
+ * A client tool's implementation: the function that runs in the browser when the agent calls it.
+ *
+ * Register it with {@link AgentManager.registerClientTool | registerClientTool()}, under the tool
+ * name defined in the agent's configuration. The SDK parses the arguments the agent's LLM produced
+ * and passes them in; whatever the handler resolves with is sent back to the agent as the tool's
+ * result. Throwing rejects the call, and the error message is forwarded to the agent. Expressive
+ * (V4) agents only — {@link AgentManager.registerClientTool | registerClientTool()} throws a
+ * {@link ValidationError} on a Talks (V2) or Clips (V3) agent.
+ *
+ * @param args - The arguments the LLM produced for this call, already parsed from JSON.
+ * @returns A JSON string with the tool's result, at most 15 KiB — the LiveKit RPC response limit;
+ * a larger result fails the call with an RPC error. A synchronous handler may return the string
+ * directly; the SDK awaits the result either way.
+ * @example
+ * ```ts
+ * agentManager.registerClientTool('get_cart_total', async args => {
+ *     const total = await cart.total(args.currency as string);
+ *     return JSON.stringify({ total });
+ * });
+ *
+ * // Nothing to await: the string is enough.
+ * agentManager.registerClientTool('get_locale', () => JSON.stringify({ locale: navigator.language }));
+ * ```
+ * @category Callbacks & Events
+ */
+export type ClientToolHandler = (args: Record<string, unknown>) => string | Promise<string>;
 
+/**
+ * Whether the agent waits for a tool call to finish before it carries on.
+ *
+ * Set on the agent's tool configuration, and reported on {@link RunningToolCall.executionMode} and
+ * {@link ToolCallStartedPayload.executionMode}. Only a `blocking` call suspends the agent, which
+ * is why one being outstanding is what makes the agent uninterruptible — see
+ * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange}.
+ *
+ * @category Callbacks & Events
+ */
 export type ToolExecutionMode = 'blocking' | 'async';
 
-/** A tool call currently running in the session. */
+/**
+ * A tool call currently running in the session.
+ *
+ * The entries of the array given to
+ * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}. A call appears
+ * when it starts and disappears when it finishes, fails, or — for a `blocking` call — when its turn
+ * ends; an `async` call outlives its turn.
+ *
+ * @category Callbacks & Events
+ */
 export interface RunningToolCall {
+    /**
+     * Id of this call, matching the {@link ToolCallStartedPayload.callId | callId} of the
+     * {@link ToolCallStartedPayload} that announced it.
+     */
     callId: string;
+    /** Name of the tool being called, as configured on the agent. */
     name: string;
     /**
-     * 'blocking' - the agent waits for the result before it can continue.
-     * 'async' - the agent keeps talking while the call runs.
+     * Whether the agent is suspended while this call runs.
+     *
+     * `blocking` means the agent waits for the result before it can continue; `async` means it
+     * keeps talking while the call runs. See {@link ToolExecutionMode}.
      */
     executionMode: ToolExecutionMode;
 }
 
+/**
+ * The payload of a {@link ToolCallEvent.Started} event: the agent has begun a tool call.
+ *
+ * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
+ * {@link ToolEventCallback}.
+ *
+ * @category Callbacks & Events
+ */
 export interface ToolCallStartedPayload {
+    /** Id of this call. The matching done or error payload carries the same id. */
+    callId: string;
+    /** Name of the tool the agent is calling, as configured on the agent. */
+    name: string;
+    /** The arguments the agent's LLM produced for this call. */
+    input: Record<string, unknown>;
+    /**
+     * The tool's result, when the server sent one.
+     *
+     * The event is emitted before the tool has run, so it is normally absent; read the
+     * {@link ToolCallDonePayload.output | output} of the matching done event instead.
+     */
+    output?: Record<string, unknown>;
+    /**
+     * Whether the server considers the agent interruptible while this call is outstanding.
+     *
+     * Informational: the SDK does not forward it.
+     * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} is derived from
+     * the {@link ToolCallStartedPayload.executionMode | executionMode} of the calls still
+     * running, not from this field.
+     */
+    interruptible: boolean;
+    /**
+     * Whether the agent waits for this call. See {@link ToolExecutionMode}.
+     *
+     * Always present: a server event that omits it, or carries anything other than `async`, is
+     * reported as `'blocking'` — the same normalization
+     * {@link RunningToolCall.executionMode | RunningToolCall.executionMode} applies, so the two
+     * agree about the same call.
+     */
+    executionMode: ToolExecutionMode;
+    /** The conversational turn this call belongs to, or `null` when it belongs to no turn. */
+    turnId?: number | null;
+    /** When the call started, as reported by the server. */
+    timestamp: string;
+}
+
+/**
+ * The payload of a {@link ToolCallEvent.Done} event: a tool call finished successfully.
+ *
+ * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
+ * {@link ToolEventCallback}.
+ *
+ * @category Callbacks & Events
+ */
+export interface ToolCallDonePayload {
+    /** Id of the call that finished, matching the {@link ToolCallStartedPayload} that announced it. */
+    callId: string;
+    /** Name of the tool that was called. */
+    name: string;
+    /** The arguments the call was made with. */
+    input: Record<string, unknown>;
+    /** The result the tool returned. */
+    output: Record<string, unknown>;
+    /** How long the call took, in milliseconds. */
+    durationMs: number;
+    /** Any additional metadata the tool reported alongside its result. */
+    extra: Record<string, unknown>;
+    /** When the call finished, as reported by the server. */
+    timestamp: string;
+}
+
+/**
+ * The payload of a {@link ToolCallEvent.Error} event: a tool call failed.
+ *
+ * Delivered to {@link AgentManagerCallbacks.onToolEvent | onToolEvent} — see
+ * {@link ToolEventCallback}. Read {@link ToolCallErrorPayload.error | error} for what went wrong.
+ * The agent carries on with the conversation; the SDK does not retry.
+ *
+ * @category Callbacks & Events
+ */
+export interface ToolCallErrorPayload {
+    /** Id of the call that failed, matching the {@link ToolCallStartedPayload} that announced it. */
+    callId: string;
+    /** Name of the tool that was called. */
+    name: string;
+    /** The arguments the call was made with. */
+    input: Record<string, unknown>;
+    /**
+     * Whatever the failed call produced, if anything.
+     *
+     * Any JSON value — the server's own type for a tool result is unconstrained, and on a failure
+     * it is commonly the reason as a plain string rather than a structured result. Narrow it
+     * before use. The string case is also given to you as
+     * {@link ToolCallErrorPayload.error | error}, which is what to show.
+     */
+    output: unknown;
+    /** How long the call ran before failing, in milliseconds. */
+    durationMs: number;
+    /** Any additional metadata the server reported with the failure. */
+    extra: Record<string, unknown>;
+    /**
+     * What went wrong, in one line, when the server said.
+     *
+     * Taken from the failure the server reports in {@link ToolCallErrorPayload.extra | extra}
+     * (`extra.error.message`), and from {@link ToolCallErrorPayload.output | output} when that is
+     * a plain string instead. Absent when the server sent neither, which is why an application
+     * that shows the reason needs a fallback of its own; the full structured failure — its kind,
+     * code and any data — is in `extra.error`.
+     */
+    error?: string;
+    /** When the call failed, as reported by the server. */
+    timestamp: string;
+}
+
+/**
+ * Union of the three tool-call payloads. {@link ToolEventCallback} pairs each one with its event,
+ * so a handler never sees this union.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
+export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
+
+/**
+ * Data-channel wire shape of a `tool-call/started` event, converted to
+ * {@link ToolCallStartedPayload} before it reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface ToolCallStartedWirePayload {
     call_id: string;
     name: string;
     input: Record<string, unknown>;
-    output: Record<string, unknown>;
-    interruptible: boolean;
+    output?: Record<string, unknown>;
+    interruptible?: boolean;
     execution_mode?: ToolExecutionMode;
     turn_id?: number | null;
     timestamp: string;
 }
 
-export interface ToolCallDonePayload {
+/**
+ * Data-channel wire shape of a `tool-call/done` event, converted to {@link ToolCallDonePayload}
+ * before it reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface ToolCallDoneWirePayload {
     call_id: string;
     name: string;
     input: Record<string, unknown>;
@@ -276,34 +812,144 @@ export interface ToolCallDonePayload {
     timestamp: string;
 }
 
-export interface ToolCallErrorPayload {
-    call_id: string;
-    name: string;
-    input: Record<string, unknown>;
-    output: Record<string, unknown>;
-    duration_ms: number;
-    extra: Record<string, unknown>;
-    timestamp: string;
+/**
+ * Data-channel wire shape of a `tool-call/error` event, converted to {@link ToolCallErrorPayload}
+ * before it reaches the application.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface ToolCallErrorWirePayload extends Omit<ToolCallDoneWirePayload, 'output'> {
+    // Any JSON value: the server's `ToolResult.output` is unconstrained, and some failures carry
+    // the reason as a plain string here instead of a result.
+    output: unknown;
 }
 
-export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | ToolCallErrorPayload;
+/**
+ * The failure the server describes under a `tool-call/error` event's `extra.error`.
+ * @internal Wire type of the streaming transport; not part of the public SDK surface.
+ */
+export interface ToolCallWireError {
+    kind?: string;
+    code?: number | string;
+    message?: string;
+    data?: unknown;
+}
 
+/**
+ * Data-channel payload identifying the conversational turn a `turn/started` or `turn/ended` event belongs to.
+ * @internal Implementation type; not part of the public SDK surface.
+ */
 export interface TurnEventPayload {
     turn_id: number | null;
 }
 
+/**
+ * Why the server ended the session.
+ *
+ * Arrives as the `reason` argument of
+ * {@link AgentManagerCallbacks.onConnectionStateChange | onConnectionStateChange} together with
+ * {@link ConnectionState.Disconnected | 'disconnected'}, and is how you tell a session the server
+ * closed on purpose from a connection that simply dropped — `reason` is an opaque transport
+ * diagnostic in the latter case, so compare it against these values rather than parsing it. A
+ * close reason the SDK does not recognize is forwarded as-is, which is the other reason to compare
+ * against the enum. Which members can arrive depends on the agent type: Talks (V2) and Clips (V3)
+ * agents report only {@link StreamEndReason.Ok | Ok},
+ * {@link StreamEndReason.UnknownError | UnknownError},
+ * {@link StreamEndReason.NetworkIssue | NetworkIssue} and
+ * {@link StreamEndReason.Inactivity | Inactivity}.
+ * {@link AgentManager.reconnect | reconnect()} still works afterwards; it starts a new stream
+ * rather than resuming the ended one.
+ *
+ * @example Reacting to the limits an Expressive (V4) session reports
+ * ```ts
+ * import { ConnectionState, StreamEndReason, type AgentManagerCallbacks } from '@d-id/client-sdk';
+ *
+ * const callbacks: AgentManagerCallbacks = {
+ *     onConnectionStateChange(state, reason) {
+ *         if (state !== ConnectionState.Disconnected) return;
+ *
+ *         if (reason === StreamEndReason.TimeLimit || reason === StreamEndReason.MessageLimit) {
+ *             showMessage('This session has reached its limit.');
+ *         } else if (reason === StreamEndReason.Inactivity) {
+ *             showMessage('The session timed out.');
+ *         }
+ *     },
+ * };
+ * ```
+ * @category Callbacks & Events
+ */
 export enum StreamEndReason {
+    /** The session ended normally, because it was closed deliberately. */
     Ok = 'ok',
+    /** The session ended because of a failure the server could not classify. */
     UnknownError = 'unknown_error',
+    /** The session ended because the connection to the browser broke down. */
     NetworkIssue = 'network_issue',
+    /**
+     * The session ended because it reached the message limit configured for the agent.
+     *
+     * Expressive (V4) agents.
+     */
     MessageLimit = 'message_limit',
+    /**
+     * The session ended because it reached its maximum duration.
+     *
+     * Expressive (V4) agents.
+     */
     TimeLimit = 'time_limit',
+    /**
+     * The session ended because nothing happened for too long.
+     *
+     * The window is {@link StreamOptions.sessionTimeout | sessionTimeout} for Talks (V2) and
+     * Clips (V3).
+     */
     Inactivity = 'inactivity',
+    /**
+     * The agent itself ended the call.
+     *
+     * Expressive (V4) agents.
+     */
     EndedByAgent = 'ended_by_agent',
 }
 
-export type ToolEventCallback = {
-    (event: StreamEvents.ToolCallStarted, data: ToolCallStartedPayload): void;
-    (event: StreamEvents.ToolCallDone, data: ToolCallDonePayload): void;
-    (event: StreamEvents.ToolCallError, data: ToolCallErrorPayload): void;
-};
+/**
+ * The handler type for {@link AgentManagerCallbacks.onToolEvent | onToolEvent}: the event argument
+ * narrows the payload argument.
+ *
+ * One signature over three argument pairs, one pair per tool-call event, so the first argument
+ * narrows the second: a handler written against this type sees exactly one of
+ * {@link ToolCallStartedPayload}, {@link ToolCallDonePayload} and {@link ToolCallErrorPayload},
+ * never a union of the three — in an inline `onToolEvent(event, data) { … }` handler as much as in
+ * a standalone function annotated with this type. A payload that does not belong to its event is
+ * rejected. Expressive (V4) agents only.
+ *
+ * @param args - The event and the payload it carries, as one pair:
+ * {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload} — the call the agent has just
+ * begun, with the arguments its LLM produced; {@link ToolCallEvent.Done} with a
+ * {@link ToolCallDonePayload} — the call that has just finished, with the result the tool returned;
+ * or {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload} — the call that has just
+ * failed, with the reason in {@link ToolCallErrorPayload.error | error} when the server gave one.
+ *
+ * @example
+ * ```ts
+ * import { AgentManagerCallbacks, ToolCallEvent } from '@d-id/client-sdk';
+ *
+ * const callbacks: AgentManagerCallbacks = {
+ *     onToolEvent(event, data) {
+ *         if (event === ToolCallEvent.Started) {
+ *             console.log('started', data.name, data.input);
+ *         } else if (event === ToolCallEvent.Done) {
+ *             console.log('done', data.name, data.output, data.durationMs);
+ *         } else {
+ *             console.log('failed', data.name, data.error ?? 'no reason given');
+ *         }
+ *     },
+ * };
+ * ```
+ * @category Callbacks & Events
+ */
+export type ToolEventCallback = (
+    ...args:
+        | [event: ToolCallEvent.Started, data: ToolCallStartedPayload]
+        | [event: ToolCallEvent.Done, data: ToolCallDonePayload]
+        | [event: ToolCallEvent.Error, data: ToolCallErrorPayload]
+) => void;

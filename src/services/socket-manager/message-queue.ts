@@ -7,6 +7,13 @@ import { toStreamEndReason } from '@sdk/utils/stream-end';
 import { AgentManagerItems } from '../agent-manager';
 import { Analytics } from '../analytics/mixpanel';
 
+const COMPLETED_EVENTS = [
+    StreamEvents.StreamVideoDone,
+    StreamEvents.StreamVideoError,
+    StreamEvents.StreamVideoRejected,
+];
+const FAILED_EVENTS = [StreamEvents.StreamFailed, StreamEvents.StreamVideoError, StreamEvents.StreamVideoRejected];
+
 export interface ChatEventQueue {
     [sequence: number]: string;
     answer?: string;
@@ -41,7 +48,7 @@ function handleAudioTranscribedMessage(
         role: data.role,
         content: data.content,
         parts: parseMessagePartsMemo(data.content),
-        created_at: data.created_at || new Date().toISOString(),
+        createdAt: data.created_at || new Date().toISOString(),
         transcribed: true,
     };
     items.messages.push(userMessage);
@@ -99,7 +106,7 @@ function processChatEvent(
             // by a single partial (e.g. a worker `say` greeting) never reached `onNewMessage`.
             content: '',
             parts: [],
-            created_at: data.created_at || new Date().toISOString(),
+            createdAt: data.created_at || new Date().toISOString(),
         };
         items.messages.push(currentMessage);
     } else {
@@ -200,13 +207,12 @@ export function createMessageEventQueue(
                 }
             } else {
                 const SEvent = StreamEvents;
-                const completedEvents = [SEvent.StreamVideoDone, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
-                const failedEvents = [SEvent.StreamFailed, SEvent.StreamVideoError, SEvent.StreamVideoRejected];
-                const props = getStreamAnalyticsProps(data, agentEntity, { mode: items.chatMode });
 
                 event = event as StreamEvents;
 
                 if (event === SEvent.StreamVideoCreated) {
+                    const props = getStreamAnalyticsProps(data, agentEntity, { mode: items.chatMode });
+
                     analytics.linkTrack('agent-video', props, SEvent.StreamVideoCreated, ['start']);
 
                     // Attach sentiment to the last assistant message if present
@@ -220,11 +226,12 @@ export function createMessageEventQueue(
                     }
                 }
 
-                if (completedEvents.includes(event)) {
+                if (COMPLETED_EVENTS.includes(event)) {
                     // Stream video event
                     const streamEvent = event.split('/')[1];
+                    const props = getStreamAnalyticsProps(data, agentEntity, { mode: items.chatMode });
 
-                    if (failedEvents.includes(event)) {
+                    if (FAILED_EVENTS.includes(event)) {
                         // Dont depend on video state change if stream failed
                         analytics.track('agent-video', { ...props, event: streamEvent });
                     } else {
@@ -232,8 +239,10 @@ export function createMessageEventQueue(
                     }
                 }
 
-                if (failedEvents.includes(event)) {
-                    options.callbacks.onError?.(new StreamError(`Stream failed with event ${event}`), { data });
+                if (FAILED_EVENTS.includes(event)) {
+                    options.callbacks.onError?.(new StreamError(`Stream failed with event ${event}`), {
+                        streamId: items.streamingManager?.streamId,
+                    });
                 }
 
                 if (data.event === SEvent.StreamDone) {

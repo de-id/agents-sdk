@@ -11,6 +11,7 @@ import {
     AgentManagerOptions,
     AgentsAPI,
     AudioDetectionMetrics,
+    AvatarType,
     Chat,
     ChatMode,
     ChatProgressCallback,
@@ -23,6 +24,7 @@ import {
     StreamingState,
     ToolCallDonePayload,
     ToolCallErrorPayload,
+    ToolCallEvent,
     ToolEventPayload,
     TransportProvider,
 } from '@sdk/types';
@@ -58,15 +60,16 @@ function getAgentStreamV2Options(options?: ConnectToManagerOptions): CreateSessi
 function getAgentStreamV1Options(options?: ConnectToManagerOptions): CreateStreamOptions {
     const { streamOptions } = options ?? {};
 
+    // `analytics.additionalProperties` is typed `unknown` per value; the API expects `plan` to be
+    // a string.
     const endUserData =
-        options?.mixpanelAdditionalProperties?.plan !== undefined
+        options?.analytics?.additionalProperties?.plan !== undefined
             ? {
-                  plan: options.mixpanelAdditionalProperties?.plan,
+                  plan: options.analytics.additionalProperties.plan as string,
               }
             : undefined;
 
     const streamArgs = {
-        output_resolution: streamOptions?.outputResolution,
         session_timeout: streamOptions?.sessionTimeout,
         stream_warmup: streamOptions?.streamWarmup,
         compatibility_mode: streamOptions?.compatibilityMode,
@@ -170,17 +173,13 @@ function trackLegacyVideoAnalytics(
     }
 }
 
-function trackToolEventAnalytics(
-    event: StreamEvents.ToolCallStarted | StreamEvents.ToolCallDone | StreamEvents.ToolCallError,
-    payload: ToolEventPayload,
-    analytics: Analytics
-) {
+function trackToolEventAnalytics(event: ToolCallEvent, payload: ToolEventPayload, analytics: Analytics) {
     const baseProps: Record<string, unknown> = {
-        call_id: payload.call_id,
+        call_id: payload.callId,
         name: payload.name,
     };
 
-    if (event === StreamEvents.ToolCallStarted) {
+    if (event === ToolCallEvent.Started) {
         analytics.track('agent-tool-call', { ...baseProps, event: 'started' });
         return;
     }
@@ -188,8 +187,8 @@ function trackToolEventAnalytics(
     const finishedPayload = payload as ToolCallDonePayload | ToolCallErrorPayload;
     analytics.track('agent-tool-call', {
         ...baseProps,
-        event: event === StreamEvents.ToolCallDone ? 'done' : 'error',
-        duration_ms: finishedPayload.duration_ms,
+        event: event === ToolCallEvent.Done ? 'done' : 'error',
+        duration_ms: finishedPayload.durationMs,
         extra_keys: finishedPayload.extra ? Object.keys(finishedPayload.extra).length : 0,
     });
 }
@@ -225,7 +224,7 @@ function connectToManager(
             });
 
             let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
-            const isExpressive = agent.avatar.type === 'expressive';
+            const isExpressive = agent.avatar.type === AvatarType.Expressive;
 
             streamingManager = await createStreamingManager(
                 agent,
@@ -380,9 +379,8 @@ export async function initializeStreamAndChat(
     const { chat: newChat, chatMode } = chatResult;
 
     if (chatMode && options.mode !== undefined && chatMode !== options.mode) {
-        options.mode = chatMode;
-        options.callbacks.onModeChange?.(chatMode);
-
+        // `onModeChange` fires in the agent manager, which applies this mode — one report, after
+        // `getChatMode()` is current.
         if (chatMode !== ChatMode.Functional) {
             options.callbacks.onError?.(new ChatModeDowngraded(chatMode));
 

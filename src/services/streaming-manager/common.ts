@@ -1,5 +1,5 @@
-import { CreateSessionV2Options, CreateStreamOptions, Interrupt, PayloadType, StreamType } from '@sdk/types';
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { CreateSessionV2Options, CreateStreamOptions, InterruptOptions, PayloadType, StreamType } from '@sdk/types';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 
 export const createStreamingLogger = (debug: boolean, prefix: string) => (message: string, extra?: any) =>
     debug && console.log(`[${prefix}] ${message}`, extra ?? '');
@@ -27,7 +27,7 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
      * @param topic Data-channel topic to send on
      * @param payload The message payload to send, already serialized
      */
-    sendDataChannelMessage(topic: DataChannelTopic, payload: string): Promise<void>;
+    sendDataChannelMessage(topic: `${InternalDataChannelTopic}`, payload: string): Promise<void>;
 
     /**
      * Publish a microphone stream to the DataChannel
@@ -94,9 +94,14 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     isInterruptible: boolean;
 
     /**
-     * Send an interrupt for the current stream segment
+     * Send an interrupt for the current stream segment.
+     *
+     * Returns whether an interrupt was actually sent: `false` when there is nothing to interrupt
+     * (the stream does not support it, it is not a Fluent stream, no video is playing, or the
+     * interrupt type is one this transport drops), and `false` when the transport could not carry
+     * it because the connection or the data channel is not up.
      */
-    interrupt(type: Interrupt['type']): void;
+    interrupt(type: InterruptOptions['type']): boolean;
 
     /**
      * Register an RPC method handler on the LiveKit room.

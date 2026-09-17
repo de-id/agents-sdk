@@ -1,4 +1,4 @@
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
@@ -7,6 +7,7 @@ import {
     StreamEvents,
     StreamingManagerOptions,
     StreamingState,
+    ToolCallEvent,
     TransportProvider,
 } from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
@@ -41,7 +42,23 @@ const mockTrack = {
     },
 };
 
-jest.mock('livekit-client', () => ({
+// Stands in for livekit-client's RpcError: the SDK only relies on the constructor, the static
+// ErrorCode map and `instanceof`.
+class mockRpcError extends Error {
+    static ErrorCode = { APPLICATION_ERROR: 1500 };
+
+    constructor(
+        readonly code: number,
+        message: string,
+        readonly data?: string
+    ) {
+        super(message);
+        // The suite compiles to ES5, where subclassing Error otherwise loses the prototype.
+        Object.setPrototypeOf(this, new.target.prototype);
+    }
+}
+
+const mockLivekitClient = {
     Room: mockRoomConstructor,
     RoomEvent: {
         ConnectionStateChanged: 'ConnectionStateChanged',
@@ -65,7 +82,10 @@ jest.mock('livekit-client', () => ({
         SignalReconnecting: 'signalReconnecting',
     },
     Track: mockTrack,
-}));
+    RpcError: mockRpcError,
+};
+
+jest.mock('livekit-client', () => mockLivekitClient);
 
 // Mock createStreamApiV2
 const mockCreateStream = jest.fn().mockResolvedValue({
@@ -330,17 +350,23 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();
 
-            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
+            manager.sendDataChannelMessage(
+                InternalDataChannelTopic.SttLanguage,
+                JSON.stringify({ language: 'French' })
+            );
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(JSON.stringify({ language: 'French' }), {
-                topic: DataChannelTopic.SttLanguage,
+                topic: InternalDataChannelTopic.SttLanguage,
             });
         });
 
         it('should not send did.stt-language message before the room connects', async () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
-            manager.sendDataChannelMessage(DataChannelTopic.SttLanguage, JSON.stringify({ language: 'French' }));
+            manager.sendDataChannelMessage(
+                InternalDataChannelTopic.SttLanguage,
+                JSON.stringify({ language: 'French' })
+            );
 
             expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
@@ -353,13 +379,13 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             await simulateConnection();
 
             manager.sendDataChannelMessage(
-                DataChannelTopic.Presentation,
+                InternalDataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 12 })
             );
 
             expect(mockLocalParticipant.sendText).toHaveBeenCalledWith(
                 JSON.stringify({ type: 'navigate', slide: 12 }),
-                { topic: DataChannelTopic.Presentation }
+                { topic: InternalDataChannelTopic.Presentation }
             );
         });
 
@@ -367,12 +393,42 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
 
             manager.sendDataChannelMessage(
-                DataChannelTopic.Presentation,
+                InternalDataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 1 })
             );
 
             expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
+        });
+    });
+
+    describe('interrupt', () => {
+        it('should send the interrupt and report it was sent', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            expect(manager.interrupt('click')).toBe(true);
+
+            expect(mockLocalParticipant.sendText).toHaveBeenCalledWith('', {
+                topic: InternalDataChannelTopic.Interrupt,
+            });
+        });
+
+        it('should return false without sending before the room connects', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+            expect(manager.interrupt('click')).toBe(false);
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
+        });
+
+        it('should return false without sending for a text interrupt', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            expect(manager.interrupt('text')).toBe(false);
+
+            expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
         });
     });
 
@@ -1301,11 +1357,65 @@ describe('LiveKit Streaming Manager - Camera Stream', () => {
                 rpcMethods: new Map([['did.presentation', handler]]),
             });
 
-            // ASSERT:
-            expect(mockRoom.registerRpcMethod).toHaveBeenCalledWith('did.presentation', handler);
+            // ASSERT: registered wrapped, so a plain Error thrown by the handler keeps its message
+            expect(mockRoom.registerRpcMethod).toHaveBeenCalledWith('did.presentation', expect.any(Function));
             expect(mockRoom.registerRpcMethod.mock.invocationCallOrder[0]).toBeLessThan(
                 mockRoom.connect.mock.invocationCallOrder[0]
             );
+
+            const registered = mockRoom.registerRpcMethod.mock.calls[0][1];
+            await registered({ payload: '{}' });
+            expect(handler).toHaveBeenCalledWith({ payload: '{}' });
+        });
+
+        it('turns an error a handler throws into an RpcError carrying its message', async () => {
+            // ARRANGE:
+            const handler = jest.fn().mockRejectedValue(new Error('Wallet is locked'));
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, {
+                ...options,
+                rpcMethods: new Map([['did.presentation', handler]]),
+            });
+            const registered = mockRoom.registerRpcMethod.mock.calls[0][1];
+
+            // ACT + ASSERT:
+            await expect(registered({ payload: '{}' })).rejects.toMatchObject({
+                code: mockRpcError.ErrorCode.APPLICATION_ERROR,
+                message: 'Wallet is locked',
+            });
+            await expect(registered({ payload: '{}' })).rejects.toBeInstanceOf(mockRpcError);
+        });
+
+        it('falls back to a generic message when a handler rejects with a non-Error', async () => {
+            // ARRANGE:
+            const handler = jest.fn().mockRejectedValue('nope');
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, {
+                ...options,
+                rpcMethods: new Map([['did.presentation', handler]]),
+            });
+            const registered = mockRoom.registerRpcMethod.mock.calls[0][1];
+
+            // ACT + ASSERT:
+            await expect(registered({ payload: '{}' })).rejects.toMatchObject({
+                code: mockRpcError.ErrorCode.APPLICATION_ERROR,
+                message: 'Client tool failed',
+            });
+        });
+
+        it('passes through an RpcError a handler chose itself, keeping its code and data', async () => {
+            // ARRANGE:
+            const thrown = new mockRpcError(1600, 'declined', 'extra');
+            const handler = jest.fn().mockRejectedValue(thrown);
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, {
+                ...options,
+                rpcMethods: new Map([['did.presentation', handler]]),
+            });
+            const registered = mockRoom.registerRpcMethod.mock.calls[0][1];
+
+            // ACT + ASSERT:
+            await expect(registered({ payload: '{}' })).rejects.toBe(thrown);
         });
 
         it('registers nothing when no rpc methods are given', async () => {
@@ -1460,12 +1570,34 @@ describe('LiveKit Streaming Manager - Verbose Mode', () => {
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: false }));
     });
 
-    it('defaults chat_persist to true in the createStream request when unset', async () => {
+    it('should send chat_persist false when the session options do not set it', async () => {
         const { chat_persist: _chatPersist, ...sessionOptionsWithoutChatPersist } = sessionOptions;
 
         await createLiveKitStreamingManager(agentId, sessionOptionsWithoutChatPersist, options);
 
+        expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: false }));
+    });
+
+    it('sends chat_persist: true in the createStream request when explicitly enabled', async () => {
+        await createLiveKitStreamingManager(agentId, { ...sessionOptions, chat_persist: true }, options);
+
         expect(mockCreateStream).toHaveBeenCalledWith(expect.objectContaining({ chat_persist: true }));
+    });
+
+    it('reports the created stream to onStreamCreated with camelCase ids', async () => {
+        // ARRANGE:
+        const onStreamCreated = jest.fn();
+        options.callbacks.onStreamCreated = onStreamCreated;
+
+        // ACT:
+        await createLiveKitStreamingManager(agentId, sessionOptions, options);
+
+        // ASSERT: the session id doubles as the stream id on Expressive (V4).
+        expect(onStreamCreated).toHaveBeenCalledWith({
+            agentId: TEST_AGENT_ID,
+            sessionId: 'session-123',
+            streamId: 'session-123',
+        });
     });
 });
 
@@ -1527,13 +1659,184 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCallStarted,
+                ToolCallEvent.Started,
                 expect.objectContaining({
-                    call_id: 'call-123',
+                    callId: 'call-123',
                     name: 'get_weather',
                     input: { location: 'Tel Aviv' },
                 })
             );
+        });
+
+        it('should convert the snake_case wire fields to a camelCase ToolCallStartedPayload', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    output: {},
+                    interruptible: true,
+                    execution_mode: 'async',
+                    turn_id: 7,
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Started, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: {},
+                interruptible: true,
+                executionMode: 'async',
+                turnId: 7,
+                timestamp,
+            });
+        });
+
+        it('should normalize a started event with no execution_mode and no output', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallStarted,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Started, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                interruptible: false,
+                executionMode: 'blocking',
+                timestamp,
+            });
+        });
+
+        it('should surface the error text a failed tool call reports in extra.error', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+            const extra = { error: { kind: 'timeout', code: 504, message: 'Upstream timed out' } };
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    duration_ms: 60_000,
+                    extra,
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Error, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: {},
+                output: {},
+                durationMs: 60_000,
+                extra,
+                error: 'Upstream timed out',
+                timestamp,
+            });
+        });
+
+        it('should fall back to a plain-string output for the error text', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: 'ConnectionError: refused',
+                    duration_ms: 12,
+                    extra: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(
+                ToolCallEvent.Error,
+                expect.objectContaining({ error: 'ConnectionError: refused', output: 'ConnectionError: refused' })
+            );
+        });
+
+        it('should leave error absent when the server described no failure', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: {},
+                    output: {},
+                    duration_ms: 12,
+                    extra: {},
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+            // ASSERT:
+            const [, payload] = onToolEvent.mock.calls[0];
+            expect(payload).not.toHaveProperty('error');
         });
 
         it('should emit onInterruptibleChange(false) when a blocking tool-call/started arrives', async () => {
@@ -1715,6 +2018,19 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
 
                 expect(lastInterruptible()).toBe(false);
+            });
+
+            it('reports the manager as not interruptible while a blocking call is pending', () => {
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
+
+                expect(manager.isInterruptible).toBe(false);
+            });
+
+            it('reports the manager as interruptible again once the blocking call resolves', () => {
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking' });
+                emitToolDone({ call_id: 'b' });
+
+                expect(manager.isInterruptible).toBe(true);
             });
 
             it('becomes interruptible once the blocking call resolves', () => {
@@ -1930,13 +2246,50 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).not.toHaveBeenCalled();
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCallDone,
+                ToolCallEvent.Done,
                 expect.objectContaining({
-                    call_id: 'call-123',
+                    callId: 'call-123',
                     output: { temp: 22 },
-                    duration_ms: 500,
+                    durationMs: 500,
                 })
             );
+        });
+
+        it('should convert the snake_case wire fields to a camelCase ToolCallDonePayload', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallDone,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    output: { temp: 22 },
+                    duration_ms: 500,
+                    extra: { region: 'eu' },
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Done, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: { temp: 22 },
+                durationMs: 500,
+                extra: { region: 'eu' },
+                timestamp,
+            });
         });
     });
 
@@ -1982,12 +2335,49 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             // ASSERT:
             expect(onAgentActivityStateChange).not.toHaveBeenCalled();
             expect(onToolEvent).toHaveBeenCalledWith(
-                StreamEvents.ToolCallError,
+                ToolCallEvent.Error,
                 expect.objectContaining({
-                    call_id: 'call-123',
+                    callId: 'call-123',
                     extra: { message: 'upstream timeout' },
                 })
             );
+        });
+
+        it('should convert the snake_case wire fields to a camelCase ToolCallErrorPayload', async () => {
+            // ARRANGE:
+            const onToolEvent = jest.fn();
+            options.callbacks.onToolEvent = onToolEvent;
+
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const dataHandler = getDataReceivedHandler();
+            const timestamp = new Date().toISOString();
+
+            // ACT:
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id: 'call-123',
+                    name: 'get_weather',
+                    input: { location: 'Tel Aviv' },
+                    output: {},
+                    duration_ms: 120,
+                    extra: { message: 'upstream timeout' },
+                    timestamp,
+                })
+            );
+
+            // ASSERT:
+            expect(onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Error, {
+                callId: 'call-123',
+                name: 'get_weather',
+                input: { location: 'Tel Aviv' },
+                output: {},
+                durationMs: 120,
+                extra: { message: 'upstream timeout' },
+                timestamp,
+            });
         });
     });
 
@@ -2157,5 +2547,91 @@ describe('LiveKit Streaming Manager - Stream End Reason', () => {
         getConnectionStateHandler()('disconnected');
 
         expect(onConnectionStateChange).toHaveBeenCalledWith('disconnected', 'livekit:disconnected');
+    });
+});
+
+describe('LiveKit Streaming Manager - loading livekit-client', () => {
+    const sessionOptions: CreateSessionV2Options = {
+        chat_persist: true,
+        transport: { provider: TransportProvider.Livekit },
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('should load livekit-client once for a preload and the connect that follows', async () => {
+        const load = jest.fn(() => mockLivekitClient);
+
+        await jest.isolateModulesAsync(async () => {
+            jest.resetModules();
+            jest.doMock('livekit-client', load);
+            const manager = await import('./livekit-manager');
+
+            manager.preloadLiveKit();
+            await manager.createLiveKitStreamingManager(
+                TEST_AGENT_ID,
+                sessionOptions,
+                StreamingManagerOptionsFactory.build()
+            );
+        });
+
+        expect(load).toHaveBeenCalledTimes(1);
+        expect(mockRoomConstructor).toHaveBeenCalledTimes(1);
+    });
+
+    it('should report a failed import from the connect, not from the preload', async () => {
+        await jest.isolateModulesAsync(async () => {
+            jest.resetModules();
+            jest.doMock('livekit-client', () => {
+                throw new Error('Cannot find module');
+            });
+            const manager = await import('./livekit-manager');
+
+            manager.preloadLiveKit();
+
+            await expect(
+                manager.createLiveKitStreamingManager(
+                    TEST_AGENT_ID,
+                    sessionOptions,
+                    StreamingManagerOptionsFactory.build()
+                )
+            ).rejects.toThrow('LiveKit client is required for this streaming manager');
+        });
+
+        expect(mockCreateStream).not.toHaveBeenCalled();
+    });
+
+    it('should import again after a failed import instead of caching the failure', async () => {
+        await jest.isolateModulesAsync(async () => {
+            jest.resetModules();
+            let missing = true;
+            jest.doMock('livekit-client', () => {
+                if (missing) {
+                    throw new Error('Cannot find module');
+                }
+
+                return mockLivekitClient;
+            });
+            const manager = await import('./livekit-manager');
+
+            await expect(
+                manager.createLiveKitStreamingManager(
+                    TEST_AGENT_ID,
+                    sessionOptions,
+                    StreamingManagerOptionsFactory.build()
+                )
+            ).rejects.toThrow('LiveKit client is required for this streaming manager');
+
+            missing = false;
+
+            await expect(
+                manager.createLiveKitStreamingManager(
+                    TEST_AGENT_ID,
+                    sessionOptions,
+                    StreamingManagerOptionsFactory.build()
+                )
+            ).resolves.toBeDefined();
+        });
     });
 });
