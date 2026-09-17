@@ -1,7 +1,7 @@
 import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
-import { RpcError } from 'livekit-client';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { createAgentsApi } from '../../api/agents';
+import { ValidationError } from '../../errors';
 import {
     AgentFactory,
     AgentManagerOptionsFactory,
@@ -15,12 +15,15 @@ import {
     Agent,
     AgentManager,
     AgentManagerOptions,
+    AvatarType,
     ChatMode,
     ConnectionState,
+    DataChannelTopic,
     Providers,
-    PublicDataChannelTopic,
+    StreamEndReason,
     StreamType,
 } from '../../types';
+import { isChatModeWithoutChat, isTextualChat } from '../../utils/chat';
 import { initializeAnalytics } from '../analytics/mixpanel';
 import { createChat } from '../chat';
 import { getInitialMessages } from '../chat/intial-messages';
@@ -35,6 +38,10 @@ jest.mock('../analytics/mixpanel');
 jest.mock('../socket-manager');
 jest.mock('./connect-to-manager');
 jest.mock('../socket-manager/message-queue');
+jest.mock('../streaming-manager/livekit-manager', () => ({
+    ...jest.requireActual('../streaming-manager/livekit-manager'),
+    preloadLiveKit: jest.fn(),
+}));
 jest.mock('../chat/intial-messages');
 jest.mock('../chat');
 jest.mock('../../utils/retry-operation', () => ({ retryOperation: jest.fn(fn => fn()) }));
@@ -80,7 +87,7 @@ describe('createAgentManager', () => {
         mockAgent = {
             ...AgentFactory.build(),
             starter_message: ['Hello!', 'How can I help?'],
-            avatar: { type: 'talk', voice: { language: 'en-US' } },
+            avatar: { type: AvatarType.Talk, voice: { language: 'en-US' } },
         } as Agent;
         mockOptions = AgentManagerOptionsFactory.build();
         mockStreamingManager = StreamingManagerFactory.build({ streamType: StreamType.Legacy });
@@ -112,7 +119,8 @@ describe('createAgentManager', () => {
             expect(createAgentsApi).toHaveBeenCalledWith(
                 mockOptions.auth,
                 'https://api.d-id.com',
-                mockOptions.callbacks.onError,
+                // the SDK's own analytics wrapper, on its copy of the callbacks
+                expect.any(Function),
                 undefined
             );
             expect(mockAgentsApi.getRuntimeById).toHaveBeenCalledWith('agent-123');
@@ -138,7 +146,7 @@ describe('createAgentManager', () => {
         it('should use custom configuration options', async () => {
             const customOptions = {
                 ...mockOptions,
-                mixpanelKey: 'custom-mixpanel',
+                analytics: { mixpanelKey: 'custom-mixpanel' },
                 wsURL: 'wss://custom.com',
                 baseURL: 'https://custom.com',
                 externalId: 'custom-user',
@@ -149,14 +157,330 @@ describe('createAgentManager', () => {
             expect(initializeAnalytics).toHaveBeenCalledWith({
                 token: 'custom-mixpanel',
                 agentId: 'agent-123',
-                isEnabled: true,
+                isEnabled: undefined,
                 externalId: 'custom-user',
+                mixpanelAdditionalProperties: undefined,
+            });
+        });
+
+        describe('onSrcObjectReady', () => {
+            const withoutSrcObjectReady = () => {
+                const { onSrcObjectReady, ...callbacks } = mockOptions.callbacks;
+                return { ...mockOptions, callbacks };
+            };
+
+            afterEach(() => {
+                (isTextualChat as jest.Mock).mockImplementation(() => false);
+            });
+
+            it.each([ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance])(
+                'should create a manager without it in %s',
+                async mode => {
+                    (isTextualChat as jest.Mock).mockImplementation(m =>
+                        [ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance].includes(m)
+                    );
+
+                    const manager = await createAgentManager('agent-123', { ...withoutSrcObjectReady(), mode });
+
+                    expect(manager).toBeDefined();
+                }
+            );
+
+            it.each([ChatMode.Functional, ChatMode.Off, ChatMode.DirectPlayback])(
+                'should reject without it in %s, which streams video',
+                async mode => {
+                    const rejection = expect(
+                        createAgentManager('agent-123', { ...withoutSrcObjectReady(), mode })
+                    ).rejects;
+
+                    await rejection.toThrow(ValidationError);
+                    await rejection.toThrow('callbacks.onSrcObjectReady is required');
+                }
+            );
+
+            it('should reject connect() when changeMode moves a text-only manager into a video mode', async () => {
+                (isTextualChat as jest.Mock).mockImplementation(m =>
+                    [ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance].includes(m)
+                );
+                const manager = await createAgentManager('agent-123', {
+                    ...withoutSrcObjectReady(),
+                    mode: ChatMode.TextOnly,
+                });
+
+                await manager.changeMode(ChatMode.Functional);
+
+                await expect(manager.connect()).rejects.toThrow('callbacks.onSrcObjectReady is required');
+                expect(initializeStreamAndChat).not.toHaveBeenCalled();
+            });
+
+            it('should not reach the Agents API when it is missing', async () => {
+                await expect(createAgentManager('agent-123', withoutSrcObjectReady())).rejects.toThrow(ValidationError);
+
+                expect(mockAgentsApi.getRuntimeById).not.toHaveBeenCalled();
+            });
+        });
+
+        it('should hand out a copy of the starter messages, not the agent entity array', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+
+            expect(manager.starterMessages).toEqual(['Hello!', 'How can I help?']);
+            expect(manager.starterMessages).not.toBe(mockAgent.starter_message);
+
+            // The `readonly` is type-level; the copy is what keeps a write off the agent.
+            // @ts-expect-error `starterMessages` is a readonly array.
+            manager.starterMessages.push('mutated');
+            expect(manager.agent.starter_message).toEqual(['Hello!', 'How can I help?']);
+
+            // @ts-expect-error `agent` is a readonly property.
+            manager.agent = {} as Agent;
+        });
+
+        it('should give an agent with no starter messages an empty array', async () => {
+            delete mockAgent.starter_message;
+
+            const manager = await createAgentManager('agent-123', mockOptions);
+
+            expect(manager.starterMessages).toEqual([]);
+        });
+
+        it('should read the three analytics settings from the grouped option', async () => {
+            await createAgentManager('agent-123', {
+                ...mockOptions,
+                analytics: { enabled: false, mixpanelKey: 'own-project', additionalProperties: { plan: 'pro' } },
+            });
+
+            expect(initializeAnalytics).toHaveBeenCalledWith({
+                token: 'own-project',
+                agentId: 'agent-123',
+                isEnabled: false,
+                externalId: undefined,
+                mixpanelAdditionalProperties: { plan: 'pro' },
+            });
+        });
+
+        describe('modes without a chat on Expressive (V4) agents', () => {
+            const unsupported = 'ChatMode.Off and ChatMode.DirectPlayback are not supported for Expressive agents';
+
+            beforeEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(mode =>
+                    [ChatMode.DirectPlayback, ChatMode.Off].includes(mode)
+                );
+            });
+
+            afterEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(() => false);
+            });
+
+            it.each([ChatMode.Off, ChatMode.DirectPlayback])('should reject %s on an expressive agent', async mode => {
+                mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
+
+                const rejection = expect(createAgentManager('agent-123', { ...mockOptions, mode })).rejects;
+
+                await rejection.toThrow(ValidationError);
+                await rejection.toThrow(unsupported);
+            });
+
+            it('should still create the manager for a talks agent in ChatMode.Off', async () => {
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Off });
+
+                expect(manager).toBeDefined();
+            });
+
+            it('should reject changeMode to a mode without a chat on an expressive agent', async () => {
+                mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
+                const manager = await createAgentManager('agent-123', mockOptions);
+
+                await expect(manager.changeMode(ChatMode.DirectPlayback)).rejects.toThrow(ValidationError);
+            });
+
+            it('should allow changeMode to a mode without a chat on a talks agent', async () => {
+                const manager = await createAgentManager('agent-123', mockOptions);
+
+                await expect(manager.changeMode(ChatMode.Off)).resolves.toBeUndefined();
+            });
+
+            it('should ignore an unsupported mode the server reports for the chat', async () => {
+                mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
+                (initializeStreamAndChat as jest.Mock).mockResolvedValue({
+                    streamingManager: mockStreamingManager,
+                    chat: { ...mockChat, chat_mode: ChatMode.Off },
+                });
+                const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+                const manager = await createAgentManager('agent-123', mockOptions);
+
+                await expect(manager.connect()).resolves.toBeUndefined();
+
+                expect(mockOptions.callbacks.onModeChange).not.toHaveBeenCalledWith(ChatMode.Off);
+                expect(warn).toHaveBeenCalled();
+                warn.mockRestore();
+            });
+        });
+
+        describe('the chat and connect guards read the current mode', () => {
+            beforeEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(mode =>
+                    [ChatMode.DirectPlayback, ChatMode.Off].includes(mode)
+                );
+            });
+
+            afterEach(() => {
+                (isChatModeWithoutChat as jest.Mock).mockImplementation(() => false);
+            });
+
+            it('should allow chat after changeMode moves a session out of Off', async () => {
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Off });
+
+                await manager.changeMode(ChatMode.Functional);
+                await manager.connect();
+
+                await expect(manager.chat('Hello')).resolves.toBeDefined();
+            });
+
+            it('should open the notifications web socket on connect once the mode allows chat', async () => {
+                const manager = await createAgentManager('agent-123', {
+                    ...mockOptions,
+                    mode: ChatMode.DirectPlayback,
+                });
+
+                await manager.changeMode(ChatMode.Functional);
+                await manager.connect();
+
+                expect(createSocketManager).toHaveBeenCalled();
+            });
+
+            it('should tear the session down when a connected DirectPlayback session moves to Functional', async () => {
+                // A DirectPlayback session has no notifications web socket and no chat, so it
+                // cannot carry a conversation: `connect()` has to run again for the new mode.
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+                const manager = await createAgentManager('agent-123', {
+                    ...mockOptions,
+                    mode: ChatMode.DirectPlayback,
+                });
+                await manager.connect();
+                expect(createSocketManager).not.toHaveBeenCalled();
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+                await expect(manager.chat('Hello')).rejects.toThrow('Streaming manager is not initialized');
+
+                // …and connecting again builds the session the new mode needs.
+                await manager.connect();
+                expect(createSocketManager).toHaveBeenCalled();
+            });
+
+            it('should tear the session down when a connected Off session moves to Functional', async () => {
+                // Off keeps the notifications web socket but creates no chat, so a Functional
+                // session built out of it would accept `chat()` with nothing to send it to.
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Off });
+                await manager.connect();
+                expect(createSocketManager).toHaveBeenCalled();
+                expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+            });
+
+            it('should not tear an Expressive (V4) session down at the end of connect', async () => {
+                // A V4 session never has a notifications web socket, so `sessionSupports` must not
+                // ask for one: dropping the `!isStreamsV2` guard would disconnect every V4 session
+                // whose connect ends in a real mode transition. The session is asked for in
+                // TextOnly and the synthesized chat answers Functional — what
+                // `initializeStreamAndChat` really builds for V4 — so the tail reaches
+                // `sessionSupports` instead of returning early on an unchanged mode.
+                mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: { ...mockChat, chat_mode: ChatMode.Functional },
+                });
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
+
+                await manager.connect();
+
+                expect(manager.getChatMode()).toBe(ChatMode.Functional);
+                expect(createSocketManager).not.toHaveBeenCalled();
+                expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+                expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledWith(ChatMode.Functional);
+            });
+
+            it('should keep a connected TextOnly session that already has a socket and a chat', async () => {
+                // The chat reports TextOnly, so the `connect()` tail leaves the mode alone and the
+                // `changeMode()` below is the real transition rather than a no-op.
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: { ...mockChat, chat_mode: ChatMode.TextOnly },
+                });
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
+                await manager.connect();
+                expect(manager.getChatMode()).toBe(ChatMode.TextOnly);
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(manager.getChatMode()).toBe(ChatMode.Functional);
+                expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+            });
+
+            it('should not report a disconnect for a session that was never opened', async () => {
+                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.Off });
+
+                await manager.changeMode(ChatMode.Functional);
+
+                expect(mockOptions.callbacks.onConnectionStateChange).not.toHaveBeenCalled();
+            });
+
+            it('should reject chat after changeMode moves a session into Off', async () => {
+                const manager = await createAgentManager('agent-123', mockOptions);
+                await manager.connect();
+
+                await manager.changeMode(ChatMode.Off);
+
+                await expect(manager.chat('Hello')).rejects.toThrow('Off is enabled, chat is disabled');
+            });
+        });
+
+        describe("the caller's options object is read, never written", () => {
+            it('should leave callbacks.onError and debug as the caller set them', async () => {
+                const onError = mockOptions.callbacks.onError;
+
+                await createAgentManager('agent-123', mockOptions);
+                await createAgentManager('agent-456', mockOptions);
+
+                expect(mockOptions.callbacks.onError).toBe(onError);
+                expect(mockOptions.debug).toBeUndefined();
+            });
+
+            it('should deliver an error once per manager when two share one options object', async () => {
+                mockAgent.advanced_settings = { ui_debug_mode: true } as any;
+                const onError = mockOptions.callbacks.onError as jest.Mock;
+
+                await createAgentManager('agent-123', mockOptions);
+                await createAgentManager('agent-456', mockOptions);
+
+                const handlers = (createAgentsApi as jest.Mock).mock.calls.map(call => call[2]);
+                expect(handlers).toHaveLength(2);
+
+                const failure = new Error('boom');
+                handlers[1](failure);
+
+                expect(onError).toHaveBeenCalledTimes(1);
+                expect(onError).toHaveBeenCalledWith(failure, undefined);
+                expect(
+                    mockAnalytics.track.mock.calls.filter(([event]: [string]) => event === 'agent-error')
+                ).toHaveLength(1);
             });
         });
 
         it('should handle initial messages correctly', async () => {
             const initialMessages = [
-                { id: '1', role: 'user' as const, content: 'Hello', parts: [], created_at: new Date().toISOString() },
+                { id: '1', role: 'user' as const, content: 'Hello', parts: [], createdAt: new Date().toISOString() },
             ];
             (getInitialMessages as jest.Mock).mockReturnValue(initialMessages);
 
@@ -175,11 +499,97 @@ describe('createAgentManager', () => {
             manager = await createAgentManager('agent-123', mockOptions);
         });
 
+        describe('state getters', () => {
+            // The callbacks the streaming manager is actually handed: the SDK's own copy, wrappers
+            // included. Reporting through them is what a real session does.
+            const streamCallbacks = () => (initializeStreamAndChat as jest.Mock).mock.calls[0][1].callbacks;
+
+            it('should report the creation-time chat mode before connect', async () => {
+                expect(manager.getChatMode()).toBe(ChatMode.Functional);
+
+                const textOnly = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
+                expect(textOnly.getChatMode()).toBe(ChatMode.TextOnly);
+            });
+
+            it('should follow changeMode', async () => {
+                await manager.changeMode(ChatMode.TextOnly);
+
+                expect(manager.getChatMode()).toBe(ChatMode.TextOnly);
+                expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledWith(ChatMode.TextOnly);
+            });
+
+            it('should adopt the mode the server answered connect with', async () => {
+                (initializeStreamAndChat as jest.Mock).mockResolvedValueOnce({
+                    streamingManager: mockStreamingManager,
+                    chat: { ...mockChat, chat_mode: ChatMode.Maintenance },
+                });
+
+                await manager.connect();
+
+                expect(manager.getChatMode()).toBe(ChatMode.Maintenance);
+                // Once, and from `applyMode` — the mode and the callback cannot disagree.
+                expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledTimes(1);
+                expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledWith(ChatMode.Maintenance);
+            });
+
+            it('should fall back to Maintenance when connecting fails', async () => {
+                (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
+
+                await expect(manager.connect()).rejects.toThrow('Connection failed');
+
+                expect(manager.getChatMode()).toBe(ChatMode.Maintenance);
+            });
+
+            it('should report New before connect and follow every state reported afterwards', async () => {
+                expect(manager.getConnectionState()).toBe(ConnectionState.New);
+
+                await manager.connect();
+                expect(manager.getConnectionState()).toBe(ConnectionState.Connecting);
+
+                streamCallbacks().onConnectionStateChange(ConnectionState.Connected);
+                expect(manager.getConnectionState()).toBe(ConnectionState.Connected);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Connected,
+                    undefined
+                );
+
+                // A reason reported with the state reaches the caller alongside it.
+                streamCallbacks().onConnectionStateChange(ConnectionState.Disconnected, StreamEndReason.Inactivity);
+                expect(manager.getConnectionState()).toBe(ConnectionState.Disconnected);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Disconnected,
+                    StreamEndReason.Inactivity
+                );
+
+                await manager.disconnect();
+                expect(manager.getConnectionState()).toBe(ConnectionState.Disconnected);
+            });
+
+            it('should return the session ids onStreamCreated delivered, and drop them on disconnect', async () => {
+                expect(manager.getSessionInfo()).toBeUndefined();
+
+                await manager.connect();
+                expect(manager.getSessionInfo()).toBeUndefined();
+
+                const info = { streamId: 'str_1', sessionId: 'ses_1', agentId: 'agent-123' };
+                streamCallbacks().onStreamCreated(info);
+
+                expect(manager.getSessionInfo()).toEqual(info);
+                expect(mockOptions.callbacks.onStreamCreated).toHaveBeenCalledWith(info);
+
+                await manager.disconnect();
+                expect(manager.getSessionInfo()).toBeUndefined();
+            });
+        });
+
         describe('connect', () => {
             it('should connect successfully', async () => {
                 await manager.connect();
 
-                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Connecting);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Connecting,
+                    undefined
+                );
                 expect(initializeStreamAndChat).toHaveBeenCalled();
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-chat', {
                     event: 'connect',
@@ -204,7 +614,219 @@ describe('createAgentManager', () => {
                 (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(error);
 
                 await expect(manager.connect()).rejects.toThrow('Connection failed');
-                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(ConnectionState.Fail);
+                expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                    ConnectionState.Fail,
+                    undefined
+                );
+            });
+
+            describe('is idempotent', () => {
+                // Holds the stream/chat init open so a second call lands while the first is still in
+                // flight; the returned function lets it resolve.
+                function deferStreamAndChat() {
+                    let release: (value: any) => void = () => {};
+                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
+                        new Promise(resolve => {
+                            release = resolve;
+                        })
+                    );
+
+                    return () => release({ streamingManager: mockStreamingManager, chat: mockChat });
+                }
+
+                it('should return the in-flight promise instead of opening a second session', async () => {
+                    const release = deferStreamAndChat();
+
+                    const first = manager.connect();
+                    const second = manager.connect();
+
+                    release();
+                    await expect(Promise.all([first, second])).resolves.toEqual([undefined, undefined]);
+
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should reject a second connect once a session is open', async () => {
+                    await manager.connect();
+
+                    const rejection = expect(manager.connect()).rejects;
+                    await rejection.toThrow(ValidationError);
+                    await rejection.toThrow('Already connected; call disconnect() first');
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should connect again after disconnect', async () => {
+                    await manager.connect();
+                    await manager.disconnect();
+
+                    await expect(manager.connect()).resolves.toBeUndefined();
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(2);
+                });
+
+                it('should clear the guard when a connect fails, so a retry works', async () => {
+                    (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
+
+                    await expect(manager.connect()).rejects.toThrow('Connection failed');
+                    await expect(manager.connect()).resolves.toBeUndefined();
+
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(2);
+                });
+
+                it("should give a joining caller the first attempt's rejection", async () => {
+                    let reject: (error: Error) => void = () => {};
+                    (initializeStreamAndChat as jest.Mock).mockReturnValueOnce(
+                        new Promise((_resolve, r) => {
+                            reject = r;
+                        })
+                    );
+
+                    const first = manager.connect();
+                    const second = manager.connect();
+
+                    reject(new Error('Connection failed'));
+
+                    await expect(first).rejects.toThrow('Connection failed');
+                    await expect(second).rejects.toThrow('Connection failed');
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should join the attempt a reconnect already has in flight', async () => {
+                    await manager.connect();
+
+                    const release = deferStreamAndChat();
+                    (initializeStreamAndChat as jest.Mock).mockClear();
+
+                    const reconnecting = manager.reconnect();
+                    // Let the reconnect tear the old session down and start its own connect; the
+                    // window this closes is a public connect() landing after that teardown.
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    const connecting = manager.connect();
+
+                    release();
+                    await Promise.all([reconnecting, connecting]);
+
+                    // One session, not two: the public connect joined the reconnect's attempt.
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should disconnect without waiting for an in-flight connect', async () => {
+                    const release = deferStreamAndChat();
+
+                    const connecting = manager.connect();
+                    // Let the connect get as far as waiting on the stream.
+                    await new Promise(resolve => setTimeout(resolve, 0));
+
+                    // Resolves while the connect is still pending: a connect is bounded by three
+                    // 45-second attempts and a web socket with no timeout, and an unmount handler
+                    // must not inherit that.
+                    await manager.disconnect();
+                    expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+
+                    release();
+                    await connecting;
+
+                    // The session the connect went on to open is torn down, not left running.
+                    expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+                    expect(manager.getConnectionState()).toBe(ConnectionState.Disconnected);
+                    expect(manager.getSessionInfo()).toBeUndefined();
+                    await expect(manager.connect()).resolves.toBeUndefined();
+                });
+
+                it('should not open a session when a disconnect lands during a reconnect', async () => {
+                    // The window the in-flight guard used to leave open: on an Expressive (V4) agent
+                    // the transport is asked to reconnect first, and nothing was in flight while that
+                    // ran — so a `disconnect()` resolved on a session the fallback then replaced.
+                    mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
+                    mockStreamingManager.reconnect = jest.fn();
+                    const expressive = await createAgentManager('agent-123', mockOptions);
+                    await expressive.connect();
+
+                    let failTransport: (error: Error) => void = () => {};
+                    mockStreamingManager.reconnect.mockReturnValueOnce(
+                        new Promise((_resolve, reject) => {
+                            failTransport = reject;
+                        })
+                    );
+                    (initializeStreamAndChat as jest.Mock).mockClear();
+
+                    const reconnecting = expressive.reconnect();
+                    await new Promise(resolve => setTimeout(resolve, 0));
+
+                    await expressive.disconnect();
+                    failTransport(new Error('transport gone'));
+                    await reconnecting;
+
+                    // The fallback connect does not run, so no second session is opened.
+                    expect(initializeStreamAndChat).not.toHaveBeenCalled();
+                    expect(expressive.getConnectionState()).toBe(ConnectionState.Disconnected);
+                    expect(mockAnalytics.track).toHaveBeenCalledWith(
+                        'agent-chat',
+                        expect.objectContaining({ event: 'reconnect', success: false })
+                    );
+                });
+
+                it('should join the attempt when a callback calls connect() from inside connect()', async () => {
+                    let reentrant: Promise<void> | undefined;
+                    let reentrantManager: AgentManager | undefined;
+                    const options = {
+                        ...mockOptions,
+                        callbacks: {
+                            ...mockOptions.callbacks,
+                            onConnectionStateChange: jest.fn((state: ConnectionState) => {
+                                if (state === ConnectionState.Connecting && !reentrant) {
+                                    reentrant = reentrantManager?.connect();
+                                }
+                            }),
+                        },
+                    };
+                    reentrantManager = await createAgentManager('agent-123', options);
+                    (initializeStreamAndChat as jest.Mock).mockClear();
+
+                    await reentrantManager.connect();
+                    await reentrant;
+
+                    // The guard is published before `connect()` runs its synchronous prefix, so the
+                    // handler's call joined the attempt instead of opening a second session.
+                    expect(initializeStreamAndChat).toHaveBeenCalledTimes(1);
+                });
+
+                it('should keep the session a DirectPlayback reconnect just built', async () => {
+                    // The chat is carried over from the earlier Functional connect and still says
+                    // `Functional`, but it says nothing about *this* session — which is a
+                    // DirectPlayback one and therefore has no notifications web socket. Reading the
+                    // mode off it made the tail tear down the session it had just built, while
+                    // `reconnect()` reported success.
+                    await manager.connect();
+                    await manager.changeMode(ChatMode.DirectPlayback);
+                    mockStreamingManager.disconnect.mockClear();
+                    (createSocketManager as jest.Mock).mockClear();
+
+                    await manager.reconnect();
+
+                    expect(manager.getChatMode()).toBe(ChatMode.DirectPlayback);
+                    expect(createSocketManager).not.toHaveBeenCalled();
+                    // The session the reconnect just opened is still there.
+                    expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+                    expect(manager.getStreamType()).toBe(StreamType.Legacy);
+                    expect(mockAnalytics.track).toHaveBeenCalledWith(
+                        'agent-chat',
+                        expect.objectContaining({ event: 'reconnect', success: true })
+                    );
+                });
+
+                it('should reject reconnect while a connect is in flight', async () => {
+                    const release = deferStreamAndChat();
+
+                    const connecting = manager.connect();
+                    const reconnecting = manager.reconnect();
+
+                    await expect(reconnecting).rejects.toThrow(
+                        'A connect() is in flight; wait for it before calling reconnect()'
+                    );
+
+                    release();
+                    await connecting;
+                });
             });
         });
 
@@ -269,7 +891,8 @@ describe('createAgentManager', () => {
                 expect(mockSocketManager.disconnect).toHaveBeenCalled();
                 expect(mockStreamingManager.disconnect).toHaveBeenCalled();
                 expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
-                    ConnectionState.Disconnected
+                    ConnectionState.Disconnected,
+                    undefined
                 );
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-chat', {
                     event: 'disconnect',
@@ -561,7 +1184,7 @@ describe('createAgentManager', () => {
                 expect(lastMessage.role).toBe('assistant');
                 expect(lastMessage.content).toBe(textInput);
                 expect(lastMessage.id).toBeDefined();
-                expect(lastMessage.created_at).toBeDefined();
+                expect(lastMessage.createdAt).toBeDefined();
             });
 
             it('should populate parts on speak message', async () => {
@@ -616,8 +1239,16 @@ describe('createAgentManager', () => {
 
                 const result = await manager.speak('Hello world');
 
-                expect(result).toEqual({ duration: 0, video_id: '', status: 'success' });
+                expect(result).toEqual({ duration: 0, videoId: '', status: 'success' });
                 expect(mockStreamingManager.speak).not.toHaveBeenCalled();
+            });
+
+            it('Should resolve the default response when the streaming manager resolves nothing', async () => {
+                mockStreamingManager.speak.mockResolvedValueOnce(undefined);
+
+                const result = await manager.speak('Hello world');
+
+                expect(result).toEqual({ duration: 0, videoId: '', status: 'success' });
             });
 
             it('should throw error if not connected', async () => {
@@ -628,6 +1259,11 @@ describe('createAgentManager', () => {
         });
 
         describe('interrupt', () => {
+            const getLastMessage = (onNewMessage: jest.Mock) => {
+                const messages = onNewMessage.mock.calls[onNewMessage.mock.calls.length - 1][0];
+                return messages[messages.length - 1];
+            };
+
             beforeEach(async () => {
                 mockStreamingManager.interruptAvailable = true;
                 await manager.connect();
@@ -647,6 +1283,31 @@ describe('createAgentManager', () => {
                 });
             });
 
+            it('should default to a click interrupt when called with no options', async () => {
+                await manager.chat('Hello');
+
+                manager.interrupt();
+
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
+                expect(mockAnalytics.track).toHaveBeenCalledWith(
+                    'agent-video-interrupt',
+                    expect.objectContaining({ type: 'click' })
+                );
+            });
+
+            it('should still take an explicit cause', async () => {
+                await manager.chat('Hello');
+
+                manager.interrupt({ type: 'audio' });
+
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('audio');
+                expect(mockAnalytics.track).toHaveBeenCalledWith(
+                    'agent-video-interrupt',
+                    expect.objectContaining({ type: 'audio' })
+                );
+            });
+
+            // Guards propagation from a misbehaving streaming manager: the real ones never throw.
             it('should handle validateInterrupt rejection', async () => {
                 // Add a message to interrupt
                 await manager.chat('Hello');
@@ -660,6 +1321,65 @@ describe('createAgentManager', () => {
 
                 // Verify streamingManager.interrupt was called
                 expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
+            });
+
+            it('should not mark the last message interrupted when the stream is not interruptible', async () => {
+                mockStreamingManager.isInterruptible = false;
+                await manager.chat('Hello');
+
+                const onNewMessage = mockOptions.callbacks.onNewMessage as jest.Mock;
+                const lastMessage = getLastMessage(onNewMessage);
+                onNewMessage.mockClear();
+
+                manager.interrupt({ type: 'click' });
+
+                expect(mockStreamingManager.interrupt).not.toHaveBeenCalled();
+                expect(onNewMessage).not.toHaveBeenCalled();
+                expect(lastMessage.interrupted).toBeUndefined();
+            });
+
+            it('should not mark the last message interrupted when the stream manager rejects the interrupt', async () => {
+                await manager.chat('Hello');
+
+                const onNewMessage = mockOptions.callbacks.onNewMessage as jest.Mock;
+                const lastMessage = getLastMessage(onNewMessage);
+                onNewMessage.mockClear();
+                (mockStreamingManager.interrupt as jest.Mock).mockImplementationOnce(() => {
+                    throw new Error('Interrupt validation failed');
+                });
+
+                expect(() => manager.interrupt({ type: 'click' })).toThrow('Interrupt validation failed');
+
+                expect(onNewMessage).not.toHaveBeenCalled();
+                expect(lastMessage.interrupted).toBeUndefined();
+            });
+
+            it('should not mark the last message interrupted when the stream sent no interrupt', async () => {
+                await manager.chat('Hello');
+
+                const onNewMessage = mockOptions.callbacks.onNewMessage as jest.Mock;
+                const lastMessage = getLastMessage(onNewMessage);
+                onNewMessage.mockClear();
+                (mockStreamingManager.interrupt as jest.Mock).mockReturnValueOnce(false);
+
+                manager.interrupt({ type: 'click' });
+
+                expect(mockStreamingManager.interrupt).toHaveBeenCalledWith('click');
+                expect(onNewMessage).not.toHaveBeenCalled();
+                expect(lastMessage.interrupted).toBeUndefined();
+            });
+
+            it('should mark the last message interrupted once the interrupt was sent', async () => {
+                await manager.chat('Hello');
+
+                const onNewMessage = mockOptions.callbacks.onNewMessage as jest.Mock;
+                const lastMessage = getLastMessage(onNewMessage);
+                onNewMessage.mockClear();
+
+                manager.interrupt({ type: 'click' });
+
+                expect(lastMessage.interrupted).toBe(true);
+                expect(onNewMessage).toHaveBeenCalledWith(expect.any(Array), 'answer');
             });
         });
 
@@ -728,11 +1448,17 @@ describe('createAgentManager', () => {
                 const newManager = await createAgentManager('agent-123', mockOptions);
                 await newManager.connect();
 
-                expect(() => newManager.rate('message-id', 1)).toThrow('Chat is not initialized');
+                await expect(newManager.rate('message-id', 1)).rejects.toMatchObject({
+                    kind: 'ValidationError',
+                    message: 'Chat is not initialized',
+                });
             });
 
             it('should throw error if message not found', async () => {
-                expect(() => manager.rate('non-existent-id', 1)).toThrow('Message not found');
+                await expect(manager.rate('non-existent-id', 1)).rejects.toMatchObject({
+                    kind: 'ValidationError',
+                    message: 'Message not found',
+                });
             });
         });
 
@@ -761,7 +1487,10 @@ describe('createAgentManager', () => {
                 const newManager = await createAgentManager('agent-123', mockOptions);
                 await newManager.connect();
 
-                expect(() => newManager.deleteRate('rating-123')).toThrow('Chat is not initialized');
+                await expect(newManager.deleteRate('rating-123')).rejects.toMatchObject({
+                    kind: 'ValidationError',
+                    message: 'Chat is not initialized',
+                });
             });
         });
 
@@ -783,6 +1512,19 @@ describe('createAgentManager', () => {
                 });
             });
 
+            it('should accept every score on the scale and reject anything else', async () => {
+                // The Agents API rejects a rating that is not an integer from 1 to 5
+                // (`feedback.ts`, "rating must be an integer between 1 and 5"), so the type does too.
+                await Promise.all(([1, 2, 3, 4, 5] as const).map(rating => manager.submitFeedback(rating)));
+
+                expect(mockAgentsApi.submitFeedback).toHaveBeenCalledTimes(5);
+
+                // @ts-expect-error 0 is below the scale.
+                await manager.submitFeedback(0);
+                // @ts-expect-error 4.5 is not a whole star.
+                await manager.submitFeedback(4.5);
+            });
+
             it('should throw error if chat not initialized when submitting feedback', async () => {
                 (initializeStreamAndChat as jest.Mock).mockResolvedValue({
                     streamingManager: mockStreamingManager,
@@ -792,7 +1534,37 @@ describe('createAgentManager', () => {
                 const newManager = await createAgentManager('agent-123', mockOptions);
                 await newManager.connect();
 
-                expect(() => newManager.submitFeedback(4)).toThrow('Chat is not initialized');
+                await expect(newManager.submitFeedback(4)).rejects.toMatchObject({
+                    kind: 'ValidationError',
+                    message: 'Chat is not initialized',
+                });
+            });
+        });
+
+        describe('rating guards without a chat', () => {
+            it('should reject rather than throw synchronously, so .catch() sees the ValidationError', async () => {
+                (initializeStreamAndChat as jest.Mock).mockResolvedValue({
+                    streamingManager: mockStreamingManager,
+                    chat: undefined,
+                });
+
+                const newManager = await createAgentManager('agent-123', mockOptions);
+                await newManager.connect();
+
+                // calling must not throw: the guard has to come back as a rejected promise
+                const pending = [
+                    newManager.rate('message-id', 1),
+                    newManager.deleteRate('rating-123'),
+                    newManager.submitFeedback(4),
+                ];
+
+                const reasons = await Promise.all(pending.map(promise => promise.catch(error => error)));
+
+                expect(reasons).toHaveLength(3);
+                for (const reason of reasons) {
+                    expect(reason).toBeInstanceOf(ValidationError);
+                    expect(reason.message).toBe('Chat is not initialized');
+                }
             });
         });
 
@@ -811,6 +1583,25 @@ describe('createAgentManager', () => {
 
                 expect(mockSocketManager.disconnect).toHaveBeenCalled();
                 expect(mockStreamingManager.disconnect).toHaveBeenCalled();
+            });
+
+            it('should resolve only once the disconnect it triggers has finished', async () => {
+                await manager.connect();
+                let settleDisconnect = () => {};
+                mockStreamingManager.disconnect = jest.fn(
+                    () => new Promise<void>(resolve => (settleDisconnect = resolve))
+                );
+
+                const onSettled = jest.fn();
+                const pending = Promise.resolve(manager.changeMode(ChatMode.TextOnly)).then(onSettled);
+                await Promise.resolve();
+
+                expect(onSettled).not.toHaveBeenCalled();
+
+                settleDisconnect();
+                await pending;
+
+                expect(onSettled).toHaveBeenCalled();
             });
 
             it('should not change if mode is the same', async () => {
@@ -833,13 +1624,13 @@ describe('createAgentManager', () => {
             });
 
             it('should get interrupt availability', () => {
-                expect(manager.getIsInterruptAvailable()).toBe(false);
+                expect(manager.isInterruptAvailable()).toBe(false);
             });
 
             it('should get STT token', async () => {
-                const token = await manager.getSTTToken();
+                const token = await manager.getSttToken();
                 expect(token).toEqual({ token: 'stt-token' });
-                expect(mockAgentsApi.getSTTToken).toHaveBeenCalledWith('agent-123');
+                expect(mockAgentsApi.getSttToken).toHaveBeenCalledWith('agent-123');
             });
         });
     });
@@ -865,15 +1656,16 @@ describe('createAgentManager', () => {
         it('should throw error when publishMicrophoneStream is not available', async () => {
             mockStreamingManager.publishMicrophoneStream = undefined;
 
-            await expect(manager.publishMicrophoneStream?.(new MediaStream())).rejects.toThrow(
-                'publishMicrophoneStream is not available for this streaming manager'
-            );
+            await expect(manager.publishMicrophoneStream?.(new MediaStream())).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'publishMicrophoneStream is only available on Expressive (V4) agents, after connect()',
+            });
         });
     });
 
     describe('setSttLanguage', () => {
         it('should send the language on the stt-language topic for v2 agents', async () => {
-            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
 
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
@@ -881,7 +1673,7 @@ describe('createAgentManager', () => {
             await manager.setSttLanguage('French');
 
             expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
-                DataChannelTopic.SttLanguage,
+                InternalDataChannelTopic.SttLanguage,
                 JSON.stringify({ language: 'French' })
             );
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-stt-language-change', { language: 'French' });
@@ -891,14 +1683,15 @@ describe('createAgentManager', () => {
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
 
-            await expect(manager.setSttLanguage('French')).rejects.toThrow(
-                'setSttLanguage is not available for this streaming manager'
-            );
+            await expect(manager.setSttLanguage('French')).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'setSttLanguage is only available on Expressive (V4) agents, after connect()',
+            });
             expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
 
         it('resolves only once the send settles', async () => {
-            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
             let settleSend = () => {};
             mockStreamingManager.sendDataChannelMessage = jest.fn(
                 () => new Promise<void>(resolve => (settleSend = resolve))
@@ -922,19 +1715,19 @@ describe('createAgentManager', () => {
 
     describe('sendDataChannelMessage', () => {
         it('should delegate to the streaming manager for v2 agents', async () => {
-            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
 
             const manager = await createAgentManager('agent-123', mockOptions);
             await manager.connect();
 
-            await manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
+            await manager.sendDataChannelMessage(DataChannelTopic.Presentation, { type: 'navigate', slide: 3 });
 
             expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
-                PublicDataChannelTopic.Presentation,
+                DataChannelTopic.Presentation,
                 JSON.stringify({ type: 'navigate', slide: 3 })
             );
             expect(mockAnalytics.track).toHaveBeenCalledWith('agent-data-message', {
-                topic: PublicDataChannelTopic.Presentation,
+                topic: DataChannelTopic.Presentation,
             });
         });
 
@@ -943,13 +1736,16 @@ describe('createAgentManager', () => {
             await manager.connect();
 
             await expect(
-                manager.sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 1 })
-            ).rejects.toThrow('sendDataChannelMessage is not available for this streaming manager');
+                manager.sendDataChannelMessage(DataChannelTopic.Presentation, { slide: 1 })
+            ).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'sendDataChannelMessage is only available on Expressive (V4) agents, after connect()',
+            });
             expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
         });
 
         it('resolves only once the send settles', async () => {
-            mockAgent.avatar = { type: 'expressive', voice: { language: 'en-US' } };
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
             let settleSend = () => {};
             mockStreamingManager.sendDataChannelMessage = jest.fn(
                 () => new Promise<void>(resolve => (settleSend = resolve))
@@ -959,9 +1755,7 @@ describe('createAgentManager', () => {
             await manager.connect();
 
             const onSettled = jest.fn();
-            const pending = manager
-                .sendDataChannelMessage(PublicDataChannelTopic.Presentation, { slide: 3 })
-                .then(onSettled);
+            const pending = manager.sendDataChannelMessage(DataChannelTopic.Presentation, { slide: 3 }).then(onSettled);
             await Promise.resolve();
 
             expect(onSettled).not.toHaveBeenCalled();
@@ -1019,9 +1813,10 @@ describe('createAgentManager', () => {
             mockStreamingManager.replaceMicrophoneTrack = undefined;
             const mockTrack = { kind: 'audio', id: 'audio-track-1' } as unknown as MediaStreamTrack;
 
-            await expect(manager.replaceMicrophoneTrack?.(mockTrack)).rejects.toThrow(
-                'replaceMicrophoneTrack is not available for this streaming manager'
-            );
+            await expect(manager.replaceMicrophoneTrack?.(mockTrack)).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'replaceMicrophoneTrack is only available on Expressive (V4) agents, after connect()',
+            });
         });
     });
 
@@ -1046,9 +1841,10 @@ describe('createAgentManager', () => {
         it('should throw error when publishCameraStream is not available', async () => {
             mockStreamingManager.publishCameraStream = undefined;
 
-            await expect(manager.publishCameraStream?.(new MediaStream())).rejects.toThrow(
-                'publishCameraStream is not available for this streaming manager'
-            );
+            await expect(manager.publishCameraStream?.(new MediaStream())).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'publishCameraStream is only available on Expressive (V4) agents, after connect()',
+            });
         });
     });
 
@@ -1095,7 +1891,7 @@ describe('createAgentManager', () => {
         });
 
         it('should handle analytics initialization with disabled analytics', async () => {
-            const optionsWithoutAnalytics = { ...mockOptions, enableAnalitics: false };
+            const optionsWithoutAnalytics = { ...mockOptions, analytics: { enabled: false } };
 
             await createAgentManager('agent-123', optionsWithoutAnalytics);
 
@@ -1104,6 +1900,7 @@ describe('createAgentManager', () => {
                 agentId: 'agent-123',
                 isEnabled: false,
                 externalId: undefined,
+                mixpanelAdditionalProperties: undefined,
             });
         });
     });
@@ -1114,7 +1911,27 @@ describe('createAgentManager', () => {
         beforeEach(async () => {
             mockStreamingManager.registerRpcMethod = jest.fn();
             mockStreamingManager.unregisterRpcMethod = jest.fn();
+            // Client tools are an Expressive (V4) feature: the RPC channel they travel on exists
+            // only there.
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
             manager = await createAgentManager('agent-123', mockOptions);
+        });
+
+        it('should reject on a Talks (V2) or Clips (V3) agent instead of doing nothing', async () => {
+            mockAgent.avatar = { type: AvatarType.Talk, voice: { language: 'en-US' } };
+            const talksManager = await createAgentManager('agent-123', mockOptions);
+
+            const register = () => talksManager.registerClientTool('testTool', async () => 'result');
+
+            expect(register).toThrow(ValidationError);
+            expect(register).toThrow('registerClientTool is only available on Expressive (V4) agents');
+        });
+
+        it('should let unregisterClientTool run on any agent type', async () => {
+            mockAgent.avatar = { type: AvatarType.Talk, voice: { language: 'en-US' } };
+            const talksManager = await createAgentManager('agent-123', mockOptions);
+
+            expect(() => talksManager.unregisterClientTool('testTool')).not.toThrow();
         });
 
         it('should register tool and call registerRpcMethod after connect', async () => {
@@ -1178,54 +1995,44 @@ describe('createAgentManager', () => {
             expect(result).toBe('result2');
         });
 
-        it('should throw an RpcError carrying the handler reason verbatim', async () => {
+        it('should accept a synchronous handler and await its result all the same', async () => {
+            await manager.connect();
+            manager.registerClientTool('locale', args => JSON.stringify({ got: args.key }));
+
+            const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
+
+            await expect(rpcHandler({ payload: '{"key": "val"}' })).resolves.toBe('{"got":"val"}');
+        });
+
+        it('should reject with the handler reason verbatim', async () => {
             const handler = jest.fn().mockRejectedValue(new Error('No form fields configured.'));
 
             await manager.connect();
             manager.registerClientTool('testTool', handler);
             const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
 
-            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
-                code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'No form fields configured.',
-            });
-            await expect(rpcHandler({ payload: '{}' })).rejects.toBeInstanceOf(RpcError);
+            await expect(rpcHandler({ payload: '{}' })).rejects.toThrow('No form fields configured.');
         });
 
-        it('should fall back to a generic message when a handler throws a non-Error', async () => {
+        it('should pass a non-Error rejection through untouched', async () => {
             const handler = jest.fn().mockRejectedValue('boom');
 
             await manager.connect();
             manager.registerClientTool('testTool', handler);
             const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
 
-            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
-                code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'Client tool failed',
-            });
+            await expect(rpcHandler({ payload: '{}' })).rejects.toBe('boom');
         });
 
-        it('should pass through an RpcError thrown by the handler, keeping its code and data', async () => {
-            const thrown = new RpcError(1600, 'declined', 'extra');
-            const handler = jest.fn().mockRejectedValue(thrown);
-
-            await manager.connect();
-            manager.registerClientTool('testTool', handler);
-            const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
-
-            await expect(rpcHandler({ payload: '{}' })).rejects.toBe(thrown);
-        });
-
-        it('should throw an RpcError when no handler is registered for the method', async () => {
+        it('should reject when no handler is registered for the method', async () => {
             await manager.connect();
             manager.registerClientTool('testTool', jest.fn());
             const rpcHandler = mockStreamingManager.registerRpcMethod.mock.calls[0][1];
             manager.unregisterClientTool('testTool');
 
-            await expect(rpcHandler({ payload: '{}' })).rejects.toMatchObject({
-                code: RpcError.ErrorCode.APPLICATION_ERROR,
-                message: 'No handler registered for client tool: testTool',
-            });
+            await expect(rpcHandler({ payload: '{}' })).rejects.toThrow(
+                'No handler registered for client tool: testTool'
+            );
         });
 
         function rpcMethodsFromStream() {

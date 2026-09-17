@@ -52,9 +52,9 @@ describe('Streaming Manager Business Flows', () => {
 
             // Verify stream creation callback
             expect(options.callbacks.onStreamCreated).toHaveBeenCalledWith({
-                stream_id: 'streamId',
-                session_id: 'sessionId',
-                agent_id: agentId,
+                streamId: 'streamId',
+                sessionId: 'sessionId',
+                agentId,
             });
 
             expect(manager.streamId).toBe('streamId');

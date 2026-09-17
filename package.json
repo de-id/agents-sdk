@@ -1,26 +1,52 @@
 {
   "name": "@d-id/client-sdk",
   "private": false,
-  "version": "2.0.10",
+  "version": "3.0.0-0",
   "type": "module",
-  "description": "d-id client sdk",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/de-id/agents-sdk"
-  },
+  "description": "Browser SDK for D-ID Agents: connect to an agent, stream its video and audio, chat and speak.",
   "keywords": [
     "d-id",
+    "agents",
+    "avatar",
     "sdk",
-    "client-sdk"
+    "webrtc",
+    "livekit",
+    "video",
+    "text-to-speech",
+    "conversational-ai"
   ],
+  "homepage": "https://sdk.d-id.com/",
+  "bugs": {
+    "url": "https://github.com/de-id/agents-sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/de-id/agents-sdk.git"
+  },
   "license": "MIT",
   "author": "d-id",
   "files": [
-    "dist/*"
+    "dist",
+    "!dist/src",
+    "!dist/index.umd.cjs.map",
+    "!dist/livekit-client.esm-*.js.map"
   ],
   "main": "./dist/index.umd.cjs",
   "module": "./dist/index.js",
-  "types": "./dist/src/index.d.ts",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.umd.cjs",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "node ./infra/build.js -m production",
@@ -29,7 +55,9 @@
     "deploy:prod": "node ./infra/deploy.js --version beta",
     "preview": "vite preview",
     "test-build": "node .infra/build.js -m development",
-    "build:docs": "typedoc",
+    "docs:build": "typedoc",
+    "docs:check": "typedoc --out .docs-check-site",
+    "docs:serve": "yarn docs:build && vite preview --outDir docs-site --port 4173 --strictPort --open",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:ci": "jest --watchAll=false --passWithNoTests --verbose=false",
@@ -59,7 +87,9 @@
     "string-width": "^4.2.3",
     "strip-ansi": "^6.0.1",
     "ts-jest": "^29.4.1",
-    "typedoc": "^0.25.7",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-coverage": "^4.0.3",
+    "typedoc-plugin-mdn-links": "^5.1.1",
     "typescript": "^5.3.3",
     "vite": "^6.4.2",
     "vite-plugin-dts": "^3.7.3"

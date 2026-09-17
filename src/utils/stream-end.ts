@@ -9,7 +9,7 @@ const LEGACY_CLOSE_REASON_TO_END_REASON: Record<string, StreamEndReason> = {
 
 /**
  * Legacy streams report the session end as `stream/done` with a `close_reason`.
- * A reason we do not recognise is forwarded as-is rather than reported as an error.
+ * A reason we do not recognize is forwarded as-is rather than reported as an error.
  */
 export function toStreamEndReason(data: any): string | undefined {
     return LEGACY_CLOSE_REASON_TO_END_REASON[data.close_reason] ?? data.close_reason;

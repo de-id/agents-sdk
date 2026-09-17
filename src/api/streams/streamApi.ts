@@ -1,22 +1,18 @@
 import {
     Auth,
     CreateStreamOptions,
+    ErrorReporter,
     ICreateStreamRequestResponse,
     IceCandidate,
     RtcApi,
     SendClipStreamPayload,
-    SendStreamPayloadResponse,
     SendTalkStreamPayload,
+    SpeakWireResponse,
     Status,
 } from '@sdk/types/index';
 import { createClient } from '../apiClient';
 
-export function createStreamApi(
-    auth: Auth,
-    host: string,
-    agentId: string,
-    onError?: (error: Error, errorData: object) => void
-): RtcApi {
+export function createStreamApi(auth: Auth, host: string, agentId: string, onError?: ErrorReporter): RtcApi {
     const client = createClient(auth, `${host}/agents/${agentId}`, onError);
 
     return {
@@ -43,11 +39,23 @@ export function createStreamApi(
                 { signal }
             );
         },
-        sendStreamRequest(streamId: string, sessionId: string, payload: SendClipStreamPayload | SendTalkStreamPayload) {
-            return client.post<SendStreamPayloadResponse>(`/streams/${streamId}`, {
+        async sendStreamRequest(
+            streamId: string,
+            sessionId: string,
+            payload: SendClipStreamPayload | SendTalkStreamPayload
+        ) {
+            const wire = await client.post<SpeakWireResponse>(`/streams/${streamId}`, {
                 session_id: sessionId,
                 ...payload,
             });
+
+            // The Agents API answers in snake_case; `SpeakResponse` is camelCase.
+            return {
+                status: wire.status,
+                sessionId: wire.session_id,
+                duration: wire.duration,
+                videoId: wire.video_id,
+            };
         },
         close(streamId: string, sessionId: string) {
             return client.delete<Status>(`/streams/${streamId}`, { session_id: sessionId });
