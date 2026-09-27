@@ -262,9 +262,10 @@ export enum ToolCallEvent {
  */
 export enum DataChannelTopic {
     /**
-     * Messages that drive a presentation the agent is showing alongside its video, such as moving
-     * to another slide. Sent on the wire as `did.presentation`; the payload shape is whatever the
-     * presentation the agent is running expects.
+     * Tells the agent which slide the user moved to in the deck it is presenting. Sent on the wire
+     * as `did.presentation`. The only payload the agent reads is
+     * `{ type: 'navigate', slide: <integer> }`; anything else, or any message while the agent has
+     * no deck, is ignored.
      */
     Presentation = 'did.presentation',
 }
@@ -599,13 +600,14 @@ export interface StreamInterruptPayload {
  * Register it with {@link AgentManager.registerClientTool | registerClientTool()}, under the tool
  * name defined in the agent's configuration. The SDK parses the arguments the agent's LLM produced
  * and passes them in; whatever the handler resolves with is sent back to the agent as the tool's
- * result. Throwing rejects the call, and the error message is forwarded to the agent. Expressive
- * (V4) agents only — {@link AgentManager.registerClientTool | registerClientTool()} throws a
- * {@link ValidationError} on a Talks (V2) or Clips (V3) agent.
+ * result. Throwing rejects the call, and the error message (at most 256 bytes) is forwarded to the
+ * agent. The server gives a handler 10 seconds unless the tool's configuration sets a `timeout`.
+ * Expressive (V4) agents only: {@link AgentManager.registerClientTool | registerClientTool()}
+ * throws a {@link ValidationError} on a Talks (V2) or Clips (V3) agent.
  *
  * @param args - The arguments the LLM produced for this call, already parsed from JSON.
- * @returns A JSON string with the tool's result, at most 15 KiB — the LiveKit RPC response limit;
- * a larger result fails the call with an RPC error. A synchronous handler may return the string
+ * @returns The tool's result as a string, at most 15 KiB (the LiveKit RPC response limit; a larger
+ * result fails the call). Return JSON: the server parses it, and passes other text on as it is. A synchronous handler may return the string
  * directly; the SDK awaits the result either way.
  * @example
  * ```ts
@@ -673,8 +675,8 @@ export interface ToolCallStartedPayload {
     callId: string;
     /** Name of the tool the agent is calling, as configured on the agent. */
     name: string;
-    /** The arguments the agent's LLM produced for this call. */
-    input: Record<string, unknown>;
+    /** The arguments the agent's LLM produced for this call. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
+    input?: Record<string, unknown>;
     /**
      * The tool's result, when the server sent one.
      *
@@ -719,14 +721,14 @@ export interface ToolCallDonePayload {
     callId: string;
     /** Name of the tool that was called. */
     name: string;
-    /** The arguments the call was made with. */
-    input: Record<string, unknown>;
-    /** The result the tool returned. */
-    output: Record<string, unknown>;
-    /** How long the call took, in milliseconds. */
-    durationMs: number;
-    /** Any additional metadata the tool reported alongside its result. */
-    extra: Record<string, unknown>;
+    /** The arguments the call was made with. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
+    input?: Record<string, unknown>;
+    /** The result the tool returned. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
+    output?: Record<string, unknown>;
+    /** How long the call took, in milliseconds. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
+    durationMs?: number;
+    /** Any additional metadata the tool reported alongside its result. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
+    extra?: Record<string, unknown>;
     /** When the call finished, as reported by the server. */
     timestamp: string;
 }
@@ -745,23 +747,23 @@ export interface ToolCallErrorPayload {
     callId: string;
     /** Name of the tool that was called. */
     name: string;
-    /** The arguments the call was made with. */
-    input: Record<string, unknown>;
+    /** The arguments the call was made with. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
+    input?: Record<string, unknown>;
     /**
-     * Whatever the failed call produced, if anything.
+     * Whatever the failed call produced, if anything. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions.
      *
      * Any JSON value — the server's own type for a tool result is unconstrained, and on a failure
      * it is commonly the reason as a plain string rather than a structured result. Narrow it
      * before use. The string case is also given to you as
      * {@link ToolCallErrorPayload.error | error}, which is what to show.
      */
-    output: unknown;
-    /** How long the call ran before failing, in milliseconds. */
-    durationMs: number;
-    /** Any additional metadata the server reported with the failure. */
-    extra: Record<string, unknown>;
+    output?: unknown;
+    /** How long the call ran before failing, in milliseconds. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
+    durationMs?: number;
+    /** Any additional metadata the server reported with the failure. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
+    extra?: Record<string, unknown>;
     /**
-     * What went wrong, in one line, when the server said.
+     * What went wrong, in one line, when the server said. Only verbose sessions carry it.
      *
      * Taken from the failure the server reports in {@link ToolCallErrorPayload.extra | extra}
      * (`extra.error.message`), and from {@link ToolCallErrorPayload.output | output} when that is
@@ -789,7 +791,7 @@ export type ToolEventPayload = ToolCallStartedPayload | ToolCallDonePayload | To
 export interface ToolCallStartedWirePayload {
     call_id: string;
     name: string;
-    input: Record<string, unknown>;
+    input?: Record<string, unknown>;
     output?: Record<string, unknown>;
     interruptible?: boolean;
     execution_mode?: ToolExecutionMode;
@@ -805,10 +807,10 @@ export interface ToolCallStartedWirePayload {
 export interface ToolCallDoneWirePayload {
     call_id: string;
     name: string;
-    input: Record<string, unknown>;
-    output: Record<string, unknown>;
-    duration_ms: number;
-    extra: Record<string, unknown>;
+    input?: Record<string, unknown>;
+    output?: Record<string, unknown>;
+    duration_ms?: number;
+    extra?: Record<string, unknown>;
     timestamp: string;
 }
 
@@ -820,7 +822,7 @@ export interface ToolCallDoneWirePayload {
 export interface ToolCallErrorWirePayload extends Omit<ToolCallDoneWirePayload, 'output'> {
     // Any JSON value: the server's `ToolResult.output` is unconstrained, and some failures carry
     // the reason as a plain string here instead of a result.
-    output: unknown;
+    output?: unknown;
 }
 
 /**

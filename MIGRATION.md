@@ -1,15 +1,15 @@
 # Migration Guide: v2 → v3
 
-`@d-id/client-sdk` v3 is a **breaking** release that trims the package's public surface to what the SDK supports. The generated API reference at https://sdk.d-id.com/ describes exactly what is left, and every change is listed below.
+`@d-id/client-sdk` v3 is a **breaking** release that trims the package's public surface to what the SDK supports. The generated API reference at https://sdk.d-id.com/ describes exactly what is left, and the changes are listed below.
 
 ## Implementation types are no longer exported
 
-Around fifty internal types leaked from the package root in v2 through a wildcard export (RTC wire shapes such as `ICreateStreamRequestResponse`, streaming-manager options, knowledge entities the SDK never uses). They are not exported any more. If you imported one, you were depending on an implementation detail; the public equivalents are listed in the reference under Agent Manager, Callbacks & Events and Streaming Options.
+Around fifty internal types leaked from the package root in v2 through a wildcard export (RTC wire shapes such as `ICreateStreamRequestResponse`, streaming-manager options, knowledge entities the SDK never uses). They are not exported any more. The public equivalents are listed in the reference under Agent Manager, Callbacks & Events and Streaming Options.
 
 Removed from the root, grouped by area:
 
 - **Streaming transport (WebRTC / LiveKit wire types):** `ICreateStreamRequestResponse`, `IceCandidate`, `IceServer`, `CreateTalkStreamRequest`, `SendTalkStreamPayload`, `CreateClipStreamRequest`, `SendClipStreamPayload`, `TalkStreamOptions`, `ClipStreamOptions`, `CreateStreamOptions`, `PayloadType`, `StreamEndUserData`, `CreateSessionV2Options`, `CreateSessionV2Response`, `TransportProvider`, `RtcApi`
-- **Streaming-manager internals:** `StreamingManagerCallbacks`, `ManagerCallbacks`, `ManagerCallbackKeys`, `StreamingManagerOptions`, `RpcMethodHandler`, `StreamInterruptPayload`, `TurnEventPayload`, `AudioDetectionMetrics`, `SlimRTCStatsReport`, `AnalyticsRTCStatsReport`, `AvSyncSample`, `AvSyncReport`, `AgentManagerItems`
+- **Streaming-manager internals:** `ManagerCallbacks`, `ManagerCallbackKeys`, `StreamingManagerOptions`, `RpcMethodHandler`, `StreamInterruptPayload`, `TurnEventPayload`, `AudioDetectionMetrics`, `SlimRTCStatsReport`, `AnalyticsRTCStatsReport`, `AvSyncSample`, `AvSyncReport`, `AgentManagerItems`
 - **Chat and agent API payloads:** `AgentsAPI`, `ChatPayload`, `ChatProgress`, `ChatProgressCallback`, `RatingPayload`, `StreamScript`, `Stream_LLM_Script`
 - **Knowledge entities (the SDK has no knowledge methods):** `KnowledgeType`, `KnowledgeData`, `KnowledgePayload`, `DocumentType`, `DocumentStatus`, `DocumentData`, `CreateDocumentPayload`, `RecordData`, `CreateRecordPayload`, `IParserResult`, `QueryResult`, `Subject`
 
@@ -30,10 +30,9 @@ import type { AgentManagerCallbacks } from '@d-id/client-sdk';
 | `Elevenlabs_tts_provider`                | `ElevenlabsTtsProvider`               |
 | `Microsoft_tts_provider`                 | `MicrosoftTtsProvider`                |
 | `AzureOpenAi_tts_provider`               | `AzureOpenAiTtsProvider`              |
-| `Amazon_tts_provider`                    | `AmazonTtsProvider`                   |
 | `VideoType`                              | `AvatarType`                          |
 | `IRetrivalMetadata`                      | `RetrievalMetadata`                   |
-| `IVoice`                                 | `Voice`                               |
+| `IVoice`                                 | `Voice` (see below)                   |
 | `PublicDataChannelTopic`                 | `DataChannelTopic`                    |
 | `SendStreamPayloadResponse`              | `SpeakResponse`                       |
 | `SupportedStreamScript`                  | `SpeakScript`                         |
@@ -44,13 +43,15 @@ import type { AgentManagerCallbacks } from '@d-id/client-sdk';
 | `AgentManager.getIsInterruptAvailable()` | `AgentManager.isInterruptAvailable()` |
 | `AgentManager.getSTTToken()`             | `AgentManager.getSttToken()`          |
 
-Shapes are unchanged; only the names differ.
+Shapes are unchanged except `SpeakResponse`, whose fields are camelCase, and `TtsProvider`, which no longer includes the Afflorithmics provider (both below).
 
 ## Removed options and types
 
 - `AgentManagerOptions.enableAnalytics`, `mixpanelKey` and `mixpanelAdditionalProperties` (and the misspelled `enableAnalitics`) — the three are one option now: `analytics: { enabled, mixpanelKey, additionalProperties }`. Defaults are unchanged, so `analytics` can be left out entirely; `externalId` stays top-level, because it is also the auth identity.
 - `Subject` enum — the Knowledge API never served those prefixed values; it returns the bare status string (`'created' | 'processed' | 'done' | 'rejected' | 'error'`). The SDK exposes no knowledge methods — manage knowledge through the D-ID API.
 - `Providers.Afflorithmics`, `Afflorithmics_tts_provider` and `VoiceConfigAfflorithmics` — the provider is no longer offered.
+- `Amazon_tts_provider`, and Amazon as a `TtsProvider` — the Agents API does not accept Amazon for agent speech. `Providers.Amazon` stays, for Amazon voices in the voices catalog.
+- `IVoice.locale` — the voices API returns no such field. `Voice` has `languages` (`{ language, locale, accent? }[]`), and `language` is optional.
 - `TextToSpeechProviders`, `ExtendedTextToSpeechProviders` and `mapVideoType` — unused; `speak()` takes `TtsProvider`.
 - `HttpError.url` is now `HttpError.endpoint`, the same name `NetworkError` and `toJson()` use for the failing request's path.
 - `DataChannelTopic` is a string enum instead of a const object with a derived type; `DataChannelTopic.Presentation` and its value are unchanged.
@@ -69,6 +70,7 @@ Shapes are unchanged; only the names differ.
 - `Message.videoId` — never set by the SDK; read `ChatResponse.videoId` from the `chat()` result instead.
 - `SDK_VERSION` — internal analytics value; no longer exported.
 - Members and types marked `@internal` are stripped from the published `.d.ts`; none of them were supported.
+- The constructors of `HttpError`, `NetworkError`, `StreamError`, `WsError`, `ChatCreationFailed` and `ChatModeDowngraded` are no longer public, so `new HttpError(402, body)` in a test stops compiling. Catch the SDK's errors rather than build them; a test double can be a plain `Error` with a `kind` property, which `isDIDError()` accepts.
 
 ## Behavior clarifications
 
@@ -80,6 +82,7 @@ Shapes are unchanged; only the names differ.
 - `speak()` on Expressive (V4) agents now resolves with `{ status: 'success', duration: 0, videoId: '' }` instead of `undefined`, matching its declared type.
 - The three `onToolEvent` payloads are camelCase like the rest of the SDK: `call_id` is now `callId`, `execution_mode` `executionMode`, `turn_id` `turnId` and `duration_ms` `durationMs`; only the documented fields are forwarded.
 - `ToolCallStartedPayload.executionMode` is required (`'blocking'` when the server omits it) and `ToolCallStartedPayload.output` is optional.
+- `input`, `output`, `durationMs` and `extra` on the tool-call payloads are optional: the server sends them only in a `verbose` session, which needs the agent owner's API key.
 - `ToolCallErrorPayload` carries the failure text as `error?: string`; `output` is typed `unknown` on the tool-call payloads — narrow it before use.
 - `SpeakResponse` fields are camelCase: `sessionId`, `videoId` (`status` and `duration` are unchanged). The Agents API still answers in snake_case; the SDK converts.
 - `StreamCreatedInfo` fields are camelCase: `agentId`, `sessionId`, `streamId`.

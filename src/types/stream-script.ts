@@ -41,8 +41,9 @@ export interface TextStreamScript {
      *
      * One of the objects in {@link TtsProvider}: a `type` naming the provider, the
      * `voice_id` to speak with, and optional provider-specific `voice_config`. Leave it out and the
-     * SDK sends the script without a provider, so the voice is chosen server-side; the Agents API
-     * documents Microsoft TTS as its default when no provider is given.
+     * agent speaks with its own configured voice; that voice's `voice_config` is not applied.
+     * Talks (V2) and Clips (V3) agents only: Expressive (V4) agents always speak with their
+     * configured voice and ignore this field.
      */
     provider?: TtsProvider;
 
@@ -84,8 +85,9 @@ export interface TextStreamScript {
  * A script that makes the agent lip-sync an audio file you host, with no text-to-speech involved.
  *
  * The other payload {@link AgentManager.speak | speak()} accepts. Use it when the audio already
- * exists — a recording, or speech you synthesized yourself — instead of having a provider generate
- * it from text.
+ * exists (a recording, or speech you synthesized yourself) instead of having a provider generate
+ * it from text. Talks (V2) and Clips (V3) agents only: an Expressive (V4) agent drops an audio
+ * script without an error.
  *
  * @example Audio file
  * ```ts

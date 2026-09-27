@@ -339,8 +339,9 @@ export enum ChatMode {
     /**
      * Text answers only: the chat works over the Agents API, but no video is produced.
      *
-     * Talks (V2) and Clips (V3) agents. Expressive (V4) agents chat over the streaming session,
-     * which {@link AgentManager.connect | connect()} always opens in {@link ChatMode.Functional}.
+     * A fallback the server sets, for example when the account is out of credits; the SDK adopts
+     * it and reports it through {@link AgentManagerCallbacks.onModeChange | onModeChange}. Talks
+     * (V2) and Clips (V3) agents only.
      */
     TextOnly = 'TextOnly',
     /**
