@@ -62,7 +62,6 @@ export { isAwaitingTool } from './utils/tool-calls';
 // Voice
 export { Providers, VoiceAccess } from './types/voice/tts';
 export type {
-    AmazonTtsProvider,
     AzureOpenAiTtsProvider,
     ElevenlabsTtsProvider,
     MicrosoftTtsProvider,

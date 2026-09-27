@@ -6,7 +6,7 @@
 
 ![D-ID Agents SDK](https://create-images-results.d-id.com/api_docs/assets/agents_sdk_cover_v2.png)
 
-The D-ID Agents SDK embeds an agent you built in D-ID Studio — or a real-time streaming avatar — into a web application. It wraps the D-ID Agents and Streams APIs behind one object: create an `AgentManager` for an agent, `connect()`, then `chat()` to have the agent answer with its own LLM or `speak()` to have it say exactly what you give it. The SDK handles the WebRTC or LiveKit session, the chat transcript and the reconnects.
+The D-ID Agents SDK embeds an agent you built in D-ID Studio or with the Agents API into a web application. Create an `AgentManager` for the agent, `connect()`, then `chat()` to have the agent answer with its own LLM or `speak()` to have it say exactly what you give it. The SDK opens the video session (WebRTC, or LiveKit for Expressive agents), keeps the chat transcript and retries a failed connection.
 
 **Please note:** This SDK is designed for front-end development only. The creation of Agents and Knowledge bases should be handled through the [Agents API](https://docs.d-id.com/docs/agent-quickstart) or directly within the [D-ID Studio](https://studio.d-id.com/agents).
 
@@ -30,7 +30,7 @@ const agentManager = await sdk.createAgentManager('agt_fumf1234', {
     auth: { type: 'key', clientKey: 'YOUR_CLIENT_KEY' },
     callbacks: {
         onSrcObjectReady: stream => (videoElement.srcObject = stream),
-        onNewMessage: messages => console.log(messages[messages.length - 1].content),
+        onNewMessage: messages => console.log(messages[messages.length - 1]?.content),
     },
 });
 
@@ -49,9 +49,9 @@ The full API reference — every method, callback, option and type, generated fr
 The guides:
 
 - [Getting started](https://sdk.d-id.com/documents/Getting_started.html) — credentials, the first connection, `chat()` and `speak()`, disconnecting.
-- [Chat modes](https://sdk.d-id.com/documents/Chat_modes.html) — video, text-only or speak-only, and what each one creates on the wire.
+- [Chat modes](https://sdk.d-id.com/documents/Chat_modes.html) — conversation, scripted speech or chat off, and what each one creates on the wire.
 - [Client tools](https://sdk.d-id.com/documents/Client_tools.html) — running your own functions when the agent's LLM calls them.
-- [Expressive media](https://sdk.d-id.com/documents/Expressive_media.html) — microphone, camera, speech-to-text, interrupts and data-channel messages.
+- [Expressive agents](https://sdk.d-id.com/documents/Expressive_agents.html) — microphone, camera, speech-to-text, interrupts and data-channel messages.
 - [Handling errors](https://sdk.d-id.com/documents/Handling_errors.html) — which failures reject, which reach `onError`, and what to log.
 - [Migration guide](https://sdk.d-id.com/documents/Migration_guide.html) — every breaking change from 2.x.
 

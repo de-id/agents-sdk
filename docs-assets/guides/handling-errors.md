@@ -5,7 +5,7 @@ category: Guides
 
 # Handling errors
 
-Every error the SDK raises is a {@link BaseError} carrying a `kind`, and {@link isDIDError} is the guard that recognizes one. Inside that guard a `switch` on `kind` narrows the value to a single class and its own fields — {@link HttpError.status | status} and {@link HttpError.code | code} on an {@link HttpError}, {@link ValidationError.key | key} on a {@link ValidationError}. This guide covers the union, the two places a failure can surface, and what to log.
+Every error the SDK raises is a {@link BaseError} carrying a `kind`, and {@link isDIDError} is the guard that recognizes one. Inside that guard a `switch` on `kind` narrows the value to a single class and its own fields, such as {@link HttpError.status | status} and {@link HttpError.code | code} on an {@link HttpError} or {@link NetworkError.online | online} on a {@link NetworkError}.
 
 ## The union
 
@@ -19,7 +19,7 @@ Every error the SDK raises is a {@link BaseError} carrying a `kind`, and {@link 
 | `'WSError'` | {@link WsError} | The notifications web socket failed. |
 | `'ValidationError'` | {@link ValidationError} | An argument, or the state the manager is in, does not allow the call. |
 | `'ChatCreationFailed'` | {@link ChatCreationFailed} | The Agents API answered a chat-creation request without a chat. |
-| `'ChatModeDowngraded'` | {@link ChatModeDowngraded} | The server handled the session in a narrower {@link ChatMode} than the one asked for. |
+| `'ChatModeDowngraded'` | {@link ChatModeDowngraded} | The server created the chat in a {@link ChatMode} without video. |
 
 Note that {@link WsError}'s `kind` is `'WSError'`, not `'WsError'`. {@link BaseError} itself is deliberately not a member of the union: its `kind` is a plain `string`, which matches every literal and would stop the narrowing from working.
 
@@ -59,7 +59,7 @@ function describe(error: unknown): string {
 }
 ```
 
-`error.kind` alone is enough for the `switch`; `instanceof HttpError` is not, because two copies of the SDK in one bundle define two classes and neither is `instanceof` the other. That is exactly the case {@link isDIDError} is built for.
+`error.kind` alone is enough for the `switch`; `instanceof HttpError` is not, because two copies of the SDK in one bundle define two classes and neither is `instanceof` the other.
 
 ## `code` on an HttpError
 
@@ -80,13 +80,11 @@ The server's classification moved from `kind` to `code` in 3.0 — see the [migr
 
 ## What rejects, and what reaches onError
 
-A failure surfaces in one of two places, and which one it is depends on the error, not on the call.
-
 **Rejected to the caller.** {@link ValidationError} and {@link ChatCreationFailed} are thrown to whoever called the method — {@link AgentManager.chat | chat()}, {@link AgentManager.speak | speak()}, {@link AgentManager.rate | rate()}, {@link AgentManager.deleteRate | deleteRate()}, {@link AgentManager.submitFeedback | submitFeedback()}, {@link AgentManager.changeMode | changeMode()}, {@link AgentManager.connect | connect()}, {@link AgentManager.reconnect | reconnect()}, the Expressive-only media methods, and {@link createAgentManager} itself. They never reach {@link AgentManagerCallbacks.onError | onError}. A `ValidationError` is a programming or state error: a message that is empty or too long, a call made before `connect()`, a second `connect()` on an open session, a mode the agent does not support.
 
-**Delivered to {@link AgentManagerCallbacks.onError | onError}.** {@link WsError}, {@link StreamError} and {@link ChatModeDowngraded} arrive only there — they have no call to reject, because nothing the application invoked caused them.
+**Delivered to {@link AgentManagerCallbacks.onError | onError}.** {@link WsError}, {@link StreamError} and {@link ChatModeDowngraded} are never thrown. That includes a call that caused one: on an Expressive (V4) agent, a `chat()` whose data-channel send fails still resolves, and the failure arrives only here as a `StreamError`.
 
-**Both.** {@link HttpError} and {@link NetworkError} are handed to `onError` *and* rejected by the method that made the request, so either place can handle them. Two caveats: for the message-send request behind `chat()` the callback may not fire, though the error is still thrown; and `connect()` retries the initialization up to three times before its failure surfaces at all, except on a `429`, on an out-of-credits response, and when the transport reports that it could not connect at all.
+**Both.** {@link HttpError} and {@link NetworkError} are handed to `onError` *and* rejected by the method that made the request, so either place can handle them. Two caveats: for the message-send request behind `chat()` the callback may not fire, though the error is still thrown; and `connect()` makes up to three attempts, each limited to 45 seconds, before it rejects. It does not retry a `429` or an out-of-credits response, and each failed attempt reaches `onError`, so one failed `connect()` can report up to three times. When the last attempt times out, the rejection is a plain `Error`, not an SDK error.
 
 The practical split is to catch around the call for anything with a UI consequence at that point, and to let `onError` feed the error reporter.
 
@@ -145,9 +143,9 @@ try {
 
 ## See also
 
-- {@link isDIDError} and {@link DIDError} — the guard and the union it narrows to.
+- {@link isDIDError} and {@link DIDError}: the guard and the union it narrows to.
 - {@link BaseError}, {@link BaseError.kind | kind} and {@link BaseError.toJson | toJson()}; {@link ErrorJson}.
-- {@link HttpError} — {@link HttpError.status | status}, {@link HttpError.code | code}, {@link HttpError.endpoint | endpoint}.
+- {@link HttpError}: {@link HttpError.status | status}, {@link HttpError.code | code}, {@link HttpError.endpoint | endpoint}.
 - {@link NetworkError}, {@link StreamError}, {@link WsError}, {@link ValidationError}, {@link ChatCreationFailed}, {@link ChatModeDowngraded}.
 - {@link AgentManagerCallbacks.onError | onError} and {@link ErrorContext}.
-- [Chat modes](./chat-modes.md) — what a downgrade means for the session.
+- [Chat modes](./chat-modes.md): what a downgrade means for the session.

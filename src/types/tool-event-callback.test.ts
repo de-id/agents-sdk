@@ -46,10 +46,10 @@ describe('ToolEventCallback pairs each event with its own payload', () => {
             onToolEvent(event, data) {
                 if (event === ToolCallEvent.Started) {
                     // `input` is on the started payload only.
-                    seen.push(`started:${data.name}:${Object.keys(data.input).join()}`);
+                    seen.push(`started:${data.name}:${Object.keys(data.input ?? {}).join()}`);
                 } else if (event === ToolCallEvent.Done) {
                     // `durationMs` and `output` are on the done payload only.
-                    seen.push(`done:${data.output.c}:${data.durationMs}`);
+                    seen.push(`done:${data.output?.c}:${data.durationMs}`);
                 } else {
                     // `error` is on the error payload only.
                     seen.push(`error:${data.error ?? 'none'}`);

@@ -225,7 +225,7 @@ export interface AgentManagerCallbacks {
      *     onNewMessage(messages, type) {
      *         // `partial` fires repeatedly as the answer streams in; `answer` is the final one.
      *         if (type === 'answer') {
-     *             console.log(messages[messages.length - 1].content);
+     *             console.log(messages[messages.length - 1]?.content);
      *         }
      *     },
      * };
@@ -416,8 +416,9 @@ export interface AgentManagerCallbacks {
      * Called when the agent becomes interruptible, or stops being interruptible.
      *
      * Expressive (V4) agents only, and about whether interrupting is allowed *right now*: it goes
-     * `false` while a `blocking` client tool call is outstanding, because the agent is suspended
-     * waiting for it, and back to `true` when the call finishes. That is a different question from
+     * `false` while any `blocking` tool call is outstanding (client or server), and back to `true`
+     * once none is: finished, failed, its turn ended, or the session disconnected. That is a
+     * different question from
      * {@link AgentManager.isInterruptAvailable | isInterruptAvailable()}, which says whether
      * the session supports interrupting at all. Use this one to enable or disable an interrupt
      * button. Talks (V2) and Clips (V3) agents never report a change.
@@ -433,7 +434,7 @@ export interface AgentManagerCallbacks {
      * ```
      */
     onInterruptibleChange?: (
-        /** `true` while there is something to interrupt, `false` while there is not. */
+        /** `true` when interrupting is allowed, `false` while a blocking tool call is pending. */
         interruptible: boolean
     ) => void;
     /**
@@ -589,8 +590,8 @@ export interface AgentManagerOptions {
     /**
      * Credentials used for every request the SDK makes on the application's behalf.
      *
-     * Use `{ type: 'key', clientKey }` in a browser: a client key is scoped to one agent and to
-     * the domains you allowed, so it is the only shape that is safe to ship in a page. See
+     * Use `{ type: 'key', clientKey }` in a browser: a client key works for one agent and only from
+     * the domains you allowed, so it is the only credential that is safe to ship in a page. See
      * {@link Auth}.
      */
     auth: Auth;
@@ -645,10 +646,13 @@ export interface AgentManagerOptions {
      */
     debug?: boolean;
     /**
-     * Whether the stream is created in verbose mode, which logs more server-side detail.
+     * Whether tool-call events carry the call's input, output, duration and failure details.
      *
-     * Independent of {@link AgentManagerOptions.debug | debug}: this one is sent to the streaming
-     * service rather than controlling console output. Expressive (V4) agents only.
+     * Without it, {@link AgentManagerCallbacks.onToolEvent | onToolEvent} payloads carry only the
+     * call's id, name and timestamp. The Agents API accepts it only from the agent's owner with
+     * {@link BasicAuth} or {@link BearerToken} auth, and rejects it with a `403` otherwise, so a
+     * browser application on a client key cannot use it. Independent of
+     * {@link AgentManagerOptions.debug | debug}. Expressive (V4) agents only.
      *
      * @default false
      */
@@ -770,8 +774,10 @@ export interface AgentManager {
     /**
      * Returns whether the current stream supports interrupting the agent mid-answer.
      *
-     * True on a fluent stream — a Clips (V3) agent built on a Pro avatar, or any Expressive (V4)
-     * agent — once connected. This says the stream supports interrupting at all;
+     * `true` once connected on a fluent stream (every Expressive (V4) session, or a fluent Clips
+     * (V3) one) whose agent has not turned interrupting off in its advanced settings. It reads the
+     * session {@link AgentManager.connect | connect()} attached, so ask it after `connect()`
+     * resolves. This says the stream supports interrupting at all;
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} says whether
      * interrupting is allowed right now.
      *
@@ -802,14 +808,14 @@ export interface AgentManager {
      */
     readonly starterMessages: readonly string[];
     /**
-     * Fetches a short-lived token for the D-ID speech-to-text service.
+     * Fetches a short-lived Azure Speech token, for running your own speech recognition.
      *
-     * The SDK sends the request whenever it is called, connected or not; the service decides
-     * whether to issue a token for the agent.
+     * Works with every {@link Auth} type, connected or not. The agent must be public or belong to
+     * the account the credentials are for.
      *
-     * @returns The {@link SttTokenResponse} for this agent.
-     * @throws {@link HttpError} When the service does not answer with a token, or the request comes
-     * back non-2xx for any other reason.
+     * @returns The {@link SttTokenResponse}: the token and its Azure region.
+     * @throws {@link HttpError} `400` when the agent is neither public nor the caller's, `404` when
+     * it does not exist, or any other non-2xx answer.
      * @throws {@link NetworkError} When the request never reaches the server.
      * @example
      * ```ts
@@ -880,10 +886,13 @@ export interface AgentManager {
      * with the media stream to render.
      *
      * One session at a time: while a call is still in flight a second call returns that same
-     * promise rather than opening a second session, which is what makes it safe in a React
-     * StrictMode effect. Once a session exists it rejects instead — call
-     * {@link AgentManager.disconnect | disconnect()} first to start a fresh conversation, or
-     * {@link AgentManager.reconnect | reconnect()} to keep the current one. A call that joins an
+     * promise rather than opening a second session, and cancels a
+     * {@link AgentManager.disconnect | disconnect()} made in between, which is what makes it safe
+     * in a React StrictMode effect. While a session is open it rejects instead: call
+     * `disconnect()` first to start a fresh conversation, or
+     * {@link AgentManager.reconnect | reconnect()} to keep the current one. After the server ended
+     * the session (`'disconnected'` with a {@link StreamEndReason}), `connect()` opens a new one. A
+     * call that joins an
      * operation a {@link AgentManager.disconnect | disconnect()} later cancels resolves without a
      * session open; read {@link AgentManager.getConnectionState | getConnectionState()} for what
      * happened.
@@ -970,12 +979,12 @@ export interface AgentManager {
      */
     publishMicrophoneStream(stream: MediaStream): Promise<void>;
     /**
-     * Stops and removes the currently published microphone track from the session.
+     * Removes the published microphone track from the session.
      *
-     * The counterpart of {@link AgentManager.publishMicrophoneStream | publishMicrophoneStream()} —
-     * use it to mute the user for the rest of the session. Expressive (V4) agents only; on Talks
-     * (V2) and Clips (V3) agents, and when nothing is published, it resolves without doing
-     * anything.
+     * The counterpart of {@link AgentManager.publishMicrophoneStream | publishMicrophoneStream()}.
+     * The `MediaStreamTrack` is not stopped, because the stream is the caller's: stop it to release
+     * the microphone. Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents, and when
+     * nothing is published, it resolves without doing anything.
      *
      * @returns Resolves once the track is removed.
      * @example
@@ -990,9 +999,10 @@ export interface AgentManager {
      * Use it when the user picks a different input device: the publication is preserved — its
      * LiveKit publication id (SID) and SSRC stay the same, though the `MediaStreamTrack` id
      * changes — so the server sees continuous audio across the swap rather than a stop and a
-     * restart. Rejects with a plain `Error` from the transport when there is no active publication
-     * — fall back to {@link AgentManager.publishMicrophoneStream | publishMicrophoneStream()} in
-     * that case. Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents, and before
+     * restart. The previous track is not stopped; stop it once the swap resolves. Rejects with a
+     * plain `Error` from the transport when there is no active publication: fall back to
+     * {@link AgentManager.publishMicrophoneStream | publishMicrophoneStream()} in that case.
+     * Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents, and before
      * {@link AgentManager.connect | connect()}, the returned promise rejects with a
      * {@link ValidationError}.
      *
@@ -1035,9 +1045,10 @@ export interface AgentManager {
      */
     publishCameraStream(stream: MediaStream): Promise<void>;
     /**
-     * Stops and removes the currently published camera track from the session.
+     * Removes the published camera track from the session.
      *
-     * Call it to disable vision. Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents,
+     * Call it to disable vision. The `MediaStreamTrack` is not stopped, because the stream is the
+     * caller's: stop it to release the camera. Expressive (V4) agents only; on Talks (V2) and Clips (V3) agents,
      * and when nothing is published, it resolves without doing anything.
      *
      * @returns Resolves once the track is removed.
@@ -1206,7 +1217,7 @@ export interface AgentManager {
      * ```ts
      * import { ChatMode } from '@d-id/client-sdk';
      *
-     * await agentManager.changeMode(ChatMode.TextOnly); // Disconnects the stream.
+     * await agentManager.changeMode(ChatMode.Off); // Disconnects the stream.
      *
      * await agentManager.changeMode(ChatMode.Functional);
      * await agentManager.connect();
@@ -1248,8 +1259,8 @@ export interface AgentManager {
      * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} tracks whether it
      * is allowed right now.
      *
-     * The interrupted message is marked as such in the next
-     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage} — but only when an interrupt was
+     * The last message in the transcript is marked `interrupted` in the next
+     * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}, but only when an interrupt was
      * actually sent. A call that finds nothing to interrupt leaves the message untouched and fires
      * no callback.
      *

@@ -490,6 +490,21 @@ describe('createAgentManager', () => {
             expect(getInitialMessages).toHaveBeenCalledWith(customOptions.initialMessages);
             expect(mockOptions.callbacks.onNewMessage).toHaveBeenCalledWith(initialMessages, 'answer');
         });
+
+        it('should not report an empty transcript when there are no initial messages', async () => {
+            await createAgentManager('agent-123', mockOptions);
+
+            expect(mockOptions.callbacks.onNewMessage).not.toHaveBeenCalled();
+        });
+
+        it('should enrich the analytics object, whatever enrichAnalytics is called on', async () => {
+            const { enrichAnalytics } = await createAgentManager('agent-123', mockOptions);
+
+            enrichAnalytics({ plan: 'pro' });
+
+            expect(mockAnalytics.enrich).toHaveBeenCalledWith({ plan: 'pro' });
+            expect(mockAnalytics.enrich.mock.contexts.at(-1)).toBe(mockAnalytics);
+        });
     });
 
     describe('AgentManager Methods', () => {
@@ -579,6 +594,28 @@ describe('createAgentManager', () => {
 
                 await manager.disconnect();
                 expect(manager.getSessionInfo()).toBeUndefined();
+            });
+
+            it('should connect again after the server ended the session', async () => {
+                await manager.connect();
+                streamCallbacks().onConnectionStateChange(ConnectionState.Disconnected, StreamEndReason.Inactivity);
+
+                await expect(manager.connect()).resolves.toBeUndefined();
+
+                expect(mockStreamingManager.disconnect).toHaveBeenCalledTimes(1);
+                expect(initializeStreamAndChat).toHaveBeenCalledTimes(2);
+            });
+
+            it('should end on Fail when connecting fails', async () => {
+                (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(new Error('Connection failed'));
+
+                await expect(manager.connect()).rejects.toThrow('Connection failed');
+
+                expect(manager.getConnectionState()).toBe(ConnectionState.Fail);
+                const states = (mockOptions.callbacks.onConnectionStateChange as jest.Mock).mock.calls.map(
+                    ([state]) => state
+                );
+                expect(states[states.length - 1]).toBe(ConnectionState.Fail);
             });
         });
 
@@ -730,6 +767,21 @@ describe('createAgentManager', () => {
                     expect(manager.getConnectionState()).toBe(ConnectionState.Disconnected);
                     expect(manager.getSessionInfo()).toBeUndefined();
                     await expect(manager.connect()).resolves.toBeUndefined();
+                });
+
+                it('should stay connected when connect() follows a disconnect() during a connect (React StrictMode)', async () => {
+                    const release = deferStreamAndChat();
+
+                    const mount = manager.connect();
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    await manager.disconnect();
+                    const remount = manager.connect();
+
+                    release();
+                    await Promise.all([mount, remount]);
+
+                    expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+                    expect(manager.getStreamType()).toBe(StreamType.Legacy);
                 });
 
                 it('should not open a session when a disconnect lands during a reconnect', async () => {
@@ -1111,7 +1163,7 @@ describe('createAgentManager', () => {
             it('should preserve should_queue_speaks when the script has a provider', async () => {
                 const script = {
                     type: 'text' as const,
-                    provider: { type: Providers.Microsoft, voice_id: 'voice-123' },
+                    provider: { type: Providers.Microsoft as const, voice_id: 'voice-123' },
                     input: 'Hello world',
                     should_queue_speaks: true,
                 };
@@ -1148,7 +1200,7 @@ describe('createAgentManager', () => {
             it('should preserve sentiment when the script has a provider', async () => {
                 const script = {
                     type: 'text' as const,
-                    provider: { type: Providers.Microsoft, voice_id: 'voice-123' },
+                    provider: { type: Providers.Microsoft as const, voice_id: 'voice-123' },
                     input: 'Hello world',
                     sentiment: 'excited',
                 };
@@ -1255,6 +1307,15 @@ describe('createAgentManager', () => {
                 await manager.disconnect();
 
                 await expect(manager.speak('Hello')).rejects.toThrow('Please connect to the agent first');
+            });
+
+            it('should not add a message for a speak that was rejected', async () => {
+                await manager.disconnect();
+                (mockOptions.callbacks.onNewMessage as jest.Mock).mockClear();
+
+                await expect(manager.speak('Hello')).rejects.toThrow('Please connect to the agent first');
+
+                expect(mockOptions.callbacks.onNewMessage).not.toHaveBeenCalled();
             });
         });
 

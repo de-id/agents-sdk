@@ -1,11 +1,10 @@
 /**
- * A bearer token for the Agents API.
+ * A D-ID user access token: the short-lived token a signed-in D-ID user holds.
  *
- * Account-wide, so it is meant for a trusted environment — a server, a build step, an internal
- * tool. Anyone who reads the token can spend the account's credits, so do not ship one in a page
- * you serve to users; use {@link ClientKeyAuth} there. The SDK sends it as
- * `Authorization: Bearer <token>~<connectionId>`, appending a per-connection id the D-ID
- * authorizer strips before it validates the token.
+ * It is what D-ID's own applications use. An integration authenticates with an API key
+ * ({@link BasicAuth}) on a server, or with a client key ({@link ClientKeyAuth}) in a browser. The
+ * SDK sends it as `Authorization: Bearer <token>~<connectionId>`; the D-ID authorizer strips the
+ * per-connection id before it validates the token.
  *
  * @category Authentication
  */
@@ -21,14 +20,15 @@ export interface BearerToken {
 }
 
 /**
- * HTTP basic credentials for the Agents API, given either pre-encoded or as a username and
- * password.
+ * A D-ID API key, sent with HTTP basic authentication.
  *
- * Like {@link BearerToken} these are account-wide and belong in a trusted environment, never in a
- * client bundle. The SDK sends them as `Authorization: Basic <credentials>~<connectionId>`, where
- * the `token` form is used as the credentials as-is and the `username`/`password` form is
- * base64-encoded as `username:password` first; the trailing per-connection id is stripped by the
- * D-ID authorizer before the credentials are validated.
+ * An API key from D-ID Studio has the form `API_USERNAME:API_PASSWORD`. Pass it whole as `token`,
+ * or split at the colon into `username` and `password`. It gives access to the whole account, so
+ * keep it on a server and never ship it in a page; use {@link ClientKeyAuth} in a browser. The SDK
+ * sends it as `Authorization: Basic <credentials>~<connectionId>`; the D-ID authorizer strips the
+ * per-connection id before it validates the key.
+ *
+ * @see [Basic authentication](https://docs.d-id.com/reference/basic-authentication)
  *
  * @category Authentication
  */
@@ -39,8 +39,8 @@ export type BasicAuth =
            */
           type: 'basic';
           /**
-           * Credentials that are already base64-encoded, as `username:password`. Used as they
-           * are, so they are not encoded a second time.
+           * The API key as D-ID Studio shows it (`API_USERNAME:API_PASSWORD`), or that string
+           * base64-encoded. Sent as given.
            */
           token: string;
       }
@@ -50,11 +50,12 @@ export type BasicAuth =
            */
           type: 'basic';
           /**
-           * The account's user name; base64-encoded with the password before it is sent.
+           * The part of the API key before the colon (`API_USERNAME`). It is not the account's
+           * email address.
            */
           username: string;
           /**
-           * The account's password; base64-encoded with the user name before it is sent.
+           * The part of the API key after the colon (`API_PASSWORD`).
            */
           password: string;
       };
@@ -62,15 +63,14 @@ export type BasicAuth =
 /**
  * A client key for the Agents API — the credential to use in a browser.
  *
- * This is the one shape that is safe to ship in a page: a client key is scoped to a single agent
- * and only works from the domains allowed for it, so it cannot be reused elsewhere. Copy it from the
- * agent's Embed snippet, where it appears as `data-client-key`, or create one with the Agents API
- * (see the link below). The SDK sends it
- * as `Authorization: Client-Key <clientKey>.<externalId>_<connectionId>`, where the external id is
+ * This is the one credential that is safe to ship in a page: a client key works for one agent,
+ * and only from the domains allowed for it. Copy it from the agent's Embed snippet, where it
+ * appears as `data-client-key`, or create one with the Agents API (see the link below). The SDK
+ * sends it as `Authorization: Client-Key <clientKey>.<externalId>_<connectionId>`, where the external id is
  * either {@link AgentManagerOptions.externalId | externalId} or a per-browser id the SDK keeps in
  * `localStorage`.
  *
- * @see [Create a client key](https://docs.d-id.com/reference/createclientkey)
+ * @see [Create an agent client key](https://docs.d-id.com/reference/createresourceclientkey)
  * @category Authentication
  */
 export interface ClientKeyAuth {
@@ -90,10 +90,10 @@ export interface ClientKeyAuth {
  * {@link AgentManagerOptions.auth | options.auth}.
  *
  * Pick {@link ClientKeyAuth} (`{ type: 'key', clientKey }`) for anything that runs in a browser: it
- * is the only variant scoped to one agent and to the domains you allowed. {@link BearerToken} and
- * {@link BasicAuth} carry account-wide credentials and belong in a trusted environment. Whichever
- * you pass is used for every request the SDK makes — the REST calls, the video stream and the
- * notifications web socket.
+ * is the only variant limited to one agent and to the domains you allowed. {@link BasicAuth} is an
+ * API key with access to the whole account, for a server. {@link BearerToken} is a D-ID user access
+ * token. Whichever you pass is used for every request the SDK makes: the REST calls, the video
+ * stream and the notifications web socket.
  *
  * @category Authentication
  */

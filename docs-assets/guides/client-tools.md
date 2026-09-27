@@ -5,7 +5,7 @@ category: Guides
 
 # Client tools
 
-A client tool is a function that runs in the user's browser when the agent's LLM decides to call it. It is how an agent reaches things only the page knows — the contents of a cart, the user's locale, the slide currently on screen — and how it acts on them. The tool itself is declared in the agent's configuration; the SDK's job is to bind a name from that configuration to an implementation with {@link AgentManager.registerClientTool | registerClientTool()} and to report what happens through {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
+A client tool is a function that runs in the user's browser when the agent's LLM decides to call it. Use one when the agent needs data or actions only the page has, such as the cart contents or the user's locale. The tool itself is declared in the agent's configuration; the SDK's job is to bind a name from that configuration to an implementation with {@link AgentManager.registerClientTool | registerClientTool()} and to report what happens through {@link AgentManagerCallbacks.onToolEvent | onToolEvent}.
 
 Client tools are an **Expressive (V4)** feature. They travel on the real-time session's RPC channel, which Talks (V2) and Clips (V3) agents do not have, so {@link AgentManager.registerClientTool | registerClientTool()} throws a {@link ValidationError} on those rather than registering a handler the agent could never call. The check is on the agent, not on the connection, so it applies before {@link AgentManager.connect | connect()} too.
 
@@ -41,9 +41,10 @@ await agentManager.connect();
 A handler is a {@link ClientToolHandler}: `(args: Record<string, unknown>) => string | Promise<string>`.
 
 - **It is given the LLM's arguments, already parsed.** The SDK parses the JSON the agent sent and hands you the object. The values are typed `unknown`, because their shape is the agent's tool schema rather than anything the SDK knows — narrow or cast them yourself.
-- **It must return a JSON string.** Not an object: whatever the handler resolves with is sent back to the agent verbatim, so serialize it. `JSON.stringify` is the whole of it.
+- **It must return a string.** Return JSON (`JSON.stringify(result)`): the server parses it before handing it to the LLM, and passes the raw text on when it is not JSON.
 - **The result is capped at 15 KiB.** That is the transport's response limit, not the SDK's, and a larger result fails the call. Return an id or a summary rather than a document.
-- **Throwing is how a tool reports failure.** The SDK rejects the call and forwards the error message to the agent, which can then say something sensible instead of waiting. Do not swallow errors into a `{ "error": … }` string unless you want the LLM to treat the call as a success.
+- **It has 10 seconds by default.** Set `timeout` in the tool's configuration to allow more: up to 120 seconds for a blocking tool, 600 for an async one. A handler that has not resolved in time fails the call, and the agent is told the tool did not respond.
+- **Throwing is how a tool reports failure.** The SDK rejects the call and forwards the error message, truncated to 256 bytes, to the agent. A throw without a message reaches the agent as `Client tool failed`. Do not swallow errors into a `{ "error": … }` string unless you want the LLM to treat the call as a success.
 
 ```ts
 agentManager.registerClientTool('book_appointment', async args => {
@@ -63,16 +64,16 @@ agentManager.registerClientTool('book_appointment', async args => {
 
 Whether the agent waits for a call is a property of the tool in the agent's configuration, not of the handler, and it reaches the SDK as {@link ToolExecutionMode} on {@link RunningToolCall.executionMode} and {@link ToolCallStartedPayload.executionMode}:
 
-- **`blocking`** — the agent is suspended until the handler resolves. Anything the user is waiting on an answer for belongs here, and it is what makes a spinner worth showing.
-- **`async`** — the agent keeps talking while the handler runs, and the call can outlive the turn that started it. Fire-and-forget side effects belong here.
+- **`blocking`**: the agent waits for the handler before it answers. Use it when the answer depends on the result.
+- **`async`**: the agent keeps talking while the handler runs, and the call can outlive the turn that started it. The result still reaches the agent when the handler resolves. Use it for anything slow.
 
-A blocking call also suspends interrupting: {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} goes `false` while any blocking call is outstanding and back to `true` when the last one finishes, because there is nothing to interrupt while the agent is waiting.
+While a blocking call runs, the server holds the turn: it stops listening to the user and the agent cannot be interrupted, so a slow blocking tool is dead air. {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} goes `false` while any blocking call is outstanding and back to `true` when none is.
 
 ## Follow the calls
 
-{@link AgentManagerCallbacks.onToolEvent | onToolEvent} is called once when a call starts, and again when it finishes or fails. Its type, {@link ToolEventCallback}, pairs each {@link ToolCallEvent} with the payload that event carries — {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload}, {@link ToolCallEvent.Done} with a {@link ToolCallDonePayload}, {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload}.
+{@link AgentManagerCallbacks.onToolEvent | onToolEvent} is called once when a call starts, and again when it finishes or fails. It reports every tool the agent calls, server tools included, not only the client tools registered here. Its type, {@link ToolEventCallback}, pairs each {@link ToolCallEvent} with the payload that event carries — {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload}, {@link ToolCallEvent.Done} with a {@link ToolCallDonePayload}, {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload}.
 
-Branching on `event` is what narrows `data`, inside the handler and not only at the call site, so nothing has to be asserted. `callId`, `name`, `input` and `timestamp` are on all three payloads and can be read before the branch.
+Branching on `event` is what narrows `data`, inside the handler and not only at the call site, so nothing has to be asserted. `callId`, `name` and `timestamp` are on all three payloads and can be read before the branch. The call's `input`, `output`, `durationMs` and failure reason arrive only in a {@link AgentManagerOptions.verbose | verbose} session, which needs the agent owner's API key, so a browser application on a client key does not get them.
 
 ```ts
 import { ToolCallEvent, type AgentManagerCallbacks } from '@d-id/client-sdk';
@@ -80,25 +81,22 @@ import { ToolCallEvent, type AgentManagerCallbacks } from '@d-id/client-sdk';
 const callbacks: AgentManagerCallbacks = {
     onToolEvent(event, data) {
         if (event === ToolCallEvent.Started) {
-            console.log('started', data.callId, data.name, data.input);
+            console.log('started', data.callId, data.name);
         } else if (event === ToolCallEvent.Done) {
-            console.log('done', data.name, data.output, `${data.durationMs}ms`);
+            console.log('done', data.callId, data.name);
         } else {
-            // `error` is the reason when the server gave one; the structured failure is in
-            // `extra.error`, and `output` is typed `unknown` — narrow it before use.
+            // `error` is set only in a verbose session.
             console.warn('failed', data.name, data.error ?? 'no reason given');
         }
     },
 };
 ```
 
-{@link ToolCallEvent} members are also accepted as their plain string values, so `event === 'tool-call/done'` works without importing the enum.
-
 ## Show that the agent is busy
 
-{@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange} carries the whole set of calls running right now, as {@link RunningToolCall} entries, every time it changes. A call appears when it starts and disappears when it finishes or fails — or, for a blocking call, when its turn ends. On disconnect it fires with an empty array if any call was still running, so a spinner driven by it always clears — with nothing outstanding there is nothing to clear and nothing is emitted.
+{@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange} carries the whole set of calls running right now, as {@link RunningToolCall} entries, every time it changes. A call appears when it starts and disappears when it finishes or fails — or, for a blocking call, when its turn ends. On disconnect it fires with an empty array if any call was still running, so a spinner driven by it always clears.
 
-{@link isAwaitingTool} answers the only question most UIs have of that array: is the agent suspended on a blocking call?
+{@link isAwaitingTool} returns `true` while any running call is blocking.
 
 ```ts
 import { isAwaitingTool, type AgentManagerCallbacks } from '@d-id/client-sdk';
@@ -119,7 +117,7 @@ const callbacks: AgentManagerCallbacks = {
 
 ## Clean up
 
-{@link AgentManager.unregisterClientTool | unregisterClientTool()} removes a handler. Unlike `registerClientTool()` it never throws — an unknown name, and any avatar type, is a no-op — so it is safe in a React cleanup path that runs whatever the agent turned out to be.
+{@link AgentManager.unregisterClientTool | unregisterClientTool()} removes a handler. Unlike `registerClientTool()` it never throws: an unknown name, and any avatar type, is a no-op, so it is safe in a cleanup path.
 
 ```ts
 useEffect(() => {
@@ -128,13 +126,13 @@ useEffect(() => {
 }, [agentManager]);
 ```
 
-After a tool is unregistered the agent's calls to it fail rather than reaching your code, which is the right outcome: the agent hears that the tool is gone.
+After a tool is unregistered, calls to it fail with `Method not supported at destination`, which is what the agent is told. The tool stays in the agent's configuration, so remove it there if the LLM should stop calling it.
 
 ## See also
 
 - {@link AgentManager.registerClientTool | registerClientTool()} and {@link AgentManager.unregisterClientTool | unregisterClientTool()}.
-- {@link ClientToolHandler} — the handler signature and its limits.
+- {@link ClientToolHandler}: the handler signature and its limits.
 - {@link ToolEventCallback}, {@link ToolCallEvent} and the three payloads: {@link ToolCallStartedPayload}, {@link ToolCallDonePayload}, {@link ToolCallErrorPayload}.
 - {@link RunningToolCall}, {@link ToolExecutionMode} and {@link isAwaitingTool}.
-- {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} — why a blocking tool makes the agent uninterruptible.
-- [Expressive media](./expressive-media.md) — the rest of what an Expressive (V4) session can do.
+- {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange}.
+- [Expressive agents](./expressive-agents.md): the rest of what an Expressive (V4) session can do.

@@ -9,7 +9,6 @@ jest.mock('@sdk/config/environment', () => ({
 import type {
     AgentAvatar,
     AgentManager,
-    AmazonTtsProvider,
     AzureOpenAiTtsProvider,
     ElevenlabsTtsProvider,
     MicrosoftTtsProvider,
@@ -32,27 +31,24 @@ describe('discriminants accept the enum member and its string', () => {
         const microsoftEnum: MicrosoftTtsProvider = { type: Providers.Microsoft, voice_id: 'en-US-JennyNeural' };
         const azure: AzureOpenAiTtsProvider = { type: 'azure-openai', voice_id: 'alloy' };
         const azureEnum: AzureOpenAiTtsProvider = { type: Providers.AzureOpenAi, voice_id: 'alloy' };
-        const amazon: AmazonTtsProvider = { type: 'amazon', voice_id: 'Joanna' };
-        const amazonEnum: AmazonTtsProvider = { type: Providers.Amazon, voice_id: 'Joanna' };
 
-        expect([elevenlabs.type, microsoft.type, azure.type, amazon.type]).toEqual([
+        expect([elevenlabs.type, microsoft.type, azure.type]).toEqual([
             elevenlabsEnum.type,
             microsoftEnum.type,
             azureEnum.type,
-            amazonEnum.type,
         ]);
     });
 
     it('rejects a string that is not a provider', () => {
-        // @ts-expect-error 'openai' is not one of the four providers.
-        const wrong: AmazonTtsProvider = { type: 'openai', voice_id: 'Joanna' };
+        // @ts-expect-error 'openai' is not a provider.
+        const wrong: MicrosoftTtsProvider = { type: 'openai', voice_id: 'Joanna' };
 
         expect(wrong.type).toBe('openai');
     });
 
     it('still discriminates TtsProvider on the plain string', () => {
-        // `voice_config` only exists on three of the four variants, so this compiles only while
-        // `type` narrows the union.
+        // `voice_config` has a different shape per variant, so this compiles only while `type`
+        // narrows the union.
         const voiceConfigOf = (provider: TtsProvider) => {
             switch (provider.type) {
                 case 'elevenlabs':
@@ -60,8 +56,6 @@ describe('discriminants accept the enum member and its string', () => {
                 case 'microsoft':
                 case 'azure-openai':
                     return provider.voice_config?.style;
-                case 'amazon':
-                    return undefined;
             }
         };
 
@@ -69,7 +63,6 @@ describe('discriminants accept the enum member and its string', () => {
         expect(voiceConfigOf({ type: Providers.Microsoft, voice_id: 'v1', voice_config: { style: 'cheerful' } })).toBe(
             'cheerful'
         );
-        expect(voiceConfigOf({ type: 'amazon', voice_id: 'Joanna' })).toBeUndefined();
     });
 
     it('accepts both spellings on AgentAvatar.type', () => {

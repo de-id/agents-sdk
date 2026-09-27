@@ -62,6 +62,9 @@ const MISSING_SRC_OBJECT_READY =
     'callbacks.onSrcObjectReady is required in every chat mode that streams video; ' +
     'it is optional only in ChatMode.TextOnly, ChatMode.Playground and ChatMode.Maintenance';
 
+// States a held session can be left in once it is over: the server ended it, or the transport failed.
+const SESSION_ENDED_STATES = [ConnectionState.Disconnected, ConnectionState.Closed, ConnectionState.Fail];
+
 /**
  * Creates an {@link AgentManager} for one agent: its chat, its video stream and its connections.
  *
@@ -200,7 +203,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     items.messages = getInitialMessages(managerOptions.initialMessages);
 
-    callbacks.onNewMessage?.([...items.messages], 'answer');
+    if (items.messages.length) {
+        callbacks.onNewMessage?.([...items.messages], 'answer');
+    }
 
     const updateVideoId = (videoId: string | null) => analytics.enrich({ videoId });
 
@@ -320,6 +325,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             return;
         }
 
+        // A session the server ended is reported but still held; release it before opening a new one.
+        if (items.streamingManager) {
+            await disconnect();
+        }
+
         rotateConnectionId();
         callbacks.onConnectionStateChange?.(ConnectionState.Connecting);
 
@@ -362,19 +372,18 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 timeout: CONNECTION_RETRY_TIMEOUT_MS,
                 timeoutErrorMessage: 'Timeout initializing the stream',
                 shouldRetryFn: (error: any) =>
-                    error?.message !== 'Could not connect' &&
                     !(
                         error instanceof HttpError &&
                         (error.status === 429 || error.code === 'InsufficientCreditsError')
                     ),
                 delayMs: 1000,
             }
-        ).catch(e => {
+        ).catch(async e => {
             // `Promise.all` below would discard a socket that has already opened, and nothing else
             // holds a reference to it — `items.socketManager` is only assigned on the happy path.
             websocketPromise.then(socket => socket?.disconnect()).catch(() => {});
 
-            applyMode(ChatMode.Maintenance);
+            await applyMode(ChatMode.Maintenance);
             callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
         });
@@ -485,7 +494,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         getConnectionState: () => connectionState,
         getSessionInfo: () => sessionInfo,
         changeMode,
-        enrichAnalytics: analytics.enrich,
+        enrichAnalytics: properties => analytics.enrich(properties),
         async connect() {
             // Checked again here, not only at creation: `changeMode()` can move a manager built in
             // a textual mode into one that streams video, and opening that stream with nothing to
@@ -495,10 +504,13 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             }
 
             if (opInFlight) {
+                // The latest call wins: connect() after a disconnect() that landed mid-connect (a
+                // React StrictMode remount) keeps the session instead of tearing it down.
+                disconnectRequested = false;
                 return opInFlight;
             }
 
-            if (items.streamingManager) {
+            if (items.streamingManager && !SESSION_ENDED_STATES.includes(connectionState)) {
                 throw new ValidationError('Already connected; call disconnect() first');
             }
 
@@ -863,6 +875,12 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 return payload;
             }
 
+            // A textual chat produces no video, so there is nothing to speak.
+            const isTextual = isTextualChat(items.chatMode);
+            if (!isTextual && !items.streamingManager) {
+                throw new ValidationError('Please connect to the agent first');
+            }
+
             const script = getScript();
             analytics.track('agent-speak', script);
             latencyTimestampTracker.update();
@@ -880,13 +898,8 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
             const noVideoResponse = { duration: 0, videoId: '', status: 'success' };
 
-            // A textual chat produces no video, so there is nothing to speak.
-            if (isTextualChat(items.chatMode)) {
+            if (isTextual || !items.streamingManager) {
                 return noVideoResponse;
-            }
-
-            if (!items.streamingManager) {
-                throw new ValidationError('Please connect to the agent first');
             }
 
             const response = await items.streamingManager.speak({
