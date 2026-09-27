@@ -1,16 +1,380 @@
 name: Codex Inline PR Review
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
+
+# A copy of de-id/cicd-shared/.github/workflows/codex-inline-pr-review.yaml (ab771f8), not a call
+# to it: this repository is public, and a public repository cannot use a reusable workflow from a
+# private one, so the `uses:` call failed at startup on every run. Keep it in sync with the shared
+# file. It differs only in having no `workflow_call` trigger and in the `codex` job's `if`.
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    
+
+concurrency:
+  group: codex-inline-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
-  codex-pr-review:
-    uses: de-id/cicd-shared/.github/workflows/codex-inline-pr-review.yaml@main
-    secrets: inherit
+  codex:
+    # Skip drafts and PRs opened by bots (dependabot, renovate, github-actions, …) —
+    # no point spending Azure tokens reviewing automated changes. Also skip PRs from forks,
+    # which get no secrets and a read-only token, and skip rather than fail while the
+    # PR_AGENT_AZURE_OPENAI_* secret and variables are not shared with this repository.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.type != 'Bot' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.PR_AGENT_AZURE_OPENAI_DEPLOYMENT != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      final_message: ${{ steps.run_codex.outputs.final-message }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
 
+      - name: Pre-fetch base and head refs for the PR
+        run: |
+          git fetch --no-tags origin \
+            ${{ github.event.pull_request.base.ref }} \
+            +refs/pull/${{ github.event.pull_request.number }}/head
 
+      - name: Collect existing review comments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments \
+            --jq '.[] | "[\(.path):\(.line // .original_line)] \(.body)"' \
+            > /tmp/existing_comments.txt 2>/dev/null || true
+
+      - name: Compute diff stat
+        run: |
+          git diff --stat origin/${{ github.event.pull_request.base.ref }}...FETCH_HEAD > /tmp/diff_stat.txt
+
+      - name: Set prompt
+        id: set_prompt
+        env:
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          {
+            echo 'prompt<<PROMPT_EOF'
+
+            # Static instruction block — byte-identical every run so it stays a
+            # prompt-cache hit across PRs and repos. Keep all dynamic values out of it;
+            # they go in the PR CONTEXT footer below the divider.
+            cat <<'STATIC_PROMPT'
+          You are reviewing a GitHub pull request. Review ONLY the changes introduced by the PR.
+          The per-PR context (repository, PR number, base branch, title, body, diff stat, and
+          existing comments) is provided in the "PR CONTEXT" section at the end of this prompt.
+
+          Before reviewing:
+          - Diff the PR head against its base branch (both named in PR CONTEXT below), e.g.
+            `git diff origin/<base>...HEAD`, to see the exact changed lines. Anchor every inline
+            comment to a line that appears in that diff.
+          - If a root `CLAUDE.md` or a `CLAUDE.md` in a modified directory exists, review the
+            changes against its rules and cite the specific rule when flagging a violation.
+            Do not mention CLAUDE.md at all if none apply.
+
+          What to report:
+          Only flag issues that genuinely matter — bugs, logic errors, security vulnerabilities,
+          data loss, and real performance problems (e.g. accidental O(n^2), unbounded memory
+          growth, N+1 queries). Give a concrete fix for each.
+
+          Scrutinize performance more closely in latency-sensitive or hot-path code — tight loops,
+          per-frame or per-request paths, streaming/realtime pipelines, and GPU or on-device AI
+          inference. There, also flag avoidable allocations and copies, redundant data conversions,
+          work that blocks or synchronizes the hot path, and unnecessary host/device transfers.
+          Outside such paths, ignore micro-optimizations.
+
+          What NOT to report (treat these as false positives — do not comment on them):
+          - Anything a linter, type-checker, compiler, or CI would catch: import errors, type
+            errors, formatting, failing tests. Assume CI runs separately.
+          - Style, naming, or formatting preferences — unless they cause a real bug or are
+            explicitly required by CLAUDE.md.
+          - Pre-existing issues, or issues on lines this PR did not change.
+          - Pedantic nitpicks a senior engineer would not raise.
+          - Changes that are likely intentional or part of the broader change.
+          - Micro-optimizations with negligible impact.
+
+          Confidence — score each issue 0-100 for how sure you are it is real and worth raising:
+          - 0-25: likely false positive or pre-existing.
+          - 26-50: minor; not explicitly required by CLAUDE.md.
+          - 51-75: valid but low impact.
+          - 76-90: important, should be addressed.
+          - 91-100: critical bug or explicit CLAUDE.md violation.
+          Only include an inline comment when confidence is >= 80. Quality over quantity — if you
+          have no findings at or above that bar, set skip=true.
+
+          Format the summary using these sections:
+
+          ## ⌘ Summary of Changes
+          - Briefly summarize the key changes.
+
+          ## ⌘ Potential Issues
+          List ALL issues from both previous reviews and this review as checkbox items:
+          - `- [x]` for issues resolved in this revision.
+          - `- [ ] ~~issue~~` for issues no longer relevant (e.g. code removed).
+          - `- [ ]` for issues still open.
+
+          Example:
+          - [x] Missing null check in `parseConfig` — fixed
+          - [ ] ~~Unused import in `utils`~~ — file removed
+          - [ ] Race condition: `fetchUser` may resolve after the component unmounts
+
+          ## ⌘ Suggestions for Improvement
+          - Optional recommendations that improve correctness, robustness, or performance.
+
+          Style the summary with markdown, code blocks, and folded `<details>` sections where helpful.
+
+          Your response is returned as structured JSON (skip, summary, comments); the schema is
+          enforced separately, so focus on content, not formatting:
+          - skip: true if the changes are trivial or you have no findings with confidence >= 80.
+            When true, comments may be empty, but summary must still contain the full overview
+            (including past issues).
+          - summary: the full markdown review using the sections above. Potential Issues MUST
+            list all issues (prior + new) as checkbox items.
+          - comments: one entry per inline finding. Set `confidence` (0-100) and `severity`
+            ("Medium" or "High"); anchor `line`/`side` to a line that appears in the diff
+            ("RIGHT" = new version, "LEFT" = base). In `body`, start with a short `###` title and a
+            **severity** line, explain the issue, and include a fix in a ```suggestion block when you
+            can propose exact replacement lines. Emit only Medium/High findings with confidence >= 80.
+
+          Example comment body:
+          ### Possible null dereference
+          **High severity**
+          `user` can be undefined on a cache miss, so `user.id` throws.
+
+          ```suggestion
+          const id = user?.id;
+          if (id == null) return;
+          ```
+
+          Example response: {"skip": false, "summary": "## ⌘ Summary of Changes\n...", "comments": [{"path": "src/api.js", "line": 42, "side": "RIGHT", "confidence": 90, "severity": "High", "body": "### Unbounded retry loop\n**High severity**\n..."}]}
+          STATIC_PROMPT
+
+            # Dynamic PR context — must stay below the static block to preserve the cache prefix.
+            echo ""
+            echo "========================= PR CONTEXT ========================="
+            echo "Repository: $REPO"
+            echo "PR number: #$PR_NUMBER"
+            echo "Base branch: $BASE_REF"
+            echo ""
+            echo "Pull request title and body:"
+            echo "----"
+            echo "$PR_TITLE"
+            echo "$PR_BODY"
+            echo ""
+            echo "Diff stat:"
+            echo "----"
+            cat /tmp/diff_stat.txt
+            echo ""
+            echo "Existing review comments on this PR (do not repeat these):"
+            echo "----"
+            cat /tmp/existing_comments.txt
+            echo 'PROMPT_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Codex
+        id: run_codex
+        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1.11
+        with:
+          openai-api-key: ${{ secrets.PR_AGENT_AZURE_OPENAI_APIKEY }}
+          responses-api-endpoint: ${{ vars.PR_AGENT_AZURE_OPENAI_RESPONSES_ENDPOINT }}
+          model: ${{ vars.PR_AGENT_AZURE_OPENAI_DEPLOYMENT }}
+          prompt: ${{ steps.set_prompt.outputs.prompt }}
+          output-schema: |
+            {"type":"object","properties":{"skip":{"type":"boolean"},"summary":{"type":"string"},"comments":{"type":"array","items":{"type":"object","properties":{"path":{"type":"string"},"line":{"type":"integer"},"side":{"type":"string","enum":["LEFT","RIGHT"]},"confidence":{"type":"integer"},"severity":{"type":"string","enum":["Medium","High"]},"body":{"type":"string"}},"required":["path","line","side","confidence","severity","body"],"additionalProperties":false}}},"required":["skip","summary","comments"],"additionalProperties":false}
+
+  post_inline_review:
+    runs-on: ubuntu-latest
+    needs: codex
+    if: always() && needs.codex.outputs.final_message != ''
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Parse Codex output
+        id: parse
+        uses: actions/github-script@v7
+        env:
+          CODEX_FINAL_MESSAGE: ${{ needs.codex.outputs.final_message }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const BODY_MAX = 65535;          // GitHub review-comment body cap
+            const SUMMARY_MAX = 65000;        // GitHub issue-comment body cap (~65536) with headroom
+            const MIN_CONFIDENCE = 80;        // matches the prompt's confidence gate
+            const MAX_COMMENTS = 20;          // avoid review-bombing large PRs
+            const FALLBACK_SUFFIX = '\n\n---\n*Inline comments could not be parsed and were skipped.*';
+            const truncate = (s, max) => (s.length > max ? s.slice(0, max) : s);
+
+            let body = process.env.CODEX_FINAL_MESSAGE || '';
+            let comments = [];
+
+            try {
+              const parsed = JSON.parse(body);
+
+              if (parsed && parsed.skip === true) {
+                core.setOutput('summary', truncate(parsed.summary || '', SUMMARY_MAX));
+                core.setOutput('comments', '[]');
+                return;
+              }
+
+              // No usable summary: post a fallback note rather than dumping raw JSON.
+              if (!parsed || typeof parsed.summary !== 'string' || parsed.summary.trim() === '') {
+                core.warning('Codex output missing a summary string; posting fallback note.');
+                core.setOutput('summary', FALLBACK_SUFFIX.trim());
+                core.setOutput('comments', '[]');
+                return;
+              }
+
+              body = parsed.summary;
+              const raw = Array.isArray(parsed.comments) ? parsed.comments : [];
+
+              const prFiles = await github.paginate(github.rest.pulls.listFiles, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+              });
+              const validPaths = new Set(prFiles.map((f) => f.filename));
+
+              // Files GitHub returns without a patch (binary, or a diff too large to inline):
+              // we can't verify their changed lines, so we skip strict position-checking for them
+              // and let the 422-fallback when posting attempt those comments individually.
+              const patchless = new Set(prFiles.filter((f) => !f.patch).map((f) => f.filename));
+
+              // Map every (path, line, side) position present in the diff by walking each file's
+              // patch. A comment off the diff 422s the whole review, so we drop those below.
+              const validPositions = new Set();
+              for (const f of prFiles) {
+                if (!f.patch) continue;  // no patch — handled via `patchless` above
+                let newLine = 0, oldLine = 0;
+                for (const ln of f.patch.split('\n')) {
+                  if (ln === '') continue;
+                  const h = ln.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+                  if (h) { oldLine = parseInt(h[1], 10); newLine = parseInt(h[2], 10); continue; }
+                  if (ln.startsWith('\\')) continue;  // "\ No newline at end of file"
+                  if (ln.startsWith('+')) {
+                    validPositions.add(`${f.filename}:${newLine}:RIGHT`); newLine++;
+                  } else if (ln.startsWith('-')) {
+                    validPositions.add(`${f.filename}:${oldLine}:LEFT`); oldLine++;
+                  } else {  // context line: valid on either side
+                    validPositions.add(`${f.filename}:${newLine}:RIGHT`);
+                    validPositions.add(`${f.filename}:${oldLine}:LEFT`);
+                    newLine++; oldLine++;
+                  }
+                }
+              }
+
+              const existing = new Set();
+              const existingComments = await github.paginate(github.rest.pulls.listReviewComments, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+              });
+              for (const c of existingComments) {
+                const line = c.line ?? c.original_line;
+                if (c.path != null && line != null) {
+                  existing.add(`${c.path}:${line}:${c.side || 'RIGHT'}`);
+                }
+              }
+
+              const seen = new Set();
+              for (const c of raw) {
+                const path = typeof c.path === 'string' ? c.path.trim() : '';
+                if (!path || !validPaths.has(path)) continue;
+                const line = typeof c.line === 'number' && Number.isInteger(c.line) ? c.line : 0;
+                if (line < 1 || line > 50000) continue;
+                const side = (c.side === 'LEFT' || c.side === 'RIGHT') ? c.side : 'RIGHT';
+                const key = `${path}:${line}:${side}`;
+                if (!patchless.has(path) && !validPositions.has(key)) continue;  // verified files: must hit a changed line
+                if (existing.has(key) || seen.has(key)) continue;
+                const confidence = typeof c.confidence === 'number' ? c.confidence : 0;
+                if (confidence < MIN_CONFIDENCE) continue;     // enforce the confidence gate
+                seen.add(key);
+                let commentBody = typeof c.body === 'string' ? c.body : '';
+                if (commentBody.length > BODY_MAX) commentBody = commentBody.slice(0, BODY_MAX);
+                if (!commentBody) continue;
+                comments.push({ path, line, side, body: commentBody, confidence });
+              }
+
+              // keep the highest-confidence comments, then cap.
+              comments.sort((a, b) => b.confidence - a.confidence);
+              if (comments.length > MAX_COMMENTS) {
+                core.warning(`Capping inline comments at ${MAX_COMMENTS} (dropping ${comments.length - MAX_COMMENTS} lower-confidence).`);
+                comments = comments.slice(0, MAX_COMMENTS);
+              }
+              comments = comments.map(({ confidence, ...c }) => c);  // strip helper field before posting
+
+              body = truncate(body, SUMMARY_MAX);  // fit GitHub's comment-body limit
+            } catch (err) {
+              core.warning(`Failed to parse Codex output: ${err.message || err}`);
+              body = truncate(process.env.CODEX_FINAL_MESSAGE || '', SUMMARY_MAX) + FALLBACK_SUFFIX;
+            }
+
+            core.setOutput('summary', body);
+            core.setOutput('comments', JSON.stringify(comments));
+
+      - name: Post summary as sticky comment
+        if: steps.parse.outputs.summary != ''
+        uses: marocchino/sticky-pull-request-comment@v2.5.0
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          header: ⌘ Codex Review
+          message: |
+            # ⌘ OpenAI Codex Review
+
+            ${{ steps.parse.outputs.summary }}
+
+      - name: Post inline comments
+        if: steps.parse.outputs.summary != '' && steps.parse.outputs.comments != '[]'
+        uses: actions/github-script@v7
+        env:
+          COMMENTS_JSON: ${{ steps.parse.outputs.comments }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const comments = JSON.parse(process.env.COMMENTS_JSON || '[]');
+            if (comments.length === 0) return;
+            const payload = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              commit_id: process.env.HEAD_SHA,
+              body: '⌘ Codex inline review',
+              event: 'COMMENT',
+              comments,
+            };
+            try {
+              await github.rest.pulls.createReview(payload);
+            } catch (err) {
+              if (err.status === 422) {
+                core.warning(`Batch review failed (422): ${err.message}. Falling back to individual comments.`);
+                for (const c of comments) {
+                  try {
+                    await github.rest.pulls.createReviewComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      pull_number: context.payload.pull_request.number,
+                      commit_id: process.env.HEAD_SHA,
+                      path: c.path,
+                      line: c.line,
+                      side: c.side,
+                      body: c.body,
+                    });
+                  } catch (e) {
+                    core.warning(`Failed to post comment on ${c.path}:${c.line} - ${e.message}`);
+                  }
+                }
+              } else {
+                throw err;
+              }
+            }
