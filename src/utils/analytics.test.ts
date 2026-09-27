@@ -82,6 +82,10 @@ describe('getAgentInfo', () => {
             agentType: 'expressive',
             presenterType: 'v4',
         });
+        expect(getAgentInfo(buildRuntimeAgent({ avatar: { type: AvatarType.Image } }))).toMatchObject({
+            agentType: 'image',
+            presenterType: 'image',
+        });
     });
 
     it('defaults owner_id to an empty string and tolerates a missing starter_message', () => {

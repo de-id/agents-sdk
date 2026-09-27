@@ -1058,6 +1058,22 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connected', 'livekit:track-subscribed');
         });
 
+        it('should render the video a hosted avatar publishes from its own participant', async () => {
+            // An image agent's picture and voice come from a second agent participant that
+            // publishes on the agent's behalf, so tracks are not filtered by who sent them.
+            await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            const avatarParticipant = {
+                ...createMockRemoteParticipant('hosted-avatar'),
+                attributes: { 'lk.publish_on_behalf': 'agent' },
+            };
+            getTrackSubscribedHandler()(createMockVideoTrack(), {}, avatarParticipant);
+
+            expect(options.callbacks.onSrcObjectReady).toHaveBeenCalledTimes(1);
+            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connected', 'livekit:track-subscribed');
+        });
+
         it('should call onConnectionStateChange with "livekit:participant-disconnected" when participant disconnects', async () => {
             await createLiveKitStreamingManager(agentId, sessionOptions, options);
             await simulateConnection();

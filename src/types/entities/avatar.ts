@@ -18,4 +18,13 @@ export enum AvatarType {
      * publishing, client tools and interruption.
      */
     Expressive = 'expressive',
+    /**
+     * An image agent: a still photo animated in real time by a hosted avatar. It streams over the
+     * same real-time session as an Expressive (V4) agent, so the SDK treats the two alike.
+     *
+     * Hidden from the reference until image agents are generally available.
+     *
+     * @hidden
+     */
+    Image = 'image',
 }
