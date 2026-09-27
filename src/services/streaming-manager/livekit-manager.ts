@@ -49,7 +49,7 @@ import type {
     Track,
     TranscriptionSegment,
 } from 'livekit-client';
-import { createAudioStatsDetector, createVideoStatsMonitor } from './stats/poll';
+import { AudioArmContext, createAudioStatsDetector, createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
 const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
@@ -224,6 +224,9 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const cameraState: TrackPublishState = { isPublishing: false, publication: null };
     let videoStatsMonitor: ReturnType<typeof createVideoStatsMonitor> | null = null;
     let audioStatsDetector: ReturnType<typeof createAudioStatsDetector> | null = null;
+    // A turn that started before any audio track was subscribed: an image agent's audio comes from
+    // the hosted avatar, whose track can arrive after the turn's `stream-video/started`.
+    let pendingAudioArm: AudioArmContext | null = null;
     let videoStreamingState: StreamingState | null = null;
     // We defer Connected until video track is subscribed to align with WebRTC behavior
     let hasEmittedConnected = false;
@@ -437,6 +440,11 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     callbacks.onFirstAudioDetected?.({ latency, networkLatency });
                 }
             );
+
+            if (pendingAudioArm) {
+                audioStatsDetector.arm(pendingAudioArm);
+                pendingAudioArm = null;
+            }
         }
 
         if (track.kind === 'video') {
@@ -571,12 +579,20 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (subject === StreamEvents.StreamVideoCreated) {
             currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
-            audioStatsDetector?.arm({
+            const armContext: AudioArmContext = {
                 sttLatency: data?.stt?.latency,
                 serviceLatency: data?.serviceLatency,
-            });
+            };
+            if (audioStatsDetector) {
+                audioStatsDetector.arm(armContext);
+            } else {
+                pendingAudioArm = armContext;
+            }
             return;
         }
+
+        // The answer is over: an audio track that arrives now carries a later one.
+        pendingAudioArm = null;
 
         if (pendingToolCalls.size > 0) {
             if (currentActivityState !== AgentActivityState.ToolActive) {
@@ -875,6 +891,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         audioStatsDetector?.destroy();
         audioStatsDetector = null;
+        pendingAudioArm = null;
 
         if (room) {
             callbacks.onConnectionStateChange?.(ConnectionState.Disconnecting, reason);

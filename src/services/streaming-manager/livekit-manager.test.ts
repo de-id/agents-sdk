@@ -11,6 +11,7 @@ import {
     TransportProvider,
 } from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
+import { createAudioStatsDetector } from './stats/poll';
 import { createVideoStatsReport } from './stats/report';
 
 // Mock livekit-client
@@ -696,6 +697,30 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
                 const payload = Buffer.from(JSON.stringify({ subject: event, ...extraData }));
                 dataHandler(payload, undefined, undefined, event);
             };
+        });
+
+        // An image agent's audio comes from the hosted avatar, whose track can subscribe after the
+        // worker's `stream-video/started`; the first-audio detector must still be armed for it.
+        it('should arm the first-audio detector for an audio track that arrives mid-turn', () => {
+            sendDataEvent(StreamEvents.StreamVideoCreated, { serviceLatency: 420 });
+
+            getTrackSubscribedHandler()(createMockTrack(), {}, createMockRemoteParticipant('hosted-avatar'));
+
+            const detectors = (createAudioStatsDetector as jest.Mock).mock.results;
+            expect(detectors[detectors.length - 1].value.arm).toHaveBeenCalledWith({
+                sttLatency: undefined,
+                serviceLatency: 420,
+            });
+        });
+
+        it('should not arm an audio track that arrives after the answer is over', () => {
+            sendDataEvent(StreamEvents.StreamVideoCreated);
+            sendDataEvent(StreamEvents.StreamVideoDone);
+
+            getTrackSubscribedHandler()(createMockTrack(), {}, createMockRemoteParticipant('hosted-avatar'));
+
+            const detectors = (createAudioStatsDetector as jest.Mock).mock.results;
+            expect(detectors[detectors.length - 1].value.arm).not.toHaveBeenCalled();
         });
 
         it('should set Talking on stream-video/created event', () => {

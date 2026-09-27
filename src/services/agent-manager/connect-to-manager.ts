@@ -214,7 +214,7 @@ function connectToManager(
 
             let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
             // Only the real-time session reports its first audio; there the start waits for it.
-            const isStreamsV2 = isStreamsV2Agent(agent.avatar.type);
+            const waitsForFirstAudio = streamOptions.version === StreamApiVersion.V2;
 
             streamingManager = await createStreamingManager(
                 agent,
@@ -265,7 +265,7 @@ function connectToManager(
                                     );
                                     pendingStartTrack = null;
                                 };
-                                if (!isStreamsV2) {
+                                if (!waitsForFirstAudio) {
                                     pendingStartTrack({ latency: latencyTimestampTracker.get(true) });
                                 }
                             } else {

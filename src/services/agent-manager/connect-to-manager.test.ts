@@ -466,7 +466,7 @@ describe('connect-to-manager', () => {
 
                 expect(mockAnalytics.linkTrack).toHaveBeenCalledWith(
                     'agent-video',
-                    expect.objectContaining({ event: 'start', latency: 1000 }),
+                    expect.objectContaining({ event: 'start' }),
                     'start',
                     [StreamEvents.StreamVideoCreated]
                 );
