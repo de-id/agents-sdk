@@ -1,16 +1,15 @@
 /**
- * A short-lived credential for the D-ID speech-to-text service.
+ * A short-lived Azure Speech authorization token, issued by the Agents API.
  *
- * What {@link AgentManager.getSttToken | getSttToken()} resolves with, fetched fresh from the
- * Agents API each time. It lets an application drive its own speech recognition against the
- * service the agent uses without putting D-ID credentials in the browser. The token expires, so request one per recognition session
- * rather than holding on to it.
+ * What {@link AgentManager.getSttToken | getSttToken()} resolves with. It lets an application run
+ * Azure speech recognition in the browser without holding a speech subscription key. Azure tokens
+ * expire after about ten minutes, so request one per recognition session.
  *
  * @category Agent Manager
  */
 export interface SttTokenResponse {
-    /** The authorization token to present to the speech service. */
+    /** The authorization token to present to Azure Speech. */
     token: string;
-    /** The speech service region the token is valid in. */
+    /** The Azure region the token is valid in. */
     region: string;
 }

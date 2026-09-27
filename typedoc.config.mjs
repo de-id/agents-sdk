@@ -29,7 +29,7 @@ const config = {
         'docs-assets/guides/getting-started.md',
         'docs-assets/guides/chat-modes.md',
         'docs-assets/guides/client-tools.md',
-        'docs-assets/guides/expressive-media.md',
+        'docs-assets/guides/expressive-agents.md',
         'docs-assets/guides/handling-errors.md',
         'docs-assets/migration.md',
     ],
