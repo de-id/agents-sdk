@@ -1,7 +1,7 @@
 {
   "name": "@d-id/client-sdk",
   "private": false,
-  "version": "3.0.0-0",
+  "version": "3.0.0",
   "type": "module",
   "description": "Browser SDK for D-ID Agents: connect to an agent, stream its video and audio, chat and speak.",
   "keywords": [
