@@ -5,9 +5,9 @@
  * Internal on purpose: this module is deliberately left out of the `stream`
  * barrel so the topics driven by dedicated methods (`chat`, `speak`,
  * `interrupt`, `setSttLanguage`) never reach the package's public API.
- * Customers get `PublicDataChannelTopic` instead.
+ * Customers get the public `DataChannelTopic` enum instead.
  */
-export enum DataChannelTopic {
+export enum InternalDataChannelTopic {
     Chat = 'lk.chat',
     Speak = 'did.speak',
     Interrupt = 'did.interrupt',

@@ -2,12 +2,14 @@ import { exec } from 'child_process';
 import { program } from 'commander';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 function asyncExec(command) {
     return new Promise((resolve, reject) => {
         exec(command, { env: process.env }, (error, stdout, stderr) => {
             if (error) {
                 reject(error);
+                return;
             }
 
             resolve(stdout || stderr);
@@ -29,31 +31,32 @@ try {
 
     console.log(`Succesful build ${mode}`);
 } catch (e) {
+    // The publish workflow runs `npm publish` straight after this; a failed build must not exit 0.
     console.error(e);
+    process.exit(1);
 }
 
+// Local convenience: refresh a sibling `agents-ui` checkout's copy of the SDK.
 try {
     console.log('start copy');
-    const root = path.resolve(import.meta.url, '../../').split(':')[1];
+    const root = fileURLToPath(new URL('../', import.meta.url));
     const dist = path.resolve(root, './dist');
     const packageJson = path.resolve(root, './package.json');
     const embeddedModules = path.resolve(root, '../agents-ui/node_modules');
     const embeddedSdk = path.resolve(embeddedModules, './@d-id/client-sdk/dist');
     const embeddedViteCache = path.resolve(embeddedModules, './.vite');
 
-    if (!fs.existsSync(dist)) {
-        throw new Error('dist does not exist');
-    } else if (!fs.existsSync(embeddedSdk)) {
-        throw new Error('package does not exist');
+    if (!fs.existsSync(embeddedSdk)) {
+        console.log('No sibling agents-ui checkout, skipping copy');
+    } else {
+        console.log('Removing old package');
+        fs.rmSync(embeddedSdk, { recursive: true, force: true });
+        fs.rmSync(embeddedViteCache, { recursive: true, force: true });
+
+        console.log('Copying new package');
+        fs.cpSync(dist, embeddedSdk, { recursive: true });
+        fs.copyFileSync(packageJson, path.resolve(embeddedSdk, '../package.json'));
     }
-
-    console.log('Removing old package');
-    fs.rmSync(embeddedSdk, { recursive: true, force: true });
-    fs.rmSync(embeddedViteCache, { recursive: true, force: true });
-
-    console.log('Copying new package');
-    fs.cpSync(dist, embeddedSdk, { recursive: true });
-    fs.copyFileSync(packageJson, path.resolve(embeddedSdk, '../package.json'));
 } catch (e) {
     console.error('Copy failed', e);
 }

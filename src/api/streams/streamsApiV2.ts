@@ -1,12 +1,7 @@
-import { Auth, CreateSessionV2Options, CreateSessionV2Response } from '@sdk/types';
+import { Auth, CreateSessionV2Options, CreateSessionV2Response, ErrorReporter } from '@sdk/types';
 import { createClient } from '../apiClient';
 
-export function createStreamApiV2(
-    auth: Auth,
-    host: string,
-    agentId: string,
-    onError?: (error: Error, errorData: object) => void
-) {
+export function createStreamApiV2(auth: Auth, host: string, agentId: string, onError?: ErrorReporter) {
     const client = createClient(auth, `${host}/v2/agents/${agentId}`, onError);
 
     return {

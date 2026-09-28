@@ -16,7 +16,13 @@ export async function createChat(
     persist = false,
     chat?: Chat
 ) {
-    if (!chat && !isChatModeWithoutChat(chatMode)) {
+    // A chat handed in by the caller is carried over from an earlier connect: it still holds the
+    // mode it was created in, which says nothing about this session.
+    if (chat) {
+        return { chat, chatMode };
+    }
+
+    if (!isChatModeWithoutChat(chatMode)) {
         chat = await agentsApi.newChat(agent.id, { persist }, getRequestHeaders(chatMode));
 
         analytics.track('agent-chat', {

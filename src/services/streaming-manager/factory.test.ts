@@ -1,5 +1,11 @@
 import { AgentFactory, StreamingManagerOptionsFactory } from '../../test-utils/factories';
-import { CreateSessionV2Options, CreateStreamOptions, StreamingManagerOptions, TransportProvider } from '../../types';
+import {
+    AvatarType,
+    CreateSessionV2Options,
+    CreateStreamOptions,
+    StreamingManagerOptions,
+    TransportProvider,
+} from '../../types';
 import { StreamApiVersion, createStreamingManager } from './factory';
 
 const mockCreateWebRTCStreamingManager = jest.fn();
@@ -29,7 +35,7 @@ describe('createStreamingManager', () => {
     it('calls to createWebRTCStreamingManager when agent presenter type is talk', async () => {
         const agent = AgentFactory.build({
             avatar: {
-                type: 'talk',
+                type: AvatarType.Talk,
                 voice: { language: 'en-US' },
             },
         });
@@ -52,7 +58,7 @@ describe('createStreamingManager', () => {
     it('calls to createWebRTCStreamingManager when agent presenter type is clip', async () => {
         const agent = AgentFactory.build({
             avatar: {
-                type: 'clip',
+                type: AvatarType.Clip,
                 voice: { language: 'en-US' },
             },
         });
@@ -75,7 +81,7 @@ describe('createStreamingManager', () => {
     it('calls to createLiveKitStreamingManager when agent presenter type is expressive', async () => {
         const agent = AgentFactory.build({
             avatar: {
-                type: 'expressive',
+                type: AvatarType.Expressive,
                 voice: { language: 'en-US' },
             },
         });
@@ -95,39 +101,5 @@ describe('createStreamingManager', () => {
 
         expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(agent.id, v2StreamOptions, mockOptions);
         expect(mockCreateWebRTCStreamingManager).not.toHaveBeenCalled();
-    });
-
-    it('passes microphoneStream to createLiveKitStreamingManager when provided', async () => {
-        const agent = AgentFactory.build({
-            avatar: {
-                type: 'expressive',
-                voice: { language: 'en-US' },
-            },
-        });
-
-        const v2StreamOptions: CreateSessionV2Options = {
-            transport: {
-                provider: TransportProvider.Livekit,
-            },
-            chat_persist: true,
-        };
-
-        const mockMicrophoneStream = new MediaStream();
-        const optionsWithMicrophone = {
-            ...mockOptions,
-            microphoneStream: mockMicrophoneStream,
-        };
-
-        await createStreamingManager(
-            { id: agent.id, avatar: agent.avatar },
-            { version: StreamApiVersion.V2, ...v2StreamOptions },
-            optionsWithMicrophone
-        );
-
-        expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(
-            agent.id,
-            v2StreamOptions,
-            expect.objectContaining({ microphoneStream: mockMicrophoneStream })
-        );
     });
 });

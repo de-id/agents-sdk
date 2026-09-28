@@ -3,12 +3,14 @@ import {
     Agent,
     AgentActivityState,
     AgentManagerOptions,
+    AvatarType,
     ChatMode,
     ConnectionState,
     StreamEndReason,
     StreamEvents,
     StreamingState,
     StreamType,
+    ToolCallEvent,
     TransportProvider,
 } from '../../types';
 import { Analytics } from '../analytics/mixpanel';
@@ -51,7 +53,7 @@ describe('connect-to-manager', () => {
             id: 'agent-123',
             name: 'Test Agent',
             avatar: {
-                type: 'clip',
+                type: AvatarType.Clip,
                 voice: { language: 'en-US' },
             },
             knowledge: {
@@ -65,7 +67,6 @@ describe('connect-to-manager', () => {
             mode: ChatMode.Functional,
             persistentChat: true,
             streamOptions: {
-                outputResolution: 1080,
                 sessionTimeout: 30000,
                 streamWarmup: true,
                 compatibilityMode: 'auto' as const,
@@ -154,7 +155,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 {
                     version: StreamApiVersion.V1,
-                    output_resolution: 1080,
                     session_timeout: 30000,
                     stream_warmup: true,
                     compatibility_mode: 'auto',
@@ -207,13 +207,33 @@ describe('connect-to-manager', () => {
 
             const result = await initializeStreamAndChat(mockAgent, mockOptions, mockAgentsApi, mockAnalytics);
 
-            expect(mockOptions.callbacks.onModeChange).toHaveBeenCalledWith(ChatMode.TextOnly);
+            expect(mockOptions.callbacks.onModeChange).not.toHaveBeenCalled();
             expect(mockOptions.callbacks.onError).toHaveBeenCalledWith(
                 expect.objectContaining({ message: expect.stringContaining('Chat mode downgraded to TextOnly') })
             );
             expect(mockStreamingManager.disconnect).toHaveBeenCalled();
             expect(result.chat).toBe(mockChat);
             expect(result.streamingManager).toBeUndefined();
+        });
+
+        it('should not report a mode for a chat carried over from an earlier connect', async () => {
+            // `createChat` returns the mode it was asked for when the chat came in from the caller,
+            // so a DirectPlayback reconnect is not told it is Functional by a stale chat.
+            (createChat as jest.Mock).mockImplementation(jest.requireActual('../chat').createChat as typeof createChat);
+            const carriedOver = { ...mockChat, chat_mode: ChatMode.Functional };
+
+            const result = await initializeStreamAndChat(
+                mockAgent,
+                { ...mockOptions, mode: ChatMode.DirectPlayback },
+                mockAgentsApi,
+                mockAnalytics,
+                carriedOver
+            );
+
+            expect(mockOptions.callbacks.onModeChange).not.toHaveBeenCalled();
+            expect(mockOptions.callbacks.onError).not.toHaveBeenCalled();
+            expect(mockStreamingManager.disconnect).not.toHaveBeenCalled();
+            expect(result.streamingManager).toBe(mockStreamingManager);
         });
 
         it('should not disconnect for functional mode downgrade', async () => {
@@ -246,7 +266,7 @@ describe('connect-to-manager', () => {
         let onAgentActivityStateChange: (state: AgentActivityState) => void;
         let onFirstAudioDetected: ((metrics: { latency?: number; networkLatency?: number }) => void) | undefined;
         let onStreamReady: (() => void) | undefined;
-        let onToolEvent: ((event: StreamEvents, data: any) => void) | undefined;
+        let onToolEvent: ((event: ToolCallEvent, data: any) => void) | undefined;
 
         beforeEach(async () => {
             // Initialize callbacks to avoid undefined errors
@@ -382,7 +402,7 @@ describe('connect-to-manager', () => {
             });
 
             it('should handle video state with non-clip presenter', () => {
-                mockAgent.avatar.type = 'talk';
+                mockAgent.avatar.type = AvatarType.Talk;
 
                 onVideoStateChange(StreamingState.Stop);
 
@@ -458,7 +478,7 @@ describe('connect-to-manager', () => {
 
         describe('onToolEvent', () => {
             const startedPayload = {
-                call_id: 'call-1',
+                callId: 'call-1',
                 name: 'lookup',
                 input: { q: 'hello' },
                 output: {},
@@ -467,7 +487,7 @@ describe('connect-to-manager', () => {
             const donePayload = {
                 ...startedPayload,
                 output: { result: 'ok' },
-                duration_ms: 123,
+                durationMs: 123,
                 extra: { region: 'eu' },
             };
             const errorPayload = {
@@ -480,12 +500,9 @@ describe('connect-to-manager', () => {
             });
 
             it('forwards started event to user callback and tracks agent-tool-call', () => {
-                onToolEvent?.(StreamEvents.ToolCallStarted, startedPayload as any);
+                onToolEvent?.(ToolCallEvent.Started, startedPayload as any);
 
-                expect(mockOptions.callbacks.onToolEvent).toHaveBeenCalledWith(
-                    StreamEvents.ToolCallStarted,
-                    startedPayload
-                );
+                expect(mockOptions.callbacks.onToolEvent).toHaveBeenCalledWith(ToolCallEvent.Started, startedPayload);
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-tool-call', {
                     event: 'started',
                     call_id: 'call-1',
@@ -494,7 +511,7 @@ describe('connect-to-manager', () => {
             });
 
             it('tracks done event with duration_ms and extra_keys count', () => {
-                onToolEvent?.(StreamEvents.ToolCallDone, donePayload as any);
+                onToolEvent?.(ToolCallEvent.Done, donePayload as any);
 
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-tool-call', {
                     event: 'done',
@@ -506,7 +523,7 @@ describe('connect-to-manager', () => {
             });
 
             it('tracks error event with duration_ms and extra_keys count', () => {
-                onToolEvent?.(StreamEvents.ToolCallError, errorPayload as any);
+                onToolEvent?.(ToolCallEvent.Error, errorPayload as any);
 
                 expect(mockAnalytics.track).toHaveBeenCalledWith('agent-tool-call', {
                     event: 'error',
@@ -520,7 +537,7 @@ describe('connect-to-manager', () => {
             it('handles missing extra map by emitting extra_keys=0', () => {
                 const { extra: _extra, ...donePayloadWithoutExtra } = donePayload;
 
-                onToolEvent?.(StreamEvents.ToolCallDone, donePayloadWithoutExtra as any);
+                onToolEvent?.(ToolCallEvent.Done, donePayloadWithoutExtra as any);
 
                 expect(mockAnalytics.track).toHaveBeenCalledWith(
                     'agent-tool-call',
@@ -550,7 +567,6 @@ describe('connect-to-manager', () => {
             const customOptions = {
                 ...mockOptions,
                 streamOptions: {
-                    outputResolution: 720,
                     sessionTimeout: 60000,
                     streamWarmup: false,
                     compatibilityMode: 'on' as const,
@@ -564,7 +580,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 {
                     version: StreamApiVersion.V1,
-                    output_resolution: 720,
                     session_timeout: 60000,
                     stream_warmup: false,
                     compatibility_mode: 'on',
@@ -586,7 +601,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 {
                     version: StreamApiVersion.V1,
-                    output_resolution: undefined,
                     session_timeout: undefined,
                     stream_warmup: undefined,
                     compatibility_mode: undefined,
@@ -603,7 +617,7 @@ describe('connect-to-manager', () => {
             const optionsWithAnalytics = {
                 ...mockOptions,
                 externalId: 'analytics-user',
-                mixpanelAdditionalProperties: { plan: 'scale' },
+                analytics: { additionalProperties: { plan: 'scale' } },
             };
 
             await initializeStreamAndChat(mockAgent, optionsWithAnalytics, mockAgentsApi, mockAnalytics);
@@ -695,7 +709,7 @@ describe('connect-to-manager', () => {
             const expressiveAgent: Agent = {
                 ...mockAgent,
                 avatar: {
-                    type: 'expressive',
+                    type: AvatarType.Expressive,
                     voice: { language: 'en-US' },
                 },
             };
@@ -734,7 +748,7 @@ describe('connect-to-manager', () => {
         ])('%s', async (_name, persistentChat, expectedSessionOptions) => {
             const expressiveAgent: Agent = {
                 ...mockAgent,
-                avatar: { type: 'expressive', voice: { language: 'en-US' } },
+                avatar: { type: AvatarType.Expressive, voice: { language: 'en-US' } },
             };
 
             await initializeStreamAndChat(
@@ -755,7 +769,7 @@ describe('connect-to-manager', () => {
         it('should omit chat_persist when persistentChat is not set', async () => {
             const expressiveAgent: Agent = {
                 ...mockAgent,
-                avatar: { type: 'expressive', voice: { language: 'en-US' } },
+                avatar: { type: AvatarType.Expressive, voice: { language: 'en-US' } },
             };
             const { persistentChat: _persistentChat, ...optionsWithoutPersistentChat } = mockOptions;
 
@@ -772,7 +786,6 @@ describe('connect-to-manager', () => {
                 mockAgent,
                 expect.objectContaining({
                     version: StreamApiVersion.V1,
-                    output_resolution: 1080,
                     session_timeout: 30000,
                 }),
                 expect.not.objectContaining({

@@ -23,4 +23,7 @@ const mockRTCPeerConnection = jest.fn().mockImplementation(() => mockPeerConnect
 // Mock MediaStream
 global.MediaStream = jest.fn().mockImplementation(() => ({ getTracks: jest.fn(() => []) }));
 
-global.window.RTCPeerConnection = mockRTCPeerConnection as any;
+// The `node` test environment has no `window`; only the jsdom suites need this shim.
+if (typeof window !== 'undefined') {
+    global.window.RTCPeerConnection = mockRTCPeerConnection as any;
+}

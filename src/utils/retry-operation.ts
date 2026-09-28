@@ -6,7 +6,7 @@ interface RetryOptions {
     timeout?: number;
     timeoutErrorMessage?: string;
     shouldRetryFn?: (error: any) => boolean;
-    onRetry?: (error: any) => void;
+    onRetry?: (error: any) => void | Promise<void>;
 }
 
 function createRacePromise(timeout: number, timeoutErrorMessage: string) {
@@ -32,6 +32,8 @@ function createRacePromise(timeout: number, timeoutErrorMessage: string) {
  * @param userOptions.timeout - Timeout for each attempt in milliseconds (default: 30000, set 0 to disable)
  * @param userOptions.timeoutErrorMessage - Custom timeout error message
  * @param userOptions.shouldRetryFn - Function to determine if retry should occur based on error, that will force throw even if limit is not reached when returns "false"
+ * @param userOptions.onRetry - Called after the delay and before the next attempt; awaited, so an
+ * asynchronous handler finishes before the operation runs again
  *
  * @returns Promise that resolves with the operation result or rejects with the last error
  *
@@ -80,7 +82,9 @@ export async function retryOperation<T>(operation: () => Promise<T>, userOptions
 
             await sleep(options.delayMs);
 
-            options.onRetry(error);
+            // Awaited: the chat retry's `onRetry` tears the session down and opens a new one, and
+            // without this the next attempt ran against a session that was still being replaced.
+            await options.onRetry(error);
         }
     }
 

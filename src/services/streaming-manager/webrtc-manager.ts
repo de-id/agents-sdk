@@ -5,7 +5,7 @@ import {
     AgentActivityState,
     ConnectionState,
     CreateStreamOptions,
-    Interrupt,
+    InterruptOptions,
     PayloadType,
     StreamEvents,
     StreamingManagerOptions,
@@ -13,16 +13,23 @@ import {
     StreamInterruptPayload,
     StreamType,
 } from '@sdk/types';
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { createStreamingLogger, StreamingManager } from './common';
 import { createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
-const actualRTCPC = (
-    window.RTCPeerConnection ||
-    (window as any).webkitRTCPeerConnection ||
-    (window as any).mozRTCPeerConnection
-).bind(window);
+// Resolved on first use, not at module evaluation: importing the package must not
+// touch `window` (server-side rendering evaluates this module in Node).
+const getRTCPeerConnection = (): typeof RTCPeerConnection => {
+    const w = globalThis as any;
+    const impl = w.RTCPeerConnection || w.webkitRTCPeerConnection || w.mozRTCPeerConnection;
+
+    if (!impl) {
+        throw new Error('RTCPeerConnection is not available in this environment');
+    }
+
+    return impl.bind(w);
+};
 
 type DataChannelPayload = string | Record<string, unknown>;
 type DataChannelMessageHandler<S extends StreamEvents> = (subject: S, payload?: DataChannelPayload) => void;
@@ -175,13 +182,17 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         fluent,
         interrupt_enabled: interruptAvailable,
     } = await createStream(streamOptions, signal);
-    callbacks.onStreamCreated?.({ stream_id: streamIdFromServer, session_id: session_id as string, agent_id: agentId });
-    const peerConnection = new actualRTCPC({ iceServers: ice_servers });
-    const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
+    // Guard before the callback: `StreamCreatedInfo.sessionId` is public and declares `string`.
     if (!session_id) {
         throw new Error('Could not create session_id');
     }
+
+    callbacks.onStreamCreated?.({ streamId: streamIdFromServer, sessionId: session_id, agentId });
+
+    const reportError = (error: Error) => callbacks.onError?.(error, { streamId: streamIdFromServer });
+    const peerConnection = new (getRTCPeerConnection())({ iceServers: ice_servers });
+    const pcDataChannel = peerConnection.createDataChannel('JanusDataChannel');
 
     const streamType = fluent ? StreamType.Fluent : StreamType.Legacy;
 
@@ -238,7 +249,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
                 addIceCandidate(streamIdFromServer, { candidate: null }, session_id, signal);
             }
         } catch (e: any) {
-            callbacks.onError?.(e, { streamId: streamIdFromServer });
+            reportError(e);
         }
     };
 
@@ -326,12 +337,10 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
     await startConnection(streamIdFromServer, sessionClientAnswer, session_id, signal);
     log('start connection OK');
 
-    async function sendDataChannelMessage(_topic: DataChannelTopic, payload: string) {
+    async function sendDataChannelMessage(_topic: `${InternalDataChannelTopic}`, payload: string) {
         if (!isConnected || pcDataChannel.readyState !== 'open') {
             log('Data channel is not ready for sending messages');
-            callbacks.onError?.(new StreamError('Data channel is not ready for sending messages'), {
-                streamId: streamIdFromServer,
-            });
+            reportError(new StreamError('Data channel is not ready for sending messages'));
             return;
         }
 
@@ -339,7 +348,7 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
             pcDataChannel.send(payload);
         } catch (e: any) {
             log('Error sending data channel message', e);
-            callbacks.onError?.(e, { streamId: streamIdFromServer });
+            reportError(e);
         }
     }
 
@@ -403,15 +412,15 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
         interruptAvailable: interruptAvailable ?? false,
         isInterruptible: true,
 
-        interrupt(_type: Interrupt['type']) {
-            if (!interruptAvailable) {
-                throw new Error('Interrupt is not enabled for this stream');
+        interrupt(_type: InterruptOptions['type']) {
+            // Nothing to interrupt: the stream does not support it, is not fluent, or no video is playing.
+            if (!interruptAvailable || streamType !== StreamType.Fluent || !currentVideoId) {
+                return false;
             }
-            if (streamType !== StreamType.Fluent) {
-                throw new Error('Interrupt only available for Fluent streams');
-            }
-            if (!currentVideoId) {
-                throw new Error('No active video to interrupt');
+
+            // Nothing would reach the agent: sendDataChannelMessage drops the payload in this state.
+            if (!isConnected || pcDataChannel.readyState !== 'open') {
+                return false;
             }
 
             const payload: StreamInterruptPayload = {
@@ -421,7 +430,9 @@ export async function createWebRTCStreamingManager<T extends CreateStreamOptions
             };
             // The topic is ignored here - V1 has no topic concept and the interrupt
             // is identified by the payload's `type`.
-            sendDataChannelMessage(DataChannelTopic.Interrupt, JSON.stringify(payload));
+            sendDataChannelMessage(InternalDataChannelTopic.Interrupt, JSON.stringify(payload));
+
+            return true;
         },
     };
 }

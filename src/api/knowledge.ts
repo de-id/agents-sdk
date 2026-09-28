@@ -2,6 +2,7 @@ import {
     Auth,
     CreateDocumentPayload,
     DocumentData,
+    ErrorReporter,
     KnowledgeData,
     KnowledgePayload,
     QueryResult,
@@ -10,7 +11,7 @@ import {
 import { didApiUrl } from '../config/environment';
 import { createClient } from './apiClient';
 
-export function createKnowledgeApi(auth: Auth, host = didApiUrl, onError?: (error: Error, errorData: object) => void) {
+export function createKnowledgeApi(auth: Auth, host = didApiUrl, onError?: ErrorReporter) {
     const client = createClient(auth, `${host}/knowledge`, onError);
 
     return {

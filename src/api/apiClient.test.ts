@@ -38,6 +38,7 @@ describe('createClient', () => {
     });
 
     afterEach(() => {
+        jest.useRealTimers();
         (globalThis as unknown as { fetch: typeof originalFetch }).fetch = originalFetch;
     });
 
@@ -47,7 +48,7 @@ describe('createClient', () => {
         await expect(client.get('/agents/x')).resolves.toEqual({ id: 'x' });
     });
 
-    it('should throw an HttpError with the server kind + status when the response is a non-2xx', async () => {
+    it('should throw an HttpError with the server code + status when the response is a non-2xx', async () => {
         const body = JSON.stringify({ kind: 'NotFoundError', description: 'agent not found' });
         fetchSpy.mockResolvedValue(fakeResponse({ status: 404, statusText: 'Not Found', bodyText: body }));
         const onError = jest.fn();
@@ -57,12 +58,14 @@ describe('createClient', () => {
 
         expect(onError).toHaveBeenCalledTimes(1);
         const [err, data] = onError.mock.calls[0];
-        expect(err.kind).toBe('NotFoundError'); // parsed from server envelope
+        expect(err.kind).toBe('HttpError');
+        expect(err.code).toBe('NotFoundError'); // parsed from server envelope
         expect(err.message).toBe('agent not found');
         expect(err.status).toBe(404);
-        expect(err.url).toBe('/agents/missing');
+        expect(err.endpoint).toBe('/agents/missing');
         expect(err.method).toBe('GET');
-        expect(data).toMatchObject({ url: '/agents/missing' });
+        // The context is exactly the request — no options, headers or body.
+        expect(data).toEqual({ endpoint: '/agents/missing', method: 'GET' });
     });
 
     it('should throw an HttpError when the response is 5xx', async () => {
@@ -73,17 +76,37 @@ describe('createClient', () => {
         const rejection = await client.post('/agents/x/chat', {}).catch(e => e);
         expect(rejection).toBeInstanceOf(HttpError);
         expect(rejection.status).toBe(504);
-        expect(onError.mock.calls[0][1]).toMatchObject({ url: '/agents/x/chat' });
+        expect(onError.mock.calls[0][1]).toEqual({ endpoint: '/agents/x/chat', method: 'POST' });
     });
 
-    it('should surface a 429 as an HttpError and not retry', async () => {
-        fetchSpy.mockResolvedValue(fakeResponse({ status: 429, bodyText: 'slow down' }));
+    it('should retry a 429 and succeed when a later attempt is ok', async () => {
+        jest.useFakeTimers();
+        fetchSpy
+            .mockResolvedValueOnce(fakeResponse({ status: 429, bodyText: 'slow down' }))
+            .mockResolvedValueOnce(fakeResponse({ body: { id: 'x' } }));
         const client = createClient(auth, 'https://api.example.com');
 
-        const rejection = await client.get('/agents/x').catch(e => e);
-        expect(rejection).toBeInstanceOf(HttpError);
-        expect(rejection.status).toBe(429);
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        const pending = client.get('/agents/x');
+        await jest.advanceTimersByTimeAsync(1000);
+
+        await expect(pending).resolves.toEqual({ id: 'x' });
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should surface a 429 as an HttpError after the retries are exhausted', async () => {
+        jest.useFakeTimers();
+        fetchSpy.mockResolvedValue(fakeResponse({ status: 429, bodyText: 'slow down' }));
+        const onError = jest.fn();
+        const client = createClient(auth, 'https://api.example.com', onError);
+
+        const rejection = client.get('/agents/x').catch(e => e);
+        await jest.advanceTimersByTimeAsync(2000);
+
+        const error = await rejection;
+        expect(error).toBeInstanceOf(HttpError);
+        expect(error.status).toBe(429);
+        expect(fetchSpy).toHaveBeenCalledTimes(3);
+        expect(onError).toHaveBeenCalledTimes(1);
     });
 
     it('should wrap a network-level fetch rejection as a NetworkError', async () => {
@@ -100,7 +123,7 @@ describe('createClient', () => {
         expect(onError).toHaveBeenCalledTimes(1);
         const [err, data] = onError.mock.calls[0];
         expect(err.kind).toBe('NetworkError');
-        expect(data).toMatchObject({ url: '/agents/x' });
+        expect(data).toEqual({ endpoint: '/agents/x', method: 'GET' });
     });
 
     it('should not route AbortError through onError when the request is cancelled', async () => {
@@ -147,7 +170,8 @@ describe('createClient', () => {
 
             const rejection = await client.get('/agents/missing').catch(e => e);
             expect(toErrorAnalytics(rejection)).toEqual({
-                kind: 'NotFoundError',
+                kind: 'HttpError',
+                code: 'NotFoundError',
                 message: 'agent not found',
                 httpStatus: 404,
                 endpoint: '/agents/missing',
@@ -175,7 +199,7 @@ describe('createClient', () => {
     });
 
     describe('typed error contract for consumers', () => {
-        it('should expose an HTTP error with the server kind, status, and a human message', async () => {
+        it('should expose an HTTP error with the server code, status, and a human message', async () => {
             const body = JSON.stringify({ kind: 'InsufficientCreditsError', description: 'no credits' });
             fetchSpy.mockResolvedValue(fakeResponse({ status: 402, bodyText: body }));
             const client = createClient(auth, 'https://api.example.com');
@@ -183,7 +207,8 @@ describe('createClient', () => {
             const error = await client.get('/agents/x').catch(e => e);
             expect(isDIDError(error)).toBe(true);
             expect(error).toBeInstanceOf(HttpError);
-            expect(error.kind).toBe('InsufficientCreditsError');
+            expect(error.kind).toBe('HttpError');
+            expect(error.code).toBe('InsufficientCreditsError');
             expect(error.status).toBe(402);
             expect(error.message).toBe('no credits');
         });

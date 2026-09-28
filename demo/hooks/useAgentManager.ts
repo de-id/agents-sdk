@@ -105,10 +105,8 @@ export function useAgentManager(props: UseAgentManagerOptions) {
                 mode,
                 auth,
                 wsURL,
-                enableAnalitics: enableAnalytics,
+                analytics: { enabled: enableAnalytics, mixpanelKey, additionalProperties: mixpanelAdditionalProperties },
                 externalId,
-                mixpanelKey,
-                mixpanelAdditionalProperties,
                 streamOptions,
                 debug,
             });

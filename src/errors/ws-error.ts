@@ -1,6 +1,36 @@
 import { BaseError } from './base-error';
 
+/**
+ * The web socket the SDK uses for chat notifications failed to connect.
+ *
+ * Talks (V2) and Clips (V3) sessions open a web socket alongside the video stream; the agent's
+ * answer arrives over it as `partial` and `answer` events, which is what drives
+ * {@link AgentManagerCallbacks.onNewMessage | onNewMessage}. This error is raised when that socket
+ * emits an `error` event, once per failed attempt while
+ * {@link AgentManager.connect | connect()} is retrying. It is only delivered to
+ * {@link AgentManagerCallbacks.onError | onError} and never thrown, so there is nothing to catch
+ * around `connect()` for it; if every attempt fails, `connect()` rejects with the browser's own
+ * socket event instead.
+ *
+ * The socket is not opened at all for Expressive (V4) agents, which receive the same events over
+ * the LiveKit data channel, nor in {@link ChatMode.DirectPlayback | DirectPlayback} mode, so the
+ * error cannot occur in either case.
+ *
+ * {@link BaseError.kind | kind} is `'WSError'`, and the message is
+ * `'Websocket failed to connect'`.
+ *
+ * @category Errors
+ */
 export class WsError extends BaseError {
+    /**
+     * Always `'WSError'` — note the capitalization, which does not match the class name.
+     */
+    readonly kind: 'WSError' = 'WSError';
+
+    /**
+     * Wraps a web socket failure, built from the socket's `error` event.
+     * @internal The SDK builds this itself; applications catch the error rather than construct it.
+     */
     constructor(message: string) {
         super(message, 'WSError');
     }

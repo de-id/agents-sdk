@@ -5,7 +5,7 @@ import {
     ConnectivityState,
     CreateSessionV2Options,
     CreateStreamOptions,
-    Interrupt,
+    InterruptOptions,
     Message,
     PayloadType,
     RunningToolCall,
@@ -15,12 +15,17 @@ import {
     StreamingState,
     StreamType,
     ToolCallDonePayload,
+    ToolCallDoneWirePayload,
     ToolCallErrorPayload,
+    ToolCallErrorWirePayload,
+    ToolCallEvent,
     ToolCallStartedPayload,
+    ToolCallStartedWirePayload,
+    ToolCallWireError,
     TurnEventPayload,
 } from '@sdk/types';
 import { ChatProgress } from '@sdk/types/entities/agents/manager';
-import { DataChannelTopic } from '@sdk/types/stream/data-channel';
+import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { noop } from '@sdk/utils';
 import { getUserContextAttributes } from '@sdk/utils/user-context';
 import { createStreamApiV2 } from '../../api/streams/streamsApiV2';
@@ -39,6 +44,7 @@ import type {
     RemoteTrack,
     Room,
     RoomEvent,
+    RpcError,
     SubscriptionError,
     Track,
     TranscriptionSegment,
@@ -61,21 +67,40 @@ interface PendingToolCall {
     turnId: number | null;
 }
 
-async function importLiveKit(): Promise<{
+interface LiveKitModule {
     Room: typeof Room;
     RoomEvent: typeof RoomEvent;
     ConnectionState: typeof LiveKitConnectionState;
     RemoteParticipant: typeof RemoteParticipant;
     RemoteTrack: typeof RemoteTrack;
+    RpcError: typeof RpcError;
     Track: typeof Track;
-}> {
-    try {
-        return await import('livekit-client');
-    } catch (error) {
+}
+
+// One download for the life of the page. A rejected import is not kept, so the next call retries.
+let livekitModule: Promise<LiveKitModule> | undefined;
+
+function importLiveKit(): Promise<LiveKitModule> {
+    livekitModule ??= import('livekit-client').catch(() => {
+        livekitModule = undefined;
+
         throw new Error(
             'LiveKit client is required for this streaming manager. Please install it using: npm install livekit-client'
         );
-    }
+    });
+
+    return livekitModule;
+}
+
+/**
+ * Starts the `livekit-client` download without waiting for it, so an Expressive (V4)
+ * `connect()` finds the module loaded instead of downloading it before it can ask for a session.
+ * A failure here is ignored: `connect()` imports again and reports it.
+ *
+ * @internal Implementation detail; not part of the public SDK surface.
+ */
+export function preloadLiveKit(): void {
+    void importLiveKit().catch(() => {});
 }
 
 const connectivityQualityToState = {
@@ -88,16 +113,96 @@ const connectivityQualityToState = {
 
 const streamError = (message = 'Stream Error') => new StreamError(message);
 
+const dataChannelDecoder = new TextDecoder();
+
 type VideoMessageData = Pick<Message, 'role' | 'sentiment'>;
 
-export function handleInitError(
+/**
+ * The server sends tool-call events with snake_case fields; the public payloads are camelCase.
+ * This is the single place the two shapes meet.
+ */
+function toStartedPayload(wire: ToolCallStartedWirePayload): ToolCallStartedPayload {
+    return {
+        callId: wire.call_id,
+        name: wire.name,
+        input: wire.input,
+        ...(wire.output !== undefined ? { output: wire.output } : {}),
+        // The server omits `interruptible` on some started events, and `executionMode` is
+        // normalized exactly as `RunningToolCall.executionMode` is, so the two agree about the call.
+        interruptible: wire.interruptible === true,
+        executionMode: wire.execution_mode === 'async' ? 'async' : 'blocking',
+        ...(wire.turn_id !== undefined ? { turnId: wire.turn_id } : {}),
+        timestamp: wire.timestamp,
+    };
+}
+
+function toFinishedPayload(wire: ToolCallDoneWirePayload): ToolCallDonePayload {
+    return {
+        callId: wire.call_id,
+        name: wire.name,
+        input: wire.input,
+        output: wire.output,
+        durationMs: wire.duration_ms,
+        extra: wire.extra,
+        timestamp: wire.timestamp,
+    };
+}
+
+// The server describes the failure under `extra.error` (`{ kind, code, message, data }`), and
+// answers some failures with the reason as a plain-string `output` instead.
+function toErrorText(wire: ToolCallErrorWirePayload): string | undefined {
+    const error = (wire.extra as { error?: ToolCallWireError } | undefined)?.error;
+
+    if (typeof error?.message === 'string' && error.message) {
+        return error.message;
+    }
+
+    return typeof wire.output === 'string' && wire.output ? wire.output : undefined;
+}
+
+function toErrorPayload(wire: ToolCallErrorWirePayload): ToolCallErrorPayload {
+    const error = toErrorText(wire);
+
+    return {
+        ...toFinishedPayload(wire as ToolCallDoneWirePayload),
+        output: wire.output,
+        ...(error !== undefined ? { error } : {}),
+    };
+}
+
+/**
+ * LiveKit forwards only a thrown `RpcError` to the agent — anything else becomes a fixed
+ * `APPLICATION_ERROR` message — so wrap the handler's reason. Takes the class from the lazily
+ * imported module, so a Talks/Clips bundle never pulls in `livekit-client`. `RpcError` truncates
+ * the message at 256 bytes.
+ */
+function wrapRpcHandler(RpcErrorClass: typeof RpcError, handler: (data: any) => Promise<string>) {
+    return async (data: any): Promise<string> => {
+        try {
+            return await handler(data);
+        } catch (error) {
+            // A handler that threw an RpcError chose its own code and data — pass it through.
+            if (error instanceof RpcErrorClass) {
+                throw error;
+            }
+
+            throw new RpcErrorClass(
+                RpcErrorClass.ErrorCode.APPLICATION_ERROR,
+                (error as Error)?.message || 'Client tool failed'
+            );
+        }
+    };
+}
+
+function handleInitError(
     error: unknown,
     log: (message?: any, ...optionalParams: any[]) => void,
     callbacks: StreamingManagerOptions['callbacks']
 ): void {
     log('Failed to connect to LiveKit room:', error);
     callbacks.onConnectionStateChange?.(ConnectionState.Fail, 'internal:init-error');
-    callbacks.onError?.(error as Error, { sessionId: '' });
+    // No session yet, so no id to report.
+    callbacks.onError?.(error as Error, {});
     throw error;
 }
 
@@ -108,7 +213,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 ): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
-    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, Track } = await importLiveKit();
+    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, RpcError, Track } = await importLiveKit();
 
     const { callbacks, auth, baseURL, analytics } = options;
     let room: Room | null = null;
@@ -129,7 +234,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     });
 
     for (const [method, handler] of options.rpcMethods ?? []) {
-        room.registerRpcMethod(method, handler);
+        room.registerRpcMethod(method, wrapRpcHandler(RpcError, handler));
     }
 
     let trackSubscriptionTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -149,12 +254,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     try {
         const streamResponse = await streamApi.createStream({
             transport: sessionOptions.transport,
-            chat_persist: sessionOptions.chat_persist ?? true,
+            chat_persist: sessionOptions.chat_persist ?? false,
             verbose: options.verbose ?? false,
         });
 
         const { id, session_token, session_url, interrupt_enabled } = streamResponse;
-        callbacks.onStreamCreated?.({ session_id: id, stream_id: id, agent_id: agentId });
+        callbacks.onStreamCreated?.({ sessionId: id, streamId: id, agentId });
         sessionId = id;
         token = session_token;
         url = session_url;
@@ -168,6 +273,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     if (!url || !token || !sessionId) {
         return Promise.reject(new Error('Failed to initialize LiveKit stream'));
     }
+
+    const reportError = (error: Error) => callbacks.onError?.(error, { sessionId });
 
     room.on(RoomEvent.ConnectionStateChanged, handleConnectionStateChanged)
         .on(RoomEvent.ConnectionQualityChanged, handleConnectionQualityChanged)
@@ -214,7 +321,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 error: toErrorAnalytics(error),
                 sessionId,
             });
-            callbacks.onError?.(error, { sessionId });
+            reportError(error);
             disconnect('internal:track-subscription-timeout');
         }, TRACK_SUBSCRIPTION_TIMEOUT_MS);
     } catch (error) {
@@ -394,35 +501,35 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
      */
     function handleToolEvents(subject: string, data: any): void {
         if (subject === StreamEvents.ToolCallStarted) {
-            const payload = data as ToolCallStartedPayload;
-            pendingToolCalls.set(payload.call_id, {
+            const payload = toStartedPayload(data as ToolCallStartedWirePayload);
+            pendingToolCalls.set(payload.callId, {
                 call: {
-                    callId: payload.call_id,
+                    callId: payload.callId,
                     name: payload.name,
-                    executionMode: payload.execution_mode === 'async' ? 'async' : 'blocking',
+                    executionMode: payload.executionMode,
                 },
-                interruptible: payload.interruptible === true,
-                turnId: payload.turn_id ?? currentTurnId,
+                interruptible: payload.interruptible,
+                turnId: payload.turnId ?? currentTurnId,
             });
             recomputeInterruptible();
             emitRunningToolCalls();
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallStarted, payload);
+            callbacks.onToolEvent?.(ToolCallEvent.Started, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallDone) {
-            const payload = data as ToolCallDonePayload;
-            resolvePendingToolCall(payload.call_id);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallDone, payload);
+            const payload = toFinishedPayload(data as ToolCallDoneWirePayload);
+            resolvePendingToolCall(payload.callId);
+            callbacks.onToolEvent?.(ToolCallEvent.Done, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallError) {
-            const payload = data as ToolCallErrorPayload;
-            resolvePendingToolCall(payload.call_id);
-            callbacks.onToolEvent?.(StreamEvents.ToolCallError, payload);
+            const payload = toErrorPayload(data as ToolCallErrorWirePayload);
+            resolvePendingToolCall(payload.callId);
+            callbacks.onToolEvent?.(ToolCallEvent.Error, payload);
         }
     }
 
@@ -545,7 +652,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         _kind?: any,
         topic?: string
     ): void {
-        const message = new TextDecoder().decode(payload);
+        const message = dataChannelDecoder.decode(payload);
 
         let data: any;
         try {
@@ -574,12 +681,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
     function handleMediaDevicesError(error: Error): void {
         log('Media devices error:', error);
-        callbacks.onError?.(streamError(), { sessionId });
+        reportError(streamError());
     }
 
     function handleEncryptionError(error: Error): void {
         log('Encryption error:', error);
-        callbacks.onError?.(streamError(), { sessionId });
+        reportError(streamError());
     }
 
     function handleTrackSubscriptionFailed(
@@ -744,12 +851,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         }
     }
 
-    async function sendDataChannelMessage(topic: DataChannelTopic, payload: string) {
+    async function sendDataChannelMessage(topic: `${InternalDataChannelTopic}`, payload: string) {
         if (!isConnected || !room) {
             log('Room is not connected for sending messages');
-            callbacks.onError?.(streamError(), {
-                sessionId,
-            });
+            reportError(streamError());
             return;
         }
 
@@ -758,7 +863,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             log('Message sent successfully:', payload);
         } catch (error) {
             log('Failed to send message:', error);
-            callbacks.onError?.(streamError(), { sessionId });
+            reportError(streamError());
         }
     }
 
@@ -792,7 +897,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     return {
         speak(payload: PayloadType<T>) {
             const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-            return sendDataChannelMessage(DataChannelTopic.Speak, message);
+            return sendDataChannelMessage(InternalDataChannelTopic.Speak, message);
         },
 
         disconnect: () => disconnect('user:disconnect'),
@@ -859,16 +964,22 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         publishCameraStream,
         unpublishCameraStream,
 
-        interrupt(type: Interrupt['type']) {
+        interrupt(type: InterruptOptions['type']) {
             // Skip text interrupts for V2/expressive: the orchestrator does not
             // cancel the in-flight LLM token stream, and an extra interrupt while
             // a previous one is still settling causes races.
-            if (type === 'text') return;
-            sendDataChannelMessage(DataChannelTopic.Interrupt, '');
+            if (type === 'text') return false;
+
+            // Nothing would reach the agent: sendDataChannelMessage drops the payload in this state.
+            if (!isConnected || !room) return false;
+
+            sendDataChannelMessage(InternalDataChannelTopic.Interrupt, '');
+
+            return true;
         },
 
         registerRpcMethod(method: string, handler: (data: any) => Promise<string>) {
-            room?.registerRpcMethod(method, handler);
+            room?.registerRpcMethod(method, wrapRpcHandler(RpcError, handler));
         },
         unregisterRpcMethod(method: string) {
             room?.unregisterRpcMethod(method);
@@ -878,7 +989,10 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         streamId: sessionId,
         streamType,
         interruptAvailable: interruptEnabled,
-        isInterruptible: currentInterruptible,
+        // A getter, not a snapshot: currentInterruptible changes as blocking tool calls come and go.
+        get isInterruptible() {
+            return currentInterruptible;
+        },
     };
 }
 

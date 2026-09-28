@@ -4,20 +4,16 @@ import {
     Chat,
     ChatPayload,
     ChatResponse,
-    RatingEntity,
+    ErrorReporter,
+    Rating,
     RatingPayload,
-    STTTokenResponse,
+    SttTokenResponse,
     SubmitFeedbackResponse,
 } from '@sdk/types/index';
 import { didApiUrl } from '../config/environment';
 import { RequestOptions, createClient } from './apiClient';
 
-export function createAgentsApi(
-    auth: Auth,
-    host: string = didApiUrl,
-    onError?: (error: Error, errorData: object) => void,
-    externalId?: string
-) {
+export function createAgentsApi(auth: Auth, host: string = didApiUrl, onError?: ErrorReporter, externalId?: string) {
     const client = createClient(auth, `${host}/agents`, onError, externalId);
 
     return {
@@ -31,7 +27,7 @@ export function createAgentsApi(
             return client.post<ChatResponse>(`/${agentId}/chat/${chatId}`, payload, options);
         },
         createRating(agentId: string, chatId: string, payload: RatingPayload, options?: RequestOptions) {
-            return client.post<RatingEntity>(`/${agentId}/chat/${chatId}/ratings`, payload, options);
+            return client.post<Rating>(`/${agentId}/chat/${chatId}/ratings`, payload, options);
         },
         updateRating(
             agentId: string,
@@ -40,10 +36,10 @@ export function createAgentsApi(
             payload: Partial<RatingPayload>,
             options?: RequestOptions
         ) {
-            return client.patch<RatingEntity>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, payload, options);
+            return client.patch<Rating>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, payload, options);
         },
         deleteRating(agentId: string, chatId: string, ratingId: string, options?: RequestOptions) {
-            return client.delete<RatingEntity>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, options);
+            return client.delete<Rating>(`/${agentId}/chat/${chatId}/ratings/${ratingId}`, options);
         },
         submitFeedback(
             agentId: string,
@@ -53,8 +49,8 @@ export function createAgentsApi(
         ) {
             return client.post<SubmitFeedbackResponse>(`/${agentId}/chat/${chatId}/feedback`, payload, options);
         },
-        getSTTToken(agentId: string, options?: RequestOptions) {
-            return client.get<STTTokenResponse>(`/${agentId}/stt-token`, options);
+        getSttToken(agentId: string, options?: RequestOptions) {
+            return client.get<SttTokenResponse>(`/${agentId}/stt-token`, options);
         },
     };
 }

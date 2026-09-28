@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex" />
+        <title>Page not found | D-ID Client SDK</title>
+        <link rel="icon" href="/assets/favicon.png" />
+        <style>
+            :root {
+                color-scheme: light dark;
+                --accent: #ff882e;
+                --link: #b85a0d;
+                --text: #161616;
+                --muted: #5c5c5c;
+                --background: #ffffff;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --link: #ffa15c;
+                    --text: #f2f2f2;
+                    --muted: #a8a8a8;
+                    --background: #090604;
+                }
+            }
+            body {
+                margin: 0;
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+                color: var(--text);
+                background: var(--background);
+                padding: 24px;
+                box-sizing: border-box;
+            }
+            main {
+                max-width: 32rem;
+                text-align: center;
+            }
+            img {
+                width: 56px;
+                height: 56px;
+            }
+            h1 {
+                font-size: 1.6rem;
+                margin: 1rem 0 0.5rem;
+            }
+            p {
+                color: var(--muted);
+                line-height: 1.5;
+                margin: 0 0 1.5rem;
+            }
+            a.button {
+                display: inline-block;
+                padding: 0.6rem 1.2rem;
+                border-radius: 6px;
+                background: var(--accent);
+                color: #161616;
+                font-weight: 600;
+                text-decoration: none;
+            }
+            a {
+                color: var(--link);
+            }
+            nav {
+                margin-top: 1.5rem;
+                font-size: 0.95rem;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <img src="/assets/favicon.png" alt="" />
+            <h1>Page not found</h1>
+            <p>
+                This page does not exist in the D-ID Client SDK reference. The symbol may have been renamed or removed
+                in a newer release; the migration guide lists every change.
+            </p>
+            <a class="button" href="/">Go to the reference</a>
+            <nav>
+                <a href="/documents/Migration_guide.html">Migration guide</a> ·
+                <a href="https://docs.d-id.com">D-ID Docs</a> ·
+                <a href="https://www.npmjs.com/package/@d-id/client-sdk">npm</a>
+            </nav>
+        </main>
+    </body>
+</html>

@@ -9,7 +9,7 @@ describe('toStreamEndReason', () => {
         expect(toStreamEndReason({ close_reason: 'shutdown' })).toBe(StreamEndReason.UnknownError);
     });
 
-    it('should forward a reason it does not recognise rather than calling it an error', () => {
+    it('should forward a reason it does not recognize rather than calling it an error', () => {
         expect(toStreamEndReason({ close_reason: 'something-new' })).toBe('something-new');
     });
 
