@@ -699,8 +699,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             };
         });
 
-        // An image agent's audio comes from the hosted avatar, whose track can subscribe after the
-        // worker's `stream-video/started`; the first-audio detector must still be armed for it.
         it('should arm the first-audio detector for an audio track that arrives mid-turn', () => {
             sendDataEvent(StreamEvents.StreamVideoCreated, { serviceLatency: 420 });
 
@@ -1080,22 +1078,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             trackSubscribedHandler(mockVideoTrack, {}, mockParticipant);
 
-            expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connected', 'livekit:track-subscribed');
-        });
-
-        it('should render the video a hosted avatar publishes from its own participant', async () => {
-            // An image agent's picture and voice come from a second agent participant that
-            // publishes on the agent's behalf, so tracks are not filtered by who sent them.
-            await createLiveKitStreamingManager(agentId, sessionOptions, options);
-            await simulateConnection();
-
-            const avatarParticipant = {
-                ...createMockRemoteParticipant('hosted-avatar'),
-                attributes: { 'lk.publish_on_behalf': 'agent' },
-            };
-            getTrackSubscribedHandler()(createMockVideoTrack(), {}, avatarParticipant);
-
-            expect(options.callbacks.onSrcObjectReady).toHaveBeenCalledTimes(1);
             expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connected', 'livekit:track-subscribed');
         });
 

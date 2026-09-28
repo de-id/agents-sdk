@@ -19,13 +19,8 @@ export enum AvatarType {
      */
     Expressive = 'expressive',
     /**
-     * An image agent: a still photo animated in real time by a hosted avatar. It streams over the
-     * same real-time session as an Expressive (V4) agent, so every SDK method and callback this
-     * reference marks Expressive (V4) only works on an image agent too. Sentiments, which only
-     * Expressive avatars have, do not apply.
-     *
-     * Hidden from the reference until image agents are generally available; the reference is
-     * updated then.
+     * An image agent: a still photo animated in real time. Streams over the same real-time session
+     * as Expressive (V4).
      *
      * @hidden
      */

@@ -688,8 +688,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             };
 
             const sendChatRequest = async (messages: Message[], chatId: string) => {
-                // A textual chat (Playground included) has no real-time session to carry the
-                // message, so it takes the REST path on every agent.
+                // Textual modes have no real-time session, so they always use the REST path
                 const useV2Path = isStreamsV2 && !isTextualChat(items.chatMode);
 
                 const chatRequestFn = useV2Path

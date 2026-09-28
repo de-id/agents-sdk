@@ -213,7 +213,6 @@ function connectToManager(
             });
 
             let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
-            // Only the real-time session reports its first audio; there the start waits for it.
             const waitsForFirstAudio = streamOptions.version === StreamApiVersion.V2;
 
             streamingManager = await createStreamingManager(

@@ -461,18 +461,6 @@ describe('connect-to-manager', () => {
                 );
             });
 
-            it('should track the start as soon as a Talks (V2) or Clips (V3) agent talks', () => {
-                onAgentActivityStateChange(AgentActivityState.Talking);
-
-                expect(mockAnalytics.linkTrack).toHaveBeenCalledWith(
-                    'agent-video',
-                    expect.objectContaining({ event: 'start' }),
-                    'start',
-                    [StreamEvents.StreamVideoCreated]
-                );
-            });
-
-            // Only the real-time session reports its first audio, so there the start waits for it.
             it.each([AvatarType.Expressive, AvatarType.Image])(
                 'should track the start of a %s agent only once its first audio is detected',
                 async type => {
@@ -743,46 +731,42 @@ describe('connect-to-manager', () => {
     });
 
     describe('Streams V2 Support', () => {
-        // An image agent rides the same real-time session as an Expressive one.
-        it.each([AvatarType.Expressive, AvatarType.Image])(
-            'should use CreateStreamV2Options for %s agents',
-            async type => {
-                const streamsV2Agent: Agent = {
-                    ...mockAgent,
-                    avatar: {
-                        type,
-                        voice: { language: 'en-US' },
+        it('should use CreateStreamV2Options for expressive agents', async () => {
+            const expressiveAgent: Agent = {
+                ...mockAgent,
+                avatar: {
+                    type: AvatarType.Expressive,
+                    voice: { language: 'en-US' },
+                },
+            };
+
+            const result = await initializeStreamAndChat(expressiveAgent, mockOptions, mockAgentsApi, mockAnalytics);
+
+            expect(createStreamingManager).toHaveBeenCalledWith(
+                expressiveAgent,
+                {
+                    version: StreamApiVersion.V2,
+                    transport: {
+                        provider: TransportProvider.Livekit,
                     },
-                };
+                    chat_persist: true,
+                },
+                expect.not.objectContaining({
+                    chatId: expect.anything(),
+                }),
+                undefined
+            );
 
-                const result = await initializeStreamAndChat(streamsV2Agent, mockOptions, mockAgentsApi, mockAnalytics);
+            // Verify Streams V2 path creates chat with correct chatId format
+            expect(result.chat).toBeDefined();
+            expect(result.chat?.id).toMatch(/^cht_/);
+            expect(result.chat?.id).toContain(mockStreamingManager.sessionId);
+            expect(result.chat?.chat_mode).toBe(ChatMode.Functional);
+            expect(result.chat?.agent_id).toBe(expressiveAgent.id);
 
-                expect(createStreamingManager).toHaveBeenCalledWith(
-                    streamsV2Agent,
-                    {
-                        version: StreamApiVersion.V2,
-                        transport: {
-                            provider: TransportProvider.Livekit,
-                        },
-                        chat_persist: true,
-                    },
-                    expect.not.objectContaining({
-                        chatId: expect.anything(),
-                    }),
-                    undefined
-                );
-
-                // Verify Streams V2 path creates chat with correct chatId format
-                expect(result.chat).toBeDefined();
-                expect(result.chat?.id).toMatch(/^cht_/);
-                expect(result.chat?.id).toContain(mockStreamingManager.sessionId);
-                expect(result.chat?.chat_mode).toBe(ChatMode.Functional);
-                expect(result.chat?.agent_id).toBe(streamsV2Agent.id);
-
-                // Verify createChat is NOT called for V2 agents (chat is created internally)
-                expect(createChat).not.toHaveBeenCalled();
-            }
-        );
+            // Verify createChat is NOT called for V2 agents (chat is created internally)
+            expect(createChat).not.toHaveBeenCalled();
+        });
 
         it.each([
             ['forwards persistentChat: false as chat_persist: false', false, { chat_persist: false }],

@@ -224,8 +224,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const cameraState: TrackPublishState = { isPublishing: false, publication: null };
     let videoStatsMonitor: ReturnType<typeof createVideoStatsMonitor> | null = null;
     let audioStatsDetector: ReturnType<typeof createAudioStatsDetector> | null = null;
-    // A turn that started before any audio track was subscribed: an image agent's audio comes from
-    // the hosted avatar, whose track can arrive after the turn's `stream-video/started`.
+    // Arm context of a turn that started before the audio track subscribed (image agents)
     let pendingAudioArm: AudioArmContext | null = null;
     let videoStreamingState: StreamingState | null = null;
     // We defer Connected until video track is subscribed to align with WebRTC behavior
@@ -591,7 +590,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             return;
         }
 
-        // The answer is over: an audio track that arrives now carries a later one.
         pendingAudioArm = null;
 
         if (pendingToolCalls.size > 0) {

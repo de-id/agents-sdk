@@ -243,8 +243,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
 
     const microphoneEnabled = useMemo(() => {
         return (
-            // Expressive and image agents both stream over the real-time session.
-            (agentManager?.agent?.avatar?.type === 'expressive' || agentManager?.agent?.avatar?.type === 'image') &&
+            agentManager?.agent?.avatar?.type === 'expressive' &&
             typeof agentManager?.publishMicrophoneStream === 'function'
         );
     }, [agentManager]);

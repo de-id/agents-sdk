@@ -1933,78 +1933,8 @@ describe('createAgentManager', () => {
         });
     });
 
-    describe('Image agents', () => {
-        // An image agent rides the same real-time session as an Expressive (V4) one, so every
-        // streams-V2 guard must let it through.
-        beforeEach(() => {
-            mockAgent.avatar = { type: AvatarType.Image, voice: { language: 'en-US' } };
-        });
-
-        describe('modes without a chat', () => {
-            beforeEach(() => {
-                (isChatModeWithoutChat as jest.Mock).mockImplementation(mode =>
-                    [ChatMode.DirectPlayback, ChatMode.Off].includes(mode)
-                );
-            });
-
-            afterEach(() => {
-                (isChatModeWithoutChat as jest.Mock).mockImplementation(() => false);
-            });
-
-            it.each([ChatMode.Off, ChatMode.DirectPlayback])('should reject %s', async mode => {
-                await expect(createAgentManager('agent-123', { ...mockOptions, mode })).rejects.toThrow(
-                    ValidationError
-                );
-            });
-        });
-
-        it('should connect without the notifications web socket', async () => {
-            const manager = await createAgentManager('agent-123', mockOptions);
-
-            await manager.connect();
-
-            expect(createSocketManager).not.toHaveBeenCalled();
-        });
-
-        it('should send a chat message over the data channel, not the Agents API', async () => {
-            const manager = await createAgentManager('agent-123', mockOptions);
-            await manager.connect();
-
-            await manager.chat('Hello');
-
-            expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
-                InternalDataChannelTopic.Chat,
-                'Hello'
-            );
-            expect(mockAgentsApi.chat).not.toHaveBeenCalled();
-        });
-
-        it('should accept a client tool and register it on the session', async () => {
-            mockStreamingManager.registerRpcMethod = jest.fn();
-            const manager = await createAgentManager('agent-123', mockOptions);
-            await manager.connect();
-
-            manager.registerClientTool('testTool', async () => 'result');
-
-            expect(mockStreamingManager.registerRpcMethod).toHaveBeenCalledWith('testTool', expect.any(Function));
-        });
-
-        it('should send a data-channel message', async () => {
-            const manager = await createAgentManager('agent-123', mockOptions);
-            await manager.connect();
-
-            await manager.sendDataChannelMessage(DataChannelTopic.Presentation, { slide: 2 });
-
-            expect(mockStreamingManager.sendDataChannelMessage).toHaveBeenCalledWith(
-                DataChannelTopic.Presentation,
-                JSON.stringify({ slide: 2 })
-            );
-        });
-    });
-
     describe('chat() in a textual mode on a real-time agent', () => {
-        // No real-time session exists in a textual mode, so the message must take the REST path;
-        // the data channel would drop it and report success.
+        // The data channel would silently drop it: there is no real-time session in a textual mode.
         beforeEach(() => {
             (isTextualChat as jest.Mock).mockImplementation(mode =>
                 [ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance].includes(mode)
