@@ -270,11 +270,17 @@ export interface MessageSentiment {
 }
 
 /**
+ * A {@link Message} as the Agents API takes it in a chat request, which names the timestamp `created_at`.
+ * @internal Wire type; not part of the public SDK surface.
+ */
+export type ChatPayloadMessage = Omit<Message, 'createdAt' | 'matches'> & { created_at: string };
+
+/**
  * Request payload for sending a chat message to the Agents API.
  * @internal Implementation type; not part of the public SDK surface.
  */
 export interface ChatPayload {
-    messages: Message[];
+    messages: ChatPayloadMessage[];
     streamId?: string;
     sessionId?: string;
     chatMode?: ChatMode;

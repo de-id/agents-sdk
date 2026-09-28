@@ -708,7 +708,11 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                                   chatMode: items.chatMode,
                                   streamId: items.streamingManager?.streamId,
                                   sessionId: items.streamingManager?.sessionId,
-                                  messages: messages.map(({ matches, ...message }) => message),
+                                  messages: messages.map(({ matches, createdAt, ...message }) => ({
+                                      ...message,
+                                      // A restored `initialMessages` row may carry no timestamp; the API requires one.
+                                      created_at: createdAt ?? new Date().toISOString(),
+                                  })),
                               },
                               {
                                   ...getRequestHeaders(items.chatMode),
