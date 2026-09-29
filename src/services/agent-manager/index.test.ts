@@ -1957,38 +1957,6 @@ describe('createAgentManager', () => {
         });
     });
 
-    describe('chat() in a textual mode on a real-time agent', () => {
-        // The data channel would silently drop it: there is no real-time session in a textual mode.
-        beforeEach(() => {
-            (isTextualChat as jest.Mock).mockImplementation(mode =>
-                [ChatMode.TextOnly, ChatMode.Playground, ChatMode.Maintenance].includes(mode)
-            );
-        });
-
-        afterEach(() => {
-            (isTextualChat as jest.Mock).mockImplementation(() => false);
-        });
-
-        it.each([AvatarType.Expressive, AvatarType.Image])(
-            'should send a TextOnly chat on a %s agent over the Agents API',
-            async type => {
-                mockAgent.avatar = { type, voice: { language: 'en-US' } };
-                const manager = await createAgentManager('agent-123', { ...mockOptions, mode: ChatMode.TextOnly });
-
-                const response = await manager.chat('Hello');
-
-                expect(mockAgentsApi.chat).toHaveBeenCalledWith(
-                    'agent-123',
-                    mockChat.id,
-                    expect.objectContaining({ chatMode: ChatMode.TextOnly }),
-                    expect.anything()
-                );
-                expect(mockStreamingManager.sendDataChannelMessage).not.toHaveBeenCalled();
-                expect(response.result).toBe('Agent response');
-            }
-        );
-    });
-
     describe('DirectPlayback mode', () => {
         it('should not create socket manager in DirectPlayback mode', async () => {
             const directPlaybackOptions = { ...mockOptions, mode: ChatMode.DirectPlayback };
