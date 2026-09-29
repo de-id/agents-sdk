@@ -18,4 +18,11 @@ export enum AvatarType {
      * publishing, client tools and interruption.
      */
     Expressive = 'expressive',
+    /**
+     * An image agent: a still photo animated in real time. Streams over the same real-time session
+     * as Expressive (V4).
+     *
+     * @hidden
+     */
+    Image = 'image',
 }
