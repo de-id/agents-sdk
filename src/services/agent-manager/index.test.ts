@@ -958,6 +958,30 @@ describe('createAgentManager', () => {
                 await manager.connect();
             });
 
+            it('should send the messages with the Agents API field names', async () => {
+                await manager.chat('Hello, how are you?');
+
+                const [message] = (mockAgentsApi.chat as jest.Mock).mock.calls[0][2].messages;
+                expect(message).toEqual({
+                    id: expect.any(String),
+                    role: 'user',
+                    content: 'Hello, how are you?',
+                    parts: expect.any(Array),
+                    created_at: expect.any(String),
+                });
+            });
+
+            it('should send a timestamp for a restored message that has none', async () => {
+                (getInitialMessages as jest.Mock).mockReturnValue([{ id: '1', role: 'user', content: 'Earlier' }]);
+                const restored = await createAgentManager('agent-123', mockOptions);
+                await restored.connect();
+
+                await restored.chat('Hello');
+
+                const [earlier] = (mockAgentsApi.chat as jest.Mock).mock.calls[0][2].messages;
+                expect(earlier.created_at).toEqual(expect.any(String));
+            });
+
             it('should send chat message successfully', async () => {
                 const response = await manager.chat('Hello, how are you?');
 
