@@ -1,7 +1,6 @@
 import { StreamError } from '@sdk/errors';
 import {
     AgentActivityState,
-    AvatarType,
     ConnectionState,
     ConnectivityState,
     CreateSessionV2Options,
@@ -50,12 +49,10 @@ import type {
     Track,
     TranscriptionSegment,
 } from 'livekit-client';
-import { AudioArmContext, createAudioStatsDetector, createVideoStatsMonitor } from './stats/poll';
+import { createAudioStatsDetector, createVideoStatsMonitor } from './stats/poll';
 import { VideoRTCStatsReport } from './stats/report';
 
 const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
-// An image agent's video comes from a hosted avatar, which the worker waits up to 30 s for
-const HOSTED_AVATAR_TRACK_SUBSCRIPTION_TIMEOUT_MS = 40000;
 
 const NO_RUNNING_TOOL_CALLS: readonly RunningToolCall[] = [];
 
@@ -212,12 +209,9 @@ function handleInitError(
 export async function createLiveKitStreamingManager<T extends CreateSessionV2Options>(
     agentId: string,
     sessionOptions: CreateSessionV2Options,
-    options: StreamingManagerOptions,
-    avatarType?: `${AvatarType}`
+    options: StreamingManagerOptions
 ): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
-    const trackSubscriptionTimeoutMs =
-        avatarType === AvatarType.Image ? HOSTED_AVATAR_TRACK_SUBSCRIPTION_TIMEOUT_MS : TRACK_SUBSCRIPTION_TIMEOUT_MS;
 
     const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, RpcError, Track } = await importLiveKit();
 
@@ -230,8 +224,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const cameraState: TrackPublishState = { isPublishing: false, publication: null };
     let videoStatsMonitor: ReturnType<typeof createVideoStatsMonitor> | null = null;
     let audioStatsDetector: ReturnType<typeof createAudioStatsDetector> | null = null;
-    // Arm context of a turn that started before the audio track subscribed (image agents)
-    let pendingAudioArm: AudioArmContext | null = null;
     let videoStreamingState: StreamingState | null = null;
     // We defer Connected until video track is subscribed to align with WebRTC behavior
     let hasEmittedConnected = false;
@@ -321,7 +313,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         trackSubscriptionTimeoutId = setTimeout(() => {
             log(
-                `Track subscription timeout - no track subscribed within ${trackSubscriptionTimeoutMs / 1000} seconds after connect`
+                `Track subscription timeout - no track subscribed within ${TRACK_SUBSCRIPTION_TIMEOUT_MS / 1000} seconds after connect`
             );
             trackSubscriptionTimeoutId = null;
             const error = streamError('Track subscription timeout');
@@ -331,7 +323,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             });
             reportError(error);
             disconnect('internal:track-subscription-timeout');
-        }, trackSubscriptionTimeoutMs);
+        }, TRACK_SUBSCRIPTION_TIMEOUT_MS);
     } catch (error) {
         handleInitError(error, log, callbacks);
     }
@@ -445,11 +437,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     callbacks.onFirstAudioDetected?.({ latency, networkLatency });
                 }
             );
-
-            if (pendingAudioArm) {
-                audioStatsDetector.arm(pendingAudioArm);
-                pendingAudioArm = null;
-            }
         }
 
         if (track.kind === 'video') {
@@ -584,19 +571,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         if (subject === StreamEvents.StreamVideoCreated) {
             currentActivityState = AgentActivityState.Talking;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.Talking);
-            const armContext: AudioArmContext = {
+            audioStatsDetector?.arm({
                 sttLatency: data?.stt?.latency,
                 serviceLatency: data?.serviceLatency,
-            };
-            if (audioStatsDetector) {
-                audioStatsDetector.arm(armContext);
-            } else {
-                pendingAudioArm = armContext;
-            }
+            });
             return;
         }
-
-        pendingAudioArm = null;
 
         if (pendingToolCalls.size > 0) {
             if (currentActivityState !== AgentActivityState.ToolActive) {
@@ -895,7 +875,6 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         audioStatsDetector?.destroy();
         audioStatsDetector = null;
-        pendingAudioArm = null;
 
         if (room) {
             callbacks.onConnectionStateChange?.(ConnectionState.Disconnecting, reason);

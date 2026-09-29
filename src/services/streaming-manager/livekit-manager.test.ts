@@ -2,7 +2,6 @@ import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
-    AvatarType,
     CreateSessionV2Options,
     StreamEndReason,
     StreamEvents,
@@ -12,7 +11,6 @@ import {
     TransportProvider,
 } from '../../types/index';
 import { createLiveKitStreamingManager } from './livekit-manager';
-import { createAudioStatsDetector } from './stats/poll';
 import { createVideoStatsReport } from './stats/report';
 
 // Mock livekit-client
@@ -700,28 +698,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             };
         });
 
-        it('should arm the first-audio detector for an audio track that arrives mid-turn', () => {
-            sendDataEvent(StreamEvents.StreamVideoCreated, { serviceLatency: 420 });
-
-            getTrackSubscribedHandler()(createMockTrack(), {}, createMockRemoteParticipant('hosted-avatar'));
-
-            const detectors = (createAudioStatsDetector as jest.Mock).mock.results;
-            expect(detectors[detectors.length - 1].value.arm).toHaveBeenCalledWith({
-                sttLatency: undefined,
-                serviceLatency: 420,
-            });
-        });
-
-        it('should not arm an audio track that arrives after the answer is over', () => {
-            sendDataEvent(StreamEvents.StreamVideoCreated);
-            sendDataEvent(StreamEvents.StreamVideoDone);
-
-            getTrackSubscribedHandler()(createMockTrack(), {}, createMockRemoteParticipant('hosted-avatar'));
-
-            const detectors = (createAudioStatsDetector as jest.Mock).mock.results;
-            expect(detectors[detectors.length - 1].value.arm).not.toHaveBeenCalled();
-        });
-
         it('should set Talking on stream-video/created event', () => {
             sendDataEvent(StreamEvents.StreamVideoCreated);
 
@@ -1080,22 +1056,6 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             trackSubscribedHandler(mockVideoTrack, {}, mockParticipant);
 
             expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connected', 'livekit:track-subscribed');
-        });
-
-        // The worker waits up to 30 s for an image agent's hosted avatar; a shorter wait here would fail a
-        // session that was about to work.
-        it.each([
-            [AvatarType.Expressive, 20000],
-            [AvatarType.Image, 40000],
-        ])('should wait %s agents %d ms for the first video', async (avatarType, timeoutMs) => {
-            const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
-            try {
-                await createLiveKitStreamingManager(agentId, sessionOptions, options, avatarType);
-
-                expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), timeoutMs);
-            } finally {
-                setTimeoutSpy.mockRestore();
-            }
         });
 
         it('should call onConnectionStateChange with "livekit:participant-disconnected" when participant disconnects', async () => {
