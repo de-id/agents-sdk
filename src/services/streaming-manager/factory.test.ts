@@ -99,7 +99,12 @@ describe('createStreamingManager', () => {
             mockOptions
         );
 
-        expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(agent.id, v2StreamOptions, mockOptions);
+        expect(mockCreateLiveKitStreamingManager).toHaveBeenCalledWith(
+            agent.id,
+            v2StreamOptions,
+            mockOptions,
+            AvatarType.Expressive
+        );
         expect(mockCreateWebRTCStreamingManager).not.toHaveBeenCalled();
     });
 });

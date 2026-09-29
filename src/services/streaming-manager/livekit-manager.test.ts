@@ -2,6 +2,7 @@ import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { StreamingManagerOptionsFactory } from '../../test-utils/factories';
 import {
     AgentActivityState,
+    AvatarType,
     CreateSessionV2Options,
     StreamEndReason,
     StreamEvents,
@@ -1079,6 +1080,22 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
             trackSubscribedHandler(mockVideoTrack, {}, mockParticipant);
 
             expect(mockOnConnectionStateChange).toHaveBeenCalledWith('connected', 'livekit:track-subscribed');
+        });
+
+        // The worker waits up to 30 s for an image agent's hosted avatar; a shorter wait here would fail a
+        // session that was about to work.
+        it.each([
+            [AvatarType.Expressive, 20000],
+            [AvatarType.Image, 40000],
+        ])('should wait %s agents %d ms for the first video', async (avatarType, timeoutMs) => {
+            const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+            try {
+                await createLiveKitStreamingManager(agentId, sessionOptions, options, avatarType);
+
+                expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), timeoutMs);
+            } finally {
+                setTimeoutSpy.mockRestore();
+            }
         });
 
         it('should call onConnectionStateChange with "livekit:participant-disconnected" when participant disconnects', async () => {

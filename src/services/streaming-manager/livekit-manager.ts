@@ -1,6 +1,7 @@
 import { StreamError } from '@sdk/errors';
 import {
     AgentActivityState,
+    AvatarType,
     ConnectionState,
     ConnectivityState,
     CreateSessionV2Options,
@@ -53,6 +54,8 @@ import { AudioArmContext, createAudioStatsDetector, createVideoStatsMonitor } fr
 import { VideoRTCStatsReport } from './stats/report';
 
 const TRACK_SUBSCRIPTION_TIMEOUT_MS = 20000;
+// An image agent's video comes from a hosted avatar, which the worker waits up to 30 s for
+const HOSTED_AVATAR_TRACK_SUBSCRIPTION_TIMEOUT_MS = 40000;
 
 const NO_RUNNING_TOOL_CALLS: readonly RunningToolCall[] = [];
 
@@ -209,9 +212,12 @@ function handleInitError(
 export async function createLiveKitStreamingManager<T extends CreateSessionV2Options>(
     agentId: string,
     sessionOptions: CreateSessionV2Options,
-    options: StreamingManagerOptions
+    options: StreamingManagerOptions,
+    avatarType?: `${AvatarType}`
 ): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
+    const trackSubscriptionTimeoutMs =
+        avatarType === AvatarType.Image ? HOSTED_AVATAR_TRACK_SUBSCRIPTION_TIMEOUT_MS : TRACK_SUBSCRIPTION_TIMEOUT_MS;
 
     const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, RpcError, Track } = await importLiveKit();
 
@@ -315,7 +321,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 
         trackSubscriptionTimeoutId = setTimeout(() => {
             log(
-                `Track subscription timeout - no track subscribed within ${TRACK_SUBSCRIPTION_TIMEOUT_MS / 1000} seconds after connect`
+                `Track subscription timeout - no track subscribed within ${trackSubscriptionTimeoutMs / 1000} seconds after connect`
             );
             trackSubscriptionTimeoutId = null;
             const error = streamError('Track subscription timeout');
@@ -325,7 +331,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             });
             reportError(error);
             disconnect('internal:track-subscription-timeout');
-        }, TRACK_SUBSCRIPTION_TIMEOUT_MS);
+        }, trackSubscriptionTimeoutMs);
     } catch (error) {
         handleInitError(error, log, callbacks);
     }
