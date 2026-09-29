@@ -213,7 +213,7 @@ function connectToManager(
             });
 
             let pendingStartTrack: ((metrics?: AudioDetectionMetrics) => void) | null = null;
-            const waitsForFirstAudio = streamOptions.version === StreamApiVersion.V2;
+            const isStreamsV2 = streamOptions.version === StreamApiVersion.V2;
 
             streamingManager = await createStreamingManager(
                 agent,
@@ -264,7 +264,7 @@ function connectToManager(
                                     );
                                     pendingStartTrack = null;
                                 };
-                                if (!waitsForFirstAudio) {
+                                if (!isStreamsV2) {
                                     pendingStartTrack({ latency: latencyTimestampTracker.get(true) });
                                 }
                             } else {
