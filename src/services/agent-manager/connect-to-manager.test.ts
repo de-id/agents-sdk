@@ -460,6 +460,32 @@ describe('connect-to-manager', () => {
                     ['stream-video/started']
                 );
             });
+
+            it.each([AvatarType.Expressive, AvatarType.Image])(
+                'should track the start of a %s agent only once its first audio is detected',
+                async type => {
+                    await initializeStreamAndChat(
+                        { ...mockAgent, avatar: { type } },
+                        mockOptions,
+                        mockAgentsApi,
+                        mockAnalytics
+                    );
+                    (mockAnalytics.linkTrack as jest.Mock).mockClear();
+
+                    onAgentActivityStateChange(AgentActivityState.Talking);
+
+                    expect(mockAnalytics.linkTrack).not.toHaveBeenCalled();
+
+                    onFirstAudioDetected?.({ latency: 1200, networkLatency: 80 });
+
+                    expect(mockAnalytics.linkTrack).toHaveBeenCalledWith(
+                        'agent-video',
+                        expect.objectContaining({ event: 'start', latency: 1200, networkLatency: 80 }),
+                        'start',
+                        [StreamEvents.StreamVideoCreated]
+                    );
+                }
+            );
         });
 
         describe('onStreamReady', () => {
