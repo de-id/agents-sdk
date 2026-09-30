@@ -275,8 +275,17 @@ jobs:
             exit 0
           fi
 
+          # npm takes a few minutes to serve a version it just published. Until then yarn fails with
+          # "Couldn't find any versions", as on the 3.0.0 and 3.0.1 releases, so retry for up to 10 minutes.
           logger -l info -m "Installing dependencies to update yarn.lock"
-          yarn install
+          for attempt in $(seq 1 20); do
+            yarn install && break
+            if [ "$attempt" -eq 20 ]; then
+              logger -l error -m "yarn could not install @d-id/client-sdk@${{ steps.version.outputs.version }} after 10 minutes"
+            fi
+            logger -l warn -m "npm does not serve @d-id/client-sdk@${{ steps.version.outputs.version }} yet, retrying in 30 s"
+            sleep 30
+          done
 
           logger -l info -m "Creating new branch"
           git checkout -b "chore/bump-sdk-version-${{ steps.version.outputs.version }}"
