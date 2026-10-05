@@ -18,6 +18,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
     steps:
       - name: Generate GitHub App Token
         uses: actions/create-github-app-token@v2
@@ -135,6 +137,7 @@ jobs:
             || logger -l error -m "Failed to build package"
 
       - name: Publish to NPM
+        id: publish
         env:
           NODE_AUTH_TOKEN: '' # unset in order to use OIDC
         run: |
@@ -146,23 +149,9 @@ jobs:
           else
             logger -l info -m "🚀 Publishing version ${{ steps.version.outputs.version }} with tag ${{ steps.version.outputs.tag }}"
             npm publish --access public --tag ${{ steps.version.outputs.tag }}
+            echo "published=true" >> "$GITHUB_OUTPUT"
             logger -l info -m "✅ Successfully published to NPM"
           fi
-
-      - name: Create Git tag for production
-        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
-        run: |
-          logger -l info -m "Creating Git tag for production"
-
-          logger -l info -m "Configuring Git user"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          logger -l info -m "Creating Git tag"
-          git tag "v${{ steps.version.outputs.version }}"
-
-          logger -l info -m "Pushing Git tag to origin"
-          git push origin "v${{ steps.version.outputs.version }}"
 
       # A docs failure must not abort the release after npm publish; deploy-docs fails visibly on its own.
       - name: Build API reference (prod only)
@@ -179,6 +168,21 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs-site
+
+      - name: Create Git tag for production
+        if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+        run: |
+          logger -l info -m "Creating Git tag for production"
+
+          logger -l info -m "Configuring Git user"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          logger -l info -m "Creating Git tag"
+          git tag "v${{ steps.version.outputs.version }}"
+
+          logger -l info -m "Pushing Git tag to origin"
+          git push origin "v${{ steps.version.outputs.version }}"
 
       - name: Commit version bump (prod only)
         if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
@@ -275,8 +279,17 @@ jobs:
             exit 0
           fi
 
+          # The registry serves a new version a few minutes after the publish.
           logger -l info -m "Installing dependencies to update yarn.lock"
-          yarn install
+          for attempt in $(seq 1 20); do
+            yarn install && break
+            if [ "$attempt" -eq 20 ]; then
+              logger -l error -m "v${{ steps.version.outputs.version }} is still not on the registry after 10 minutes"
+              exit 1
+            fi
+            logger -l warn -m "v${{ steps.version.outputs.version }} is not on the registry yet; retrying in 30 s"
+            sleep 30
+          done
 
           logger -l info -m "Creating new branch"
           git checkout -b "chore/bump-sdk-version-${{ steps.version.outputs.version }}"
@@ -318,7 +331,8 @@ jobs:
   deploy-docs:
     name: Deploy API reference to sdk.d-id.com
     needs: publish
-    if: github.ref_name == 'prod' && github.event.inputs.dry_run != 'true'
+    # Once the package is out, the docs go out too, even if a later release step failed.
+    if: ${{ !cancelled() && github.ref_name == 'prod' && needs.publish.outputs.published == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       pages: write
