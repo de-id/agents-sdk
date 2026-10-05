@@ -17,7 +17,7 @@ The chat mode decides how the agent answers: with a streamed video, as text only
 
 ## The modes the SDK or the server sets
 
-{@link ChatMode.TextOnly} and {@link ChatMode.Maintenance} are fallbacks, not choices: the server puts a chat in one of them when it cannot serve a video conversation, for example when the account is out of credits, and the SDK adopts it. The SDK also switches to `Maintenance` when `connect()` fails. In `TextOnly` answers arrive as text; in `Maintenance` `chat()` rejects. {@link ChatMode.Playground} is the test mode behind the agent playground in D-ID Studio.
+{@link ChatMode.TextOnly} and {@link ChatMode.Maintenance} are fallbacks, not choices: the server puts a chat in one of them when it cannot serve a video conversation, for example when the account is out of credits, and the SDK adopts it. The SDK also switches to `Maintenance` when `connect()` fails, unless the agent is being upgraded. In `TextOnly` answers arrive as text; in `Maintenance` `chat()` rejects. {@link ChatMode.Playground} is the test mode behind the agent playground in D-ID Studio.
 
 ## What each mode does on the wire
 
@@ -67,7 +67,7 @@ await agentManager.connect(); // Build a session that can carry a conversation a
 
 ## Reacting to a mode the application did not ask for
 
-The server can create the chat in {@link ChatMode.TextOnly} or {@link ChatMode.Maintenance}, and a connection that fails leaves the session in `Maintenance`. Both arrive through {@link AgentManagerCallbacks.onModeChange | onModeChange}; a downgrade also reports a {@link ChatModeDowngraded} error through {@link AgentManagerCallbacks.onError | onError}.
+The server can create the chat in {@link ChatMode.TextOnly} or {@link ChatMode.Maintenance}, and a connection that fails leaves the session in `Maintenance`, unless the agent is being upgraded. Both arrive through {@link AgentManagerCallbacks.onModeChange | onModeChange}; a downgrade also reports a {@link ChatModeDowngraded} error through {@link AgentManagerCallbacks.onError | onError}.
 
 ```ts
 import { ChatMode, isDIDError, type AgentManagerCallbacks } from '@d-id/client-sdk';

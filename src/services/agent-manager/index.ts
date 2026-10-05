@@ -374,7 +374,9 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                 shouldRetryFn: (error: any) =>
                     !(
                         error instanceof HttpError &&
-                        (error.status === 429 || error.code === 'InsufficientCreditsError')
+                        (error.status === 429 ||
+                            error.code === 'InsufficientCreditsError' ||
+                            error.code === 'AgentUpgradingError')
                     ),
                 delayMs: 1000,
             }
@@ -383,7 +385,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             // holds a reference to it — `items.socketManager` is only assigned on the happy path.
             websocketPromise.then(socket => socket?.disconnect()).catch(() => {});
 
-            await applyMode(ChatMode.Maintenance);
+            // An agent being upgraded can connect again in a minute or two, through a new manager.
+            if (!(e instanceof HttpError && e.code === 'AgentUpgradingError')) {
+                await applyMode(ChatMode.Maintenance);
+            }
             callbacks.onConnectionStateChange?.(ConnectionState.Fail);
             throw e;
         });
