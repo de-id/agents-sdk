@@ -32,8 +32,9 @@ function parseServerError(body: string): ServerErrorBody | undefined {
  * callback may not fire; the error is still thrown. Typical cases are `401` or `403` for a client
  * key that is not authorized for the agent or the calling domain, and `404` for an unknown agent
  * id; an account that is out of credits comes back with {@link HttpError.code | code}
- * `'InsufficientCreditsError'`. A `429` is retried twice, one second apart (three attempts in
- * total), before it surfaces.
+ * `'InsufficientCreditsError'`, and an agent that is being upgraded with `503` and code
+ * `'AgentUpgradingError'`. A `429` is retried twice, one second apart (three attempts in total),
+ * before it surfaces.
  *
  * {@link BaseError.kind | kind} is always `'HttpError'`, so a `switch` on it narrows a caught value
  * to this class. The server's own classification lives on {@link HttpError.code | code} — the
