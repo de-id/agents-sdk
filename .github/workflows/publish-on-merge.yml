@@ -275,8 +275,17 @@ jobs:
             exit 0
           fi
 
+          # The registry serves a new version a few minutes after the publish.
           logger -l info -m "Installing dependencies to update yarn.lock"
-          yarn install
+          for attempt in $(seq 1 20); do
+            yarn install && break
+            if [ "$attempt" -eq 20 ]; then
+              logger -l error -m "v${{ steps.version.outputs.version }} is still not on the registry after 10 minutes"
+              exit 1
+            fi
+            logger -l warn -m "v${{ steps.version.outputs.version }} is not on the registry yet; retrying in 30 s"
+            sleep 30
+          done
 
           logger -l info -m "Creating new branch"
           git checkout -b "chore/bump-sdk-version-${{ steps.version.outputs.version }}"
