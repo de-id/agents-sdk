@@ -1,7 +1,7 @@
 import { MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
 import { InternalDataChannelTopic } from '@sdk/types/stream/data-channel';
 import { createAgentsApi } from '../../api/agents';
-import { ValidationError } from '../../errors';
+import { HttpError, ValidationError } from '../../errors';
 import {
     AgentFactory,
     AgentManagerOptionsFactory,
@@ -553,6 +553,35 @@ describe('createAgentManager', () => {
                 await expect(manager.connect()).rejects.toThrow('Connection failed');
 
                 expect(manager.getChatMode()).toBe(ChatMode.Maintenance);
+            });
+
+            describe('while the agent is being upgraded', () => {
+                const upgrading = () =>
+                    new HttpError(503, JSON.stringify({ kind: 'AgentUpgradingError', description: 'Upgrading' }));
+
+                it('should fail without moving to Maintenance, so a new manager can connect later', async () => {
+                    (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(upgrading());
+
+                    await expect(manager.connect()).rejects.toMatchObject({ code: 'AgentUpgradingError' });
+
+                    expect(manager.getChatMode()).toBe(ChatMode.Functional);
+                    expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
+                        ConnectionState.Fail,
+                        undefined
+                    );
+                });
+
+                it('should not retry the connect', async () => {
+                    const { retryOperation } = require('../../utils/retry-operation');
+
+                    await manager.connect();
+
+                    const [, { shouldRetryFn }] = (retryOperation as jest.Mock).mock.calls.find(
+                        ([, options]) => options?.timeoutErrorMessage === 'Timeout initializing the stream'
+                    );
+                    expect(shouldRetryFn(upgrading())).toBe(false);
+                    expect(shouldRetryFn(new HttpError(503, 'Service Unavailable'))).toBe(true);
+                });
             });
 
             it('should report New before connect and follow every state reported afterwards', async () => {
