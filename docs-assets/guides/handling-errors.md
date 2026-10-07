@@ -76,7 +76,7 @@ if (isDIDError(error) && error.kind === 'HttpError') {
 }
 ```
 
-An Expressive or Image agent that is still being built answers with `409` and code `'NotReadyError'`, and is ready in a minute or two. `connect()` does not retry it and does not switch the session to {@link ChatMode.Maintenance | Maintenance}. To connect after the build, create a new manager with {@link createAgentManager}: a manager reads the agent once, when it is created, and the build can change how the agent streams. One whose build failed or was rejected answers with `409` and code `'ConflictError'`; `connect()` does not retry that either.
+An agent that is still being built answers with `409` and code `'NotReadyError'`, and is ready in a minute or two. `connect()` does not retry it and does not switch the session to {@link ChatMode.Maintenance | Maintenance}. To connect after the build, create a new manager with {@link createAgentManager}: a manager reads the agent once, when it is created, and the build can change how the agent streams. One whose build failed or was rejected answers with `409` and code `'ConflictError'`; `connect()` does not retry that either.
 
 The server's classification moved from `kind` to `code` in 3.0 — see the [migration guide](../migration.md).
 
