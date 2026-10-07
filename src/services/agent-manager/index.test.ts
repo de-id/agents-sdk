@@ -555,14 +555,16 @@ describe('createAgentManager', () => {
                 expect(manager.getChatMode()).toBe(ChatMode.Maintenance);
             });
 
-            describe('while the agent is being upgraded', () => {
-                const upgrading = () =>
-                    new HttpError(503, JSON.stringify({ kind: 'AgentUpgradingError', description: 'Upgrading' }));
+            describe('when the agent is not built', () => {
+                const building = () =>
+                    new HttpError(409, JSON.stringify({ kind: 'NotReadyError', description: 'Being built' }));
+                const failed = () =>
+                    new HttpError(409, JSON.stringify({ kind: 'ConflictError', description: 'Not available' }));
 
-                it('should fail without moving to Maintenance, so a new manager can connect later', async () => {
-                    (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(upgrading());
+                it('should fail without moving to Maintenance while it is being built, so a new manager can connect later', async () => {
+                    (initializeStreamAndChat as jest.Mock).mockRejectedValueOnce(building());
 
-                    await expect(manager.connect()).rejects.toMatchObject({ code: 'AgentUpgradingError' });
+                    await expect(manager.connect()).rejects.toMatchObject({ code: 'NotReadyError' });
 
                     expect(manager.getChatMode()).toBe(ChatMode.Functional);
                     expect(mockOptions.callbacks.onConnectionStateChange).toHaveBeenCalledWith(
@@ -579,7 +581,8 @@ describe('createAgentManager', () => {
                     const [, { shouldRetryFn }] = (retryOperation as jest.Mock).mock.calls.find(
                         ([, options]) => options?.timeoutErrorMessage === 'Timeout initializing the stream'
                     );
-                    expect(shouldRetryFn(upgrading())).toBe(false);
+                    expect(shouldRetryFn(building())).toBe(false);
+                    expect(shouldRetryFn(failed())).toBe(false);
                     expect(shouldRetryFn(new HttpError(503, 'Service Unavailable'))).toBe(true);
                 });
             });

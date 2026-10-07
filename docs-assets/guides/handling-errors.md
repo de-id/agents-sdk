@@ -76,7 +76,7 @@ if (isDIDError(error) && error.kind === 'HttpError') {
 }
 ```
 
-An agent that is being upgraded answers with `503` and code `'AgentUpgradingError'`, and is ready again in a minute or two. `connect()` does not retry it and does not switch the session to {@link ChatMode.Maintenance | Maintenance}. To connect after the upgrade, create a new manager with {@link createAgentManager}: a manager reads the agent once, when it is created, and the upgrade can change how the agent streams.
+An Expressive or Image agent that is still being built answers with `409` and code `'NotReadyError'`, and is ready in a minute or two. `connect()` does not retry it and does not switch the session to {@link ChatMode.Maintenance | Maintenance}. To connect after the build, create a new manager with {@link createAgentManager}: a manager reads the agent once, when it is created, and the build can change how the agent streams. One whose build failed or was rejected answers with `409` and code `'ConflictError'`; `connect()` does not retry that either.
 
 The server's classification moved from `kind` to `code` in 3.0 — see the [migration guide](../migration.md).
 
@@ -86,7 +86,7 @@ The server's classification moved from `kind` to `code` in 3.0 — see the [migr
 
 **Delivered to {@link AgentManagerCallbacks.onError | onError}.** {@link WsError}, {@link StreamError} and {@link ChatModeDowngraded} are never thrown. That includes a call that caused one: on an Expressive (V4) agent, a `chat()` whose data-channel send fails still resolves, and the failure arrives only here as a `StreamError`.
 
-**Both.** {@link HttpError} and {@link NetworkError} are handed to `onError` *and* rejected by the method that made the request, so either place can handle them. Two caveats: for the message-send request behind `chat()` the callback may not fire, though the error is still thrown; and `connect()` makes up to three attempts, each limited to 45 seconds, before it rejects. It does not retry a `429`, an out-of-credits response or an agent that is being upgraded, and each failed attempt reaches `onError`, so one failed `connect()` can report up to three times. When the last attempt times out, the rejection is a plain `Error`, not an SDK error.
+**Both.** {@link HttpError} and {@link NetworkError} are handed to `onError` *and* rejected by the method that made the request, so either place can handle them. Two caveats: for the message-send request behind `chat()` the callback may not fire, though the error is still thrown; and `connect()` makes up to three attempts, each limited to 45 seconds, before it rejects. It does not retry a `429`, a `409` or an out-of-credits response, and each failed attempt reaches `onError`, so one failed `connect()` can report up to three times. When the last attempt times out, the rejection is a plain `Error`, not an SDK error.
 
 The practical split is to catch around the call for anything with a UI consequence at that point, and to let `onError` feed the error reporter.
 
