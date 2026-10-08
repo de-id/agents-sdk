@@ -293,23 +293,37 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             latencyTimestampTracker.update();
         }
     }
-    async function setUserContextAttributes(): Promise<void> {
-        const attributes = getUserContextAttributes();
+    async function writeAttributes(attributes: Record<string, string>): Promise<void> {
         if (!room || Object.keys(attributes).length === 0) {
             return;
         }
         try {
             await room.localParticipant.setAttributes(attributes);
         } catch (error) {
-            log('Failed to set user context attributes', error);
+            log('Failed to set participant attributes', error);
         }
+    }
+
+    function applyConnectAttributes(): Promise<void> {
+        return writeAttributes({
+            ...getUserContextAttributes(),
+            ...Object.fromEntries(options.participantAttributes ?? []),
+        });
+    }
+
+    function setParticipantAttributes(attributes: Record<string, string>): Promise<void> {
+        if (!isConnected) {
+            log('Room is not connected for setting attributes');
+            return Promise.resolve();
+        }
+        return writeAttributes(attributes);
     }
 
     try {
         await room.connect(url, token);
         log('LiveKit room joined successfully');
 
-        void setUserContextAttributes();
+        void applyConnectAttributes();
 
         trackSubscriptionTimeoutId = setTimeout(() => {
             log(
@@ -923,6 +937,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 log('Room reconnected');
                 isConnected = true;
 
+                void applyConnectAttributes();
+
                 // If no remote participants, wait for agent to join
                 if (room.remoteParticipants.size === 0) {
                     log('Waiting for agent to join...');
@@ -958,6 +974,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         },
 
         sendDataChannelMessage,
+        setParticipantAttributes,
         publishMicrophoneStream,
         unpublishMicrophoneStream,
         replaceMicrophoneTrack,

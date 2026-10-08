@@ -191,6 +191,7 @@ type ConnectToManagerOptions = AgentManagerOptions & {
     };
     chatId?: string;
     rpcMethods?: StreamingManagerOptions['rpcMethods'];
+    participantAttributes?: StreamingManagerOptions['participantAttributes'];
 };
 
 function connectToManager(

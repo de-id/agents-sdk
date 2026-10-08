@@ -131,6 +131,16 @@ await agentManager.sendDataChannelMessage('did.presentation', { type: 'navigate'
 
 As with `setSttLanguage()`, a dropped room surfaces as a {@link StreamError} on {@link AgentManagerCallbacks.onError | onError} while the promise still resolves.
 
+## Viewer state
+
+{@link AgentManager.setViewerState | setViewerState()} tells the agent about the viewer's current situation, such as where they are in a video. The value is a small JSON object stored as the participant attribute `did.viewer.<kind>`; the latest value wins, and `null` clears it. The SDK sets every remembered value again after a reconnect. Expressive (V4) agents only, after `connect()`.
+
+```ts
+await agentManager.setViewerState('agentic_video_position', { seconds: 42, trigger: 'ask' });
+```
+
+Every kind follows the rules in {@link AgentManager.setViewerState | setViewerState()}: state rather than events, low frequency, under 1 KB, and no secrets or personal data. The agent only acts on kinds it knows.
+
 ## What happens on Talks (V2) and Clips (V3)
 
 Methods that add something reject; methods that remove something resolve, so teardown code needs no avatar-type guard.
@@ -142,6 +152,7 @@ Methods that add something reject; methods that remove something resolve, so tea
 | `publishCameraStream()` | rejects with a {@link ValidationError} |
 | `setSttLanguage()` | rejects with a {@link ValidationError} |
 | `sendDataChannelMessage()` | rejects with a {@link ValidationError} |
+| `setViewerState()` | rejects with a {@link ValidationError} |
 | `registerClientTool()` | throws a {@link ValidationError} (synchronously, and before `connect()` too) |
 | `unpublishMicrophoneStream()` | resolves, having done nothing |
 | `unpublishCameraStream()` | resolves, having done nothing |
