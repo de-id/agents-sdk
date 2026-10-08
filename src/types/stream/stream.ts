@@ -500,6 +500,12 @@ export interface StreamingManagerOptions {
      * @internal
      */
     rpcMethods?: ReadonlyMap<string, RpcMethodHandler>;
+    /**
+     * Participant attributes to set again on every (re)connect. Read at connect time, so the
+     * caller can keep updating the same map between connects.
+     * @internal
+     */
+    participantAttributes?: ReadonlyMap<string, string>;
 }
 
 /**

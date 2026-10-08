@@ -1884,6 +1884,94 @@ describe('createAgentManager', () => {
         });
     });
 
+    describe('setViewerState', () => {
+        const position = { seconds: 42, trigger: 'ask' };
+
+        beforeEach(() => {
+            mockAgent.avatar = { type: AvatarType.Expressive, voice: { language: 'en-US' } };
+        });
+
+        it('sets the prefixed attribute and tracks only the kind', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            await manager.setViewerState('agentic_video_position', position);
+
+            expect(mockStreamingManager.setParticipantAttributes).toHaveBeenCalledWith({
+                'did.viewer.agentic_video_position': JSON.stringify(position),
+            });
+            expect(mockAnalytics.track).toHaveBeenCalledWith('agent-viewer-state', { kind: 'agentic_video_position' });
+        });
+
+        it('clears the attribute with an empty string on null', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            await manager.setViewerState('agentic_video_position', position);
+            await manager.setViewerState('agentic_video_position', null);
+
+            expect(mockStreamingManager.setParticipantAttributes).toHaveBeenLastCalledWith({
+                'did.viewer.agentic_video_position': '',
+            });
+        });
+
+        it('hands the remembered values to every new connection', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            await manager.setViewerState('agentic_video_position', position);
+            await manager.setViewerState('other_kind', { a: 1 });
+            await manager.setViewerState('other_kind', null);
+            await manager.reconnect();
+
+            const lastCall = (initializeStreamAndChat as jest.Mock).mock.calls.at(-1);
+            expect(Object.fromEntries(lastCall[1].participantAttributes)).toEqual({
+                'did.viewer.agentic_video_position': JSON.stringify(position),
+            });
+        });
+
+        it.each(['Agentic', 'video-position', 'did.viewer.x', ''])('rejects the kind %p', async kind => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            await expect(manager.setViewerState(kind, position)).rejects.toMatchObject({ kind: 'ValidationError' });
+            expect(mockStreamingManager.setParticipantAttributes).not.toHaveBeenCalled();
+        });
+
+        it('rejects a value over 1 KB', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            await expect(manager.setViewerState('big', { text: 'x'.repeat(1024) })).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'Viewer state cannot be more than 1024 bytes',
+            });
+            expect(mockStreamingManager.setParticipantAttributes).not.toHaveBeenCalled();
+        });
+
+        it('rejects before connect', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+
+            await expect(manager.setViewerState('agentic_video_position', position)).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'setViewerState is only available on Expressive (V4) agents, after connect()',
+            });
+        });
+
+        it('rejects on a non-V4 agent', async () => {
+            mockAgent.avatar = { type: AvatarType.Talk, voice: { language: 'en-US' } };
+            const manager = await createAgentManager('agent-123', mockOptions);
+            await manager.connect();
+
+            await expect(manager.setViewerState('agentic_video_position', position)).rejects.toMatchObject({
+                kind: 'ValidationError',
+                message: 'setViewerState is only available on Expressive (V4) agents, after connect()',
+            });
+            expect(mockStreamingManager.setParticipantAttributes).not.toHaveBeenCalled();
+            expect(mockAnalytics.track).not.toHaveBeenCalledWith('agent-viewer-state', expect.anything());
+        });
+    });
+
     describe('unpublishMicrophoneStream', () => {
         let manager: AgentManager;
 

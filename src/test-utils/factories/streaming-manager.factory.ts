@@ -10,6 +10,7 @@ export const StreamingManagerFactory = new Factory().attrs({
     speak: () => jest.fn().mockResolvedValue({ status: 'success', duration: 5000, videoId: 'video-123' }),
     disconnect: () => jest.fn().mockResolvedValue(undefined),
     sendDataChannelMessage: () => jest.fn(),
+    setParticipantAttributes: () => jest.fn().mockResolvedValue(undefined),
     interrupt: () => jest.fn(() => true),
 });
 
