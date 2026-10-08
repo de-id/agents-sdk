@@ -30,6 +30,12 @@ export type StreamingManager<T extends CreateStreamOptions | CreateSessionV2Opti
     sendDataChannelMessage(topic: `${InternalDataChannelTopic}`, payload: string): Promise<void>;
 
     /**
+     * Set attributes on the local participant. Never rejects - failures are logged.
+     * supported only for livekit manager
+     */
+    setParticipantAttributes?(attributes: Record<string, string>): Promise<void>;
+
+    /**
      * Publish a microphone stream to the DataChannel
      * Can be called after connection to add microphone input
      * @param stream The MediaStream containing the microphone audio track

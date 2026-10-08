@@ -1329,6 +1329,42 @@ export interface AgentManager {
     sendDataChannelMessage(topic: `${DataChannelTopic}`, payload: Record<string, unknown>): Promise<void>;
 
     /**
+     * Reports a piece of the viewer's current state to the agent, such as where they are in a video.
+     *
+     * The value is set as the participant attribute `did.viewer.<kind>`, and the agent reads the
+     * latest one at its next answer. Expressive (V4) agents only, after
+     * {@link AgentManager.connect | connect()}; otherwise the returned promise rejects with a
+     * {@link ValidationError}. The SDK remembers the last value of each kind and sets it again after
+     * every (re)connect.
+     *
+     * Rules for every kind:
+     * - State, not events: the latest value wins. Anything that must happen exactly once belongs on
+     *   {@link AgentManager.sendDataChannelMessage | sendDataChannelMessage()}.
+     * - Low frequency: no more often than every few seconds. Never stream continuous values such
+     *   as playback time.
+     * - Small and structured: a JSON object of at most 1 KB.
+     * - Untrusted: the agent accepts only kinds on its allow-list, parses them, and never puts the
+     *   raw value in its prompt. Unknown kinds and malformed values are dropped.
+     * - No secrets or personal data: attributes are visible to everyone in the room and to the
+     *   LiveKit server.
+     * - A breaking change is a new kind (for example `..._v2`); never reshape an existing one.
+     *
+     * @param kind - The kind of state, matching `^[a-z0-9_]+$` — `'agentic_video_position'`.
+     * @param value - A plain object, sent as JSON, or `null` to clear the kind.
+     * @returns Resolves once the attribute has been sent. A failure to set it is not reported; the
+     * value is set again on the next (re)connect.
+     * @throws {@link ValidationError} When `kind` is invalid, the serialized value is over 1 KB, the
+     * session is not an Expressive (V4) one, or {@link AgentManager.connect | connect()} has not run
+     * yet.
+     * @example
+     * ```ts
+     * await agentManager.setViewerState('agentic_video_position', { seconds: 42, trigger: 'ask' });
+     * await agentManager.setViewerState('agentic_video_position', null);
+     * ```
+     */
+    setViewerState(kind: string, value: object | null): Promise<void>;
+
+    /**
      * Registers a handler for a client tool, run in the browser when the agent's LLM calls it.
      *
      * Expressive (V4) agents only: client tools travel on the real-time session's RPC channel,

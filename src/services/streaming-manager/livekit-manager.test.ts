@@ -20,6 +20,7 @@ const mockLocalParticipant = {
     publishTrack: mockPublishTrack,
     unpublishTrack: mockUnpublishTrack,
     sendText: jest.fn(),
+    setAttributes: jest.fn().mockResolvedValue(undefined),
     audioTrackPublications: new Map(),
     videoTrackPublications: new Map(),
 };
@@ -399,6 +400,51 @@ describe('LiveKit Streaming Manager - Microphone Stream', () => {
 
             expect(mockLocalParticipant.sendText).not.toHaveBeenCalled();
             expect(options.callbacks.onError).toHaveBeenCalled();
+        });
+    });
+
+    describe('Participant Attributes', () => {
+        const viewerKey = 'did.viewer.agentic_video_position';
+
+        it('sets the given attributes when connected', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            await manager.setParticipantAttributes!({ [viewerKey]: '{"seconds":3}' });
+
+            expect(mockLocalParticipant.setAttributes).toHaveBeenLastCalledWith({ [viewerKey]: '{"seconds":3}' });
+        });
+
+        it('does not set attributes when not connected', async () => {
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            mockLocalParticipant.setAttributes.mockClear();
+
+            await manager.setParticipantAttributes!({ [viewerKey]: '{"seconds":3}' });
+
+            expect(mockLocalParticipant.setAttributes).not.toHaveBeenCalled();
+        });
+
+        it('sets the remembered attributes on connect and again after a reconnect', async () => {
+            const participantAttributes = new Map([[viewerKey, '{"seconds":3}']]);
+            options = { ...options, participantAttributes };
+            const manager = await createLiveKitStreamingManager(agentId, sessionOptions, options);
+            await simulateConnection();
+
+            expect(mockLocalParticipant.setAttributes).toHaveBeenCalledWith(
+                expect.objectContaining({ [viewerKey]: '{"seconds":3}' })
+            );
+
+            participantAttributes.set(viewerKey, '{"seconds":9}');
+            getConnectionStateHandler()('disconnected');
+            mockLocalParticipant.setAttributes.mockClear();
+            (mockRoom as any).state = 'disconnected';
+            (mockRoom as any).remoteParticipants = { size: 1 };
+
+            await manager.reconnect();
+
+            expect(mockLocalParticipant.setAttributes).toHaveBeenCalledWith(
+                expect.objectContaining({ [viewerKey]: '{"seconds":9}' })
+            );
         });
     });
 

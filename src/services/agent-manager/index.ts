@@ -19,7 +19,13 @@ import {
 } from '../../types';
 
 import { rotateConnectionId } from '@sdk/auth/get-auth-header';
-import { CONNECTION_RETRY_TIMEOUT_MS, MAX_CHAT_MESSAGE_LENGTH } from '@sdk/config/consts';
+import {
+    CONNECTION_RETRY_TIMEOUT_MS,
+    MAX_CHAT_MESSAGE_LENGTH,
+    MAX_VIEWER_STATE_BYTES,
+    VIEWER_STATE_ATTRIBUTE_PREFIX,
+    VIEWER_STATE_KIND_PATTERN,
+} from '@sdk/config/consts';
 import { didApiUrl, didSocketApiUrl, mixpanelKey } from '@sdk/config/environment';
 import { ChatCreationFailed, HttpError, ValidationError } from '@sdk/errors';
 import { getRandom } from '@sdk/utils';
@@ -240,6 +246,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
     };
 
     const clientToolHandlers = new Map<string, ClientToolHandler>();
+    const viewerStateAttributes = new Map<string, string>();
 
     // The reason travels in a plain `Error`: only the LiveKit manager loads `livekit-client`, and
     // it turns this into the `RpcError` the transport forwards to the agent.
@@ -362,6 +369,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
                             onMessage,
                         },
                         rpcMethods: new Map([...clientToolHandlers.keys()].map(name => [name, createRpcHandler(name)])),
+                        participantAttributes: viewerStateAttributes,
                     },
                     agentsApi,
                     analytics,
@@ -616,6 +624,34 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
             analytics.track('agent-data-message', { topic });
 
             return items.streamingManager.sendDataChannelMessage(topic, JSON.stringify(payload));
+        },
+        setViewerState(kind: string, value: object | null): Promise<void> {
+            if (!VIEWER_STATE_KIND_PATTERN.test(kind)) {
+                return Promise.reject(new ValidationError(`Invalid viewer state kind: ${kind}`));
+            }
+            if (!isStreamsV2 || !items.streamingManager) {
+                return Promise.reject(
+                    new ValidationError('setViewerState is only available on Expressive (V4) agents, after connect()')
+                );
+            }
+
+            const serialized = value === null ? '' : JSON.stringify(value);
+            if (new TextEncoder().encode(serialized).length > MAX_VIEWER_STATE_BYTES) {
+                return Promise.reject(
+                    new ValidationError(`Viewer state cannot be more than ${MAX_VIEWER_STATE_BYTES} bytes`)
+                );
+            }
+
+            analytics.track('agent-viewer-state', { kind });
+
+            const key = `${VIEWER_STATE_ATTRIBUTE_PREFIX}${kind}`;
+            if (value === null) {
+                viewerStateAttributes.delete(key);
+            } else {
+                viewerStateAttributes.set(key, serialized);
+            }
+
+            return items.streamingManager.setParticipantAttributes?.({ [key]: serialized }) ?? Promise.resolve();
         },
         unpublishMicrophoneStream(): Promise<void> {
             if (!items.streamingManager?.unpublishMicrophoneStream) {
