@@ -904,8 +904,8 @@ export interface AgentManager {
      * {@link AgentManager.changeMode | changeMode()} out of a text-only mode can bring about.
      * @throws {@link HttpError} When creating the stream or the chat comes back non-2xx — a client
      * key that is not authorized for the agent or the calling domain, an account out of credits, or
-     * an agent that is being upgraded. The SDK tries the initialization up to three times first,
-     * except on `429`, on an out-of-credits response and on an agent that is being upgraded.
+     * an agent that is not built yet. The SDK tries the initialization up to three times first,
+     * except on `429`, on `409` and on an out-of-credits response.
      * @throws {@link NetworkError} When those requests never reach the server.
      * @example
      * ```ts

@@ -271,7 +271,8 @@ jobs:
         run: |
           logger -l info -m "Updating SDK version in agents-ui"
 
-          jq --arg version "${{ steps.version.outputs.version }}" '.dependencies."@d-id/client-sdk" = $version' package.json > package.json.tmp
+          # agents-ui keeps package.json at 4 spaces with no final newline, so only the version line changes.
+          printf '%s' "$(jq --indent 4 --arg version "${{ steps.version.outputs.version }}" '.dependencies."@d-id/client-sdk" = $version' package.json)" > package.json.tmp
           mv package.json.tmp package.json
 
           if git diff --quiet package.json; then
