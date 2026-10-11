@@ -2966,10 +2966,10 @@ linkify-it@^5.0.2:
   dependencies:
     uc.micro "^2.0.0"
 
-livekit-client@2.18.4:
-  version "2.18.4"
-  resolved "https://registry.yarnpkg.com/livekit-client/-/livekit-client-2.18.4.tgz#83b5c3b61e65c8bb4bae164bb4c42ee8fae4df1b"
-  integrity sha512-kjbH9WdA85gZNqFiAMY9jKJ3HArk8F+AQvAvSE5N6PnY+wNCV9OYe9yeb9BVezZiD6ltGyB3CkTxGyuX6BXYAw==
+livekit-client@2.18.5:
+  version "2.18.5"
+  resolved "https://registry.yarnpkg.com/livekit-client/-/livekit-client-2.18.5.tgz#b3e6c061d1bc554088685408e8eedf7dbf353b14"
+  integrity sha512-KdKYO/ledQl+iyb2H5SWYOQFYgOwyiWh2QO4BKvbaq/h+4fykui0BWn5LISL0QAmleTHWUXiSBDLzuJFf3pm1w==
   dependencies:
     "@livekit/mutex" "1.1.1"
     "@livekit/protocol" "1.45.3"
