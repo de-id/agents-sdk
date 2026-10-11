@@ -37,6 +37,7 @@ export function App() {
         isSpeaking,
         connect,
         disconnect,
+        reconnect,
         speak,
         chat,
         interrupt,
@@ -331,6 +332,14 @@ export function App() {
 
                         <button onClick={handleDisconnect} disabled={connectionState !== ConnectionState.Connected}>
                             Close Connection
+                        </button>
+
+                        <button
+                            onClick={reconnect}
+                            disabled={[ConnectionState.Connected, ConnectionState.Connecting].includes(
+                                connectionState
+                            )}>
+                            Reconnect
                         </button>
 
                         <div className="input-options">
