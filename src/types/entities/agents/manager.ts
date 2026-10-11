@@ -1334,8 +1334,9 @@ export interface AgentManager {
      * The value is set as the participant attribute `did.viewer.<kind>`, and the agent reads the
      * latest one at its next answer. Expressive (V4) agents only, after
      * {@link AgentManager.connect | connect()}; otherwise the returned promise rejects with a
-     * {@link ValidationError}. The SDK remembers the last value of each kind and sets it again after
-     * every (re)connect.
+     * {@link ValidationError}. The SDK remembers the last value of each kind and sets it again on
+     * {@link AgentManager.connect | connect()} and {@link AgentManager.reconnect | reconnect()}, but
+     * not after LiveKit's own automatic reconnection.
      *
      * Rules for every kind:
      * - State, not events: the latest value wins. Anything that must happen exactly once belongs on
@@ -1352,7 +1353,8 @@ export interface AgentManager {
      * @param kind - The kind of state, matching `^[a-z0-9_]+$` — `'agentic_video_position'`.
      * @param value - A plain object, sent as JSON, or `null` to clear the kind.
      * @returns Resolves once the attribute has been sent. A failure to set it is not reported; the
-     * value is set again on the next (re)connect.
+     * value is set again on the next {@link AgentManager.connect | connect()} or
+     * {@link AgentManager.reconnect | reconnect()}.
      * @throws {@link ValidationError} When `kind` is invalid, the serialized value is over 1 KB, the
      * session is not an Expressive (V4) one, or {@link AgentManager.connect | connect()} has not run
      * yet.
