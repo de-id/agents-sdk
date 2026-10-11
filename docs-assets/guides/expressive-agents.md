@@ -133,7 +133,7 @@ As with `setSttLanguage()`, a dropped room surfaces as a {@link StreamError} on 
 
 ## Viewer state
 
-{@link AgentManager.setViewerState | setViewerState()} tells the agent about the viewer's current situation, such as where they are in a video. The value is a small JSON object stored as the participant attribute `did.viewer.<kind>`; the latest value wins, and `null` clears it. The SDK sets every remembered value again after a reconnect. Expressive (V4) agents only, after `connect()`.
+{@link AgentManager.setViewerState | setViewerState()} tells the agent about the viewer's current situation, such as where they are in a video. The value is a small JSON object stored as the participant attribute `did.viewer.<kind>`; the latest value wins, and `null` clears it. The SDK sets every remembered value again on `connect()` and `reconnect()`. Expressive (V4) agents only, after `connect()`.
 
 ```ts
 await agentManager.setViewerState('agentic_video_position', { seconds: 42, trigger: 'ask' });
