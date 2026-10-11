@@ -37,6 +37,7 @@ import { chatEventMap } from './data-channel-handlers';
 
 import type {
     ConnectionQuality,
+    DisconnectReason,
     ConnectionState as LiveKitConnectionState,
     LocalTrackPublication,
     Participant,
@@ -71,6 +72,7 @@ interface LiveKitModule {
     Room: typeof Room;
     RoomEvent: typeof RoomEvent;
     ConnectionState: typeof LiveKitConnectionState;
+    DisconnectReason: typeof DisconnectReason;
     RemoteParticipant: typeof RemoteParticipant;
     RemoteTrack: typeof RemoteTrack;
     RpcError: typeof RpcError;
@@ -213,7 +215,14 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
 ): Promise<StreamingManager<T> & { reconnect(): Promise<void> }> {
     const log = createStreamingLogger(options.debug || false, 'LiveKitStreamingManager');
 
-    const { Room, RoomEvent, ConnectionState: LiveKitConnectionState, RpcError, Track } = await importLiveKit();
+    const {
+        Room,
+        RoomEvent,
+        ConnectionState: LiveKitConnectionState,
+        DisconnectReason,
+        RpcError,
+        Track,
+    } = await importLiveKit();
 
     const { callbacks, auth, baseURL, analytics } = options;
     let room: Room | null = null;
@@ -243,6 +252,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     const pendingToolCalls = new Map<string, PendingToolCall>();
     let currentTurnId: number | null = null;
     let streamEndReason: StreamEndReason | null = null;
+    // Set when the server deletes the room (DeleteRoom).
+    let roomDeleted = false;
 
     const streamApi = createStreamApiV2(auth, baseURL || didApiUrl, agentId, callbacks.onError);
     let sessionId: string | undefined;
@@ -286,7 +297,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
         .on(RoomEvent.MediaDevicesError, handleMediaDevicesError)
         .on(RoomEvent.TranscriptionReceived, handleTranscriptionReceived)
         .on(RoomEvent.EncryptionError, handleEncryptionError)
-        .on(RoomEvent.TrackSubscriptionFailed, handleTrackSubscriptionFailed);
+        .on(RoomEvent.TrackSubscriptionFailed, handleTrackSubscriptionFailed)
+        .on(RoomEvent.Disconnected, handleDisconnected);
+
+    function handleDisconnected(reason?: DisconnectReason): void {
+        roomDeleted = reason === DisconnectReason.ROOM_DELETED;
+    }
 
     function handleTranscriptionReceived(_segments: TranscriptionSegment[], participant?: Participant): void {
         if (participant?.isLocal) {
@@ -911,6 +927,12 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
             if (!room || !url || !token) {
                 log('Cannot reconnect: missing room, URL or token');
                 throw new Error('Cannot reconnect: session not available');
+            }
+
+            // A deleted room cannot be rejoined; the caller falls back to a new session.
+            if (roomDeleted) {
+                log('Cannot reconnect: the server deleted the room');
+                throw new StreamError('Cannot reconnect: the server deleted the room');
             }
 
             log('Reconnecting to LiveKit room, state:', room.state);
