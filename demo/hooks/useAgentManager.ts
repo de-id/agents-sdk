@@ -9,7 +9,7 @@ import {
     StreamType,
     StreamingState,
 } from '@sdk/types';
-import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 
 interface UseAgentManagerOptions {
     agentId: string;
@@ -51,6 +51,8 @@ export function useAgentManager(props: UseAgentManagerOptions) {
     const [agentActivityState, setAgentActivityState] = useState(AgentActivityState.Idle);
     const [srcObject, setSrcObject] = useState<MediaStream | null>(null);
     const [agentManager, setAgentManager] = useState<AgentManager | null>(null);
+    // The state callback drops agentManager once the session ends; reconnect() still needs it.
+    const lastManagerRef = useRef<AgentManager | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.New);
     const [isMicrophonePublished, setIsMicrophonePublished] = useState(false);
     const [isCameraPublished, setIsCameraPublished] = useState(false);
@@ -112,6 +114,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
             });
 
             await newManager.connect();
+            lastManagerRef.current = newManager;
             setAgentManager(newManager);
         } catch (e) {
             setConnectionState(ConnectionState.Fail);
@@ -136,6 +139,18 @@ export function useAgentManager(props: UseAgentManagerOptions) {
             setIsCameraPublished(false);
         }
     }, [agentManager]);
+
+    const reconnect = useCallback(async () => {
+        const manager = lastManagerRef.current;
+        if (!manager) return;
+
+        try {
+            await manager.reconnect();
+            setAgentManager(manager);
+        } catch (e) {
+            console.error('Error while reconnecting', e);
+        }
+    }, []);
 
     const speak = useCallback(
         async (text: string) => {
@@ -259,6 +274,7 @@ export function useAgentManager(props: UseAgentManagerOptions) {
         srcObject,
         connect,
         disconnect,
+        reconnect,
         speak,
         chat,
         interrupt,

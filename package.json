@@ -67,7 +67,7 @@
     "ci:test": "yarn type-check && yarn test:ci"
   },
   "dependencies": {
-    "livekit-client": "2.18.4"
+    "livekit-client": "2.18.5"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.8.1",
