@@ -75,7 +75,7 @@ export interface AgentAvatar {
          * The agent is set to have no background. The avatar is still rendered on a green screen, which
          * D-ID's agents widget removes in the browser to show it without a frame; the SDK does not read it.
          */
-        transparent?: boolean;
+        transparent: boolean;
     };
 }
 
