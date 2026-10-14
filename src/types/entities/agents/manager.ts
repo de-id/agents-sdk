@@ -760,7 +760,8 @@ export interface AgentManager {
      *
      * @returns {@link StreamType.Fluent} for a fluent stream (one video for the idle and talking
      * states), {@link StreamType.Legacy} for the two-element legacy mode, or `undefined` before
-     * {@link AgentManager.connect | connect()} has established a session.
+     * {@link AgentManager.connect | connect()} has established a session, except for an Expressive (V4)
+     * agent, whose stream is always fluent.
      * @example
      * ```ts
      * import { StreamType } from '@d-id/client-sdk';

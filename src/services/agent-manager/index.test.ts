@@ -1752,6 +1752,24 @@ describe('createAgentManager', () => {
         });
     });
 
+    describe('getStreamType before connect', () => {
+        it.each([AvatarType.Expressive, AvatarType.Image])(
+            'is Fluent for an agent of type %s, whose session is always fluent',
+            async type => {
+                mockAgent.avatar = { type, voice: { language: 'en-US' } };
+                const manager = await createAgentManager('agent-123', mockOptions);
+
+                expect(manager.getStreamType()).toBe(StreamType.Fluent);
+            }
+        );
+
+        it('is undefined for a talks agent, whose stream type the server picks', async () => {
+            const manager = await createAgentManager('agent-123', mockOptions);
+
+            expect(manager.getStreamType()).toBeUndefined();
+        });
+    });
+
     describe('publishMicrophoneStream', () => {
         let manager: AgentManager;
 
