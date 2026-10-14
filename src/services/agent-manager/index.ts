@@ -490,8 +490,7 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
         agent: agentEntity,
         // A streams-V2 agent's session is always fluent, so its type is known before connect()
         getStreamType: () =>
-            items.streamingManager?.streamType ??
-            (isStreamsV2Agent(agentEntity.avatar.type) ? StreamType.Fluent : undefined),
+            isStreamsV2Agent(agentEntity.avatar.type) ? StreamType.Fluent : items.streamingManager?.streamType,
         isInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
         // A copy: the same array instance is held by `agent.starter_message`, and handing it out
         // made `manager.starterMessages` an alias the application could write through.
