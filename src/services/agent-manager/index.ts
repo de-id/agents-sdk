@@ -16,6 +16,7 @@ import {
     SpeakScript,
     StreamCreatedInfo,
     StreamScript,
+    StreamType,
 } from '../../types';
 
 import { rotateConnectionId } from '@sdk/auth/get-auth-header';
@@ -487,7 +488,10 @@ export async function createAgentManager(agent: string, options: AgentManagerOpt
 
     return {
         agent: agentEntity,
-        getStreamType: () => items.streamingManager?.streamType,
+        // A streams-V2 agent's session is always fluent, so its type is known before connect()
+        getStreamType: () =>
+            items.streamingManager?.streamType ??
+            (isStreamsV2Agent(agentEntity.avatar.type) ? StreamType.Fluent : undefined),
         isInterruptAvailable: () => items.streamingManager?.interruptAvailable ?? false,
         // A copy: the same array instance is held by `agent.starter_message`, and handing it out
         // made `manager.starterMessages` an alias the application could write through.

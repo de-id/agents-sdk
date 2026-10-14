@@ -759,8 +759,11 @@ export interface AgentManager {
      * Returns the kind of stream the current session negotiated.
      *
      * @returns {@link StreamType.Fluent} for a fluent stream (one video for the idle and talking
-     * states), {@link StreamType.Legacy} for the two-element legacy mode, or `undefined` before
-     * {@link AgentManager.connect | connect()} has established a session.
+     * states), or {@link StreamType.Legacy} for the two-element legacy mode. An Expressive (V4)
+     * agent's session is always fluent, so it returns {@link StreamType.Fluent} even before
+     * {@link AgentManager.connect | connect()}, and the application can lay out the idle video the
+     * same way as the stream. Any other agent returns `undefined` until connect() has established a
+     * session, because the server picks its stream type.
      * @example
      * ```ts
      * import { StreamType } from '@d-id/client-sdk';
