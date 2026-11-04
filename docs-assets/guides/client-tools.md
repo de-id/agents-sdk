@@ -71,7 +71,7 @@ While a blocking call runs, the server holds the turn: it stops listening to the
 
 ## Follow the calls
 
-{@link AgentManagerCallbacks.onToolEvent | onToolEvent} is called once when a call starts, and again when it finishes or fails. It reports every tool the agent calls, server tools included, not only the client tools registered here. Its type, {@link ToolEventCallback}, pairs each {@link ToolCallEvent} with the payload that event carries — {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload}, {@link ToolCallEvent.Done} with a {@link ToolCallDonePayload}, {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload}.
+{@link AgentManagerCallbacks.onToolEvent | onToolEvent} is called once when a call starts, and again when it finishes or fails. It reports every tool the agent calls, server tools included, not only the client tools registered here. The exception is built-in calls that are never listed, described on {@link RunningToolCall}. Its type, {@link ToolEventCallback}, pairs each {@link ToolCallEvent} with the payload that event carries — {@link ToolCallEvent.Started} with a {@link ToolCallStartedPayload}, {@link ToolCallEvent.Done} with a {@link ToolCallDonePayload}, {@link ToolCallEvent.Error} with a {@link ToolCallErrorPayload}.
 
 Branching on `event` is what narrows `data`, inside the handler and not only at the call site, so nothing has to be asserted. `callId`, `name` and `timestamp` are on all three payloads and can be read before the branch. The call's `input`, `output`, `durationMs` and failure reason arrive only in a {@link AgentManagerOptions.verbose | verbose} session, which needs the agent owner's API key, so a browser application on a client key does not get them.
 
@@ -94,9 +94,9 @@ const callbacks: AgentManagerCallbacks = {
 
 ## Show that the agent is busy
 
-{@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange} carries the whole set of calls running right now, as {@link RunningToolCall} entries, every time it changes. A call appears when it starts and disappears when it finishes or fails — or, for a blocking call, when its turn ends. On disconnect it fires with an empty array if any call was still running, so a spinner driven by it always clears.
+{@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange} carries the calls running right now, as {@link RunningToolCall} entries, every time that set changes. A call appears when it starts and disappears when it finishes or fails — or, for a blocking call, when its turn ends. On disconnect it fires with an empty array if any listed call was still running, so a spinner driven by it always clears. Some built-in calls, such as moving a presentation to its next slide, are never listed.
 
-{@link isAwaitingTool} returns `true` while any running call is blocking.
+{@link isAwaitingTool} returns `true` while any listed call is blocking. To decide whether the user can send a message or interrupt, follow {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} instead: it also goes `false` for a blocking call that isn't listed.
 
 ```ts
 import { isAwaitingTool, type AgentManagerCallbacks } from '@d-id/client-sdk';
@@ -111,6 +111,7 @@ const callbacks: AgentManagerCallbacks = {
     },
     onInterruptibleChange(interruptible) {
         setStopButtonEnabled(interruptible);
+        setSendButtonEnabled(interruptible);
     },
 };
 ```

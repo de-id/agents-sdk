@@ -81,8 +81,10 @@ export enum AgentActivityState {
      *
      * Expressive (V4) only: set when a tool call starts, and returned to after the agent finishes
      * speaking while any call is still outstanding (for example a client tool waiting on the user).
-     * The individual calls are reported by
-     * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}.
+     * The listed calls are reported by
+     * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}; a built-in
+     * call that is never listed (see {@link RunningToolCall}) can hold this state while that list
+     * is empty.
      */
     ToolActive = 'TOOL_ACTIVE',
 }

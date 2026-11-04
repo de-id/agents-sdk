@@ -2181,6 +2181,13 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 expect(onRunningToolCallsChange).toHaveBeenCalledTimes(2);
             });
 
+            it('emits again when the same call is reported as started twice', () => {
+                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
+                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
+
+                expect(onRunningToolCallsChange).toHaveBeenCalledTimes(2);
+            });
+
             it('does not leak the internal bookkeeping fields into the emitted calls', () => {
                 emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking', turn_id: 1 });
 
@@ -2327,6 +2334,26 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 expect(onRunningToolCallsChange).not.toHaveBeenCalled();
                 emitToolDone({ call_id: 'a' });
                 expect(lastRunningToolCalls()).toEqual([]);
+            });
+
+            it('lists only the listed call when it starts while an unlisted one is pending', () => {
+                emitToolStarted({ call_id: 'u', execution_mode: 'blocking', unlisted: true });
+
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
+
+                expect(onRunningToolCallsChange).toHaveBeenCalledTimes(1);
+                expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'async' }]);
+            });
+
+            it('restores interruptible without reporting anything when an unlisted call fails', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
+                expect(lastInterruptible()).toBe(false);
+
+                emitToolError({ call_id: 'a', unlisted: true });
+
+                expect(lastInterruptible()).toBe(true);
+                expect(onToolEvent).not.toHaveBeenCalled();
+                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
             });
 
             it('restores interruptible without listing anything when the turn of an unlisted call ends', () => {

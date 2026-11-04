@@ -441,7 +441,7 @@ export interface AgentManagerCallbacks {
         interruptible: boolean
     ) => void;
     /**
-     * Called whenever the set of tool calls running in the session changes.
+     * Called whenever the set of listed tool calls running in the session changes.
      *
      * Expressive (V4) agents only. On disconnect it fires with an empty array if any listed call
      * was still running, so a spinner driven by this callback always clears; with nothing listed
@@ -460,7 +460,7 @@ export interface AgentManagerCallbacks {
      * ```
      */
     onRunningToolCallsChange?: (
-        /** Every tool call running right now, empty when none is. */
+        /** Every listed tool call running right now, empty when none is. */
         calls: readonly RunningToolCall[]
     ) => void;
 }
