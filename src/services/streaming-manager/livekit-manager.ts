@@ -65,6 +65,7 @@ interface PendingToolCall {
     call: RunningToolCall;
     interruptible: boolean;
     turnId: number | null;
+    unlisted: boolean;
 }
 
 interface LiveKitModule {
@@ -241,6 +242,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     let currentActivityState: AgentActivityState = AgentActivityState.Idle;
     let currentInterruptible = true;
     const pendingToolCalls = new Map<string, PendingToolCall>();
+    let runningToolCalls: readonly RunningToolCall[] = NO_RUNNING_TOOL_CALLS;
     let currentTurnId: number | null = null;
     let streamEndReason: StreamEndReason | null = null;
 
@@ -514,6 +516,8 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
      * - tool-call/done|error only drops the pending call; Idle comes from turn/ended
      */
     function handleToolEvents(subject: string, data: any): void {
+        const unlisted = (data as ToolCallStartedWirePayload | ToolCallDoneWirePayload | undefined)?.unlisted === true;
+
         if (subject === StreamEvents.ToolCallStarted) {
             const payload = toStartedPayload(data as ToolCallStartedWirePayload);
             pendingToolCalls.set(payload.callId, {
@@ -524,26 +528,27 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                 },
                 interruptible: payload.interruptible,
                 turnId: payload.turnId ?? currentTurnId,
+                unlisted,
             });
             recomputeInterruptible();
             emitRunningToolCalls();
             currentActivityState = AgentActivityState.ToolActive;
             callbacks.onAgentActivityStateChange?.(AgentActivityState.ToolActive);
-            callbacks.onToolEvent?.(ToolCallEvent.Started, payload);
+            if (!unlisted) callbacks.onToolEvent?.(ToolCallEvent.Started, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallDone) {
             const payload = toFinishedPayload(data as ToolCallDoneWirePayload);
             resolvePendingToolCall(payload.callId);
-            callbacks.onToolEvent?.(ToolCallEvent.Done, payload);
+            if (!unlisted) callbacks.onToolEvent?.(ToolCallEvent.Done, payload);
             return;
         }
 
         if (subject === StreamEvents.ToolCallError) {
             const payload = toErrorPayload(data as ToolCallErrorWirePayload);
             resolvePendingToolCall(payload.callId);
-            callbacks.onToolEvent?.(ToolCallEvent.Error, payload);
+            if (!unlisted) callbacks.onToolEvent?.(ToolCallEvent.Error, payload);
         }
     }
 
@@ -576,9 +581,13 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
     }
 
     function emitRunningToolCalls(): void {
-        callbacks.onRunningToolCallsChange?.(
-            pendingToolCalls.size === 0 ? NO_RUNNING_TOOL_CALLS : [...pendingToolCalls.values()].map(({ call }) => call)
-        );
+        const listed = [...pendingToolCalls.values()].filter(({ unlisted }) => !unlisted).map(({ call }) => call);
+        if (listed.length === runningToolCalls.length && listed.every((call, i) => call === runningToolCalls[i])) {
+            return;
+        }
+
+        runningToolCalls = listed.length === 0 ? NO_RUNNING_TOOL_CALLS : listed;
+        callbacks.onRunningToolCallsChange?.(runningToolCalls);
     }
 
     function handleVideoActivityState(subject: string, data: any): void {

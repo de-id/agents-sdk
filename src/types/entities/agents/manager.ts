@@ -392,6 +392,9 @@ export interface AgentManagerCallbacks {
     /**
      * Called when the agent starts, finishes or fails a tool call.
      *
+     * Built-in calls that {@link RunningToolCall} describes as never listed are not reported here
+     * either.
+     *
      * Expressive (V4) agents only. The handler takes two arguments and returns nothing: `event`,
      * one of {@link ToolCallEvent.Started}, {@link ToolCallEvent.Done} or
      * {@link ToolCallEvent.Error}; and `data`, the payload that event carries —
@@ -440,9 +443,10 @@ export interface AgentManagerCallbacks {
     /**
      * Called whenever the set of tool calls running in the session changes.
      *
-     * Expressive (V4) agents only. On disconnect it fires with an empty array if any call was
-     * still running, so a spinner driven by this callback always clears; with nothing outstanding
-     * there is nothing to clear and nothing is emitted. Each entry is a {@link RunningToolCall}.
+     * Expressive (V4) agents only. On disconnect it fires with an empty array if any listed call
+     * was still running, so a spinner driven by this callback always clears; with nothing listed
+     * there is nothing to clear and nothing is emitted. Each entry is a {@link RunningToolCall},
+     * which also says which built-in calls are never listed.
      * @example
      * ```ts
      * import { isAwaitingTool, type AgentManagerCallbacks } from '@d-id/client-sdk';

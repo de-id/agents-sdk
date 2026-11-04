@@ -1993,12 +1993,14 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             interruptible = false,
             execution_mode,
             turn_id,
+            unlisted,
         }: {
             call_id: string;
             name?: string;
             interruptible?: boolean;
             execution_mode?: string;
             turn_id?: number;
+            unlisted?: boolean;
         }) =>
             dataHandler(
                 createDataChannelPayload({
@@ -2010,11 +2012,12 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     interruptible,
                     ...(execution_mode ? { execution_mode } : {}),
                     ...(turn_id !== undefined ? { turn_id } : {}),
+                    ...(unlisted !== undefined ? { unlisted } : {}),
                     timestamp: new Date().toISOString(),
                 })
             );
 
-        const emitToolDone = ({ call_id }: { call_id: string }) =>
+        const emitToolDone = ({ call_id, unlisted }: { call_id: string; unlisted?: boolean }) =>
             dataHandler(
                 createDataChannelPayload({
                     subject: StreamEvents.ToolCallDone,
@@ -2024,6 +2027,21 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     output: {},
                     duration_ms: 50,
                     extra: {},
+                    ...(unlisted !== undefined ? { unlisted } : {}),
+                    timestamp: new Date().toISOString(),
+                })
+            );
+
+        const emitToolError = ({ call_id, unlisted }: { call_id: string; unlisted?: boolean }) =>
+            dataHandler(
+                createDataChannelPayload({
+                    subject: StreamEvents.ToolCallError,
+                    call_id,
+                    name: 'tool',
+                    input: {},
+                    output: 'tool failed',
+                    duration_ms: 50,
+                    ...(unlisted !== undefined ? { unlisted } : {}),
                     timestamp: new Date().toISOString(),
                 })
             );
@@ -2245,6 +2263,99 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 emitTurnEnded(1);
 
                 expect(onRunningToolCallsChange).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('unlisted tool calls', () => {
+            let onToolEvent: jest.Mock;
+            let onAgentActivityStateChange: jest.Mock;
+
+            beforeEach(() => {
+                onToolEvent = jest.fn();
+                onAgentActivityStateChange = jest.fn();
+                options.callbacks.onToolEvent = onToolEvent;
+                options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
+            });
+
+            it('never lists the call when an unlisted call starts and finishes', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
+                emitToolDone({ call_id: 'a', unlisted: true });
+
+                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
+            });
+
+            it('blocks interrupts until it resolves when an unlisted blocking call starts', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
+                expect(lastInterruptible()).toBe(false);
+                expect(manager.isInterruptible).toBe(false);
+
+                emitToolDone({ call_id: 'a', unlisted: true });
+                expect(lastInterruptible()).toBe(true);
+            });
+
+            it('moves the agent to ToolActive when an unlisted call starts', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
+
+                expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
+            });
+
+            it('stays ToolActive on stream-video/done when an unlisted call is still pending', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
+                onAgentActivityStateChange.mockClear();
+                dataHandler(createDataChannelPayload({ subject: StreamEvents.StreamVideoCreated }));
+
+                emitStreamVideoDone();
+
+                expect(onAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.ToolActive);
+            });
+
+            it('reports nothing through onToolEvent when an unlisted call starts, finishes or fails', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
+                emitToolDone({ call_id: 'a', unlisted: true });
+                emitToolError({ call_id: 'b', unlisted: true });
+
+                expect(onToolEvent).not.toHaveBeenCalled();
+            });
+
+            it('keeps the listed calls as they are when an unlisted call runs beside them', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
+                onRunningToolCallsChange.mockClear();
+
+                emitToolStarted({ call_id: 'b', execution_mode: 'blocking', unlisted: true });
+                emitToolDone({ call_id: 'b', unlisted: true });
+
+                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
+                emitToolDone({ call_id: 'a' });
+                expect(lastRunningToolCalls()).toEqual([]);
+            });
+
+            it('restores interruptible without listing anything when the turn of an unlisted call ends', () => {
+                emitTurnStarted(1);
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', turn_id: 1, unlisted: true });
+
+                emitTurnEnded(1);
+
+                expect(lastInterruptible()).toBe(true);
+                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
+            });
+
+            it('restores interruptible without listing anything when the session disconnects', async () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
+
+                await manager.disconnect();
+
+                expect(onInterruptibleChange).toHaveBeenLastCalledWith(true);
+                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
+            });
+
+            it('still reports a call through onToolEvent when its started event is not unlisted', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: false });
+
+                expect(onToolEvent).toHaveBeenCalledWith(
+                    ToolCallEvent.Started,
+                    expect.objectContaining({ callId: 'a' })
+                );
+                expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'blocking' }]);
             });
         });
     });

@@ -649,6 +649,11 @@ export type ToolExecutionMode = 'blocking' | 'async';
  * when it starts and disappears when it finishes, fails, or — for a `blocking` call — when its turn
  * ends; an `async` call outlives its turn.
  *
+ * Some built-in calls the agent makes, such as moving a presentation to its next slide, are never
+ * listed. A `blocking` one still makes the agent busy: it is reported through
+ * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} and
+ * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange}.
+ *
  * @category Callbacks & Events
  */
 export interface RunningToolCall {
@@ -802,6 +807,7 @@ export interface ToolCallStartedWirePayload {
     interruptible?: boolean;
     execution_mode?: ToolExecutionMode;
     turn_id?: number | null;
+    unlisted?: boolean;
     timestamp: string;
 }
 
@@ -817,6 +823,7 @@ export interface ToolCallDoneWirePayload {
     output?: Record<string, unknown>;
     duration_ms?: number;
     extra?: Record<string, unknown>;
+    unlisted?: boolean;
     timestamp: string;
 }
 
