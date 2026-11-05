@@ -2032,20 +2032,6 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 })
             );
 
-        const emitToolError = ({ call_id, unlisted }: { call_id: string; unlisted?: boolean }) =>
-            dataHandler(
-                createDataChannelPayload({
-                    subject: StreamEvents.ToolCallError,
-                    call_id,
-                    name: 'tool',
-                    input: {},
-                    output: 'tool failed',
-                    duration_ms: 50,
-                    ...(unlisted !== undefined ? { unlisted } : {}),
-                    timestamp: new Date().toISOString(),
-                })
-            );
-
         const emitStreamVideoDone = () =>
             dataHandler(createDataChannelPayload({ subject: StreamEvents.StreamVideoDone }));
 
@@ -2181,13 +2167,6 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 expect(onRunningToolCallsChange).toHaveBeenCalledTimes(2);
             });
 
-            it('emits again when the same call is reported as started twice', () => {
-                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
-                emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking' });
-
-                expect(onRunningToolCallsChange).toHaveBeenCalledTimes(2);
-            });
-
             it('does not leak the internal bookkeeping fields into the emitted calls', () => {
                 emitToolStarted({ call_id: 'a', interruptible: false, execution_mode: 'blocking', turn_id: 1 });
 
@@ -2275,114 +2254,42 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
 
         describe('unlisted tool calls', () => {
             let onToolEvent: jest.Mock;
-            let onAgentActivityStateChange: jest.Mock;
 
             beforeEach(() => {
                 onToolEvent = jest.fn();
-                onAgentActivityStateChange = jest.fn();
                 options.callbacks.onToolEvent = onToolEvent;
-                options.callbacks.onAgentActivityStateChange = onAgentActivityStateChange;
             });
 
-            it('never lists the call when an unlisted call starts and finishes', () => {
+            it('keeps a call running and blocking, marked unlisted, when the server marks it unlisted', () => {
                 emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
-                emitToolDone({ call_id: 'a', unlisted: true });
 
-                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
-            });
-
-            it('blocks interrupts until it resolves when an unlisted blocking call starts', () => {
-                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
+                expect(lastRunningToolCalls()).toEqual([
+                    { callId: 'a', name: 'tool', executionMode: 'blocking', unlisted: true },
+                ]);
                 expect(lastInterruptible()).toBe(false);
-                expect(manager.isInterruptible).toBe(false);
+            });
 
+            it('marks the started, done and error events when the server marks the call unlisted', () => {
+                emitToolStarted({ call_id: 'a', unlisted: true });
                 emitToolDone({ call_id: 'a', unlisted: true });
-                expect(lastInterruptible()).toBe(true);
-            });
-
-            it('moves the agent to ToolActive when an unlisted call starts', () => {
-                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
-
-                expect(onAgentActivityStateChange).toHaveBeenCalledWith(AgentActivityState.ToolActive);
-            });
-
-            it('stays ToolActive on stream-video/done when an unlisted call is still pending', () => {
-                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
-                onAgentActivityStateChange.mockClear();
-                dataHandler(createDataChannelPayload({ subject: StreamEvents.StreamVideoCreated }));
-
-                emitStreamVideoDone();
-
-                expect(onAgentActivityStateChange).toHaveBeenLastCalledWith(AgentActivityState.ToolActive);
-            });
-
-            it('reports nothing through onToolEvent when an unlisted call starts, finishes or fails', () => {
-                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
-                emitToolDone({ call_id: 'a', unlisted: true });
-                emitToolError({ call_id: 'b', unlisted: true });
-
-                expect(onToolEvent).not.toHaveBeenCalled();
-            });
-
-            it('keeps the listed calls as they are when an unlisted call runs beside them', () => {
-                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
-                onRunningToolCallsChange.mockClear();
-
-                emitToolStarted({ call_id: 'b', execution_mode: 'blocking', unlisted: true });
-                emitToolDone({ call_id: 'b', unlisted: true });
-
-                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
-                emitToolDone({ call_id: 'a' });
-                expect(lastRunningToolCalls()).toEqual([]);
-            });
-
-            it('lists only the listed call when it starts while an unlisted one is pending', () => {
-                emitToolStarted({ call_id: 'u', execution_mode: 'blocking', unlisted: true });
-
-                emitToolStarted({ call_id: 'a', execution_mode: 'async' });
-
-                expect(onRunningToolCallsChange).toHaveBeenCalledTimes(1);
-                expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'async' }]);
-            });
-
-            it('restores interruptible without reporting anything when an unlisted call fails', () => {
-                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
-                expect(lastInterruptible()).toBe(false);
-
-                emitToolError({ call_id: 'a', unlisted: true });
-
-                expect(lastInterruptible()).toBe(true);
-                expect(onToolEvent).not.toHaveBeenCalled();
-                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
-            });
-
-            it('restores interruptible without listing anything when the turn of an unlisted call ends', () => {
-                emitTurnStarted(1);
-                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', turn_id: 1, unlisted: true });
-
-                emitTurnEnded(1);
-
-                expect(lastInterruptible()).toBe(true);
-                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
-            });
-
-            it('restores interruptible without listing anything when the session disconnects', async () => {
-                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
-
-                await manager.disconnect();
-
-                expect(onInterruptibleChange).toHaveBeenLastCalledWith(true);
-                expect(onRunningToolCallsChange).not.toHaveBeenCalled();
-            });
-
-            it('still reports a call through onToolEvent when its started event is not unlisted', () => {
-                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: false });
-
-                expect(onToolEvent).toHaveBeenCalledWith(
-                    ToolCallEvent.Started,
-                    expect.objectContaining({ callId: 'a' })
+                dataHandler(
+                    createDataChannelPayload({
+                        subject: StreamEvents.ToolCallError,
+                        call_id: 'b',
+                        name: 'tool',
+                        unlisted: true,
+                        timestamp: new Date().toISOString(),
+                    })
                 );
-                expect(lastRunningToolCalls()).toEqual([{ callId: 'a', name: 'tool', executionMode: 'blocking' }]);
+
+                expect(onToolEvent.mock.calls.map(([, payload]) => payload.unlisted)).toEqual([true, true, true]);
+            });
+
+            it('leaves the field off when the server does not mark the call', () => {
+                emitToolStarted({ call_id: 'a' });
+
+                expect(lastRunningToolCalls()[0]).not.toHaveProperty('unlisted');
+                expect(onToolEvent.mock.calls[0][1]).not.toHaveProperty('unlisted');
             });
         });
     });

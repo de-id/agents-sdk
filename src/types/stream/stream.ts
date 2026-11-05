@@ -81,10 +81,8 @@ export enum AgentActivityState {
      *
      * Expressive (V4) only: set when a tool call starts, and returned to after the agent finishes
      * speaking while any call is still outstanding (for example a client tool waiting on the user).
-     * The listed calls are reported by
-     * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}; a built-in
-     * call that is never listed (see {@link RunningToolCall}) can hold this state while that list
-     * is empty.
+     * The individual calls are reported by
+     * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}.
      */
     ToolActive = 'TOOL_ACTIVE',
 }
@@ -651,11 +649,6 @@ export type ToolExecutionMode = 'blocking' | 'async';
  * when it starts and disappears when it finishes, fails, or — for a `blocking` call — when its turn
  * ends; an `async` call outlives its turn.
  *
- * Some built-in calls the agent makes, such as moving a presentation to its next slide, are never
- * listed. A `blocking` one still makes the agent busy: it is reported through
- * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} and
- * {@link AgentManagerCallbacks.onAgentActivityStateChange | onAgentActivityStateChange}.
- *
  * @category Callbacks & Events
  */
 export interface RunningToolCall {
@@ -673,6 +666,12 @@ export interface RunningToolCall {
      * keeps talking while the call runs. See {@link ToolExecutionMode}.
      */
     executionMode: ToolExecutionMode;
+    /**
+     * `true` for a built-in call the agent doesn't show as running, such as moving to the next
+     * slide. It still counts as running: a `blocking` one makes the agent busy like any other call.
+     * Absent on every other call.
+     */
+    unlisted?: boolean;
 }
 
 /**
@@ -717,6 +716,8 @@ export interface ToolCallStartedPayload {
     executionMode: ToolExecutionMode;
     /** The conversational turn this call belongs to, or `null` when it belongs to no turn. */
     turnId?: number | null;
+    /** `true` for a call the agent doesn't show as running. See {@link RunningToolCall.unlisted}. */
+    unlisted?: boolean;
     /** When the call started, as reported by the server. */
     timestamp: string;
 }
@@ -742,6 +743,8 @@ export interface ToolCallDonePayload {
     durationMs?: number;
     /** Any additional metadata the tool reported alongside its result. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
     extra?: Record<string, unknown>;
+    /** `true` for a call the agent doesn't show as running. See {@link RunningToolCall.unlisted}. */
+    unlisted?: boolean;
     /** When the call finished, as reported by the server. */
     timestamp: string;
 }
@@ -785,6 +788,8 @@ export interface ToolCallErrorPayload {
      * code and any data — is in `extra.error`.
      */
     error?: string;
+    /** `true` for a call the agent doesn't show as running. See {@link RunningToolCall.unlisted}. */
+    unlisted?: boolean;
     /** When the call failed, as reported by the server. */
     timestamp: string;
 }

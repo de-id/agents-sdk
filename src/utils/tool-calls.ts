@@ -8,10 +8,6 @@ import { RunningToolCall } from '@sdk/types';
  * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange} hands you, to
  * decide whether to show the user that the agent is busy.
  *
- * Built-in calls that are never listed (see {@link RunningToolCall}) are not counted. To know
- * whether the agent can be interrupted, follow
- * {@link AgentManagerCallbacks.onInterruptibleChange | onInterruptibleChange} instead.
- *
  * @param calls - The tool calls running right now, as reported by
  * {@link AgentManagerCallbacks.onRunningToolCallsChange | onRunningToolCallsChange}. See
  * {@link RunningToolCall}.
