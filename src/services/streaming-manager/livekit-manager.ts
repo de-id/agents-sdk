@@ -132,6 +132,7 @@ function toStartedPayload(wire: ToolCallStartedWirePayload): ToolCallStartedPayl
         interruptible: wire.interruptible === true,
         executionMode: wire.execution_mode === 'async' ? 'async' : 'blocking',
         ...(wire.turn_id !== undefined ? { turnId: wire.turn_id } : {}),
+        ...(wire.unlisted === true ? { unlisted: true } : {}),
         timestamp: wire.timestamp,
     };
 }
@@ -144,6 +145,7 @@ function toFinishedPayload(wire: ToolCallDoneWirePayload): ToolCallDonePayload {
         output: wire.output,
         durationMs: wire.duration_ms,
         extra: wire.extra,
+        ...(wire.unlisted === true ? { unlisted: true } : {}),
         timestamp: wire.timestamp,
     };
 }
@@ -521,6 +523,7 @@ export async function createLiveKitStreamingManager<T extends CreateSessionV2Opt
                     callId: payload.callId,
                     name: payload.name,
                     executionMode: payload.executionMode,
+                    ...(payload.unlisted ? { unlisted: true } : {}),
                 },
                 interruptible: payload.interruptible,
                 turnId: payload.turnId ?? currentTurnId,

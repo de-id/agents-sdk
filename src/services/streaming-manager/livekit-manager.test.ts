@@ -1993,12 +1993,14 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
             interruptible = false,
             execution_mode,
             turn_id,
+            unlisted,
         }: {
             call_id: string;
             name?: string;
             interruptible?: boolean;
             execution_mode?: string;
             turn_id?: number;
+            unlisted?: boolean;
         }) =>
             dataHandler(
                 createDataChannelPayload({
@@ -2010,11 +2012,12 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     interruptible,
                     ...(execution_mode ? { execution_mode } : {}),
                     ...(turn_id !== undefined ? { turn_id } : {}),
+                    ...(unlisted !== undefined ? { unlisted } : {}),
                     timestamp: new Date().toISOString(),
                 })
             );
 
-        const emitToolDone = ({ call_id }: { call_id: string }) =>
+        const emitToolDone = ({ call_id, unlisted }: { call_id: string; unlisted?: boolean }) =>
             dataHandler(
                 createDataChannelPayload({
                     subject: StreamEvents.ToolCallDone,
@@ -2024,6 +2027,7 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                     output: {},
                     duration_ms: 50,
                     extra: {},
+                    ...(unlisted !== undefined ? { unlisted } : {}),
                     timestamp: new Date().toISOString(),
                 })
             );
@@ -2245,6 +2249,47 @@ describe('LiveKit Streaming Manager - Tool Events and Activity State', () => {
                 emitTurnEnded(1);
 
                 expect(onRunningToolCallsChange).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('unlisted tool calls', () => {
+            let onToolEvent: jest.Mock;
+
+            beforeEach(() => {
+                onToolEvent = jest.fn();
+                options.callbacks.onToolEvent = onToolEvent;
+            });
+
+            it('keeps a call running and blocking, marked unlisted, when the server marks it unlisted', () => {
+                emitToolStarted({ call_id: 'a', execution_mode: 'blocking', unlisted: true });
+
+                expect(lastRunningToolCalls()).toEqual([
+                    { callId: 'a', name: 'tool', executionMode: 'blocking', unlisted: true },
+                ]);
+                expect(lastInterruptible()).toBe(false);
+            });
+
+            it('marks the started, done and error events when the server marks the call unlisted', () => {
+                emitToolStarted({ call_id: 'a', unlisted: true });
+                emitToolDone({ call_id: 'a', unlisted: true });
+                dataHandler(
+                    createDataChannelPayload({
+                        subject: StreamEvents.ToolCallError,
+                        call_id: 'b',
+                        name: 'tool',
+                        unlisted: true,
+                        timestamp: new Date().toISOString(),
+                    })
+                );
+
+                expect(onToolEvent.mock.calls.map(([, payload]) => payload.unlisted)).toEqual([true, true, true]);
+            });
+
+            it('leaves the field off when the server does not mark the call', () => {
+                emitToolStarted({ call_id: 'a' });
+
+                expect(lastRunningToolCalls()[0]).not.toHaveProperty('unlisted');
+                expect(onToolEvent.mock.calls[0][1]).not.toHaveProperty('unlisted');
             });
         });
     });

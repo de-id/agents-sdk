@@ -666,6 +666,12 @@ export interface RunningToolCall {
      * keeps talking while the call runs. See {@link ToolExecutionMode}.
      */
     executionMode: ToolExecutionMode;
+    /**
+     * `true` for a built-in call the agent doesn't show as running, such as moving to the next
+     * slide. It still counts as running: a `blocking` one makes the agent busy like any other call.
+     * Absent on every other call.
+     */
+    unlisted?: boolean;
 }
 
 /**
@@ -710,6 +716,8 @@ export interface ToolCallStartedPayload {
     executionMode: ToolExecutionMode;
     /** The conversational turn this call belongs to, or `null` when it belongs to no turn. */
     turnId?: number | null;
+    /** `true` for a call the agent doesn't show as running. See {@link RunningToolCall.unlisted}. */
+    unlisted?: boolean;
     /** When the call started, as reported by the server. */
     timestamp: string;
 }
@@ -735,6 +743,8 @@ export interface ToolCallDonePayload {
     durationMs?: number;
     /** Any additional metadata the tool reported alongside its result. Sent only in {@link AgentManagerOptions.verbose | verbose} sessions. */
     extra?: Record<string, unknown>;
+    /** `true` for a call the agent doesn't show as running. See {@link RunningToolCall.unlisted}. */
+    unlisted?: boolean;
     /** When the call finished, as reported by the server. */
     timestamp: string;
 }
@@ -778,6 +788,8 @@ export interface ToolCallErrorPayload {
      * code and any data — is in `extra.error`.
      */
     error?: string;
+    /** `true` for a call the agent doesn't show as running. See {@link RunningToolCall.unlisted}. */
+    unlisted?: boolean;
     /** When the call failed, as reported by the server. */
     timestamp: string;
 }
@@ -802,6 +814,7 @@ export interface ToolCallStartedWirePayload {
     interruptible?: boolean;
     execution_mode?: ToolExecutionMode;
     turn_id?: number | null;
+    unlisted?: boolean;
     timestamp: string;
 }
 
@@ -817,6 +830,7 @@ export interface ToolCallDoneWirePayload {
     output?: Record<string, unknown>;
     duration_ms?: number;
     extra?: Record<string, unknown>;
+    unlisted?: boolean;
     timestamp: string;
 }
 

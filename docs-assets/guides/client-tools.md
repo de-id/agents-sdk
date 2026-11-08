@@ -98,6 +98,8 @@ const callbacks: AgentManagerCallbacks = {
 
 {@link isAwaitingTool} returns `true` while any running call is blocking.
 
+A call marked {@link RunningToolCall.unlisted | unlisted} is a built-in step, such as moving to the next slide. It keeps the agent busy like any other call, but leave it out of anything that names the running tools.
+
 ```ts
 import { isAwaitingTool, type AgentManagerCallbacks } from '@d-id/client-sdk';
 
@@ -107,7 +109,12 @@ const callbacks: AgentManagerCallbacks = {
     },
     onRunningToolCallsChange(calls) {
         setSpinnerVisible(isAwaitingTool(calls));
-        setStatusText(calls.map(call => call.name).join(', '));
+        setStatusText(
+            calls
+                .filter(call => !call.unlisted)
+                .map(call => call.name)
+                .join(', ')
+        );
     },
     onInterruptibleChange(interruptible) {
         setStopButtonEnabled(interruptible);
